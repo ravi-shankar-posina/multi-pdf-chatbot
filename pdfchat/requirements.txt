@@ -1,0 +1,14 @@
+python-dotenv
+langchain
+PyPDF2
+faiss-cpu
+langchain_community
+pypdf
+langchain-openai
+InstructorEmbedding
+flask
+flask_cors
+langchain-qdrant
+openai
+unstructured
+pdfminer
