@@ -29,7 +29,7 @@ const ChatInterface = () => {
     setIsLoading(true); // Set loading state to true when sending message
 
     try {
-      const response = await fetch("http://localhost:8501/chat", {
+      const response = await fetch("http://3.84.79.82:8501/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
