@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { FiSend, FiUser } from "react-icons/fi";
 import { RiRobot2Line } from "react-icons/ri";
 import { FaUserCircle } from "react-icons/fa";
-import logo from "./assets/logo.jpeg";
+// import logo from "./assets/logo.jpeg";
 import chatbotIntro from "./assets/ai.png";
 import bg from "./assets/bg.avif";
 import ReactMarkdown from "react-markdown";
@@ -77,10 +77,10 @@ const ChatInterface = () => {
         backgroundPosition: "center",
       }}
     >
-      <div className="w-80 bg-white text-black p-6 hidden md:block">
-        <div className=" ">
+      <div className="w-80 bg-white text-black p-10 hidden md:block">
+        {/* <div className=" ">
           <img src={logo} alt="SAP Logo" className="h-10 m-2" />
-        </div>
+        </div> */}
         <img src={chatbotIntro} alt="SAP Logo" className="h-34 mr-2" />
         <h2 className="text-xl font-bold mb-4">Recommended Inputs</h2>
         <ul className="space-y-4">
@@ -109,7 +109,7 @@ const ChatInterface = () => {
               className="w-12 h-12 mr-3"
             />
             <div className="bg-white rounded-lg p-3 shadow-md">
-              <p>Hello! I'm your TAIL assistant. How can I help you today?</p>
+              <p>Hello! I'm your  assistant. How can I help you today?</p>
             </div>
           </div>
           {messages.map((message, index) => (
