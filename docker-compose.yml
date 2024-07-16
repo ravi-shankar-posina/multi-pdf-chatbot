@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  chatbot_ui:
+    build:
+      context: ./chatbot_ui
+    volumes:
+      - /usr/share/nginx/html
+    ports:
+      - "3000:80"
+    networks:
+      - frontend-network
+
+  pdfchat:
+    build:
+      context: ./pdfchat
+    ports:
+      - "5000:5000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION}
+      - QDRANT_URL=${QDRANT_URL}
+    networks:
+      - backend-network
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - chatbot_ui
+      - pdfchat
+    networks:
+      - frontend-network
+      - backend-network
+
+networks:
+  frontend-network:
+  backend-network:
