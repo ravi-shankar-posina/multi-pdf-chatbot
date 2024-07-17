@@ -4,12 +4,9 @@ services:
   chatbot_ui:
     build:
       context: ./chatbot_ui
-    volumes:
-      - /usr/share/nginx/html
-    ports:
-      - "80:80"
+      dockerfile: Dockerfile
     networks:
-      - frontend-network
+      - app_net
 
   pdfchat:
     build:
@@ -27,8 +24,8 @@ services:
   nginx:
     image: nginx:latest
     ports:
-      - "8080:80"
-      - "4443:443"
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/ssl:/etc/nginx/ssl
