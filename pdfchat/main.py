@@ -32,7 +32,7 @@ def create_chain():
     )
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Given the following context and a question, generate an answer based on this context as much as possible. Give detailed answers. at least 100 words. In markdown format with paragraphs, headings and bullet points. In the answer, try to provide as much text as possible from the \"response\" section in the source document context without making many changes. If the information is not available in the context, you may then search the internet to provide an answer. Don't ask for confirmation. Just give the answer.: {context}"),
+        ("system", "You are a friendly assistant who gives human like responses. Given the following context and a question, generate an answer based on this context as much as possible. Give detailed answers. at least 100 words. In markdown format with paragraphs, headings and bullet points. In the answer, try to provide as much text as possible from the \"response\" section in the source document context without making many changes. If the information is not available in the context, you may then search the internet to provide an answer. Don't ask for confirmation. Just give the answer.: {context}"),
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}")
     ])
