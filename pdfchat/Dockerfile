@@ -12,4 +12,4 @@ RUN python create_db.py
 
 EXPOSE 8501
 
-CMD ["python", "app.py"]
+CMD ["python", "main.py"]
