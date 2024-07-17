@@ -131,19 +131,6 @@ const ChatInterface = () => {
                       : "bg-white"
                   } rounded-lg p-3 shadow-md max-w-7xl lg:max-w-7xl`}
                 >
-                  {message.sender === "ai" && message.source && (
-                    <p >
-                      source :
-                      <a
-                        href={message.source}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-700"
-                      >
-                        {message.source}
-                      </a>
-                    </p>
-                  )}
                   <ReactMarkdown
                     className="markdown-body"
                     remarkPlugins={[remarkGfm]}
