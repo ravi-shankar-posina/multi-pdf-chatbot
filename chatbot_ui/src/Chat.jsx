@@ -36,27 +36,19 @@ const Chat = () => {
   const [model, setModel] = useState("OpenAI");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [firstInteraction, setFirstInteraction] = useState(true);
-
-  // Store chat history for each option
   const [chatHistories, setChatHistories] = useState({
     csvchat: [],
     pdfchat: [],
     "query-sap": [],
   });
-
-  // Scroll to the bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(scrollToBottom, [messages]);
-
-  // Send message to the API
   const handleSendMessage = async (optionApi) => {
     setShowSuggestions(false);
     if (inputMessage.trim() === "") return;
-
-    // Append user message to chat history
     const updatedHistory = [
       ...chatHistories[optionApi],
       { text: inputMessage, sender: "user" },
@@ -66,7 +58,7 @@ const Chat = () => {
       [optionApi]: updatedHistory,
     }));
 
-    setMessages(updatedHistory); // Update messages to display new chat
+    setMessages(updatedHistory);
     setInputMessage("");
     setIsLoading(true);
     setFirstInteraction(false);
@@ -89,14 +81,9 @@ const Chat = () => {
       }
 
       const data = await response.text();
-
-      // Append AI response to chat history
       setChatHistories((prevHistories) => ({
         ...prevHistories,
-        [optionApi]: [
-          ...updatedHistory,
-          { text: data, sender: "ai" },
-        ],
+        [optionApi]: [...updatedHistory, { text: data, sender: "ai" }],
       }));
 
       setMessages((prevMessages) => [
@@ -113,8 +100,6 @@ const Chat = () => {
       setIsLoading(false);
     }
   };
-
-  // Change the AI model
   const handleModelChange = async (selectedModel) => {
     setShowSuggestions(false);
     setModel(selectedModel);
@@ -143,8 +128,8 @@ const Chat = () => {
 
   const handleOptionClick = (optionApi) => {
     setSelectedOption(optionApi);
-    setMessages(chatHistories[optionApi]); // Show history of selected option
-    handleSendMessage(optionApi); // Start new chat
+    setMessages(chatHistories[optionApi]);
+    handleSendMessage(optionApi);
   };
 
   return (
