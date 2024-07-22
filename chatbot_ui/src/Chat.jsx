@@ -34,6 +34,7 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
   const [selectedOption, setSelectedOption] = useState("csvchat");
   const [model, setModel] = useState("OpenAI");
+  const [models, setModels] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [firstInteraction, setFirstInteraction] = useState(true);
   const [chatHistories, setChatHistories] = useState({
@@ -44,6 +45,29 @@ const Chat = () => {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const getModels = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/get_models`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! Status: ${res.status}`);
+      }
+      const data = await res.json();
+      setModels(data.models);
+      console.log(data.models);
+    } catch (error) {
+      console.error("Error fetching models:", error);
+    }
+  };
+
+  useEffect(() => {
+    getModels();
+  }, []);
 
   useEffect(scrollToBottom, [messages]);
   const handleSendMessage = async (optionApi) => {
@@ -249,10 +273,14 @@ const Chat = () => {
                 onChange={(e) => handleModelChange(e.target.value)}
                 className="border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-900 text-black"
               >
-                <option value="openai">OpenAI</option>
-                <option value="gemini">Gemini</option>
+                {models.map((option, index) => (
+                  <option key={index} value={option.value}>
+                    {option.name}
+                  </option>
+                ))}
               </select>
             </div>
+
             <button
               onClick={() => handleSendMessage(selectedOption)}
               disabled={isLoading}
