@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { FiSend, FiUser } from "react-icons/fi";
 import { RiRobot2Line } from "react-icons/ri";
 import { FaUserCircle } from "react-icons/fa";
-// import logo from "./assets/logo.jpeg";
 import chatbotIntro from "./assets/ai.png";
 import bg from "./assets/bg.avif";
 import ReactMarkdown from "react-markdown";
