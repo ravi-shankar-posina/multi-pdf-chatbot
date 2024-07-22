@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from langchain_community.document_loaders import PyPDFDirectoryLoader
+from langchain_community.document_loaders import PyPDFDirectoryLoader, DirectoryLoader, CSVLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -22,6 +22,12 @@ def get_pdfs(path):
     )
     splitDocs = splitter.split_documents(docs)
     return splitDocs
+
+def get_csvs(path):
+    loader = CSVLoader(file_path=path, source_column="prompt", encoding="iso-8859-1")
+    docs = loader.load()
+    print(docs[0])
+    return docs
 
 def create_db_pdf(docs):
     Qdrant.from_documents(
@@ -63,6 +69,6 @@ if __name__ == '__main__':
     docs = get_pdfs("./pdfs")
     create_db_pdf(docs)
     print("PDFs loaded")
-    # docs = get_documents("./csvs")
-    # create_db_csv(docs)
-    # print("CSVs loaded")
+    docs = get_csvs("./csvs/HowToDataStore.csv")
+    create_db_csv(docs)
+    print("CSVs loaded")
