@@ -1,14 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FiUser } from "react-icons/fi";
-import { BsArrowUpLeft, BsArrowUpRight } from "react-icons/bs";
+import { BsArrowUpLeft } from "react-icons/bs";
 import { RiRobot2Line } from "react-icons/ri";
-import {
-  FaUserCircle,
-  FaHeadset,
-  FaFilePdf,
-  FaDatabase,
-  FaArrowUp,
-} from "react-icons/fa";
+import { FaUserCircle, FaHeadset, FaFilePdf, FaDatabase, FaArrowUp } from "react-icons/fa";
 import chatbotIntro from "./assets/ai.png";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -55,7 +49,7 @@ const Chat = () => {
 
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL / optionApi}`,
+        `${import.meta.env.API_BASE_URL}/${optionApi}`,
         {
           method: "POST",
           headers: {
@@ -66,11 +60,12 @@ const Chat = () => {
       );
 
       if (!response.ok) {
-        throw new Error("Network response was not ok");
+        console.error(`Network response was not ok: ${response.statusText}`);
+        throw new Error(`Network response was not ok: ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log(data.sources[0].metadata.source);
+      console.log("API Response:", data);
 
       setMessages((prevMessages) => [
         ...prevMessages,
@@ -96,7 +91,7 @@ const Chat = () => {
     setModel(selectedModel);
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/model-change`,
+        `${import.meta.env.API_BASE_URL}/model-change`,
         {
           method: "POST",
           headers: {
@@ -107,7 +102,8 @@ const Chat = () => {
       );
 
       if (!response.ok) {
-        throw new Error("Network response was not ok");
+        console.error(`Network response was not ok: ${response.statusText}`);
+        throw new Error(`Network response was not ok: ${response.statusText}`);
       }
 
       console.log(`Model changed to ${selectedModel}`);
@@ -115,6 +111,7 @@ const Chat = () => {
       console.error("Error changing model:", error);
     }
   };
+
 
   return (
     <div className="flex h-screen bg-white">
@@ -237,13 +234,13 @@ const Chat = () => {
                 className="border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-900 text-black"
               >
                 <option value="OpenAI">OpenAI</option>
-                <option value="GoogleAI">Google AI</option>
+                <option value="Google AI">Google AI</option>
               </select>
             </div>
             <button
               onClick={() => handleSendMessage(selectedOption)}
               disabled={isLoading}
-              className={`bg-green-700 text-white rounded-full p-3 ml-4 ${
+              className={`ml-4 px-4 py-2 rounded-lg bg-green-700 text-white ${
                 isLoading
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:bg-green-900"
