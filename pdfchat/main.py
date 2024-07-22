@@ -15,95 +15,68 @@ app = Flask(__name__)
 CORS(app, origins="*")
 
 load_dotenv()
-llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    temperature=0.5
-)
-url = os.getenv("QDRANT_URL")
-collection_name_pdf = os.getenv("QDRANT_PDF_OPENAI_COLLECTION")
-collection_name_csv = os.getenv("QDRANT_CSV_OPENAI_COLLECTION")
+model_config = {
+    "openai": {
+        "name" : "OpenAI",
+        "llm": lambda: ChatOpenAI(model="gpt-4o-mini", temperature=0.5),
+        "embeddings": lambda: OpenAIEmbeddings(),
+        "collection_csv": os.getenv("QDRANT_CSV_OPENAI_COLLECTION"),
+        "collection_pdf": os.getenv("QDRANT_PDF_OPENAI_COLLECTION"),
+    },
+    "gemini": {
+        "name" : "Google AI",
+        "llm": lambda: ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.5),
+        "embeddings": lambda: GoogleGenerativeAIEmbeddings(model="models/embedding-001"),
+        "collection_csv": os.getenv("QDRANT_CSV_GEMINI_COLLECTION"),
+        "collection_pdf": os.getenv("QDRANT_PDF_GEMINI_COLLECTION"),
+    }
+}
 
-instructor_embeddings = OpenAIEmbeddings()
 chat_history = []
 
-def create_pdf_chain():
+def get_model_config(model_name):
+    config = model_config.get(model_name)
+    if not config:
+        return None, None, None, None
+    llm = config["llm"]()
+    embeddings = config["embeddings"]()
+    collection_csv = config["collection_csv"]
+    collection_pdf = config["collection_pdf"]
+    return llm, embeddings, collection_csv, collection_pdf
+
+llm, instructor_embeddings, collection_name_csv, collection_name_pdf = get_model_config("openai")
+url = os.getenv("QDRANT_URL")
+
+def create_chain(collection_name):
     vectorStore = Qdrant.from_existing_collection(
                     embedding=instructor_embeddings,
-                    collection_name=collection_name_pdf,
+                    collection_name=collection_name,
                     url=url,
                 )
-    model = llm
-
     prompt = ChatPromptTemplate.from_messages([
         ("system", "You are a friendly assistant who gives human like responses. Given the following context and a question, generate an answer based on this context as much as possible. Give detailed answers. at least 100 words. In markdown format with paragraphs, headings and bullet points. In the answer, try to provide as much text as possible from the \"response\" section in the source document context without making many changes. If the information is not available in the context, you may then search the internet to provide an answer. Don't ask for confirmation. Just give the answer.: {context}"),
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}")
     ])
-
-    pdf_chain = create_stuff_documents_chain(
-        llm=model,
+    chain = create_stuff_documents_chain(
+        llm=llm,
         prompt=prompt,
     )
-
     retriever = vectorStore.as_retriever(score_threshold=0.7)
-
     retriever_prompt = ChatPromptTemplate.from_messages([
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}"),
         ("human", "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation")
     ])
-
     history_aware_retriever = create_history_aware_retriever(
-        llm=model,
+        llm=llm,
         retriever=retriever,
         prompt=retriever_prompt
     )
-
     retrieval_chain = create_retrieval_chain(
         history_aware_retriever,
-        pdf_chain,
+        chain,
     )
-
-    return retrieval_chain
-
-def create_csv_chain():
-    vectorStore = Qdrant.from_existing_collection(
-                    embedding=instructor_embeddings,
-                    collection_name=collection_name_csv,
-                    url=url,
-                )
-    model = llm
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a friendly assistant who gives human like responses. Given the following context and a question, generate an answer based on this context as much as possible. Give detailed answers. at least 100 words. In markdown format with paragraphs, headings and bullet points. In the answer, try to provide as much text as possible from the \"response\" section in the source document context without making many changes. If the information is not available in the context, you may then search the internet to provide an answer. Don't ask for confirmation. Just give the answer.: {context}"),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}")
-    ])
-
-    csv_chain = create_stuff_documents_chain(
-        llm=model,
-        prompt=prompt,
-    )
-
-    retriever = vectorStore.as_retriever(score_threshold=0.7)
-
-    retriever_prompt = ChatPromptTemplate.from_messages([
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}"),
-        ("human", "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation")
-    ])
-
-    history_aware_retriever = create_history_aware_retriever(
-        llm=model,
-        retriever=retriever,
-        prompt=retriever_prompt
-    )
-
-    retrieval_chain = create_retrieval_chain(
-        history_aware_retriever,
-        csv_chain,
-    )
-
     return retrieval_chain
 
 def process_chat(chain, question, chat_history):
@@ -138,29 +111,23 @@ def change_model():
     global llm, instructor_embeddings, collection_name_csv, collection_name_pdf, pdf_chain, csv_chain
     data = request.get_json()
     model = data['model']
-    if(model == "openai"):
-        llm = ChatOpenAI(
-            model="gpt-4o-mini",
-            temperature=0.5
-        )
-        instructor_embeddings = OpenAIEmbeddings()
-        collection_name_csv = os.getenv("QDRANT_CSV_OPENAI_COLLECTION")
-        collection_name_pdf = os.getenv("QDRANT_PDF_OPENAI_COLLECTION")
-    elif(model == "gemini"):
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-pro",
-            temperature=0.5
-        )
-        instructor_embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-        collection_name_csv = os.getenv("QDRANT_CSV_GEMINI_COLLECTION")
-        collection_name_pdf = os.getenv("QDRANT_PDF_GEMINI_COLLECTION")
-    else:
+    llm, instructor_embeddings, collection_name_csv, collection_name_pdf = get_model_config(model)
+    if not llm:
         return jsonify({"message": "Invalid model"}), 400
-    pdf_chain = create_pdf_chain()
-    csv_chain = create_csv_chain()
+    pdf_chain = create_chain(collection_name_pdf)
+    csv_chain = create_chain(collection_name_csv)
     return jsonify({"message": "Model changed successfully"})
 
+@app.route('/get_models', methods=['GET'])
+def get_models():
+    return jsonify({
+        "models": [
+            {"value": model, "name": model_config[model]["name"]}
+            for model in model_config
+        ]
+    })
+
 if __name__ == '__main__':
-    pdf_chain = create_pdf_chain()
-    csv_chain = create_csv_chain()
+    pdf_chain = create_chain(collection_name_pdf)
+    csv_chain = create_chain(collection_name_csv)
     app.run(host='0.0.0.0', port=8501, debug=True)
