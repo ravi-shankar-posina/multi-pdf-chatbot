@@ -26,7 +26,6 @@ def get_pdfs(path):
 def get_csvs(path):
     loader = CSVLoader(file_path=path, source_column="prompt", encoding="iso-8859-1")
     docs = loader.load()
-    print(docs[0])
     return docs
 
 def create_db_pdf(docs):
