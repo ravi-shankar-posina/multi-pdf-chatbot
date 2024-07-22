@@ -14,7 +14,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const options = [
-  { label: "Support Help", api: "support-help", icon: <FaHeadset /> },
+  { label: "Support Help", api: "csvchat", icon: <FaHeadset /> },
   { label: "Pdf Reader", api: "pdfchat", icon: <FaFilePdf /> },
   { label: "Query SAP", api: "query-sap", icon: <FaDatabase /> },
 ];
