@@ -5,6 +5,7 @@ faiss-cpu
 langchain_community
 pypdf
 langchain-openai
+langchain-google-genai
 InstructorEmbedding
 flask
 flask_cors
