@@ -2,14 +2,20 @@ import React, { useState, useRef, useEffect } from "react";
 import { FiUser } from "react-icons/fi";
 import { BsArrowUpLeft } from "react-icons/bs";
 import { RiRobot2Line } from "react-icons/ri";
-import { FaUserCircle, FaHeadset, FaFilePdf, FaDatabase, FaArrowUp } from "react-icons/fa";
+import {
+  FaUserCircle,
+  FaHeadset,
+  FaFilePdf,
+  FaDatabase,
+  FaArrowUp,
+} from "react-icons/fa";
 import chatbotIntro from "./assets/ai.png";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const options = [
   { label: "Support Help", api: "support-help", icon: <FaHeadset /> },
-  { label: "Pdf Reader", api: "pdf-reader", icon: <FaFilePdf /> },
+  { label: "Pdf Reader", api: "pdfchat", icon: <FaFilePdf /> },
   { label: "Query SAP", api: "query-sap", icon: <FaDatabase /> },
 ];
 
@@ -38,6 +44,7 @@ const Chat = () => {
   useEffect(scrollToBottom, [messages]);
 
   const handleSendMessage = async (optionApi) => {
+    console.log(optionApi);
     setShowSuggestions(false);
     if (inputMessage.trim() === "") return;
 
@@ -49,7 +56,7 @@ const Chat = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.API_BASE_URL}/${optionApi}`,
+        `${import.meta.env.VITE_API_URL}/${optionApi}`,
         {
           method: "POST",
           headers: {
@@ -64,15 +71,15 @@ const Chat = () => {
         throw new Error(`Network response was not ok: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.text();
+
       console.log("API Response:", data);
 
       setMessages((prevMessages) => [
         ...prevMessages,
         {
-          text: data.answer,
+          text: data,
           sender: "ai",
-          source: data.sources[0].metadata.source,
         },
       ]);
     } catch (error) {
@@ -91,7 +98,7 @@ const Chat = () => {
     setModel(selectedModel);
     try {
       const response = await fetch(
-        `${import.meta.env.API_BASE_URL}/model-change`,
+        `${import.meta.env.VITE_API_URL}/change_model`,
         {
           method: "POST",
           headers: {
@@ -112,7 +119,6 @@ const Chat = () => {
     }
   };
 
-
   return (
     <div className="flex h-screen bg-white">
       <div className="w-56 bg-gray-100">
@@ -125,11 +131,11 @@ const Chat = () => {
               <li
                 onClick={() => {
                   handleSendMessage(option.api);
-                  setSelectedOption(option.label);
+                  setSelectedOption(option.api); // Set selectedOption to option.api
                 }}
                 key={index}
                 className={`flex items-center text-sm font-bold cursor-pointer p-2 rounded-lg transition duration-300 ${
-                  selectedOption === option.label ? "bg-gray-300" : ""
+                  selectedOption === option.api ? "bg-gray-300" : "" // Compare with option.api
                 } hover:bg-gray-200`}
               >
                 <div className="mr-2">{option.icon}</div>
@@ -233,8 +239,8 @@ const Chat = () => {
                 onChange={(e) => handleModelChange(e.target.value)}
                 className="border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-900 text-black"
               >
-                <option value="OpenAI">OpenAI</option>
-                <option value="Google AI">Google AI</option>
+                <option value="openai">OpenAI</option>
+                <option value="gemini">Gemini</option>
               </select>
             </div>
             <button
