@@ -59,7 +59,6 @@ const Chat = () => {
       }
       const data = await res.json();
       setModels(data.models);
-      console.log(data.models);
     } catch (error) {
       console.error("Error fetching models:", error);
     }
@@ -143,8 +142,6 @@ const Chat = () => {
         console.error(`Network response was not ok: ${response.statusText}`);
         throw new Error(`Network response was not ok: ${response.statusText}`);
       }
-
-      console.log(`Model changed to ${selectedModel}`);
     } catch (error) {
       console.error("Error changing model:", error);
     }
