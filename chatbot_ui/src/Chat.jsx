@@ -32,26 +32,43 @@ const Chat = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-  const [selectedOption, setSelectedOption] = useState("");
+  const [selectedOption, setSelectedOption] = useState("csvchat");
   const [model, setModel] = useState("OpenAI");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [firstInteraction, setFirstInteraction] = useState(true);
 
+  // Store chat history for each option
+  const [chatHistories, setChatHistories] = useState({
+    csvchat: [],
+    pdfchat: [],
+    "query-sap": [],
+  });
+
+  // Scroll to the bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(scrollToBottom, [messages]);
 
+  // Send message to the API
   const handleSendMessage = async (optionApi) => {
-    console.log(optionApi);
     setShowSuggestions(false);
     if (inputMessage.trim() === "") return;
 
-    setMessages([...messages, { text: inputMessage, sender: "user" }]);
+    // Append user message to chat history
+    const updatedHistory = [
+      ...chatHistories[optionApi],
+      { text: inputMessage, sender: "user" },
+    ];
+    setChatHistories((prevHistories) => ({
+      ...prevHistories,
+      [optionApi]: updatedHistory,
+    }));
+
+    setMessages(updatedHistory); // Update messages to display new chat
     setInputMessage("");
     setIsLoading(true);
-    setShowSuggestions(false);
     setFirstInteraction(false);
 
     try {
@@ -73,14 +90,18 @@ const Chat = () => {
 
       const data = await response.text();
 
-      console.log("API Response:", data);
+      // Append AI response to chat history
+      setChatHistories((prevHistories) => ({
+        ...prevHistories,
+        [optionApi]: [
+          ...updatedHistory,
+          { text: data, sender: "ai" },
+        ],
+      }));
 
       setMessages((prevMessages) => [
         ...prevMessages,
-        {
-          text: data,
-          sender: "ai",
-        },
+        { text: data, sender: "ai" },
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -93,6 +114,7 @@ const Chat = () => {
     }
   };
 
+  // Change the AI model
   const handleModelChange = async (selectedModel) => {
     setShowSuggestions(false);
     setModel(selectedModel);
@@ -119,6 +141,12 @@ const Chat = () => {
     }
   };
 
+  const handleOptionClick = (optionApi) => {
+    setSelectedOption(optionApi);
+    setMessages(chatHistories[optionApi]); // Show history of selected option
+    handleSendMessage(optionApi); // Start new chat
+  };
+
   return (
     <div className="flex h-screen bg-white">
       <div className="w-56 bg-gray-100">
@@ -129,13 +157,10 @@ const Chat = () => {
           <ul className="space-y-4">
             {options.map((option, index) => (
               <li
-                onClick={() => {
-                  handleSendMessage(option.api);
-                  setSelectedOption(option.api); // Set selectedOption to option.api
-                }}
+                onClick={() => handleOptionClick(option.api)}
                 key={index}
                 className={`flex items-center text-sm font-bold cursor-pointer p-2 rounded-lg transition duration-300 ${
-                  selectedOption === option.api ? "bg-gray-300" : "" // Compare with option.api
+                  selectedOption === option.api ? "bg-gray-300" : ""
                 } hover:bg-gray-200`}
               >
                 <div className="mr-2">{option.icon}</div>
