@@ -103,15 +103,17 @@ const Chat = () => {
         throw new Error(`Network response was not ok: ${response.statusText}`);
       }
 
-      const data = await response.text();
+      const text = await response.text();
+      const data = JSON.parse(text);
+      const answer = JSON.parse(data.answer);
       setChatHistories((prevHistories) => ({
         ...prevHistories,
-        [optionApi]: [...updatedHistory, { text: data, sender: "ai" }],
+        [optionApi]: [...updatedHistory, { text: answer.answer, source: (answer.source=="llm")?'llm':data.source, sender: "ai" }],
       }));
 
       setMessages((prevMessages) => [
         ...prevMessages,
-        { text: data, sender: "ai" },
+        { text: answer.answer, source: (answer.source=="llm")?'llm':data.source, sender: "ai" },
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -203,17 +205,10 @@ const Chat = () => {
                       : "bg-white"
                   } rounded-lg p-3 shadow-md max-w-7xl lg:max-w-7xl`}
                 >
-                  {message.sender === "ai" && message.source && (
+                  {message.sender === "ai" && message.source!="llm" && (
                     <p>
                       source :{" "}
-                      <a
-                        href={message.source}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-700"
-                      >
                         {message.source}
-                      </a>
                     </p>
                   )}
                   <ReactMarkdown

@@ -54,7 +54,12 @@ def create_chain(collection_name):
                     url=url,
                 )
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a friendly assistant who gives human like responses. Given the following context and a question, generate an answer based on this context as much as possible. Give detailed answers. at least 100 words. In markdown format with paragraphs, headings and bullet points. In the answer, try to provide as much text as possible from the \"response\" section in the source document context without making many changes. If the information is not available in the context, you may then search the internet to provide an answer. Don't ask for confirmation. Just give the answer.: {context}"),
+        ("system", """You are a friendly assistant who gives human like responses. Given the following context and a question, generate an answer based on this context as much as possible. Give detailed answers. at least 100 words. In markdown format with paragraphs, headings and bullet points. In the answer, try to provide as much text as possible from the \"response\" section in the source document context without making many changes. If the information is not available in the context, you may then search the internet to provide an answer. Don't ask for confirmation. Just give the answer in following JSON format.
+         JSON :
+         answer: "Your answer in markdown format"
+         source: "If retrieved from context, then set to 'context'. If you made up the answer set to 'llm'"
+         Give only json as response without any additional characters
+         Context: {context}"""),
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}")
     ])
@@ -94,7 +99,8 @@ def pdf_chat():
     response = process_chat(pdf_chain, question, chat_history)
     chat_history.append(HumanMessage(content=question))
     chat_history.append(AIMessage(content=response["answer"]))
-    return response["answer"]
+    sources = [{"page_content": doc.page_content, "metadata": doc.metadata} for doc in response["context"]]
+    return jsonify({"answer": response["answer"], "source": sources[0]["metadata"]["source"]})
 
 @app.route('/csvchat', methods=['POST'])
 def csv_chat():
@@ -104,7 +110,8 @@ def csv_chat():
     response = process_chat(csv_chain, question, chat_history)
     chat_history.append(HumanMessage(content=question))
     chat_history.append(AIMessage(content=response["answer"]))
-    return response["answer"]
+    sources = [{"page_content": doc.page_content, "metadata": doc.metadata} for doc in response["context"]]
+    return jsonify({"answer": response["answer"], "source": sources[0]["metadata"]["source"]})
 
 @app.route('/change_model', methods=['POST'])
 def change_model():
