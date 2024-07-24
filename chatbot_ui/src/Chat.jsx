@@ -2,13 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { FiUser } from "react-icons/fi";
 import { BsArrowUpLeft } from "react-icons/bs";
 import { RiRobot2Line } from "react-icons/ri";
-import {
-  FaUserCircle,
-  FaHeadset,
-  FaFilePdf,
-  FaDatabase,
-  FaArrowUp,
-} from "react-icons/fa";
+import { FaUserCircle, FaHeadset, FaFilePdf, FaArrowUp } from "react-icons/fa";
 import chatbotIntro from "./assets/ai.png";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -42,43 +36,43 @@ const Chat = () => {
     pdfchat: [],
     "query-sap": [],
   });
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const getModels = async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/get_models`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP error! Status: ${res.status}`);
-      }
-      const data = await res.json();
-      setModels(data.models);
-    } catch (error) {
-      console.error("Error fetching models:", error);
-    }
-  };
 
   useEffect(() => {
-    getModels();
+    const fetchModels = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/get_models`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        const data = await res.json();
+        setModels(data.models);
+      } catch (error) {
+        console.error("Error fetching models:", error);
+      }
+    };
+
+    fetchModels();
   }, []);
 
-  useEffect(scrollToBottom, [messages]);
-  const handleSendMessage = async (optionApi) => {
-    setShowSuggestions(false);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSendMessage = async () => {
     if (inputMessage.trim() === "") return;
+
     const updatedHistory = [
-      ...chatHistories[optionApi],
+      ...chatHistories[selectedOption],
       { text: inputMessage, sender: "user" },
     ];
     setChatHistories((prevHistories) => ({
       ...prevHistories,
-      [optionApi]: updatedHistory,
+      [selectedOption]: updatedHistory,
     }));
 
     setMessages(updatedHistory);
@@ -88,7 +82,7 @@ const Chat = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/${optionApi}`,
+        `${import.meta.env.VITE_API_URL}/${selectedOption}`,
         {
           method: "POST",
           headers: {
@@ -99,21 +93,21 @@ const Chat = () => {
       );
 
       if (!response.ok) {
-        console.error(`Network response was not ok: ${response.statusText}`);
         throw new Error(`Network response was not ok: ${response.statusText}`);
       }
 
       const text = await response.text();
       const data = JSON.parse(text);
       const answer = JSON.parse(data.answer);
+
       setChatHistories((prevHistories) => ({
         ...prevHistories,
-        [optionApi]: [...updatedHistory, { text: answer.answer, source: (answer.source=="llm")?'llm':data.source, sender: "ai" }],
+        [selectedOption]: [...updatedHistory, { text: answer.answer, source: (answer.source === "llm") ? 'llm' : data.source, sender: "ai" }],
       }));
 
       setMessages((prevMessages) => [
         ...prevMessages,
-        { text: answer.answer, source: (answer.source=="llm")?'llm':data.source, sender: "ai" },
+        { text: answer.answer, source: (answer.source === "llm") ? 'llm' : data.source, sender: "ai" },
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -125,6 +119,12 @@ const Chat = () => {
       setIsLoading(false);
     }
   };
+
+  const handleOptionClick = (optionApi) => {
+    setSelectedOption(optionApi);
+    setMessages(chatHistories[optionApi]);
+  };
+
   const handleModelChange = async (selectedModel) => {
     setShowSuggestions(false);
     setModel(selectedModel);
@@ -141,7 +141,6 @@ const Chat = () => {
       );
 
       if (!response.ok) {
-        console.error(`Network response was not ok: ${response.statusText}`);
         throw new Error(`Network response was not ok: ${response.statusText}`);
       }
     } catch (error) {
@@ -149,18 +148,9 @@ const Chat = () => {
     }
   };
 
-  const handleOptionClick = (optionApi) => {
-    setSelectedOption(optionApi);
-    setMessages(chatHistories[optionApi]);
-    handleSendMessage(optionApi);
-  };
-
   return (
     <div className="flex h-screen bg-white">
       <div className="w-56 bg-gray-100">
-        <div>
-          
-        </div>
         <div className="text-black p-10 hidden md:block">
           <ul className="space-y-4">
             {options.map((option, index) => (
@@ -178,7 +168,7 @@ const Chat = () => {
           </ul>
         </div>
       </div>
-      <div className="flex-1 flex flex-col ">
+      <div className="flex-1 flex flex-col">
         <header className="bg-white border-2 rounded-lg border-gray-200 m-1 p-2 flex justify-end items-center">
           <div className="text-green-900 text-3xl">
             <FaUserCircle className="h-10 w-10" />
@@ -205,10 +195,9 @@ const Chat = () => {
                       : "bg-white"
                   } rounded-lg p-3 shadow-md max-w-7xl lg:max-w-7xl`}
                 >
-                  {message.sender === "ai" && message.source!="llm" && (
+                  {message.sender === "ai" && message.source !== "llm" && (
                     <p>
-                      source :{" "}
-                        {message.source}
+                      source: {message.source}
                     </p>
                   )}
                   <ReactMarkdown
@@ -239,20 +228,23 @@ const Chat = () => {
         <div
           className={`${
             messages.length === 0
-              ? "absolute inset-x-0 bottom-1/2 transform translate-x-[60%] w-1/2 translate-y-1/2 border-2 border-gray-600 rounded-xl shadow-xl h-24  items-center justify-center"
+              ? "absolute inset-x-0 bottom-1/2 transform translate-x-[60%] w-1/2 translate-y-1/2 border-2 border-gray-600 rounded-xl shadow-xl h-24 items-center justify-center"
               : ""
           } bg-white border-t border-gray-200 p-4`}
         >
-          <div className="flex items-center w-full ">
+          <div className="flex items-center w-full">
             <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Type your message..."
               className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-700 text-black"
-              onKeyPress={(e) =>
-                e.key === "Enter" && handleSendMessage(selectedOption)
-              }
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault(); // Prevent the default form submit
+                  handleSendMessage();
+                }
+              }}
               onFocus={() => {
                 if (firstInteraction) {
                   setShowSuggestions(true);
@@ -274,7 +266,7 @@ const Chat = () => {
             </div>
 
             <button
-              onClick={() => handleSendMessage(selectedOption)}
+              onClick={handleSendMessage}
               disabled={isLoading}
               className={`ml-4 px-4 py-2 rounded-lg bg-green-700 text-white ${
                 isLoading
@@ -290,7 +282,7 @@ const Chat = () => {
             </button>
           </div>
           {showSuggestions && (
-            <div className="mt-4 w-full bg-white  rounded-2xl p-4">
+            <div className="mt-4 w-full bg-white rounded-2xl p-4">
               <ul className="space-y-2">
                 {quotes.map((quote, index) => (
                   <li
@@ -302,7 +294,6 @@ const Chat = () => {
                     className="cursor-pointer text-black flex justify-between hover:bg-slate-200 p-2 rounded-lg"
                   >
                     {quote}
-
                     <BsArrowUpLeft />
                   </li>
                 ))}
