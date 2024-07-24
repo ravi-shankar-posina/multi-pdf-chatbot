@@ -16,7 +16,7 @@ import remarkGfm from "remark-gfm";
 const options = [
   { label: "Support Help", api: "csvchat", icon: <FaHeadset /> },
   { label: "Pdf Reader", api: "pdfchat", icon: <FaFilePdf /> },
-  { label: "Query SAP", api: "query-sap", icon: <FaDatabase /> },
+  // { label: "Query SAP", api: "query-sap", icon: <FaDatabase /> },
 ];
 
 const quotes = [
@@ -159,7 +159,7 @@ const Chat = () => {
     <div className="flex h-screen bg-white">
       <div className="w-56 bg-gray-100">
         <div>
-          <img src={chatbotIntro} alt="SAP Logo" className="h-28 mr-2" />
+          
         </div>
         <div className="text-black p-10 hidden md:block">
           <ul className="space-y-4">
