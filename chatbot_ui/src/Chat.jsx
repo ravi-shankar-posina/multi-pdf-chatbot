@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { FiUser } from "react-icons/fi";
 import { BsArrowUpLeft } from "react-icons/bs";
 import { RiRobot2Line } from "react-icons/ri";
-import { FaUserCircle, FaHeadset, FaFilePdf, FaArrowUp } from "react-icons/fa";
+import { FaUserCircle, FaHeadset, FaFilePdf, FaArrowUp, FaDatabase } from "react-icons/fa";
 import chatbotIntro from "./assets/ai.png";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -10,7 +10,7 @@ import remarkGfm from "remark-gfm";
 const options = [
   { label: "Support Help", api: "csvchat", icon: <FaHeadset /> },
   { label: "Pdf Reader", api: "pdfchat", icon: <FaFilePdf /> },
-  // { label: "Query SAP", api: "query-sap", icon: <FaDatabase /> },
+  { label: "Abap Code Generator", api: "pdfchat", icon: <FaDatabase /> },
 ];
 
 const quotes = [
@@ -27,6 +27,7 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const [selectedOption, setSelectedOption] = useState("csvchat");
+  const [selectedLabel, setSelectedLabel] = useState("Support Help");
   const [model, setModel] = useState("OpenAI");
   const [models, setModels] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -120,8 +121,9 @@ const Chat = () => {
     }
   };
 
-  const handleOptionClick = (optionApi) => {
+  const handleOptionClick = (optionApi,optionlabel) => {
     setSelectedOption(optionApi);
+    setSelectedLabel(optionlabel)
     setMessages(chatHistories[optionApi]);
   };
 
@@ -156,10 +158,10 @@ const Chat = () => {
           <ul className="space-y-4">
             {options.map((option, index) => (
               <li
-                onClick={() => handleOptionClick(option.api)}
+                onClick={() => handleOptionClick(option.api,option.label)}
                 key={index}
                 className={`flex items-center text-sm font-bold cursor-pointer p-2 rounded-lg transition duration-300 ${
-                  selectedOption === option.api ? "bg-gray-300" : ""
+                  selectedLabel === option.label ? "bg-gray-300" : ""
                 } hover:bg-gray-200`}
               >
                 <div className="mr-2">{option.icon}</div>
