@@ -2,10 +2,17 @@ import React, { useState, useRef, useEffect } from "react";
 import { FiUser } from "react-icons/fi";
 import { BsArrowUpLeft } from "react-icons/bs";
 import { RiRobot2Line } from "react-icons/ri";
-import { FaUserCircle, FaHeadset, FaFilePdf, FaArrowUp, FaDatabase } from "react-icons/fa";
+import {
+  FaUserCircle,
+  FaHeadset,
+  FaFilePdf,
+  FaArrowUp,
+  FaDatabase,
+} from "react-icons/fa";
 import chatbotIntro from "./assets/ai.png";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import jsonData from './csvjson.json'
 
 const options = [
   { label: "Support Help", api: "csvchat", icon: <FaHeadset /> },
@@ -37,6 +44,7 @@ const Chat = () => {
     pdfchat: [],
     "query-sap": [],
   });
+  const [supportData, setSupportData] = useState({});
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -57,7 +65,17 @@ const Chat = () => {
       }
     };
 
+    const fetchSupportData = async () => {
+      try {   
+        setSupportData(jsonData);
+      } catch (error) {
+        console.error("Error fetching support data:", error);
+      }
+    };
+    
+
     fetchModels();
+    fetchSupportData();
   }, []);
 
   useEffect(() => {
@@ -81,49 +99,80 @@ const Chat = () => {
     setIsLoading(true);
     setFirstInteraction(false);
 
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/${selectedOption}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ prompt: inputMessage }),
-        }
+    if (selectedLabel === "Support Help") {
+      const matchedData = supportData.find((item) =>
+        item.prompt.toLowerCase().includes(inputMessage.trim().toLowerCase())
       );
-
-      if (!response.ok) {
-        throw new Error(`Network response was not ok: ${response.statusText}`);
-      }
-
-      const text = await response.text();
-      const data = JSON.parse(text);
-      const answer = JSON.parse(data.answer);
-
+      const response = matchedData
+        ? matchedData.response
+        : "Sorry, I don't have information on that topic.";
       setChatHistories((prevHistories) => ({
         ...prevHistories,
-        [selectedOption]: [...updatedHistory, { text: answer.answer, source: (answer.source === "llm") ? 'llm' : data.source, sender: "ai" }],
+        [selectedOption]: [...updatedHistory, { text: response, sender: "ai" }],
       }));
-
       setMessages((prevMessages) => [
         ...prevMessages,
-        { text: answer.answer, source: (answer.source === "llm") ? 'llm' : data.source, sender: "ai" },
+        { text: response, sender: "ai" },
       ]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { text: "Error fetching response.", sender: "ai" },
-      ]);
-    } finally {
       setIsLoading(false);
+    } else {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/${selectedOption}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ prompt: inputMessage }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Network response was not ok: ${response.statusText}`
+          );
+        }
+
+        const text = await response.text();
+        const data = JSON.parse(text);
+        const answer = JSON.parse(data.answer);
+
+        setChatHistories((prevHistories) => ({
+          ...prevHistories,
+          [selectedOption]: [
+            ...updatedHistory,
+            {
+              text: answer.answer,
+              source: answer.source === "llm" ? "llm" : data.source,
+              sender: "ai",
+            },
+          ],
+        }));
+
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            text: answer.answer,
+            source: answer.source === "llm" ? "llm" : data.source,
+            sender: "ai",
+          },
+        ]);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { text: "Error fetching response.", sender: "ai" },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  const handleOptionClick = (optionApi,optionlabel) => {
+  const handleOptionClick = (optionApi, optionLabel) => {
     setSelectedOption(optionApi);
-    setSelectedLabel(optionlabel)
+    setSelectedLabel(optionLabel);
     setMessages(chatHistories[optionApi]);
   };
 
@@ -153,12 +202,12 @@ const Chat = () => {
   return (
     <div className="flex h-screen bg-white">
       <div className="w-56 bg-gray-100">
-      <img src={chatbotIntro} alt="SAP Logo" className="h-34 mr-2" />
+        <img src={chatbotIntro} alt="SAP Logo" className="h-34 mr-2" />
         <div className="text-black p-10 hidden md:block">
           <ul className="space-y-4">
             {options.map((option, index) => (
               <li
-                onClick={() => handleOptionClick(option.api,option.label)}
+                onClick={() => handleOptionClick(option.api, option.label)}
                 key={index}
                 className={`flex items-center text-sm font-bold cursor-pointer p-2 rounded-lg transition duration-300 ${
                   selectedLabel === option.label ? "bg-gray-300" : ""
@@ -199,9 +248,7 @@ const Chat = () => {
                   } rounded-lg p-3 shadow-md max-w-7xl lg:max-w-7xl`}
                 >
                   {message.sender === "ai" && message.source !== "llm" && (
-                    <p>
-                      source: {message.source}
-                    </p>
+                    <p>source: {message.source}</p>
                   )}
                   <ReactMarkdown
                     className="markdown-body"
@@ -244,12 +291,12 @@ const Chat = () => {
               className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-700 text-black"
               onKeyPress={(e) => {
                 if (e.key === "Enter") {
-                  e.preventDefault(); // Prevent the default form submit
+                  e.preventDefault();
                   handleSendMessage();
                 }
               }}
               onFocus={() => {
-                if (firstInteraction) {
+                if (firstInteraction && selectedLabel !== "Support Help") {
                   setShowSuggestions(true);
                 }
               }}
@@ -284,7 +331,7 @@ const Chat = () => {
               )}
             </button>
           </div>
-          {showSuggestions && (
+          {showSuggestions && selectedLabel !== "Support Help" && (
             <div className="mt-4 w-full bg-white rounded-2xl p-4">
               <ul className="space-y-2">
                 {quotes.map((quote, index) => (
