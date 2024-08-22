@@ -69,7 +69,6 @@ const Chat = () => {
 
   return (
     <div className="flex h-screen bg-white relative">
-      {/* Sidebar */}
       <div className="w-56 bg-gray-100">
         <img src={chatbotIntro} alt="Chatbot Intro" className="h-34 mr-2" />
         <div className="text-black p-10 hidden md:block">
@@ -89,25 +88,18 @@ const Chat = () => {
           </ul>
         </div>
       </div>
-
-      {/* Main chat area */}
       <div className="flex-1 flex flex-col relative">
-        {/* Loader overlay */}
         {isLoading && (
           <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex justify-center items-center z-10">
             <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-green-700"></div>
           </div>
         )}
-
-        {/* Header */}
         <header className="bg-white border-b border-gray-200 p-2 flex justify-between items-center">
           <div className="text-green-900 text-xl font-bold">{selectedLabel}</div>
           <div className="text-green-900 text-3xl">
             <FaUser />
           </div>
         </header>
-
-        {/* Chat content */}
         <div className="flex-1 p-2 overflow-y-auto bg-gray-50 flex flex-col">
           {showInitialInput ? (
             <div className="flex-1 flex items-center justify-center">
@@ -147,8 +139,6 @@ const Chat = () => {
           )}
           <div ref={chatEndRef} />
         </div>
-
-        {/* Input area */}
         {!showInitialInput && (
           <div className="p-2 bg-white border-t border-gray-200">
             <div className="flex">
