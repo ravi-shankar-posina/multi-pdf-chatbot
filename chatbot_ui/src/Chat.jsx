@@ -7,6 +7,7 @@ import chatbotIntro from "./assets/ai.png";
 const options = [
   { label: "Support Help", api: "csvchat", icon: <FaHeadset /> },
   { label: "Pdf Reader", api: "pdfchat", icon: <FaFilePdf /> },
+  { label: "Webapp pack", api: "pdfchat", icon: <FaFilePdf /> },
 ];
 
 const Chat = () => {
@@ -17,6 +18,7 @@ const Chat = () => {
   const [selectedLabel, setSelectedLabel] = useState("Support Help");
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialInput, setShowInitialInput] = useState(true);
+  const [source, setSource] = useState("");
 
   const handleSendMessage = async () => {
     if (inputMessage.trim() === "") return;
@@ -45,7 +47,7 @@ const Chat = () => {
 
       const text = await response.text();
       const data = JSON.parse(text);
-
+      setSource(data.source || "No source is founded ")
       setCurrentResponse(data.answer || "No response available.");
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -92,12 +94,14 @@ const Chat = () => {
           </div>
         )}
         <header className="bg-white border-b border-gray-200 p-2 flex justify-between items-center">
-          <div className="text-green-900 text-xl font-bold">{selectedLabel}</div>
+          <div className="text-green-900 text-xl font-bold">
+            {selectedLabel}
+          </div>
           <div className="text-green-900 text-3xl">
             <FaUser />
           </div>
         </header>
-        <div className="flex-1 p-2 overflow-y-auto bg-gray-50 flex flex-col">
+        <div className="flex-1 p-8 overflow-y-auto bg-gray-200 flex flex-col">
           {showInitialInput ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="w-full px-2">
@@ -135,11 +139,18 @@ const Chat = () => {
                   </ReactMarkdown>
                 </div>
               )}
+              {currentQuestion && (
+                <div className="w-full mb-2">
+                  <div className="text-black  whitespace-nowrap overflow-hidden overflow-ellipsis">
+                    <h1><span className="font-bold">Source: </span>{source}</h1>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
         {!showInitialInput && (
-          <div className="p-2 bg-white border-t border-gray-200">
+          <div className="p-2 bg-gray-50 border-t border-gray-200">
             <div className="flex">
               <input
                 type="text"
