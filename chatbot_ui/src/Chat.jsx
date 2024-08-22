@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import {
   FaArrowUp,
   FaCode,
@@ -25,6 +25,7 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialInput, setShowInitialInput] = useState(true);
   const [source, setSource] = useState("");
+  const [content, setContent] = useState("");
 
   const handleSendMessage = async () => {
     if (inputMessage.trim() === "") return;
@@ -53,7 +54,8 @@ const Chat = () => {
 
       const text = await response.text();
       const data = JSON.parse(text);
-      setSource(data.source || "No source is founded ");
+      setSource(data.source || "No source found");
+      setContent(data.content || "No content found");
       setCurrentResponse(data.answer || "No response available.");
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -76,7 +78,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-screen bg-white relative">
+    <div className="flex h-screen bg-white relative break-words">
       <div className="w-56 bg-gray-100">
         <img src={chatbotIntro} alt="Chatbot Intro" className="h-34 mr-2" />
         <div className="text-black p-10 hidden md:block">
@@ -110,7 +112,7 @@ const Chat = () => {
             <FaUser />
           </div>
         </header>
-        <div className="flex-1 p-8 overflow-y-auto bg-white  flex flex-col">
+        <div className="flex-1 p-8 overflow-y-auto bg-white flex flex-col max-w-full">
           {showInitialInput ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="w-full px-2">
@@ -130,16 +132,16 @@ const Chat = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg p-3 w-full">
+            <div className="bg-white rounded-lg p-3 w-full break-words max-w-full">
               {currentQuestion && (
                 <div className="w-full mb-2">
-                  <div className="text-black font-bold text-xl whitespace-nowrap overflow-hidden overflow-ellipsis">
+                  <div className="text-black font-bold text-xl whitespace-normal">
                     <h1>{currentQuestion}</h1>
                   </div>
                 </div>
               )}
               {currentResponse && (
-                <div className="mb-2">
+                <div className="mb-2 overflow-x-auto">
                   <ReactMarkdown
                     className="markdown-body"
                     remarkPlugins={[remarkGfm]}
@@ -150,11 +152,16 @@ const Chat = () => {
               )}
               {currentQuestion && selectedLabel !== "ABAP Code Genarator" && (
                 <div className="w-full mb-2">
-                  <div className="text-black  whitespace-nowrap overflow-hidden overflow-ellipsis">
-                    <h1>
-                      <span className="font-bold">Source: </span>
-                      {source}
-                    </h1>
+                  <div className="text-black whitespace-normal break-words">
+                    {source !== "llm" && (
+                      <h1>
+                        <span className="font-bold">Source: </span>
+                        {source}
+                        <br />
+                        <span className="font-bold">Content: </span>
+                        {content}
+                      </h1>
+                    )}
                   </div>
                 </div>
               )}
