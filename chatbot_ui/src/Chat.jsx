@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaArrowUp, FaCode, FaFilePdf, FaHeadset, FaUser } from "react-icons/fa";
+import {
+  FaArrowUp,
+  FaCode,
+  FaFilePdf,
+  FaHeadset,
+  FaUser,
+} from "react-icons/fa";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import chatbotIntro from "./assets/ai.png";
@@ -47,7 +53,7 @@ const Chat = () => {
 
       const text = await response.text();
       const data = JSON.parse(text);
-      setSource(data.source || "No source is founded ")
+      setSource(data.source || "No source is founded ");
       setCurrentResponse(data.answer || "No response available.");
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -64,6 +70,9 @@ const Chat = () => {
     setCurrentQuestion(null);
     setCurrentResponse(null);
     setShowInitialInput(true);
+    if (optionLabel === "ABAP Code Genarator") {
+      setSource("");
+    }
   };
 
   return (
@@ -101,7 +110,7 @@ const Chat = () => {
             <FaUser />
           </div>
         </header>
-        <div className="flex-1 p-8 overflow-y-auto bg-gray-200 flex flex-col">
+        <div className="flex-1 p-8 overflow-y-auto bg-white  flex flex-col">
           {showInitialInput ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="w-full px-2">
@@ -121,7 +130,7 @@ const Chat = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-gray-200 rounded-lg p-3 w-full">
+            <div className="bg-white rounded-lg p-3 w-full">
               {currentQuestion && (
                 <div className="w-full mb-2">
                   <div className="text-black font-bold text-xl whitespace-nowrap overflow-hidden overflow-ellipsis">
@@ -139,10 +148,13 @@ const Chat = () => {
                   </ReactMarkdown>
                 </div>
               )}
-              {currentQuestion && (
+              {currentQuestion && selectedLabel !== "ABAP Code Genarator" && (
                 <div className="w-full mb-2">
                   <div className="text-black  whitespace-nowrap overflow-hidden overflow-ellipsis">
-                    <h1><span className="font-bold">Source: </span>{source}</h1>
+                    <h1>
+                      <span className="font-bold">Source: </span>
+                      {source}
+                    </h1>
                   </div>
                 </div>
               )}
