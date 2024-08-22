@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FaArrowUp, FaFilePdf, FaHeadset, FaUser } from "react-icons/fa";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import chatbotIntro from "./assets/ai.png";
 
 const options = [
@@ -15,11 +17,6 @@ const Chat = () => {
   const [selectedLabel, setSelectedLabel] = useState("Support Help");
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialInput, setShowInitialInput] = useState(true);
-  const chatEndRef = useRef(null);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentResponse]);
 
   const handleSendMessage = async () => {
     if (inputMessage.trim() === "") return;
@@ -120,24 +117,26 @@ const Chat = () => {
               </div>
             </div>
           ) : (
-            <>
+            <div className="bg-gray-200 rounded-lg p-3 w-full">
               {currentQuestion && (
                 <div className="w-full mb-2">
-                  <div className="p-3 rounded-lg bg-green-700 text-white">
-                    {currentQuestion}
+                  <div className="text-black font-bold text-xl whitespace-nowrap overflow-hidden overflow-ellipsis">
+                    <h1>{currentQuestion}</h1>
                   </div>
                 </div>
               )}
               {currentResponse && (
-                <div className="w-full mb-2">
-                  <div className="p-3 rounded-lg bg-gray-200 text-black">
+                <div className="mb-2">
+                  <ReactMarkdown
+                    className="markdown-body"
+                    remarkPlugins={[remarkGfm]}
+                  >
                     {currentResponse}
-                  </div>
+                  </ReactMarkdown>
                 </div>
               )}
-            </>
+            </div>
           )}
-          <div ref={chatEndRef} />
         </div>
         {!showInitialInput && (
           <div className="p-2 bg-white border-t border-gray-200">
