@@ -9,7 +9,6 @@ langchain-google-genai
 InstructorEmbedding
 flask
 flask_cors
-langchain-qdrant
 openai
 unstructured
 pdfminer
