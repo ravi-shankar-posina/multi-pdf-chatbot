@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaArrowUp, FaFilePdf, FaHeadset, FaUser } from "react-icons/fa";
+import { FaArrowUp, FaCode, FaFilePdf, FaHeadset, FaUser } from "react-icons/fa";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import chatbotIntro from "./assets/ai.png";
@@ -7,7 +7,7 @@ import chatbotIntro from "./assets/ai.png";
 const options = [
   { label: "Support Help", api: "csvchat", icon: <FaHeadset /> },
   { label: "Pdf Reader", api: "pdfchat", icon: <FaFilePdf /> },
-  { label: "Webapp pack", api: "pdfchat", icon: <FaFilePdf /> },
+  { label: "ABAP Code Genarator", api: "pdfchat", icon: <FaCode /> },
 ];
 
 const Chat = () => {
