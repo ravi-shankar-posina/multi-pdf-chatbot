@@ -14,7 +14,8 @@ from flask_cors import CORS
 import base64
 load_dotenv()
 app = Flask(__name__)
-CORS(app, allow_headers=True, origins=True)
+CORS(app, origins="*")
+
 # Common embeddings setup
 embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
 openai_model = ChatOpenAI(model="gpt-4")
