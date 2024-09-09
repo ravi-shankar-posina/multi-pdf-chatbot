@@ -115,13 +115,15 @@ def query_pdf():
 
     # Extract image and link information
     image_info, link_info = extract_pdf_info(response["source_documents"])
+    image_data = [open(image_path, "rb").read() for image_path in image_info]
+    print("Image data:", image_data)
 
     serializable_sources = [serialize_document(doc) for doc in response.get("source_documents", [])]
 
     return jsonify({
         "answer": response["result"],
         "sources": serializable_sources,
-        "images": image_info,
+        "images": image_data,
         "links": link_info
     })
 
@@ -230,4 +232,4 @@ def extract_links_from_pdf(file_path, page_num):
 
 # Run the Flask app
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=8501)
