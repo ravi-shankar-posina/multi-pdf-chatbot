@@ -19,7 +19,7 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialInput, setShowInitialInput] = useState(true);
   const [source, setSource] = useState();
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState([]);
   const [links, setLinks] = useState([]);
   const [blobString, setBlobString] = useState(null);
 
@@ -30,7 +30,7 @@ const Chat = () => {
     setShowInitialInput(false);
     setInputMessage("");
     setCurrentResponse(" ");
-    setContent(" ");
+    setContent([]);
     setBlobString(null);
     setLinks([]);
     setIsLoading(true);
@@ -54,11 +54,16 @@ const Chat = () => {
       const text = await response.text();
       const data = JSON.parse(text);
       const sources = data.sources || [];
+
       if (sources.length > 0) {
-        setContent(sources[0].page_content || " ");
+        const updatedContent = sources.map(
+          (source) => source.page_content || " "
+        );
+        setContent(updatedContent);
       } else {
-        setContent(" ");
+        setContent([]);
       }
+
       const img = data.image_info || [];
       if (img.length > 0) {
         setBlobString(`data:image/png;base64,${img[0].image_data}`); // Assuming base64 encoding
@@ -169,15 +174,20 @@ const Chat = () => {
                   />
                 </div>
               )}
-              {content && (
-                <>
-                  <p>{content.replace(/^prompt:\s*/, "")}</p>
-                </>
+              {content.length > 0 && (
+                <div className="mt-4">
+                  <h2 className="font-bold text-lg">Related Information:</h2>
+                  <ul className="list-disc pl-5">
+                    {content.map((item, index) => (
+                      <li key={index}>{item.replace(/^prompt:\s*/, "")}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
               {links.length > 0 && (
                 <div className="mt-4">
-                  <h2 className="font-bold text-lg">Related Information:</h2>
+                  <h2 className="font-bold text-lg">Related Links:</h2>
                   <ul className="list-disc ml-5 mt-2">
                     {links.map((link, index) => (
                       <li key={index}>
