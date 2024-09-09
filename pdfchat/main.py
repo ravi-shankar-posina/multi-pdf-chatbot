@@ -11,6 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 from flask_cors import CORS
+import base64
 load_dotenv()
 app = Flask(__name__)
 CORS(app)
@@ -73,10 +74,10 @@ pdf_retriever = load_pdf_data([
 # Helper function to serialize Document objects
 def serialize_document(doc):
     return {
-        "page_content": doc.page_content,
+        "page_content": str(doc.page_content),
         "metadata": {
-            "source": doc.metadata.get("source", ""),
-            "page": doc.metadata.get("page", 0)
+            "source": str(doc.metadata.get("source", "")),
+            "page": str(doc.metadata.get("page", 0))
         }
     }
 
@@ -91,9 +92,6 @@ def query_csv():
 
     rag_chain = create_csv_chain(csv_retriever)
     response = rag_chain.invoke({"query": query})
-
-    # Print response to debug
-    print("Response:", response)
 
     serializable_sources = [serialize_document(doc) for doc in response.get("source_documents", [])]
 
@@ -115,8 +113,7 @@ def query_pdf():
 
     # Extract image and link information
     image_info, link_info = extract_pdf_info(response["source_documents"])
-    image_data = [open(image_path, "rb").read() for image_path in image_info]
-    print("Image data:", image_data)
+    image_data = [base64.b64encode(open(image_path, "rb").read()).decode("utf-8") for image_path in image_info]
 
     serializable_sources = [serialize_document(doc) for doc in response.get("source_documents", [])]
 
@@ -232,4 +229,4 @@ def extract_links_from_pdf(file_path, page_num):
 
 # Run the Flask app
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8501)
+    app.run(host='0.0.0.0', port=8501, debug=True)

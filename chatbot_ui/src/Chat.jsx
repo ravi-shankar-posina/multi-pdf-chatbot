@@ -21,20 +21,20 @@ const Chat = () => {
   const [source, setSource] = useState();
   const [content, setContent] = useState([]);
   const [links, setLinks] = useState([]);
-  const [blobString, setBlobString] = useState(null);
+  const [images, setImages] = useState([]);
 
   const handleSendMessage = async () => {
     if (inputMessage.trim() === "") return;
-
+  
     setCurrentQuestion(inputMessage);
     setShowInitialInput(false);
     setInputMessage("");
     setCurrentResponse(" ");
     setContent([]);
-    setBlobString(null);
     setLinks([]);
+    setImages([]); 
     setIsLoading(true);
-
+  
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/${selectedOption}`,
@@ -46,15 +46,15 @@ const Chat = () => {
           body: JSON.stringify({ query: inputMessage }),
         }
       );
-
+  
       if (!response.ok) {
         throw new Error(`Network response was not ok: ${response.statusText}`);
       }
-
+  
       const text = await response.text();
       const data = JSON.parse(text);
       const sources = data.sources || [];
-
+  
       if (sources.length > 0) {
         const updatedContent = sources.map(
           (source) => source.page_content || " "
@@ -63,13 +63,16 @@ const Chat = () => {
       } else {
         setContent([]);
       }
-
-      const img = data.image_info || [];
+  
+      const img = data.images || [];
       if (img.length > 0) {
-        setBlobString(`data:image/png;base64,${img[0].image_data}`); // Assuming base64 encoding
+        setImages(
+          img.map((image) => `data:image/png;base64,${image}`)
+        );
       } else {
-        setBlobString(null); // Set to null if no image data
+        setImages([]);
       }
+  
       setCurrentResponse(data.answer || " ");
       setLinks(data.links || []);
     } catch (error) {
@@ -79,6 +82,7 @@ const Chat = () => {
       setIsLoading(false);
     }
   };
+  
 
   const handleOptionClick = (optionApi, optionLabel) => {
     setSelectedOption(optionApi);
@@ -165,15 +169,19 @@ const Chat = () => {
                   </ReactMarkdown>
                 </div>
               )}
-              {blobString && blobString !== " " && (
-                <div className="mb-2">
-                  <img
-                    src={blobString}
-                    alt="Fetched"
-                    className="max-w-full h-auto rounded-lg"
-                  />
+              {images.length > 0 && (
+                <div className="mb-2 flex flex-col">
+                  {images.map((image, index) => (
+                    <img
+                      key={index}
+                      src={image}
+                      alt={`Fetched ${index}`}
+                      className="max-w-full h-auto rounded-lg"
+                    />
+                  ))}
                 </div>
               )}
+
               {content.length > 0 && (
                 <div className="mt-4">
                   <h2 className="font-bold text-lg">Related Information:</h2>
