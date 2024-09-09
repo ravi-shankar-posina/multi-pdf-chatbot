@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import {
-  FaCode,
-  FaFilePdf,
-  FaHeadset,
-  FaUser,
-} from "react-icons/fa";
+import { FaCode, FaFilePdf, FaHeadset, FaUser } from "react-icons/fa";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import chatbotIntro from "./assets/ai.png";
@@ -26,6 +21,7 @@ const Chat = () => {
   const [source, setSource] = useState();
   const [content, setContent] = useState("");
   const [links, setLinks] = useState([]);
+  const [blobString, setBlobString] = useState(null);
 
   const handleSendMessage = async () => {
     if (inputMessage.trim() === "") return;
@@ -35,6 +31,7 @@ const Chat = () => {
     setInputMessage("");
     setCurrentResponse(" ");
     setContent(" ");
+    setBlobString(null);
     setLinks([]);
     setIsLoading(true);
 
@@ -58,13 +55,18 @@ const Chat = () => {
       const data = JSON.parse(text);
       const sources = data.sources || [];
       if (sources.length > 0) {
-        setContent(sources[0].content || " ");
+        setContent(sources[0].page_content || " ");
       } else {
         setContent(" ");
       }
-
+      const img = data.image_info || [];
+      if (img.length > 0) {
+        setBlobString(`data:image/png;base64,${img[0].image_data}`); // Assuming base64 encoding
+      } else {
+        setBlobString(null); // Set to null if no image data
+      }
       setCurrentResponse(data.answer || " ");
-      setLinks(data.link_info || []);
+      setLinks(data.links || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       setCurrentResponse("Error fetching response.");
@@ -158,11 +160,21 @@ const Chat = () => {
                   </ReactMarkdown>
                 </div>
               )}
+              {blobString && blobString !== " " && (
+                <div className="mb-2">
+                  <img
+                    src={blobString}
+                    alt="Fetched"
+                    className="max-w-full h-auto rounded-lg"
+                  />
+                </div>
+              )}
               {content && (
                 <>
-                  <p>{content}</p>
+                  <p>{content.replace(/^prompt:\s*/, "")}</p>
                 </>
               )}
+
               {links.length > 0 && (
                 <div className="mt-4">
                   <h2 className="font-bold text-lg">Related Information:</h2>
@@ -170,19 +182,18 @@ const Chat = () => {
                     {links.map((link, index) => (
                       <li key={index}>
                         <a
-                          href={link.link}
+                          href={link}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-500 underline"
                         >
-                          {link.text}
+                          {link}
                         </a>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
-              {/* {source} */}
             </div>
           )}
         </div>

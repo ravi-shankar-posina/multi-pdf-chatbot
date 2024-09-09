@@ -10,10 +10,10 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
-
+from flask_cors import CORS
 load_dotenv()
 app = Flask(__name__)
-
+CORS(app)
 # Common embeddings setup
 embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
 openai_model = ChatOpenAI(model="gpt-4")
