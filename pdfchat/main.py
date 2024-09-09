@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
@@ -8,14 +9,14 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 import fitz
+import base64
 
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 ### PDF Processing ###
 # List of PDF file paths
@@ -93,16 +94,12 @@ def extract_images_from_pdf_with_pagenum(document, page_num, output_dir):
         base_image = document.extract_image(xref)
         image_bytes = base_image["image"]
         img_ext = base_image["ext"]
-        image_filename = f"image_{page_num + 1}_{img_index + 1}.{img_ext}"
-        image_path = os.path.join(output_dir, image_filename)
-
-        with open(image_path, "wb") as image_file:
-            image_file.write(image_bytes)
 
         image_info = {
             'page_number': page_num + 1,
-            'image_path': image_path,
-            'text': text.strip()
+            'text': text.strip(),
+            'image_data': base64.b64encode(image_bytes).decode('utf-8'),
+            'image_ext': img_ext
         }
         images_info.append(image_info)
     return images_info
@@ -157,35 +154,21 @@ def ask_pdf_question(question):
     for file_path, page_num in sources_content_pages:
         # Extract images
         images = load_and_extract_images(file_path, page_num, output_dir)
-        for eachimage in images:
-            image_info.append({
-                "page_number": eachimage["page_number"],
-                "image_path": eachimage["image_path"],
-                "text": eachimage["text"]
-            })
+        image_info.extend(images)
 
         # Extract links
         links = extract_all_related_links_with_specific_page(file_path, page_num)
-        for eachlink in links:
-            link_info.append({
-                "page_number": eachlink["page_number"],
-                "link": eachlink["link"],
-                "text": eachlink["text"]
-            })
+        link_info.extend(links)
 
     result = {
         "answer": response["result"],
         "sources": sources_content,
-        "additional_info": pages_content
+        "additional_info": pages_content,
+        "image_info": image_info,
+        "link_info": link_info
     }
 
-    if image_info:
-        result["image_info"] = image_info
-    if link_info:
-        result["link_info"] = link_info
-
     return result
-
 
 ### CSV Processing ###
 csv_file_path = "./HowToDataStore.csv"
@@ -227,7 +210,6 @@ csv_chat_prompt = ChatPromptTemplate.from_messages(
 csv_question_answer_chain = create_stuff_documents_chain(ChatOpenAI(model="gpt-4"), csv_chat_prompt)
 csv_rag_chain = create_retrieval_chain(csv_retriever, csv_question_answer_chain)
 
-
 def ask_csv_question(user_query):
     if not user_query:
         return {"error": "No query provided"}
@@ -239,8 +221,8 @@ def ask_csv_question(user_query):
     sources = []
     for doc in top_k_docs:
         sources.append({
-            "content": doc.page_content,  # assuming the document has `page_content`
-            "metadata": doc.metadata      # assuming the document has `metadata`
+            "content": doc.page_content,
+            "metadata": doc.metadata
         })
 
     # Use the query in the CSV chain to generate the final answer
@@ -268,20 +250,17 @@ def ask_csv_question(user_query):
 
     return result
 
-
 @app.route("/pdf/query", methods=["POST"])
 def query_pdf():
     user_query = request.json.get("query")
     result = ask_pdf_question(user_query)
     return jsonify(result)
 
-
 @app.route("/csv/query", methods=["POST"])
 def query_csv():
     user_query = request.json.get("query")
     result = ask_csv_question(user_query)
     return jsonify(result)
-
 
 if __name__ == "__main__":
     app.run(debug=True)
