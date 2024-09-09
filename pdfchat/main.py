@@ -1,266 +1,233 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 import os
+import fitz
+from flask import Flask, request, jsonify
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.document_loaders.csv_loader import CSVLoader
+from langchain_community.document_loaders import PyPDFLoader, CSVLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
-import fitz
-import base64
 
 load_dotenv()
-
 app = Flask(__name__)
-CORS(app)
 
-### PDF Processing ###
-# List of PDF file paths
-pdf_file_paths = ["./Reference/12.SD-Sales Monitoring and Analytics.pdf",
-                  "./Reference/13.SD-Special Business Processes in Sales.pdf",
-                  "./Reference/14.SD-Integrations.pdf"]
+# Common embeddings setup
+embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+openai_model = ChatOpenAI(model="gpt-4")
+parser = StrOutputParser()
 
-# Load documents from multiple PDF files
-all_pdf_docs = []
-for file_path in pdf_file_paths:
-    loader = PyPDFLoader(file_path=file_path)
-    documents = loader.load()
-    all_pdf_docs.extend(documents)
+# Load CSV data
+def load_csv_data(file_path):
+    loader = CSVLoader(file_path=file_path, encoding='latin-1')
+    data = loader.load()
 
-# Split PDF documents
-pdf_text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-split_pdf_docs = pdf_text_splitter.split_documents(all_pdf_docs)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    split_docs = text_splitter.split_documents(data)
 
-# Embeddings and FAISS vector store for PDFs
-pdf_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-pdf_vectordb_file_path = "./StoreFAISSPDF"
-if os.path.exists(pdf_vectordb_file_path):
-    pdf_vectordb = FAISS.load_local(pdf_vectordb_file_path, embeddings=pdf_embeddings, allow_dangerous_deserialization=True)
-else:
-    pdf_vectordb = FAISS.from_documents(documents=split_pdf_docs, embedding=pdf_embeddings)
-    pdf_vectordb.save_local(folder_path=pdf_vectordb_file_path)
+    vectordb_file_path = "./StoreFAISSCSV"
 
-pdf_retriever = pdf_vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+    if os.path.exists(vectordb_file_path):
+        vectordb = FAISS.load_local(vectordb_file_path, embeddings=embeddings, allow_dangerous_deserialization=True)
+        print("Loaded existing FAISS index from disk.")
+    else:
+        vectordb = FAISS.from_documents(documents=split_docs, embedding=embeddings)
+        vectordb.save_local(folder_path=vectordb_file_path)
+        print("Created and saved new FAISS index to disk.")
 
-# Define prompt template for PDF RetrievalQA
-pdf_prompt_template = """You are a PDF Reader AI Assistant. Your task is to take in the user query and generate the answer only from the context provided.
-Try to provide a detailed answer looking at all the retrieved context.
-However, you have to stick to the context provided strictly. Nothing in the answer should be from outside of the context formulated.
-If you can't find the answer in the context, just say that you don't know, don't try to make up an answer.
+    retriever = vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+    return retriever
 
-CONTEXT: {context}
+# Load PDF data
+def load_pdf_data(file_paths):
+    all_docs = []
+    for file_path in file_paths:
+        loader = PyPDFLoader(file_path=file_path)
+        documents = loader.load()
+        all_docs.extend(documents)
 
-QUESTION: {question}"""
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    split_docs = text_splitter.split_documents(all_docs)
+    
+    vectordb_file_path = r"StoreFAISSPDF"
+    if os.path.exists(vectordb_file_path):
+        vectordb = FAISS.load_local(vectordb_file_path, embeddings=embeddings, allow_dangerous_deserialization=True)
+        print("Loaded existing FAISS index from disk.")
+    else:
+        vectordb = FAISS.from_documents(documents=split_docs, embedding=embeddings)
+        vectordb.save_local(folder_path=vectordb_file_path)
+        print("Created and saved new FAISS index to disk.")
 
-PDF_PROMPT = PromptTemplate(template=pdf_prompt_template, input_variables=["context", "question"])
+    return vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
-# Define and initialize RetrievalQA chain for PDFs
-pdf_chain = RetrievalQA.from_chain_type(
-    llm=ChatOpenAI(model="gpt-4"),
-    chain_type="stuff",
-    retriever=pdf_retriever,
-    input_key="query",
-    return_source_documents=True,
-    chain_type_kwargs={"prompt": PDF_PROMPT}
-)
+# Load CSV and PDF vector databases
+csv_retriever = load_csv_data("./HowToDataStore.csv")
+pdf_retriever = load_pdf_data([
+    "./Reference/12.SD-Sales Monitoring and Analytics.pdf", 
+    "./Reference/13.SD-Special Business Processes in Sales.pdf",
+    "./Reference/14.SD-Integrations.pdf"
+])
 
-def load_and_extract_images(pdf_path, page_num, output_dir):
-    document = fitz.open(pdf_path)
-    all_images = []
-    images = extract_images_from_pdf_with_pagenum(document, page_num, output_dir)
-    all_images.extend(images)
-    return all_images
-
-def extract_images_from_pdf_with_pagenum(document, page_num, output_dir):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    page = document.load_page(page_num)
-    image_list = page.get_images(full=True)
-
-    images_info = []
-    for img_index, img in enumerate(image_list):
-        xref = img[0]
-        pix = fitz.Pixmap(document, xref)
-        rect = fitz.Rect(pix.irect)
-        text = page.get_text("text", clip=rect)
-        if not text:
-            continue
-
-        base_image = document.extract_image(xref)
-        image_bytes = base_image["image"]
-        img_ext = base_image["ext"]
-
-        image_info = {
-            'page_number': page_num + 1,
-            'text': text.strip(),
-            'image_data': base64.b64encode(image_bytes).decode('utf-8'),
-            'image_ext': img_ext
+# Helper function to serialize Document objects
+def serialize_document(doc):
+    return {
+        "page_content": doc.page_content,
+        "metadata": {
+            "source": doc.metadata.get("source", ""),
+            "page": doc.metadata.get("page", 0)
         }
-        images_info.append(image_info)
-    return images_info
-
-def extract_all_related_links_with_specific_page(file_path, page_num):
-    document = fitz.open(file_path)
-    links_info = []
-
-    page = document.load_page(page_num)
-    links = page.get_links()
-    for link in links:
-        if 'uri' in link:
-            rect = link['from']
-            text = page.get_text("text", clip=rect)
-            link_info = {
-                'page_number': page_num + 1,
-                'link': link['uri'],
-                'text': text.strip()
-            }
-            links_info.append(link_info)
-
-    return links_info
-
-def ask_pdf_question(question):
-    if not question:
-        return {"error": "No question provided"}
-
-    # Process the question using the PDF QA chain
-    response = pdf_chain.invoke({"query": question})
-
-    # Check if the answer is "I don't know"
-    if response["result"].strip().lower() == "i don't know." or response["result"].strip().lower().startswith("i'm sorry,"):
-        return {"answer": "I couldn't find the specific answer to your query. Please try again with a different question."}
-
-    # Retrieve relevant documents
-    top_k_docs = pdf_retriever.get_relevant_documents(question)
-    sources_content = []
-    pages_content = []
-    sources_content_pages = set()
-
-    for source in response['source_documents']:
-        sources_content.append(source.metadata['source'])
-        pages_content.append(source.page_content)
-        entry = (source.metadata['source'], source.metadata['page'])
-        sources_content_pages.add(entry)
-
-    image_info = []
-    link_info = []
-
-    output_dir = "./ImagesExtracted"
-
-    for file_path, page_num in sources_content_pages:
-        # Extract images
-        images = load_and_extract_images(file_path, page_num, output_dir)
-        image_info.extend(images)
-
-        # Extract links
-        links = extract_all_related_links_with_specific_page(file_path, page_num)
-        link_info.extend(links)
-
-    result = {
-        "answer": response["result"],
-        "sources": sources_content,
-        "additional_info": pages_content,
-        "image_info": image_info,
-        "link_info": link_info
     }
 
-    return result
-
-### CSV Processing ###
-csv_file_path = "./HowToDataStore.csv"
-csv_loader = CSVLoader(file_path=csv_file_path, encoding='latin-1')
-csv_data = csv_loader.load()
-
-csv_text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, add_start_index=True)
-split_csv_docs = csv_text_splitter.split_documents(csv_data)
-
-# Embeddings and FAISS vector store for CSV
-csv_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-csv_vectordb_file_path = "./StoreFAISSCsv"
-if os.path.exists(csv_vectordb_file_path):
-    csv_vectordb = FAISS.load_local(csv_vectordb_file_path, embeddings=csv_embeddings, allow_dangerous_deserialization=True)
-else:
-    csv_vectordb = FAISS.from_documents(documents=split_csv_docs, embedding=csv_embeddings)
-    csv_vectordb.save_local(folder_path=csv_vectordb_file_path)
-
-csv_retriever = csv_vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
-
-# Define prompts for CSV Retrieval
-csv_system_prompt = (
-    "You are an assistant for generating the responses for CSV prompts. "
-    "Use the following pieces of retrieved context to answer the question. "
-    "If the answer is not present, say that: I don't know. "
-    "Provide a full, detailed answer."
-    "\n\n"
-    "{context}"
-)
-
-csv_chat_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", csv_system_prompt),
-        ("human", "{input}"),
-    ]
-)
-
-# Create CSV retrieval chain
-csv_question_answer_chain = create_stuff_documents_chain(ChatOpenAI(model="gpt-4"), csv_chat_prompt)
-csv_rag_chain = create_retrieval_chain(csv_retriever, csv_question_answer_chain)
-
-def ask_csv_question(user_query):
-    if not user_query:
-        return {"error": "No query provided"}
-
-    # Retrieve top k documents
-    top_k_docs = csv_retriever.get_relevant_documents(user_query)
-
-    # Convert the documents to a serializable format
-    sources = []
-    for doc in top_k_docs:
-        sources.append({
-            "content": doc.page_content,
-            "metadata": doc.metadata
-        })
-
-    # Use the query in the CSV chain to generate the final answer
-    try:
-        response = csv_rag_chain.invoke({"input": user_query})
-        
-        # Check if 'output' exists in the response
-        if "output" not in response:
-            return {
-                "error": "No output found in the response",
-                "sources": sources
-            }
-
-        result = {
-            "answer": response["output"],
-            "sources": sources
-        }
-
-    except Exception as e:
-        # Handle any unexpected errors during invocation
-        result = {
-            "error": f"An error occurred: {str(e)}",
-            "sources": sources
-        }
-
-    return result
-
-@app.route("/pdf/query", methods=["POST"])
-def query_pdf():
-    user_query = request.json.get("query")
-    result = ask_pdf_question(user_query)
-    return jsonify(result)
-
-@app.route("/csv/query", methods=["POST"])
+# Flask API endpoints
+@app.route('/csv/query', methods=['POST'])
 def query_csv():
-    user_query = request.json.get("query")
-    result = ask_csv_question(user_query)
-    return jsonify(result)
+    data = request.json
+    query = data.get("query", "")
+    
+    if not query:
+        return jsonify({"error": "No query provided"}), 400
 
-if __name__ == "__main__":
-    app.run(debug=True)
+    rag_chain = create_csv_chain(csv_retriever)
+    response = rag_chain.invoke({"query": query})
+
+    # Print response to debug
+    print("Response:", response)
+
+    serializable_sources = [serialize_document(doc) for doc in response.get("source_documents", [])]
+
+    return jsonify({
+        "answer": str(response["result"]),
+        "sources": serializable_sources
+    })
+
+@app.route('/pdf/query', methods=['POST'])
+def query_pdf():
+    data = request.json
+    query = data.get("query", "")
+    
+    if not query:
+        return jsonify({"error": "No query provided"}), 400
+
+    rag_chain = create_pdf_chain(pdf_retriever)
+    response = rag_chain.invoke({"query": query})
+
+    # Extract image and link information
+    image_info, link_info = extract_pdf_info(response["source_documents"])
+
+    serializable_sources = [serialize_document(doc) for doc in response.get("source_documents", [])]
+
+    return jsonify({
+        "answer": response["result"],
+        "sources": serializable_sources,
+        "images": image_info,
+        "links": link_info
+    })
+
+# Chains creation
+def create_csv_chain(retriever):
+    prompt_template = """
+    You are an assistant for generating responses for CSV-based queries. Use the following context extracted from CSV data to answer the question:
+    
+    Context: {context}
+    
+    Question: {question}
+    
+    If the answer is not in the context, say "I don't know."
+    """
+    
+    PROMPT = PromptTemplate(
+        template=prompt_template, 
+        input_variables=["context", "question"]
+    )
+    
+    chain = RetrievalQA.from_chain_type(
+        llm=ChatOpenAI(model="gpt-4"),
+        chain_type="stuff",
+        retriever=retriever,
+        return_source_documents=True,
+        chain_type_kwargs={"prompt": PROMPT}
+    )
+    
+    return chain
+    
+def create_pdf_chain(retriever):
+    prompt_template = """You are a PDF Reader AI Assistant. Your task is to take in the user query and generate the answer only from the context provided. 
+    
+Context: {context}
+
+Question: {question}"""
+    
+    PROMPT = PromptTemplate(
+        template=prompt_template, 
+        input_variables=["context", "question"]
+    )
+    
+    chain = RetrievalQA.from_chain_type(
+        llm=ChatOpenAI(model="gpt-4"),
+        chain_type="stuff",
+        retriever=retriever,
+        return_source_documents=True,
+        chain_type_kwargs={"prompt": PROMPT}
+    )
+    
+    return chain
+
+# Extract image and link information
+def extract_pdf_info(source_documents):
+    image_info = []
+    link_info = []
+    
+    output_dir = r"ImagesExtracted"
+    for source in source_documents:
+        file_path = source.metadata['source']
+        page_num = source.metadata.get('page', 0)
+        
+        # Extract images and links from PDF pages
+        images = extract_images_from_pdf(file_path, page_num, output_dir)
+        links = extract_links_from_pdf(file_path, page_num)
+
+        image_info.extend(images)
+        link_info.extend(links)
+
+    return image_info, link_info
+
+# Extract images from PDF
+def extract_images_from_pdf(file_path, page_num, output_dir):
+    document = fitz.open(file_path)
+    page = document.load_page(page_num)
+    image_list = page.get_images(full=True)
+    
+    images_info = []
+    for img in image_list:
+        xref = img[0]
+        base_image = document.extract_image(xref)
+        image_bytes = base_image["image"]
+        image_ext = base_image["ext"]
+        
+        # Save the image locally and add its path to the images_info
+        image_filename = f"{output_dir}/page_{page_num}_{xref}.{image_ext}"
+        with open(image_filename, "wb") as f:
+            f.write(image_bytes)
+        
+        images_info.append(image_filename)
+    
+    return images_info
+
+# Extract links from PDF
+def extract_links_from_pdf(file_path, page_num):
+    document = fitz.open(file_path)
+    page = document.load_page(page_num)
+    links = page.get_links()
+    
+    links_info = []
+    for link in links:
+        if link['uri']:  # Checks if the link is a URL
+            links_info.append(link['uri'])
+    
+    return links_info
+
+# Run the Flask app
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
