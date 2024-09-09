@@ -150,7 +150,7 @@ const Chat = () => {
                   </ReactMarkdown>
                 </div>
               )}
-              {currentQuestion && selectedLabel !== "ABAP Code Genarator" && (
+              {/* {currentQuestion && selectedLabel !== "ABAP Code Genarator" && (
                 <div className="w-full mb-2">
                   <div className="text-black whitespace-normal break-words">
                     {source !== "llm" && (
@@ -164,7 +164,8 @@ const Chat = () => {
                     )}
                   </div>
                 </div>
-              )}
+              )} */}
+              
             </div>
           )}
         </div>
