@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  FaArrowUp,
   FaCode,
   FaFilePdf,
   FaHeadset,
@@ -11,21 +10,22 @@ import remarkGfm from "remark-gfm";
 import chatbotIntro from "./assets/ai.png";
 
 const options = [
-  { label: "Support Help", api: "csvchat", icon: <FaHeadset /> },
-  { label: "Pdf Reader", api: "pdfchat", icon: <FaFilePdf /> },
-  { label: "ABAP Code Genarator", api: "pdfchat", icon: <FaCode /> },
+  { label: "Support Help", api: "csv/query", icon: <FaHeadset /> },
+  { label: "Pdf Reader", api: "pdf/query", icon: <FaFilePdf /> },
+  { label: "ABAP Code Genarator", api: "pdf/query", icon: <FaCode /> },
 ];
 
 const Chat = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [currentResponse, setCurrentResponse] = useState(null);
-  const [selectedOption, setSelectedOption] = useState("csvchat");
+  const [selectedOption, setSelectedOption] = useState("csv/query");
   const [selectedLabel, setSelectedLabel] = useState("Support Help");
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialInput, setShowInitialInput] = useState(true);
-  const [source, setSource] = useState("");
+  const [source, setSource] = useState();
   const [content, setContent] = useState("");
+  const [links, setLinks] = useState([]);
 
   const handleSendMessage = async () => {
     if (inputMessage.trim() === "") return;
@@ -34,6 +34,8 @@ const Chat = () => {
     setShowInitialInput(false);
     setInputMessage("");
     setCurrentResponse(" ");
+    setContent(" ");
+    setLinks([]);
     setIsLoading(true);
 
     try {
@@ -44,7 +46,7 @@ const Chat = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ prompt: inputMessage }),
+          body: JSON.stringify({ query: inputMessage }),
         }
       );
 
@@ -54,9 +56,15 @@ const Chat = () => {
 
       const text = await response.text();
       const data = JSON.parse(text);
-      setSource(data.source || "No source found");
-      setContent(data.content || "No content found");
-      setCurrentResponse(data.answer || "No response available.");
+      const sources = data.sources || [];
+      if (sources.length > 0) {
+        setContent(sources[0].content || " ");
+      } else {
+        setContent(" ");
+      }
+
+      setCurrentResponse(data.answer || " ");
+      setLinks(data.link_info || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       setCurrentResponse("Error fetching response.");
@@ -150,21 +158,31 @@ const Chat = () => {
                   </ReactMarkdown>
                 </div>
               )}
-              {/* {currentQuestion && selectedLabel !== "ABAP Code Genarator" && (
-                <div className="w-full mb-2">
-                  <div className="text-black whitespace-normal break-words">
-                    {source !== "llm" && (
-                      <h1>
-                        <span className="font-bold">Source: </span>
-                        {source}
-                        <br />
-                        <span className="font-bold">Content: </span>
-                        {content}
-                      </h1>
-                    )}
-                  </div>
+              {content && (
+                <>
+                  <p>{content}</p>
+                </>
+              )}
+              {links.length > 0 && (
+                <div className="mt-4">
+                  <h2 className="font-bold text-lg">Related Information:</h2>
+                  <ul className="list-disc ml-5 mt-2">
+                    {links.map((link, index) => (
+                      <li key={index}>
+                        <a
+                          href={link.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 underline"
+                        >
+                          {link.text}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              )} */}
+              )}
+              {/* {source} */}
             </div>
           )}
         </div>
@@ -184,21 +202,6 @@ const Chat = () => {
                   }
                 }}
               />
-              <button
-                onClick={handleSendMessage}
-                disabled={isLoading}
-                className={`ml-2 px-6 py-2 rounded-lg bg-green-700 text-white ${
-                  isLoading
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-green-900"
-                } focus:outline-none focus:ring-2 focus:ring-green-700`}
-              >
-                {isLoading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                ) : (
-                  <FaArrowUp />
-                )}
-              </button>
             </div>
           </div>
         )}
