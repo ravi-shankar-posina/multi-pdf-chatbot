@@ -5,8 +5,8 @@ import remarkGfm from "remark-gfm";
 import chatbotIntro from "./assets/ai.png";
 
 const options = [
-  { label: "Support Help", api: "csv/query", icon: <FaHeadset /> },
-  { label: "Pdf Reader", api: "pdf/query", icon: <FaFilePdf /> },
+  { label: "How To?", api: "csv/query", icon: <FaHeadset /> },
+  { label: "Best Practices", api: "pdf/query", icon: <FaFilePdf /> },
   { label: "ABAP Code Generator", api: "pdf/query", icon: <FaCode /> },
 ];
 
@@ -272,7 +272,7 @@ const Chat = () => {
                   </ul>
                 </div>
               )}
-              {thankYouMessage && (
+              {/* {thankYouMessage && (
                 <div className="mt-4 text-center text-green-600 font-semibold">
                   {thankYouMessage}
                 </div>
@@ -295,7 +295,7 @@ const Chat = () => {
                     No
                   </button>
                 </div>
-              )}
+              )} */}
             </div>
           )}
         </div>
