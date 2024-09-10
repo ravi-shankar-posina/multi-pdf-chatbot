@@ -132,6 +132,9 @@ const Chat = () => {
       const text = await response.text();
       const data = JSON.parse(text);
       setAdditionalResponse(data.answer || " ");
+      setCurrentResponse(" ");
+      setLinks([])
+      setContent([])
     } catch (error) {
       console.error("Error fetching data:", error);
       setAdditionalResponse("Error fetching additional response.");
