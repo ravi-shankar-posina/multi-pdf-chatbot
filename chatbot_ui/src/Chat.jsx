@@ -7,7 +7,7 @@ import chatbotIntro from "./assets/ai.png";
 const options = [
   { label: "How To?", api: "csv/query", icon: <FaHeadset /> },
   { label: "Best Practices", api: "pdf/query", icon: <FaFilePdf /> },
-  { label: "ABAP Code Generator", api: "pdf/query", icon: <FaCode /> },
+  { label: "ABAP Code Generator", api: "query", icon: <FaCode /> },
 ];
 
 const Chat = () => {
