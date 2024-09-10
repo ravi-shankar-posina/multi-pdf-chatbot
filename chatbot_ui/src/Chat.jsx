@@ -7,7 +7,7 @@ import chatbotIntro from "./assets/ai.png";
 const options = [
   { label: "Support Help", api: "csv/query", icon: <FaHeadset /> },
   { label: "Pdf Reader", api: "pdf/query", icon: <FaFilePdf /> },
-  { label: "ABAP Code Genarator", api: "pdf/query", icon: <FaCode /> },
+  { label: "ABAP Code Generator", api: "pdf/query", icon: <FaCode /> },
 ];
 
 const Chat = () => {
@@ -22,19 +22,26 @@ const Chat = () => {
   const [content, setContent] = useState([]);
   const [links, setLinks] = useState([]);
   const [images, setImages] = useState([]);
+  const [showSatisfactionQuestion, setShowSatisfactionQuestion] =
+    useState(false);
+  const [thankYouMessage, setThankYouMessage] = useState("");
+  const [additionalResponse, setAdditionalResponse] = useState("");
 
   const handleSendMessage = async () => {
     if (inputMessage.trim() === "") return;
-  
+
     setCurrentQuestion(inputMessage);
     setShowInitialInput(false);
     setInputMessage("");
     setCurrentResponse(" ");
     setContent([]);
     setLinks([]);
-    setImages([]); 
+    setImages([]);
     setIsLoading(true);
-  
+    setShowSatisfactionQuestion(false);
+    setThankYouMessage("");
+    setAdditionalResponse("");
+
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/${selectedOption}`,
@@ -46,15 +53,15 @@ const Chat = () => {
           body: JSON.stringify({ query: inputMessage }),
         }
       );
-  
+
       if (!response.ok) {
         throw new Error(`Network response was not ok: ${response.statusText}`);
       }
-  
+
       const text = await response.text();
       const data = JSON.parse(text);
       const sources = data.sources || [];
-  
+
       if (sources.length > 0) {
         const updatedContent = sources.map(
           (source) => source.page_content || " "
@@ -63,18 +70,17 @@ const Chat = () => {
       } else {
         setContent([]);
       }
-  
-      const img = data.images || [];
-      if (img.length > 0) {
-        setImages(
-          img.map((image) => `data:image/png;base64,${image}`)
-        );
-      } else {
-        setImages([]);
-      }
-  
+
+      // const img = data.images || [];
+      // if (img.length > 0) {
+      //   setImages(img.map((image) => `data:image/png;base64,${image}`));
+      // } else {
+      //   setImages([]);
+      // }
+
       setCurrentResponse(data.answer || " ");
       setLinks(data.links || []);
+      setShowSatisfactionQuestion(true); 
     } catch (error) {
       console.error("Error fetching data:", error);
       setCurrentResponse("Error fetching response.");
@@ -82,7 +88,6 @@ const Chat = () => {
       setIsLoading(false);
     }
   };
-  
 
   const handleOptionClick = (optionApi, optionLabel) => {
     setSelectedOption(optionApi);
@@ -91,8 +96,48 @@ const Chat = () => {
     setCurrentQuestion(null);
     setCurrentResponse(null);
     setShowInitialInput(true);
-    if (optionLabel === "ABAP Code Genarator") {
+    setShowSatisfactionQuestion(false);
+    setThankYouMessage("");
+    setAdditionalResponse("");
+    if (optionLabel === "ABAP Code Generator") {
       setSource("");
+    }
+  };
+
+  const handleYesClick = () => {
+    setThankYouMessage(
+      "Thank you! If you have further questions, feel free to ask."
+    );
+    setShowSatisfactionQuestion(false);
+  };
+
+  const handleNoClick = async () => {
+    setIsLoading(true);
+    setShowSatisfactionQuestion(false);
+    setThankYouMessage("");
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/query`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: currentQuestion }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.statusText}`);
+      }
+
+      const text = await response.text();
+      const data = JSON.parse(text);
+      setAdditionalResponse(data.answer || " ");
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setAdditionalResponse("Error fetching additional response.");
+    } finally {
+      setIsLoading(false);
+      setShowSatisfactionQuestion(true); // Display the satisfaction question again after handling 'No'
     }
   };
 
@@ -159,6 +204,19 @@ const Chat = () => {
                   </div>
                 </div>
               )}
+              {additionalResponse && (
+                <div className="mb-2 overflow-x-auto">
+                  <h1 className="py-2 font-bold ">
+                    Response genarated by LLM
+                  </h1>
+                  <ReactMarkdown
+                    className="markdown-body"
+                    remarkPlugins={[remarkGfm]}
+                  >
+                    {additionalResponse}
+                  </ReactMarkdown>
+                </div>
+              )}
               {currentResponse && (
                 <div className="mb-2 overflow-x-auto">
                   <ReactMarkdown
@@ -192,7 +250,6 @@ const Chat = () => {
                   </ul>
                 </div>
               )}
-
               {links.length > 0 && (
                 <div className="mt-4">
                   <h2 className="font-bold text-lg">Related Links:</h2>
@@ -210,6 +267,30 @@ const Chat = () => {
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+              {thankYouMessage && (
+                <div className="mt-4 text-center text-green-600 font-semibold">
+                  {thankYouMessage}
+                </div>
+              )}
+              {showSatisfactionQuestion && !thankYouMessage && (
+                <div className="flex  mt-4 space-x-4">
+                  <h1 className="py-2 font-semibold">
+                    Are You satisifies with this Response...?
+                  </h1>
+                  <button
+                    onClick={handleYesClick}
+                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={handleNoClick}
+                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  >
+                    No
+                  </button>
                 </div>
               )}
             </div>
