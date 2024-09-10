@@ -125,6 +125,21 @@ def query_pdf():
         "links": link_info
     })
 
+@app.route('/query', methods=['POST'])
+def query():
+    data = request.json
+    query = data.get("query", "")
+    
+    if not query:
+        return jsonify({"error": "No query provided"}), 400
+
+    # Run the query on the OpenAI model
+    response = openai_model.invoke(query)
+
+    return jsonify({
+        "answer": response.content
+    })
+
 # Chains creation
 def create_csv_chain(retriever):
     prompt_template = """
