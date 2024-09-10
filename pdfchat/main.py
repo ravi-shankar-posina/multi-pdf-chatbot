@@ -69,7 +69,8 @@ csv_retriever = load_csv_data("./HowToDataStore.csv")
 pdf_retriever = load_pdf_data([
     "./Reference/12.SD-Sales Monitoring and Analytics.pdf", 
     "./Reference/13.SD-Special Business Processes in Sales.pdf",
-    "./Reference/14.SD-Integrations.pdf"
+    "./Reference/14.SD-Integrations.pdf",
+    "./Reference/SAP IM Database.pdf"
 ])
 
 # Helper function to serialize Document objects
