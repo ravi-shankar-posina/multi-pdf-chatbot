@@ -18,7 +18,7 @@ CORS(app, origins="*")
 
 # Common embeddings setup
 embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-openai_model = ChatOpenAI(model="gpt-4")
+openai_model = ChatOpenAI(model="gpt-4o-mini")
 parser = StrOutputParser()
 
 # Load CSV data
