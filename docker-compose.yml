@@ -16,7 +16,7 @@ services:
       context: ./pdfchat
     container_name: chatui_backend
     ports:
-      - 8501:8501
+      - 8502:8502
 
   frontend:
     build:
