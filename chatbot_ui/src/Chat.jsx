@@ -15,7 +15,7 @@ const Chat = () => {
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [currentResponse, setCurrentResponse] = useState(null);
   const [selectedOption, setSelectedOption] = useState("csv/query");
-  const [selectedLabel, setSelectedLabel] = useState("Support Help");
+  const [selectedLabel, setSelectedLabel] = useState("How To?");
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialInput, setShowInitialInput] = useState(true);
   const [source, setSource] = useState();

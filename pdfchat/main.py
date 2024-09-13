@@ -18,13 +18,15 @@ CORS(app, origins="*")
 
 # Common embeddings setup
 embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-openai_model = ChatOpenAI(model="gpt-4")
+openai_model = ChatOpenAI(model="gpt-4o-mini")
 parser = StrOutputParser()
 
 # Load CSV data
 def load_csv_data(file_path):
-    loader = CSVLoader(file_path=file_path, encoding='latin-1')
+    loader = CSVLoader(file_path='./output.csv', encoding='latin-1')
     data = loader.load()
+    loader = CSVLoader(file_path='./HowToDataStore.csv', encoding='latin-1')
+    data.extend(loader.load())
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     split_docs = text_splitter.split_documents(data)
@@ -65,7 +67,7 @@ def load_pdf_data(file_paths):
     return vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
 # Load CSV and PDF vector databases
-csv_retriever = load_csv_data("./HowToDataStore.csv")
+csv_retriever = load_csv_data("./output.csv")
 pdf_retriever = load_pdf_data([
     "./Reference/12.SD-Sales Monitoring and Analytics.pdf", 
     "./Reference/13.SD-Special Business Processes in Sales.pdf",
@@ -94,6 +96,7 @@ def query_csv():
 
     rag_chain = create_csv_chain(csv_retriever)
     response = rag_chain.invoke({"query": query})
+    print(response)
 
     serializable_sources = [serialize_document(doc) for doc in response.get("source_documents", [])]
 
@@ -150,7 +153,7 @@ def create_csv_chain(retriever):
     
     Question: {question}
     
-    If the answer is not in the context, say "we dont have any information related to the search content, However below details will help for you."
+    If the answer is not in the context, say "Below details might help you." and return the summary of content of the source document.
     """
     
     PROMPT = PromptTemplate(
