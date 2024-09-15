@@ -304,4 +304,4 @@ def extract_links_from_pdf(file_path, page_num):
 
 # Run the Flask app
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8501, debug=True)
+    app.run(host='0.0.0.0', port=8502, debug=True)

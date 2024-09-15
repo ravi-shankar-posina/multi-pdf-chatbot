@@ -14,13 +14,13 @@ services:
   backend:
     build:
       context: ./pdfchat
-    container_name: backend
+    container_name: chatui_backend
     ports:
-      - 8501:8501
+      - 8502:8502
 
   frontend:
     build:
       context: ./chatbot_ui
-    container_name: frontend
+    container_name: chatui_frontend
     ports:
       - 3000:80
