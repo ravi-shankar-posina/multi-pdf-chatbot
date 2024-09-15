@@ -9,24 +9,28 @@ from langchain.chains import RetrievalQA, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain.agents.agent_types import AgentType
+from langchain_experimental.agents.agent_toolkits import create_csv_agent
 from dotenv import load_dotenv
 from flask_cors import CORS
 import base64
+
 load_dotenv()
 app = Flask(__name__)
 CORS(app, origins="*")
 
 # Common embeddings setup
 embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-openai_model = ChatOpenAI(model="gpt-4o-mini")
+openai_model = ChatOpenAI(model="gpt-4-1106-preview")
 parser = StrOutputParser()
 
 # Load CSV data
 def load_csv_data(file_path):
-    loader = CSVLoader(file_path='./output.csv', encoding='latin-1')
-    data = loader.load()
     loader = CSVLoader(file_path='./HowToDataStore.csv', encoding='latin-1')
-    data.extend(loader.load())
+    data = loader.load()
+    # loader = CSVLoader(file_path='./HowToDataStore.csv', encoding='latin-1')
+    # data.extend(loader.load())
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     split_docs = text_splitter.split_documents(data)
@@ -75,6 +79,15 @@ pdf_retriever = load_pdf_data([
     "./Reference/SAP IM Database.pdf"
 ])
 
+# Create CSV agent
+csv_agent = create_csv_agent(
+    ChatOpenAI(temperature=0, model="gpt-4-1106-preview"),
+    "./output.csv",
+    verbose=True,
+    agent_type=AgentType.OPENAI_FUNCTIONS,
+    allow_dangerous_code=True
+)
+
 # Helper function to serialize Document objects
 def serialize_document(doc):
     return {
@@ -84,6 +97,14 @@ def serialize_document(doc):
             "page": str(doc.metadata.get("page", 0))
         }
     }
+
+# Function to determine if the query is related to CSV analysis
+def is_csv_query(query):
+    csv_keywords = [
+        "rows", "columns", "repeated", "most repeated", "highest", "low priority","unique values", "find", "low", "list", "most number"
+        "how many", "count", "frequency", "least repeated", "list all", "show all", "assigned to", "find all", "file about", "which"
+    ]
+    return any(keyword in query.lower() for keyword in csv_keywords)
 
 # Flask API endpoints
 @app.route('/csv/query', methods=['POST'])
@@ -96,7 +117,6 @@ def query_csv():
 
     rag_chain = create_csv_chain(csv_retriever)
     response = rag_chain.invoke({"query": query})
-    print(response)
 
     serializable_sources = [serialize_document(doc) for doc in response.get("source_documents", [])]
 
@@ -104,6 +124,21 @@ def query_csv():
         "answer": str(response["result"]),
         "sources": serializable_sources
     })
+
+# New endpoint for CSV agent queries
+@app.route('/csv/agent_query', methods=['POST'])
+def csv_agent_query():
+    data = request.json
+    query = data.get("query", "")
+    
+    if not query:
+        return jsonify({"error": "No query provided"}), 400
+
+    try:
+        csv_response = csv_agent.run(query)
+        return jsonify({"answer": csv_response, "type": "csv_agent"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/pdf/query', methods=['POST'])
 def query_pdf():
@@ -144,6 +179,26 @@ def query():
         "answer": response.content
     })
 
+@app.route('/followup', methods=['POST'])
+def handle_followup():
+    data = request.json
+    query = data.get('query')
+    was_helpful = data.get('was_helpful')
+
+    if not query or was_helpful is None:
+        return jsonify({"error": "Invalid input"}), 400
+
+    if was_helpful:
+        return jsonify({"response": "Thank you! I'm glad I could help."})
+    else:
+        messages = [
+            SystemMessage(content="You are a helpful assistant. Please provide an answer to the following question:"),
+            HumanMessage(content=query),
+        ]
+        result = openai_model.invoke(messages)
+        parsed_output = parser.invoke(result)
+        return jsonify({"response": parsed_output, "type": "alternative"})
+
 # Chains creation
 def create_csv_chain(retriever):
     prompt_template = """
@@ -162,7 +217,7 @@ def create_csv_chain(retriever):
     )
     
     chain = RetrievalQA.from_chain_type(
-        llm=ChatOpenAI(model="gpt-4"),
+        llm=ChatOpenAI(model="gpt-4-1106-preview"),
         chain_type="stuff",
         retriever=retriever,
         return_source_documents=True,
@@ -184,7 +239,7 @@ Question: {question}"""
     )
     
     chain = RetrievalQA.from_chain_type(
-        llm=ChatOpenAI(model="gpt-4"),
+        llm=ChatOpenAI(model="gpt-4-1106-preview"),
         chain_type="stuff",
         retriever=retriever,
         return_source_documents=True,
