@@ -7,10 +7,11 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 from langchain.agents.agent_types import AgentType
-from langchain_experimental.agents.agent_toolkits import create_csv_agent
 from dotenv import load_dotenv
 from flask_cors import CORS
 from pandasai import SmartDataframe
+import pandas as pd
+from pandasai.llm.openai import OpenAI
 
 # Load environment variables
 load_dotenv()
@@ -65,10 +66,8 @@ def load_pdf_vector_store(file_paths, vectordb_path):
 
     return vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
-# Load CSV vector store
-csv_retriever = load_csv_vector_store("./output.csv", "./StoreFAISSCSV")
+csv_retriever = load_csv_vector_store("./HowToDataStore.csv", "./StoreFAISSCSV")
 
-# Load PDF vector store with multiple PDF files
 pdf_files = [
     "./Reference/12.SD-Sales Monitoring and Analytics.pdf", 
     "./Reference/13.SD-Special Business Processes in Sales.pdf",
@@ -76,15 +75,6 @@ pdf_files = [
     "./Reference/SAP IM Database.pdf"
 ]
 pdf_retriever = load_pdf_vector_store(pdf_files, "./StoreFAISSPDF")
-
-# Create CSV agent
-csv_agent = create_csv_agent(
-    ChatOpenAI(temperature=0, model="gpt-4-1106-preview"),
-    "./output.csv",
-    verbose=False,
-    agent_type=AgentType.OPENAI_FUNCTIONS,
-    allow_dangerous_code=True
-)
 
 def serialize_document(doc):
     """
@@ -152,18 +142,6 @@ def query_csv():
         "sources": serializable_sources
     })
 
-@app.route('/csv/agent_query', methods=['POST'])
-def csv_agent_query():
-    query = request.json.get("query", "")
-    if not query:
-        return jsonify({"error": "No query provided"}), 400
-
-    try:
-        csv_response = csv_agent.run(query)
-        return jsonify({"answer": csv_response, "type": "csv_agent"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/pdf/query', methods=['POST'])
 def query_pdf():
     query = request.json.get("query", "")
@@ -178,12 +156,26 @@ def query_pdf():
         "sources": serializable_sources
     })
 
-@app.route("/analyze/", methods=["POST"])
-async def analyze_excel():
+@app.route("/analyze", methods=["POST"])
+def analyze_excel():
     query = request.json.get("query", "")
-    sdf = SmartDataframe('./output.csv')
+    
+    # Initialize OpenAI and SmartDataframe
+    llm = OpenAI(api_token=os.getenv("OPENAI_API_KEY"))
+    sdf = SmartDataframe('./output.csv', config={"llm": llm})
+    
+    # Get the response from SmartDataframe
     response = sdf.chat(query)
-    return {"response": response}
+    
+    # Handle response based on its type
+    if isinstance(response, (int, str)):
+        response_data = str(response)  # Convert int or str to string
+    elif isinstance(response, pd.DataFrame):
+        response_data = response.to_html()  # Convert DataFrame to JSON string
+    else:
+        response_data = str(response)  # Fallback for other types
+
+    return jsonify({"answer": response_data})
 
 @app.route('/query', methods=['POST'])
 def query():

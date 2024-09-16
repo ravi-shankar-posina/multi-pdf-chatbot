@@ -6,7 +6,7 @@ import chatbotIntro from "./assets/ai.png";
 
 const options = [
   { label: "How To?", api: "csv/query", icon: <FaHeadset /> },
-  { label: "Incident", api: "csv/agent_query", icon: <FaCode /> },
+  { label: "Incident", api: "analyze", icon: <FaCode /> },
   { label: "Best Practices", api: "pdf/query", icon: <FaFilePdf /> },
   { label: "ABAP Code Generator", api: "query", icon: <FaCode /> },  
 ];
