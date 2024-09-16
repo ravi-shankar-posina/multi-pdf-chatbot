@@ -27,8 +27,10 @@ parser = StrOutputParser()
 
 # Load CSV data
 def load_csv_data(file_path):
-    loader = CSVLoader(file_path=file_path, encoding='latin-1')
+    loader = CSVLoader(file_path='./HowToDataStore.csv', encoding='latin-1')
     data = loader.load()
+    # loader = CSVLoader(file_path='./HowToDataStore.csv', encoding='latin-1')
+    # data.extend(loader.load())
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     split_docs = text_splitter.split_documents(data)
@@ -69,7 +71,7 @@ def load_pdf_data(file_paths):
     return vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
 # Load CSV and PDF vector databases
-csv_retriever = load_csv_data("./output.csv")  # Updated file path
+csv_retriever = load_csv_data("./output.csv")
 pdf_retriever = load_pdf_data([
     "./Reference/12.SD-Sales Monitoring and Analytics.pdf", 
     "./Reference/13.SD-Special Business Processes in Sales.pdf",
@@ -80,8 +82,8 @@ pdf_retriever = load_pdf_data([
 # Create CSV agent
 csv_agent = create_csv_agent(
     ChatOpenAI(temperature=0, model="gpt-4-1106-preview"),
-    "./output.csv",  # Updated file path
-    verbose=True,
+    "./output.csv",
+    verbose=False,
     agent_type=AgentType.OPENAI_FUNCTIONS,
     allow_dangerous_code=True
 )
@@ -123,7 +125,7 @@ def query_csv():
         "sources": serializable_sources
     })
 
-#  endpoint for CSV agent queries
+# New endpoint for CSV agent queries
 @app.route('/csv/agent_query', methods=['POST'])
 def csv_agent_query():
     data = request.json
@@ -246,15 +248,22 @@ Question: {question}"""
     
     return chain
 
-# Helper function to extract images and links from PDF sources
-def extract_pdf_info(source_docs):
+# Extract image and link information
+def extract_pdf_info(source_documents):
     image_info = []
     link_info = []
-    for doc in source_docs:
-        if doc.metadata.get('page') and 'image' in doc.metadata:
-            image_info.append(doc.metadata['image'])
-        if 'link' in doc.page_content:
-            link_info.append(doc.metadata.get('link', ''))
+    
+    output_dir = r"ImagesExtracted"
+    for source in source_documents:
+        file_path = source.metadata['source']
+        page_num = source.metadata.get('page', 0)
+        
+        # Extract images and links from PDF pages
+        images = extract_images_from_pdf(file_path, page_num, output_dir)
+        links = extract_links_from_pdf(file_path, page_num)
+
+        image_info.extend(images)
+        link_info.extend(links)
 
     return image_info, link_info
 
@@ -292,5 +301,7 @@ def extract_links_from_pdf(file_path, page_num):
             links_info.append(link['uri'])
     
     return links_info
+
+# Run the Flask app
 if __name__ == '__main__':
-     app.run(host='0.0.0.0', port=8502, debug=False)
+    app.run(host='0.0.0.0', port=8502, debug=False)
