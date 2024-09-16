@@ -80,7 +80,7 @@ pdf_retriever = load_pdf_vector_store(pdf_files, "./StoreFAISSPDF")
 csv_agent = create_csv_agent(
     ChatOpenAI(temperature=0, model="gpt-4-1106-preview"),
     "./output.csv",
-    verbose=True,
+    verbose=False,
     agent_type=AgentType.OPENAI_FUNCTIONS,
     allow_dangerous_code=True
 )
