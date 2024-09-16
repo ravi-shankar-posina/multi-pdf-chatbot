@@ -10,6 +10,7 @@ from langchain.agents.agent_types import AgentType
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
 from dotenv import load_dotenv
 from flask_cors import CORS
+from pandasai import SmartDataframe
 
 # Load environment variables
 load_dotenv()
@@ -176,6 +177,13 @@ def query_pdf():
         "answer": response["result"],
         "sources": serializable_sources
     })
+
+@app.route("/analyze/", methods=["POST"])
+async def analyze_excel():
+    query = request.json.get("query", "")
+    sdf = SmartDataframe('./output.csv')
+    response = sdf.chat(query)
+    return {"response": response}
 
 @app.route('/query', methods=['POST'])
 def query():
