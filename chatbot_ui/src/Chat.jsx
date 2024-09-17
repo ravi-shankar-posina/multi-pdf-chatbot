@@ -8,7 +8,7 @@ const options = [
   { label: "How To?", api: "csv/query", icon: <FaHeadset /> },
   { label: "Incident", api: "analyze", icon: <FaCode /> },
   { label: "Best Practices", api: "pdf/query", icon: <FaFilePdf /> },
-  { label: "ABAP Code Generator", api: "query", icon: <FaCode /> },  
+  { label: "ABAP Code Generator", api: "query", icon: <FaCode /> },
 ];
 
 const Chat = () => {
@@ -81,7 +81,7 @@ const Chat = () => {
 
       setCurrentResponse(data.answer || " ");
       setLinks(data.links || []);
-      setShowSatisfactionQuestion(true); 
+      setShowSatisfactionQuestion(true);
     } catch (error) {
       console.error("Error fetching data:", error);
       setCurrentResponse("Error fetching response.");
@@ -134,8 +134,8 @@ const Chat = () => {
       const data = JSON.parse(text);
       setAdditionalResponse(data.answer || " ");
       setCurrentResponse(" ");
-      setLinks([])
-      setContent([])
+      setLinks([]);
+      setContent([]);
     } catch (error) {
       console.error("Error fetching data:", error);
       setAdditionalResponse("Error fetching additional response.");
@@ -210,9 +210,7 @@ const Chat = () => {
               )}
               {additionalResponse && (
                 <div className="mb-2 overflow-x-auto">
-                  <h1 className="py-2 font-bold ">
-                    Response genarated by LLM
-                  </h1>
+                  <h1 className="py-2 font-bold ">Response genarated by LLM</h1>
                   <ReactMarkdown
                     className="markdown-body"
                     remarkPlugins={[remarkGfm]}
@@ -223,12 +221,18 @@ const Chat = () => {
               )}
               {currentResponse && (
                 <div className="mb-2 overflow-x-auto">
-                  <ReactMarkdown
-                    className="markdown-body"
-                    remarkPlugins={[remarkGfm]}
-                  >
-                    {currentResponse}
-                  </ReactMarkdown>
+                  {selectedOption === "analyze" ? (
+                    <div
+                      dangerouslySetInnerHTML={{ __html: currentResponse }}
+                    />
+                  ) : (
+                    <ReactMarkdown
+                      className="markdown-body"
+                      remarkPlugins={[remarkGfm]}
+                    >
+                      {currentResponse}
+                    </ReactMarkdown>
+                  )}
                 </div>
               )}
               {images.length > 0 && (
