@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FaCode, FaFilePdf, FaHeadset, FaUser } from "react-icons/fa";
+import { MdAccessAlarm } from "react-icons/md";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import chatbotIntro from "./assets/ai.png";
@@ -9,6 +10,7 @@ const options = [
   { label: "Incident", api: "analyze", icon: <FaCode /> },
   { label: "Best Practices", api: "pdf/query", icon: <FaFilePdf /> },
   { label: "ABAP Code Generator", api: "query", icon: <FaCode /> },
+  { label: "Access Management", api: "query", icon: <MdAccessAlarm />  },
 ];
 
 const Chat = () => {
