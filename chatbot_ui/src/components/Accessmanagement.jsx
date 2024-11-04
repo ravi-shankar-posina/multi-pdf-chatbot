@@ -69,8 +69,8 @@ export const Accessmanagement = () => {
             </label>
             <input
               type="text"
-              id="name"
-              name="name"
+              id="empId"
+              name="empId"
               required
               value={formData.empId}
               onChange={handleChange}
