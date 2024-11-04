@@ -4,13 +4,14 @@ import { MdAccessAlarm } from "react-icons/md";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import chatbotIntro from "./assets/ai.png";
+import Accessmanagement from "./components/Accessmanagement";
 
 const options = [
   { label: "How To?", api: "csv/query", icon: <FaHeadset /> },
   { label: "Incident", api: "analyze", icon: <FaCode /> },
   { label: "Best Practices", api: "pdf/query", icon: <FaFilePdf /> },
   { label: "ABAP Code Generator", api: "query", icon: <FaCode /> },
-  { label: "Access Management", api: "query", icon: <MdAccessAlarm />  },
+  { label: "Access Management", api: "query", icon: <MdAccessAlarm /> },
 ];
 
 const Chat = () => {
@@ -148,7 +149,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-screen bg-white relative break-words">
+    <div className="flex max-h-screen bg-white relative break-words min-h-screen">
       <div className="w-56 bg-gray-100">
         <img src={chatbotIntro} alt="Chatbot Intro" className="h-34 mr-2" />
         <div className="text-black p-10 hidden md:block">
@@ -182,149 +183,169 @@ const Chat = () => {
             <FaUser />
           </div>
         </header>
-        <div className="flex-1 p-8 overflow-y-auto bg-white flex flex-col max-w-full">
-          {showInitialInput ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="w-full px-2">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder="Type your question..."
-                  className="w-[90%] ml-20 h-24 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-700 text-black"
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                />
-              </div>
+        <div className="flex-1 overflow-y-auto bg-white">
+          <div className="h-full flex flex-col">
+            {selectedLabel === "Access Management" ? (
+              <div className="flex-1">
+              <Accessmanagement />
             </div>
-          ) : (
-            <div className="bg-white rounded-lg p-3 w-full break-words max-w-full">
-              {currentQuestion && (
-                <div className="w-full mb-2">
-                  <div className="text-black font-bold text-xl whitespace-normal">
-                    <h1>{currentQuestion}</h1>
+            ) : (
+              <div className="flex-1 flex flex-col">
+                {showInitialInput ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="w-full px-2">
+                      <input
+                        type="text"
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        placeholder="Type your question..."
+                        className="w-[90%] ml-20 h-24 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-700 text-black"
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col p-8">
+                    <div className="max-w-3xl w-full mx-auto">
+                    {currentQuestion && (
+                      <div className="mb-4">
+                        <div className="text-black font-bold text-xl whitespace-normal">
+                          <h1>{currentQuestion}</h1>
+                        </div>
+                      </div>
+                    )}
+                    {additionalResponse && (
+                      <div className="mb-4">
+                        <h1 className="py-2 font-bold ">
+                          Response genarated by LLM
+                        </h1>
+                        <ReactMarkdown
+                          className="markdown-body"
+                          remarkPlugins={[remarkGfm]}
+                        >
+                          {additionalResponse}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                    {currentResponse && (
+                      <div className="mb-4">
+                        {selectedOption === "analyze" ? (
+                          <div
+                            dangerouslySetInnerHTML={{
+                              __html: currentResponse,
+                            }}
+                          />
+                        ) : (
+                          <ReactMarkdown
+                            className="markdown-body"
+                            remarkPlugins={[remarkGfm]}
+                          >
+                            {currentResponse}
+                          </ReactMarkdown>
+                        )}
+                      </div>
+                    )}
+                    {images.length > 0 && (
+                      <div className="mb-2 flex flex-col">
+                        {images.map((image, index) => (
+                          <img
+                            key={index}
+                            src={image}
+                            alt={`Fetched ${index}`}
+                            className="max-w-full h-auto rounded-lg"
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {content.length > 0 && (
+                      <div className="mt-4">
+                        <h2 className="font-bold text-lg">
+                          Related Information:
+                        </h2>
+                        <ul className="list-disc pl-5">
+                          {content.map((item, index) => (
+                            <li key={index}>
+                              {item.replace(/^prompt:\s*/, "")}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {links.length > 0 && (
+                      <div className="mt-4">
+                        <h2 className="font-bold text-lg">Related Links:</h2>
+                        <ul className="list-disc ml-5 mt-2">
+                          {links.map((link, index) => (
+                            <li key={index}>
+                              <a
+                                href={link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 underline"
+                              >
+                                {link}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {/* {thankYouMessage && (
+                  <div className="mt-4 text-center text-green-600 font-semibold">
+                    {thankYouMessage}
+                  </div>
+                )}
+                {showSatisfactionQuestion && !thankYouMessage && (
+                  <div className="flex  mt-4 space-x-4">
+                    <h1 className="py-2 font-semibold">
+                      Are You satisifies with this Response...?
+                    </h1>
+                    <button
+                      onClick={handleYesClick}
+                      className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={handleNoClick}
+                      className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                    >
+                      No
+                    </button>
+                  </div>
+                )} */}
                   </div>
                 </div>
-              )}
-              {additionalResponse && (
-                <div className="mb-2 overflow-x-auto">
-                  <h1 className="py-2 font-bold ">Response genarated by LLM</h1>
-                  <ReactMarkdown
-                    className="markdown-body"
-                    remarkPlugins={[remarkGfm]}
-                  >
-                    {additionalResponse}
-                  </ReactMarkdown>
-                </div>
-              )}
-              {currentResponse && (
-                <div className="mb-2 overflow-x-auto">
-                  {selectedOption === "analyze" ? (
-                    <div
-                      dangerouslySetInnerHTML={{ __html: currentResponse }}
-                    />
-                  ) : (
-                    <ReactMarkdown
-                      className="markdown-body"
-                      remarkPlugins={[remarkGfm]}
-                    >
-                      {currentResponse}
-                    </ReactMarkdown>
-                  )}
-                </div>
-              )}
-              {images.length > 0 && (
-                <div className="mb-2 flex flex-col">
-                  {images.map((image, index) => (
-                    <img
-                      key={index}
-                      src={image}
-                      alt={`Fetched ${index}`}
-                      className="max-w-full h-auto rounded-lg"
-                    />
-                  ))}
-                </div>
-              )}
-
-              {content.length > 0 && (
-                <div className="mt-4">
-                  <h2 className="font-bold text-lg">Related Information:</h2>
-                  <ul className="list-disc pl-5">
-                    {content.map((item, index) => (
-                      <li key={index}>{item.replace(/^prompt:\s*/, "")}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {links.length > 0 && (
-                <div className="mt-4">
-                  <h2 className="font-bold text-lg">Related Links:</h2>
-                  <ul className="list-disc ml-5 mt-2">
-                    {links.map((link, index) => (
-                      <li key={index}>
-                        <a
-                          href={link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 underline"
-                        >
-                          {link}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {/* {thankYouMessage && (
-                <div className="mt-4 text-center text-green-600 font-semibold">
-                  {thankYouMessage}
-                </div>
-              )}
-              {showSatisfactionQuestion && !thankYouMessage && (
-                <div className="flex  mt-4 space-x-4">
-                  <h1 className="py-2 font-semibold">
-                    Are You satisifies with this Response...?
-                  </h1>
-                  <button
-                    onClick={handleYesClick}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={handleNoClick}
-                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                  >
-                    No
-                  </button>
-                </div>
-              )} */}
-            </div>
-          )}
-        </div>
-        {!showInitialInput && (
-          <div className="p-2 bg-gray-50 border-t border-gray-200">
-            <div className="flex">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Type your question..."
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-700 text-black"
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-              />
-            </div>
+                )}
+                {!showInitialInput && (
+                  <div className="p-2 bg-gray-50 border-t border-gray-200">
+                    <div className="flex">
+                      <input
+                        type="text"
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        placeholder="Type your question..."
+                        className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-700 text-black"
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
