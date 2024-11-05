@@ -3,24 +3,21 @@ import React, { useState } from "react";
 export const AccessManagement = () => {
   const validData = {
     email: "703055690@genpact.com",
-    name: "chittya Ranjan Bej",
     empId: "703055690",
-    phone: "9000933795",
   };
 
   const [formData, setFormData] = useState({
     email: "",
-    name: "",
     empId: "",
-    phone: "",
   });
 
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(-1); // -1 to show options first
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [selectedOption, setSelectedOption] = useState("");
   const [messages, setMessages] = useState([
     {
-      text: "Hello! Let's get you registered. Please enter your email address.",
+      text: "Hello! How can I help you?",
       sender: "bot",
     },
   ]);
@@ -34,24 +31,22 @@ export const AccessManagement = () => {
       type: "email",
     },
     {
-      label: "Full Name",
-      name: "name",
-      placeholder: "Enter your full name",
-      type: "text",
-    },
-    {
       label: "Employee ID",
       name: "empId",
       placeholder: "Enter your employee ID",
       type: "text",
     },
-    {
-      label: "Phone Number",
-      name: "phone",
-      placeholder: "Enter your phone number",
-      type: "tel",
-    },
   ];
+
+  const handleOptionClick = (option) => {
+    setSelectedOption(option);
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { text: option, sender: "user" },
+      { text: "Please enter your email address.", sender: "bot" },
+    ]);
+    setCurrentStep(0);
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -88,10 +83,10 @@ export const AccessManagement = () => {
           setIsSubmitted(true);
           setMessages((prevMessages) => [
             ...prevMessages,
-            { text: "Details shared with your Email ID Successfully", sender: "bot" },
+            { text: `Success! ${selectedOption} processed successfully.`, sender: "bot" },
           ]);
         }
-      }, 1500); 
+      }, 1500);
     }
   };
 
@@ -108,12 +103,21 @@ export const AccessManagement = () => {
         <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full m-4">
           <div className="text-green-600 text-3xl mb-4">✓</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            Details shared with your Email ID Successfully
+            {selectedOption === "Unable to login due to User locked" ? (
+              <span>
+                User unlocked successfully! Details are shared with your registered email ID.
+              </span>
+            ) : (
+              <span>
+                Reset password successfully! Details are shared with your registered email ID.
+              </span>
+            )}
           </h2>
         </div>
       </div>
     );
   }
+  
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -139,20 +143,36 @@ export const AccessManagement = () => {
           )}
         </div>
 
-        <form className="mt-4 flex">
-          <input
-            type={questions[currentStep].type}
-            id={questions[currentStep].name}
-            name={questions[currentStep].name}
-            required
-            value={formData[questions[currentStep].name]}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 mt-2"
-            placeholder={questions[currentStep].placeholder}
-          />
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-        </form>
+        {currentStep === -1 ? (
+          <div className="flex flex-wrap gap-3 justify-center mt-4">
+            {["Forget Password", "Unable to login due to User locked", "Reset Password", "Password Expired"].map(
+              (option, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleOptionClick(option)}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition"
+                >
+                  {option}
+                </button>
+              )
+            )}
+          </div>
+        ) : (
+          <form className="mt-4 flex">
+            <input
+              type={questions[currentStep].type}
+              id={questions[currentStep].name}
+              name={questions[currentStep].name}
+              required
+              value={formData[questions[currentStep].name]}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 mt-2"
+              placeholder={questions[currentStep].placeholder}
+            />
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          </form>
+        )}
       </div>
     </div>
   );
