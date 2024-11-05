@@ -50,7 +50,6 @@ const Layout = () => {
               <li key={index} className="flex items-center">
                 <Link
                   to={option.path}
-                  // onClick={() => handleOptionClick(option.label)}
                   className={`flex items-center p-2 space-x-3 rounded-md transition duration-300 ${
                     location.pathname === option.path
                       ? "bg-gray-300"

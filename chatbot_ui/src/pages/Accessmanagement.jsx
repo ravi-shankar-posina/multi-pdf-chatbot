@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 
 export const AccessManagement = () => {
-  // Static values for validation
   const validData = {
+    //static values
     email: "703055690@genpact.com",
     name: "chittya Ranjan Bej",
     empId: "703055690",
@@ -58,14 +58,13 @@ export const AccessManagement = () => {
       ...formData,
       [e.target.name]: e.target.value,
     });
-    setError(""); // Clear error on input change
+    setError(""); 
   };
 
   const handleSubmit = () => {
     const currentQuestion = questions[currentStep];
     const input = formData[currentQuestion.name];
 
-    // Validate current input
     if (input !== validData[currentQuestion.name]) {
       setError(
         `Invalid ${currentQuestion.label.toLowerCase()}. Please try again.`
@@ -81,7 +80,6 @@ export const AccessManagement = () => {
       setMessages([...messages, { text: input, sender: "user" }]);
 
       if (currentStep < questions.length - 1) {
-        // Move to the next step and ask the next question
         setCurrentStep(currentStep + 1);
         setMessages((prevMessages) => [
           ...prevMessages,
@@ -93,7 +91,6 @@ export const AccessManagement = () => {
           },
         ]);
       } else {
-        // All inputs are valid, show success message
         setIsSubmitted(true);
         setMessages((prevMessages) => [
           ...prevMessages,
