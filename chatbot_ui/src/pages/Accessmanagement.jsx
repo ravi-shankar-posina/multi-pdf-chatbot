@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 export const AccessManagement = () => {
   const validData = {
-    //static values
     email: "703055690@genpact.com",
     name: "chittya Ranjan Bej",
     empId: "703055690",
@@ -25,6 +24,7 @@ export const AccessManagement = () => {
       sender: "bot",
     },
   ]);
+  const [loading, setLoading] = useState(false);
 
   const questions = [
     {
@@ -58,7 +58,7 @@ export const AccessManagement = () => {
       ...formData,
       [e.target.name]: e.target.value,
     });
-    setError(""); 
+    setError("");
   };
 
   const handleSubmit = () => {
@@ -66,47 +66,39 @@ export const AccessManagement = () => {
     const input = formData[currentQuestion.name];
 
     if (input !== validData[currentQuestion.name]) {
-      setError(
-        `Invalid ${currentQuestion.label.toLowerCase()}. Please try again.`
-      );
-      setMessages([
-        ...messages,
-        {
-          text: `Invalid ${currentQuestion.label.toLowerCase()}. Please try again.`,
-          sender: "bot",
-        },
+      setError(`Invalid ${currentQuestion.label.toLowerCase()}. Please try again.`);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { text: `Invalid ${currentQuestion.label.toLowerCase()}. Please try again.`, sender: "bot" },
       ]);
     } else {
-      setMessages([...messages, { text: input, sender: "user" }]);
+      setMessages((prevMessages) => [...prevMessages, { text: input, sender: "user" }]);
+      setLoading(true);
 
-      if (currentStep < questions.length - 1) {
-        setCurrentStep(currentStep + 1);
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          {
-            text: `Please enter your ${questions[
-              currentStep + 1
-            ].label.toLowerCase()}.`,
-            sender: "bot",
-          },
-        ]);
-      } else {
-        setIsSubmitted(true);
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          {
-            text: "Details shared with your Email ID Successfully",
-            sender: "bot",
-          },
-        ]);
-      }
+      setTimeout(() => {
+        setLoading(false);
+
+        if (currentStep < questions.length - 1) {
+          setCurrentStep(currentStep + 1);
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            { text: `Please enter your ${questions[currentStep + 1].label.toLowerCase()}.`, sender: "bot" },
+          ]);
+        } else {
+          setIsSubmitted(true);
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            { text: "Details shared with your Email ID Successfully", sender: "bot" },
+          ]);
+        }
+      }, 1500); 
     }
   };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      handleSubmit();
+      if (!loading) handleSubmit();
     }
   };
 
@@ -124,27 +116,27 @@ export const AccessManagement = () => {
   }
 
   return (
-    <div className="flex flex-col  min-h-screen bg-gray-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg h-screen  w-full m-2 space-y-4">
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <div className="bg-white p-6 rounded-lg shadow-lg h-screen w-full m-2 space-y-4">
         <div className="space-y-4">
           {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`flex ${
-                msg.sender === "bot" ? "justify-start" : "justify-end"
-              }`}
-            >
+            <div key={index} className={`flex ${msg.sender === "bot" ? "justify-start" : "justify-end"}`}>
               <div
                 className={`${
-                  msg.sender === "bot"
-                    ? "bg-gray-200"
-                    : "bg-green-600 text-white"
+                  msg.sender === "bot" ? "bg-gray-200" : "bg-green-600 text-white"
                 } p-3 rounded-lg max-w-xs`}
               >
                 {msg.text}
               </div>
             </div>
           ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-gray-200 p-3 rounded-lg max-w-xs animate-pulse">
+                Typing...
+              </div>
+            </div>
+          )}
         </div>
 
         <form className="mt-4 flex">
