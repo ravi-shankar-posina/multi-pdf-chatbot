@@ -23,11 +23,11 @@ const options = [
     path: "/access-management",
     icon: <MdAccessAlarm />,
   },
-  {
-    label: "SAP Test Case Generator",
-    path: "/sap-test-case-genarator",
-    icon: <FaUser />,
-  },
+  // {
+  //   label: "SAP Test Case Generator",
+  //   path: "/sap-test-case-genarator",
+  //   icon: <FaUser />,
+  // },
   {
     label: "Test Script Generator",
     path: "/test-script-genarator",
