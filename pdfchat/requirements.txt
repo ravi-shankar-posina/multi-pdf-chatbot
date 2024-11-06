@@ -13,3 +13,8 @@ flask-cors
 pandas
 tabulate
 pandasai
+PyPDF 
+PyPDF2 
+docx
+langchain_google_genai
+google-generativeai
