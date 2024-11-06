@@ -13,4 +13,4 @@ services:
       context: ./chatbot_ui
     container_name: chatui_frontend
     ports:
-      - 3000:80
+      - 3000:3000
