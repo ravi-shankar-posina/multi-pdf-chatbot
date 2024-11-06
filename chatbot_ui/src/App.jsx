@@ -4,6 +4,7 @@ import Layout from "./pages/Layout";
 import Chat from "./pages/Chat"; 
 import Accessmanagement from "./pages/Accessmanagement";
 import  SapTestCase  from "./pages/SapTestCase";
+import TestScriptGenerator from "./pages/TestScriptGenerator";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/abap-code-generator" element={<Chat key="query" api="query" />} />
           <Route path="/access-management" element={<Accessmanagement />} />
           <Route path="/sap-test-case-genarator" element={<SapTestCase />} />
+          <Route path="/test-script-genarator" element={<TestScriptGenerator />}  />
         </Route>
       </Routes>
     </Router>

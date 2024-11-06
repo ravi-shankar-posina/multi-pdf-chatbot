@@ -28,6 +28,11 @@ const options = [
     path: "/sap-test-case-genarator",
     icon: <FaUser />,
   },
+  {
+    label: "Test Script Generator",
+    path: "/test-script-genarator",
+    icon: <FaUser />,
+  }
 ];
 
 const Layout = () => {
