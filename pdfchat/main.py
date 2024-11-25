@@ -24,6 +24,8 @@ from testscripts import script
 # Load environment variables
 load_dotenv()
 
+port = int(os.getenv("PORT", 8502))
+
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, origins="*")
@@ -402,4 +404,4 @@ def upload_zip():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8502, host="0.0.0.0")
+    app.run(debug=True, port=port, host="0.0.0.0")
