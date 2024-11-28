@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 export const AccessManagement = () => {
   const validData = {
-    email: "bej.chitta@gmail.com",
+    email: "703055690@genpact.com",
     empId: "703055690",
   };
 
