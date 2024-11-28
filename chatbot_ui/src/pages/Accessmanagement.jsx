@@ -11,7 +11,7 @@ export const AccessManagement = () => {
     empId: "",
   });
 
-  const [currentStep, setCurrentStep] = useState(-1); // -1 to show options first
+  const [currentStep, setCurrentStep] = useState(-1); 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [selectedOption, setSelectedOption] = useState("");
@@ -38,6 +38,10 @@ export const AccessManagement = () => {
     },
   ];
 
+  const generateTicketNumber = () => {
+    return Math.floor(10000000 + Math.random() * 90000000).toString();
+  };
+
   const handleOptionClick = (option) => {
     setSelectedOption(option);
     setMessages((prevMessages) => [
@@ -61,13 +65,21 @@ export const AccessManagement = () => {
     const input = formData[currentQuestion.name];
 
     if (input !== validData[currentQuestion.name]) {
-      setError(`Invalid ${currentQuestion.label.toLowerCase()}. Please try again.`);
+      setError(
+        `Invalid ${currentQuestion.label.toLowerCase()}. Please try again.`
+      );
       setMessages((prevMessages) => [
         ...prevMessages,
-        { text: `Invalid ${currentQuestion.label.toLowerCase()}. Please try again.`, sender: "bot" },
+        {
+          text: `Invalid ${currentQuestion.label.toLowerCase()}. Please try again.`,
+          sender: "bot",
+        },
       ]);
     } else {
-      setMessages((prevMessages) => [...prevMessages, { text: input, sender: "user" }]);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { text: input, sender: "user" },
+      ]);
       setLoading(true);
 
       setTimeout(() => {
@@ -77,14 +89,23 @@ export const AccessManagement = () => {
           setCurrentStep(currentStep + 1);
           setMessages((prevMessages) => [
             ...prevMessages,
-            { text: `Please enter your ${questions[currentStep + 1].label.toLowerCase()}.`, sender: "bot" },
+            {
+              text: `Please enter your ${questions[
+                currentStep + 1
+              ].label.toLowerCase()}.`,
+              sender: "bot",
+            },
           ]);
         } else {
-          setIsSubmitted(true);
+          const ticketNumber = generateTicketNumber();
           setMessages((prevMessages) => [
             ...prevMessages,
-            { text: `Success! ${selectedOption} processed successfully.`, sender: "bot" },
+            {
+              text: `Success! ${selectedOption} processed successfully and forwarded to your registered email. Ticket created for further processing with INC${ticketNumber}.`,
+              sender: "bot",
+            },
           ]);
+          setIsSubmitted(true);
         }
       }, 1500);
     }
@@ -94,41 +115,30 @@ export const AccessManagement = () => {
     if (e.key === "Enter") {
       e.preventDefault();
       if (!loading) handleSubmit();
+      setFormData({
+        email: "",
+        empId: "",
+      })
     }
   };
 
-  if (isSubmitted) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full m-4">
-          <div className="text-green-600 text-3xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            {selectedOption === "Unable to login due to User locked" ? (
-              <span>
-                User unlocked successfully! Details are shared with your registered email ID.
-              </span>
-            ) : (
-              <span>
-                Reset password successfully! Details are shared with your registered email ID.
-              </span>
-            )}
-          </h2>
-        </div>
-      </div>
-    );
-  }
-  
-
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg h-screen w-full m-2 space-y-4">
+    <div className="flex flex-col min-h-screen bg-gray-100 w-full">
+      <div className="bg-white p-6 rounded-lg shadow-lg h-screen w-full mx-auto  space-y-4">
         <div className="space-y-4">
           {messages.map((msg, index) => (
-            <div key={index} className={`flex ${msg.sender === "bot" ? "justify-start" : "justify-end"}`}>
+            <div
+              key={index}
+              className={`flex ${
+                msg.sender === "bot" ? "justify-start" : "justify-end"
+              }`}
+            >
               <div
                 className={`${
-                  msg.sender === "bot" ? "bg-gray-200" : "bg-green-600 text-white"
-                } p-3 rounded-lg max-w-xs`}
+                  msg.sender === "bot"
+                    ? "bg-gray-300 text-black"
+                    : "bg-blue-600 text-white"
+                } p-3 rounded-lg max-w-xs shadow`}
               >
                 {msg.text}
               </div>
@@ -136,7 +146,7 @@ export const AccessManagement = () => {
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-gray-200 p-3 rounded-lg max-w-xs animate-pulse">
+              <div className="bg-gray-300 p-3 rounded-lg max-w-xs animate-pulse">
                 Typing...
               </div>
             </div>
@@ -145,20 +155,23 @@ export const AccessManagement = () => {
 
         {currentStep === -1 ? (
           <div className="flex flex-wrap gap-3 justify-center mt-4">
-            {["Forget Password", "Unable to login due to User locked", "Reset Password", "Password Expired"].map(
-              (option, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleOptionClick(option)}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition"
-                >
-                  {option}
-                </button>
-              )
-            )}
+            {[
+              "Forget Password",
+              "Unable to login due to User locked",
+              "Reset Password",
+              "Password Expired",
+            ].map((option, index) => (
+              <button
+                key={index}
+                onClick={() => handleOptionClick(option)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition duration-200"
+              >
+                {option}
+              </button>
+            ))}
           </div>
         ) : (
-          <form className="mt-4 flex">
+          <form className="mt-4 flex flex-col space-y-2">
             <input
               type={questions[currentStep].type}
               id={questions[currentStep].name}
@@ -167,10 +180,10 @@ export const AccessManagement = () => {
               value={formData[questions[currentStep].name]}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 mt-2"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
               placeholder={questions[currentStep].placeholder}
             />
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+            {error && <p className="text-red-500 text-sm">{error}</p>}
           </form>
         )}
       </div>

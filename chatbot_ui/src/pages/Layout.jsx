@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { FaCode, FaFilePdf, FaHeadset, FaUser } from "react-icons/fa";
 import { MdAccessAlarm } from "react-icons/md";
 import chatbotIntro from "../assets/ai.png";
+import { TbDeviceDesktopAnalytics } from "react-icons/tb";
 import { Link, Outlet, useLocation } from "react-router-dom";
 const options = [
   { label: "How To?", path: "/", api: "csv/query", icon: <FaHeadset /> },
@@ -11,6 +12,11 @@ const options = [
     path: "/best-practices",
     api: "pdf/query",
     icon: <FaFilePdf />,
+  },
+  {
+    label: "Incident Analysis",
+    path: "/incident-analysis",
+    icon: <TbDeviceDesktopAnalytics />,
   },
   {
     label: "ABAP Code Generator",
@@ -32,17 +38,16 @@ const options = [
     label: "Test Script Generator",
     path: "/test-script-genarator",
     icon: <FaUser />,
-  }
+  },
+  
 ];
 
 const Layout = () => {
   const [selectedLabel, setSelectedLabel] = React.useState(options[0].label);
   const location = useLocation();
   useEffect(() => {
-    const currentItem = options
-      .find((item) => item.path === location.pathname);
+    const currentItem = options.find((item) => item.path === location.pathname);
     setSelectedLabel(currentItem ? currentItem.label : "How To");
-    
   }, [location.pathname]);
 
   return (
@@ -80,7 +85,7 @@ const Layout = () => {
             <FaUser />
           </div>
         </header>
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
       </div>
