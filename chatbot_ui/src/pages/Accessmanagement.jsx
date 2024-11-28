@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 export const AccessManagement = () => {
   const validData = {
-    email: "703055690@genpact.com",
+    email: "bej.chitta@gmail.com",
     empId: "703055690",
   };
 
@@ -11,7 +11,7 @@ export const AccessManagement = () => {
     empId: "",
   });
 
-  const [currentStep, setCurrentStep] = useState(-1); 
+  const [currentStep, setCurrentStep] = useState(-1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [selectedOption, setSelectedOption] = useState("");
@@ -25,16 +25,16 @@ export const AccessManagement = () => {
 
   const questions = [
     {
-      label: "Email Address",
-      name: "email",
-      placeholder: "Enter your email address",
-      type: "email",
-    },
-    {
       label: "Employee ID",
       name: "empId",
       placeholder: "Enter your employee ID",
       type: "text",
+    },
+    {
+      label: "Email Address",
+      name: "email",
+      placeholder: "Enter your email address",
+      type: "email",
     },
   ];
 
@@ -47,7 +47,7 @@ export const AccessManagement = () => {
     setMessages((prevMessages) => [
       ...prevMessages,
       { text: option, sender: "user" },
-      { text: "Please enter your email address.", sender: "bot" },
+      { text: "Please enter your employee ID.", sender: "bot" },
     ]);
     setCurrentStep(0);
   };
@@ -101,7 +101,8 @@ export const AccessManagement = () => {
           setMessages((prevMessages) => [
             ...prevMessages,
             {
-              text: `Success! ${selectedOption} processed successfully and forwarded to your registered email. Ticket created for further processing with INC${ticketNumber}.`,
+              text: `Success! ${selectedOption} processed successfully and forwarded to your registered email.
+                Ticket created for further processing with INC${ticketNumber}.`,
               sender: "bot",
             },
           ]);
@@ -118,7 +119,7 @@ export const AccessManagement = () => {
       setFormData({
         email: "",
         empId: "",
-      })
+      });
     }
   };
 
@@ -136,9 +137,9 @@ export const AccessManagement = () => {
               <div
                 className={`${
                   msg.sender === "bot"
-                    ? "bg-gray-300 text-black"
-                    : "bg-blue-600 text-white"
-                } p-3 rounded-lg max-w-xs shadow`}
+                    ? "bg-gray-300 text-black "
+                    : "bg-blue-600 text-white "
+                } p-3 rounded-lg max-w-2xl shadow`}
               >
                 {msg.text}
               </div>
