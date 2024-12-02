@@ -1,4 +1,3 @@
-//Cards.jsx
 import React from "react";
 import ReactApexChart from "react-apexcharts";
 
@@ -22,8 +21,6 @@ const CardWithPieChart = ({ piechartInfo, onPieChartSelect }) => {
         events: {
           dataPointSelection: (event, chartContext, config) => {
             const label = config.w.config.labels[config.dataPointIndex];
-            const value = config.w.config.series[config.dataPointIndex];
-
             onPieChartSelect(label);
           },
         },
@@ -175,6 +172,98 @@ const CardWithBarChart = ({
   );
 };
 
+const CardWithStepLineChart = ({ subcategoryInfo, title, filterKey }) => {
+  const filteredSubcategoryInfo = filterKey
+    ? Object.fromEntries(
+        Object.entries(subcategoryInfo).filter(([key, _]) =>
+          key.includes(filterKey)
+        )
+      )
+    : subcategoryInfo;
+  if (
+    !filteredSubcategoryInfo ||
+    Object.keys(filteredSubcategoryInfo).length === 0
+  ) {
+    return (
+      <div className="card step-line-chart-card">
+        <h3>{title}</h3>
+        {filterKey && <p>No data found for {filterKey}</p>}
+      </div>
+    );
+  }
+
+  const chartLabels = Object.keys(filteredSubcategoryInfo);
+  const chartSeries = [
+    {
+      name: "Counts",
+      data: Object.values(filteredSubcategoryInfo),
+    },
+  ];
+  const stepLineChartData = {
+    series: chartSeries,
+    options: {
+      chart: {
+        type: "line",
+        height: 350,
+      },
+      stroke: {
+        curve: "stepline",
+      },
+      xaxis: {
+        categories: chartLabels,
+        labels: {
+          rotate: -45,
+          show: true,
+        },
+        title: {
+          text: "Subcategories",
+        },
+        min: 0,
+      },
+      yaxis: {
+        title: {
+          text: "Counts",
+        },
+        tickAmount: 5,
+        max:
+          Math.ceil(Math.max(...Object.values(filteredSubcategoryInfo)) / 5) *
+          5,
+      },
+      title: {
+        text: filterKey ? `${title} (Filtered by ${filterKey})` : title,
+        align: "center",
+      },
+      tooltip: {
+        enabled: true,
+      },
+      responsive: [
+        {
+          breakpoint: 480,
+          options: {
+            xaxis: {
+              labels: {
+                rotate: -90,
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+
+  return (
+    <div className="card step-line-chart-card">
+      <ReactApexChart
+        key={filterKey || "default"}
+        options={stepLineChartData.options}
+        series={stepLineChartData.series}
+        type="line"
+        height={350}
+      />
+    </div>
+  );
+};
+
 const Cards = ({
   piechartInfo,
   subcategoryInfo,
@@ -185,7 +274,7 @@ const Cards = ({
 }) => {
   return (
     <div className="card-container">
-      <div className="row justify-content-center items-center">
+      <div className="row">
         <CardWithPieChart
           piechartInfo={piechartInfo}
           onPieChartSelect={onPieChartSelect}
@@ -204,10 +293,9 @@ const Cards = ({
           chartTitle="Level 2 Bucket"
           filterKey={filterKey}
         />
-        <CardWithBarChart
+        <CardWithStepLineChart
           subcategoryInfo={subcategory2Info}
           title="Level 3 Bucket"
-          chartTitle="Level 3 Bucket"
           filterKey={filterKey}
         />
       </div>
