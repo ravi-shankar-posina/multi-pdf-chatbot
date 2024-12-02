@@ -23,7 +23,7 @@ const CardWithPieChart = ({ piechartInfo, onPieChartSelect }) => {
           dataPointSelection: (event, chartContext, config) => {
             const label = config.w.config.labels[config.dataPointIndex];
             const value = config.w.config.series[config.dataPointIndex];
-            
+
             onPieChartSelect(label);
           },
         },
@@ -44,25 +44,25 @@ const CardWithPieChart = ({ piechartInfo, onPieChartSelect }) => {
       ],
       title: {
         text: "Overall Analysis",
-        align: 'center',
+        align: "center",
       },
       plotOptions: {
         pie: {
           donut: {
             labels: {
-              show: false
-            }
-          }
-        }
+              show: false,
+            },
+          },
+        },
       },
       dataLabels: {
-        enabled: false
+        enabled: false,
       },
       legend: {
-        position: 'right',
+        position: "right",
         offsetY: 0,
         height: 230,
-      }
+      },
     },
   };
 
@@ -78,16 +78,24 @@ const CardWithPieChart = ({ piechartInfo, onPieChartSelect }) => {
   );
 };
 
-const CardWithBarChart = ({ subcategoryInfo, title, chartTitle, filterKey }) => {
-  const filteredSubcategoryInfo = filterKey 
+const CardWithBarChart = ({
+  subcategoryInfo,
+  title,
+  chartTitle,
+  filterKey,
+}) => {
+  const filteredSubcategoryInfo = filterKey
     ? Object.fromEntries(
-        Object.entries(subcategoryInfo).filter(([key, _]) => 
+        Object.entries(subcategoryInfo).filter(([key, _]) =>
           key.includes(filterKey)
         )
       )
     : subcategoryInfo;
 
-  if (!filteredSubcategoryInfo || Object.keys(filteredSubcategoryInfo).length === 0) {
+  if (
+    !filteredSubcategoryInfo ||
+    Object.keys(filteredSubcategoryInfo).length === 0
+  ) {
     return (
       <div className="card bar-chart-card">
         <h3>{title}</h3>
@@ -97,10 +105,12 @@ const CardWithBarChart = ({ subcategoryInfo, title, chartTitle, filterKey }) => 
   }
 
   const chartLabels = Object.keys(filteredSubcategoryInfo);
-  const chartSeries = [{
-    name: "Subcategory Counts",
-    data: Object.values(filteredSubcategoryInfo)
-  }];
+  const chartSeries = [
+    {
+      name: "Subcategory Counts",
+      data: Object.values(filteredSubcategoryInfo),
+    },
+  ];
 
   const barChartData = {
     series: chartSeries,
@@ -116,27 +126,27 @@ const CardWithBarChart = ({ subcategoryInfo, title, chartTitle, filterKey }) => 
         },
       },
       dataLabels: {
-        enabled: false
+        enabled: false,
       },
       xaxis: {
         categories: chartLabels,
         title: {
-          text: title
+          text: title,
         },
         labels: {
           rotate: -45,
           rotateAlways: true,
-        }
+        },
       },
       yaxis: {
         title: {
-          text: "Count"
-        }
+          text: "Count",
+        },
       },
       title: {
-        text: filterKey 
+        text: filterKey
           ? `${chartTitle} (Filtered by ${filterKey})`
-          : chartTitle
+          : chartTitle,
       },
       responsive: [
         {
@@ -145,11 +155,11 @@ const CardWithBarChart = ({ subcategoryInfo, title, chartTitle, filterKey }) => 
             xaxis: {
               labels: {
                 rotate: -90,
-              }
-            }
-          }
-        }
-      ]
+              },
+            },
+          },
+        },
+      ],
     },
   };
 
@@ -165,39 +175,39 @@ const CardWithBarChart = ({ subcategoryInfo, title, chartTitle, filterKey }) => 
   );
 };
 
-const Cards = ({ 
-  piechartInfo, 
-  subcategoryInfo, 
+const Cards = ({
+  piechartInfo,
+  subcategoryInfo,
   subcategory2Info,
   primaryKey2Info,
-  onPieChartSelect, 
-  filterKey 
+  onPieChartSelect,
+  filterKey,
 }) => {
   return (
     <div className="card-container">
       <div className="row justify-content-center items-center">
-        <CardWithPieChart 
-          piechartInfo={piechartInfo} 
+        <CardWithPieChart
+          piechartInfo={piechartInfo}
           onPieChartSelect={onPieChartSelect}
         />
-        <CardWithBarChart 
-          subcategoryInfo={subcategoryInfo} 
+        <CardWithBarChart
+          subcategoryInfo={subcategoryInfo}
           title="Level 1 Bucket"
           chartTitle="Level 1 Bucket"
           filterKey={filterKey}
         />
       </div>
       <div className="row">
-        <CardWithBarChart 
-          subcategoryInfo={primaryKey2Info} 
+        <CardWithBarChart
+          subcategoryInfo={primaryKey2Info}
           title="Level 2 Bucket"
           chartTitle="Level 2 Bucket"
           filterKey={filterKey}
         />
-        <CardWithBarChart 
-          subcategoryInfo={subcategory2Info} 
-          title="level 3 Bucket"
-          chartTitle="level 3 Bucket"
+        <CardWithBarChart
+          subcategoryInfo={subcategory2Info}
+          title="Level 3 Bucket"
+          chartTitle="Level 3 Bucket"
           filterKey={filterKey}
         />
       </div>

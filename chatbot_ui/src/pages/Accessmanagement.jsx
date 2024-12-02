@@ -124,7 +124,7 @@ export const AccessManagement = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100 w-full">
+    <div className="flex flex-col min-h-screen max-h-screen bg-gray-100 w-full">
       <div className="bg-white p-6 rounded-lg shadow-lg h-screen w-full mx-auto  space-y-4">
         <div className="space-y-4">
           {messages.map((msg, index) => (

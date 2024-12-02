@@ -13,7 +13,7 @@ function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Chat key="csv/query" api="csv/query" />} />
-          <Route path="/incident" element={<Chat key="analyze" api="analyze" />} />
+          <Route path="/incident-query" element={<Chat key="analyze" api="analyze" />} />
           <Route path="/best-practices" element={<Chat key="pdf/query" api="pdf/query" />} />
           <Route path="/abap-code-generator" element={<Chat key="query" api="query" />} />
           <Route path="/access-management" element={<Accessmanagement />} />

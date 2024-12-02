@@ -6,18 +6,24 @@ import { TbDeviceDesktopAnalytics } from "react-icons/tb";
 import { Link, Outlet, useLocation } from "react-router-dom";
 const options = [
   { label: "How To?", path: "/", api: "csv/query", icon: <FaHeadset /> },
-  { label: "Incident", path: "/incident", api: "analyze", icon: <FaCode /> },
   {
-    label: "Best Practices",
-    path: "/best-practices",
-    api: "pdf/query",
-    icon: <FaFilePdf />,
+    label: "Incident Query",
+    path: "/incident-query",
+    api: "analyze",
+    icon: <FaCode />,
   },
   {
     label: "Incident Analysis",
     path: "/incident-analysis",
     icon: <TbDeviceDesktopAnalytics />,
   },
+  {
+    label: "Best Practices",
+    path: "/best-practices",
+    api: "pdf/query",
+    icon: <FaFilePdf />,
+  },
+
   {
     label: "ABAP Code Generator",
     path: "/abap-code-generator",
@@ -39,7 +45,6 @@ const options = [
     path: "/test-script-genarator",
     icon: <FaUser />,
   },
-  
 ];
 
 const Layout = () => {
@@ -51,8 +56,8 @@ const Layout = () => {
   }, [location.pathname]);
 
   return (
-    <div className="flex max-h-screen min-h-screen bg-white overflow-hidden relative">
-      <div className="w-72 bg-gray-100 min-h-screen overflow-hidden">
+    <div className="flex max-h-screen min-h-screen bg-white ">
+      <div className="w-72 bg-gray-100 min-h-screen h-full">
         <img src={chatbotIntro} alt="Chatbot Intro" className="h-34 mr-2" />
         <div className="text-black p-10 hidden md:block">
           <ul className="space-y-4">
