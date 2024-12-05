@@ -1,4 +1,5 @@
-import React from "react";
+// //cards.jsx
+import React, { useState } from "react";
 import ReactApexChart from "react-apexcharts";
 
 const CardWithPieChart = ({ piechartInfo, onPieChartSelect }) => {
@@ -9,7 +10,6 @@ const CardWithPieChart = ({ piechartInfo, onPieChartSelect }) => {
       </div>
     );
   }
-
   const chartLabels = Object.keys(piechartInfo);
   const chartSeries = Object.values(piechartInfo);
 
@@ -79,15 +79,20 @@ const CardWithBarChart = ({
   subcategoryInfo,
   title,
   chartTitle,
-  filterKey,
+  filters,
+  onSubCategory1Select,
 }) => {
-  const filteredSubcategoryInfo = filterKey
-    ? Object.fromEntries(
-        Object.entries(subcategoryInfo).filter(([key, _]) =>
-          key.includes(filterKey)
-        )
-      )
-    : subcategoryInfo;
+  const filterKeys = Object.entries(filters)
+    .filter(([_, value]) => value !== null)
+    .map(([key, value]) => value);
+
+  const filteredSubcategoryInfo = Object.fromEntries(
+    Object.entries(subcategoryInfo).filter(
+      ([key]) =>
+        filterKeys.length === 0 ||
+        filterKeys.every((filterKey) => key.includes(filterKey))
+    )
+  );
 
   if (
     !filteredSubcategoryInfo ||
@@ -96,7 +101,7 @@ const CardWithBarChart = ({
     return (
       <div className="card bar-chart-card">
         <h3>{title}</h3>
-        {filterKey && <p>No data found for {filterKey}</p>}
+        {filterKeys.length > 0 && <p>No data found for filters</p>}
       </div>
     );
   }
@@ -115,6 +120,13 @@ const CardWithBarChart = ({
       chart: {
         type: "bar",
         height: 350,
+        events: {
+          dataPointSelection: (event, chartContext, config) => {
+            const label =
+              config.w.config.xaxis.categories[config.dataPointIndex];
+            onSubCategory1Select(label.split(" (")[0]);
+          },
+        },
       },
       plotOptions: {
         bar: {
@@ -141,9 +153,7 @@ const CardWithBarChart = ({
         },
       },
       title: {
-        text: filterKey
-          ? `${chartTitle} (Filtered by ${filterKey})`
-          : chartTitle,
+        text: filterKeys.length > 0 ? `${chartTitle} (Filtered)` : chartTitle,
       },
       responsive: [
         {
@@ -172,14 +182,19 @@ const CardWithBarChart = ({
   );
 };
 
-const CardWithStepLineChart = ({ subcategoryInfo, title, filterKey }) => {
-  const filteredSubcategoryInfo = filterKey
-    ? Object.fromEntries(
-        Object.entries(subcategoryInfo).filter(([key, _]) =>
-          key.includes(filterKey)
-        )
-      )
-    : subcategoryInfo;
+const CardWithStepLineChart = ({ subcategoryInfo, title, filters }) => {
+  const filterKeys = Object.entries(filters)
+    .filter(([_, value]) => value !== null)
+    .map(([key, value]) => value);
+
+  const filteredSubcategoryInfo = Object.fromEntries(
+    Object.entries(subcategoryInfo).filter(
+      ([key]) =>
+        filterKeys.length === 0 ||
+        filterKeys.every((filterKey) => key.includes(filterKey))
+    )
+  );
+
   if (
     !filteredSubcategoryInfo ||
     Object.keys(filteredSubcategoryInfo).length === 0
@@ -187,7 +202,7 @@ const CardWithStepLineChart = ({ subcategoryInfo, title, filterKey }) => {
     return (
       <div className="card step-line-chart-card">
         <h3>{title}</h3>
-        {filterKey && <p>No data found for {filterKey}</p>}
+        {filterKeys.length > 0 && <p>No data found for filters</p>}
       </div>
     );
   }
@@ -199,6 +214,7 @@ const CardWithStepLineChart = ({ subcategoryInfo, title, filterKey }) => {
       data: Object.values(filteredSubcategoryInfo),
     },
   ];
+
   const stepLineChartData = {
     series: chartSeries,
     options: {
@@ -230,7 +246,7 @@ const CardWithStepLineChart = ({ subcategoryInfo, title, filterKey }) => {
           5,
       },
       title: {
-        text: filterKey ? `${title} (Filtered by ${filterKey})` : title,
+        text: filterKeys.length > 0 ? `${title} (Filtered)` : title,
         align: "center",
       },
       tooltip: {
@@ -254,7 +270,7 @@ const CardWithStepLineChart = ({ subcategoryInfo, title, filterKey }) => {
   return (
     <div className="card step-line-chart-card">
       <ReactApexChart
-        key={filterKey || "default"}
+        key={filterKeys.join("-") || "default"}
         options={stepLineChartData.options}
         series={stepLineChartData.series}
         type="line"
@@ -270,20 +286,57 @@ const Cards = ({
   subcategory2Info,
   primaryKey2Info,
   onPieChartSelect,
-  filterKey,
+  filters,
 }) => {
+  const [level1SelectedKey, setLevel1SelectedKey] = useState(null);
+  const [level2SelectedKey, setLevel2SelectedKey] = useState(null);
+  const [pieChartFilter, setPieChartFilter] = useState(null);
+
+  const handleSubCategory1Select = (selectedKey) => {
+    setLevel1SelectedKey(selectedKey);
+    setLevel2SelectedKey(null);
+    setPieChartFilter(null);
+  };
+
+  const handleSubCategory2Select = (selectedKey) => {
+    setLevel2SelectedKey(selectedKey);
+    setPieChartFilter(null);
+  };
+
+  const handlePieChartSelect = (selectedKey) => {
+    setPieChartFilter(selectedKey);
+    setLevel1SelectedKey(null);
+    setLevel2SelectedKey(null);
+    onPieChartSelect(selectedKey);
+  };
+
+  const level2Filters = {
+    ...filters,
+    level1: level1SelectedKey,
+    pieChart: pieChartFilter,
+  };
+
+  // Determine filters for Level 3
+  const level3Filters = {
+    ...filters,
+    level1: level1SelectedKey,
+    level2: level2SelectedKey,
+    pieChart: pieChartFilter,
+  };
+
   return (
     <div className="card-container">
       <div className="row">
         <CardWithPieChart
           piechartInfo={piechartInfo}
-          onPieChartSelect={onPieChartSelect}
+          onPieChartSelect={handlePieChartSelect}
         />
         <CardWithBarChart
           subcategoryInfo={subcategoryInfo}
           title="Level 1 Bucket"
           chartTitle="Level 1 Bucket"
-          filterKey={filterKey}
+          filters={filters}
+          onSubCategory1Select={handleSubCategory1Select}
         />
       </div>
       <div className="row">
@@ -291,12 +344,13 @@ const Cards = ({
           subcategoryInfo={primaryKey2Info}
           title="Level 2 Bucket"
           chartTitle="Level 2 Bucket"
-          filterKey={filterKey}
+          filters={level2Filters}
+          onSubCategory1Select={handleSubCategory2Select}
         />
         <CardWithStepLineChart
           subcategoryInfo={subcategory2Info}
           title="Level 3 Bucket"
-          filterKey={filterKey}
+          filters={level3Filters}
         />
       </div>
     </div>

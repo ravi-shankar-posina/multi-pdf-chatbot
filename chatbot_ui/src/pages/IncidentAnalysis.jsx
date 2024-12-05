@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import Cards from "../components/Cards";
 import * as XLSX from "xlsx";
 import "../App.css";
+import Cards from "../components/Cards";
 
 const IncidentAnalysis = () => {
   const [data, setData] = useState([]);
@@ -9,7 +9,10 @@ const IncidentAnalysis = () => {
   const [subcategoryInfo, setSubcategoryInfo] = useState({});
   const [subcategory2Info, setSubcategory2Info] = useState({});
   const [primaryKey2Info, setPrimaryKey2Info] = useState({});
-  const [filterKey, setFilterKey] = useState(null);
+  const [filters, setFilters] = useState({
+    primaryKey1: null,
+    subCategory1: null,
+  });
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -17,8 +20,6 @@ const IncidentAnalysis = () => {
     if (file) {
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: "buffer" });
-      console.log(workbook);
-
       const sheetNames = workbook.SheetNames;
       const firstSheet = workbook.Sheets[sheetNames[0]];
 
@@ -73,8 +74,9 @@ const IncidentAnalysis = () => {
       filteredData.forEach((row) => {
         const primaryKey2 = row["Primary Key 2"];
         const primaryKey = row["Primary Key 1"];
+        const subCategory1 = row["Sub-Category 1"];
         if (primaryKey2) {
-          const compositeKey = `${primaryKey2} (${primaryKey})`;
+          const compositeKey = `${primaryKey2} (${primaryKey}) (${subCategory1})`;
           primaryKey2Counts[compositeKey] =
             (primaryKey2Counts[compositeKey] || 0) + 1;
         }
@@ -91,8 +93,10 @@ const IncidentAnalysis = () => {
       filteredData.forEach((row) => {
         const subcategory2 = row["Sub-Category 2"];
         const primaryKey = row["Primary Key 1"];
+        const subCategory1 = row["Sub-Category 1"];
+        const primaryKey2 = row["Primary Key 2"];
         if (subcategory2) {
-          const compositeKey = `${subcategory2} (${primaryKey})`;
+          const compositeKey = `${subcategory2} (${primaryKey}) (${subCategory1}) (${primaryKey2})`;
           subcategory2Counts[compositeKey] =
             (subcategory2Counts[compositeKey] || 0) + 1;
         }
@@ -107,16 +111,87 @@ const IncidentAnalysis = () => {
   };
 
   const handlePieChartSelect = (selectedKey) => {
-    setFilterKey(selectedKey);
+    setFilters((prev) => ({
+      ...prev,
+      primaryKey1: selectedKey,
+    }));
+  };
+
+  const handleSubCategory1Select = (selectedKey) => {
+    setFilters((prev) => ({
+      ...prev,
+      subCategory1: selectedKey,
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      primaryKey1: null,
+      subCategory1: null,
+    });
+
+    // Reset level-specific states
+    setPiechartInfo(
+      data.reduce((acc, row) => {
+        const primaryKey = row["Primary Key 1"];
+        if (primaryKey) {
+          acc[primaryKey] = (acc[primaryKey] || 0) + 1;
+        }
+        return acc;
+      }, {})
+    );
+
+    setSubcategoryInfo(
+      data.reduce((acc, row) => {
+        const subcategory = row["Sub-Category 1"];
+        const primaryKey = row["Primary Key 1"];
+        if (subcategory) {
+          const compositeKey = `${subcategory} (${primaryKey})`;
+          acc[compositeKey] = (acc[compositeKey] || 0) + 1;
+        }
+        return acc;
+      }, {})
+    );
+
+    setPrimaryKey2Info(
+      data.reduce((acc, row) => {
+        const primaryKey2 = row["Primary Key 2"];
+        const primaryKey = row["Primary Key 1"];
+        const subCategory1 = row["Sub-Category 1"];
+        if (primaryKey2) {
+          const compositeKey = `${primaryKey2} (${primaryKey}) (${subCategory1})`;
+          acc[compositeKey] = (acc[compositeKey] || 0) + 1;
+        }
+        return acc;
+      }, {})
+    );
+
+    setSubcategory2Info(
+      data.reduce((acc, row) => {
+        const subcategory2 = row["Sub-Category 2"];
+        const primaryKey = row["Primary Key 1"];
+        const subCategory1 = row["Sub-Category 1"];
+        const primaryKey2 = row["Primary Key 2"];
+        if (subcategory2) {
+          const compositeKey = `${subcategory2} (${primaryKey}) (${subCategory1}) (${primaryKey2})`;
+          acc[compositeKey] = (acc[compositeKey] || 0) + 1;
+        }
+        return acc;
+      }, {})
+    );
   };
 
   if (isLoading) {
     return (
       <div
-      className="flex items-center justify-center h-screen font-semibold text-2xl"
-       
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+        }}
       >
-        Processing.....
+        Loading....
       </div>
     );
   }
@@ -135,20 +210,20 @@ const IncidentAnalysis = () => {
             }}
           />
           <button
-            className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-4 rounded"
+          className="bg-green-500 hover:bg-green-700 text-white font-bold py-1  px-4 rounded"
             onClick={() => {
               setIsLoading(true);
               setTimeout(() => {
                 handleFileUpload();
-                alert("Proceess Completed");
+                alert("Process Completed");
                 setIsLoading(false);
               }, 5000);
             }}
           >
             Run
           </button>
-          {filterKey && (
-            <button onClick={() => setFilterKey(null)}>Clear Filter</button>
+          {(filters.primaryKey1 || filters.subCategory1) && (
+            <button onClick={clearFilters}>Clear Filters</button>
           )}
         </div>
       </nav>
@@ -158,7 +233,8 @@ const IncidentAnalysis = () => {
         subcategory2Info={subcategory2Info}
         primaryKey2Info={primaryKey2Info}
         onPieChartSelect={handlePieChartSelect}
-        filterKey={filterKey}
+        onSubCategory1Select={handleSubCategory1Select}
+        filters={filters}
       />
     </div>
   );
