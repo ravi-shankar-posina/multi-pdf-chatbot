@@ -2,7 +2,11 @@ import React, { useState } from "react";
 import * as XLSX from "xlsx";
 import "../App.css";
 import Cards from "../components/Cards";
-
+const COLORS = {
+  primary: "#FFA500",
+  secondary: "#00AECF",
+  dark: "#073161",
+};
 const IncidentAnalysis = () => {
   const [data, setData] = useState([]);
   const [piechartInfo, setPiechartInfo] = useState({});
@@ -198,8 +202,10 @@ const IncidentAnalysis = () => {
 
   return (
     <div className="App">
-      <nav className="navbar">
-        <h1>Data dump of incidents</h1>
+      <nav className="flex justify-between items-center p-4 border-b-2 border-red-500">
+        <h1 style={{ color: COLORS.dark }} className="text-xl font-semibold">
+          Data dump of incidents
+        </h1>
         <div>
           <input
             type="file"
@@ -208,9 +214,12 @@ const IncidentAnalysis = () => {
               const file = e.target.files[0];
               setFile(file);
             }}
+            style={{ marginRight: "10px", backgroundColor: COLORS.dark }}
+            className=" text-white font-bold py-1  px-4 rounded"
           />
           <button
-          className="bg-green-500 hover:bg-green-700 text-white font-bold py-1  px-4 rounded"
+            className=" text-white font-bold py-1  px-4 rounded"
+            style={{ backgroundColor: COLORS.dark }}
             onClick={() => {
               setIsLoading(true);
               setTimeout(() => {

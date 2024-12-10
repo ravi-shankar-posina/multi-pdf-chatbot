@@ -6,7 +6,7 @@ const CardWithPieChart = ({ piechartInfo, onPieChartSelect }) => {
   if (!piechartInfo || Object.keys(piechartInfo).length === 0) {
     return (
       <div className="card pie-chart-card">
-        <h3>Overall Analysis</h3>
+        <h3 className="font-bold text-2xl">Overall Analysis</h3>
       </div>
     );
   }
@@ -201,7 +201,7 @@ const CardWithStepLineChart = ({ subcategoryInfo, title, filters }) => {
   ) {
     return (
       <div className="card step-line-chart-card">
-        <h3>{title}</h3>
+        <h3 className="font-bold text-2xl">{title}</h3>
         {filterKeys.length > 0 && <p>No data found for filters</p>}
       </div>
     );
