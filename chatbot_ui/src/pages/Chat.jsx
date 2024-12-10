@@ -112,7 +112,7 @@ const Chat = ({ api }) => {
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col p-8 overflow-y-auto max-h-[calc(100vh-120px)]">
-                  <div className="max-w-3xl w-full mx-auto">
+                  <div className="max-w-6xl w-full mx-auto">
                     {currentQuestion && (
                       <div className="mb-4">
                         <div className="text-black font-bold text-xl whitespace-normal">

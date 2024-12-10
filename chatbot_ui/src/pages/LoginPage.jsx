@@ -13,6 +13,8 @@ const COLORS = {
 const USERS = [
   { username: "admin", password: "grise2024!", token: "admin-token" },
   { username: "703055690", password: "Welcome@1984", token: "user-token" },
+  { username: "703070518", password: "Welcome@123", token: "user-token" },
+  { username: "302009439", password: "Welcome@123", token: "user-token" },
 ];
 
 const LoginPage = ({ onLogin }) => {

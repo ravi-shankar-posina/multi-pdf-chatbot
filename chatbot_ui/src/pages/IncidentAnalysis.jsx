@@ -202,10 +202,10 @@ const IncidentAnalysis = () => {
 
   return (
     <div className="App">
-      <nav className="flex justify-between items-center p-4 border-b-2 border-red-500">
-        <h1 style={{ color: COLORS.dark }} className="text-xl font-semibold">
+      <nav className="flex justify-end items-center p-4 ">
+        {/* <h1 style={{ color: COLORS.dark }} className="text-xl font-semibold">
           Data dump of incidents
-        </h1>
+        </h1> */}
         <div>
           <input
             type="file"
