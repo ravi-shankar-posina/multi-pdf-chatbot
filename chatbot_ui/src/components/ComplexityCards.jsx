@@ -25,9 +25,19 @@ const CardWithPieChart = ({ complexityPiechartInfo, onPieChartSelect }) => {
       </div>
     );
   }
+  const countryData = {};
+  Object.keys(complexityPiechartInfo).forEach((key) => {
+    const country = key.split(" - ")[0]; // Get the country name (first part before '-')
+    const count = complexityPiechartInfo[key]; // Get the count associated with the location
 
-  const chartLabels = Object.keys(complexityPiechartInfo);
-  const chartSeries = Object.values(complexityPiechartInfo);
+    if (countryData[country]) {
+      countryData[country] += count; // Add the count to the existing country entry
+    } else {
+      countryData[country] = count; // If country is not yet in the object, initialize it
+    }
+  });
+  const chartLabels = Object.keys(countryData);
+  const chartSeries = Object.values(countryData);
 
   const options = {
     chart: {
@@ -159,14 +169,25 @@ const CardWithBarChart = ({
       ),
     }));
   } else {
-    chartLabels = Object.keys(filteredData).map((label) => {
-      const parts = label.split(" (");
-      return parts[0];
+    const countryData = {};
+    Object.keys(filteredData).forEach((key) => {
+      const country = key.split(" - ")[0]; // Get the country name (first part before '-')
+      const count = filteredData[key]; // Get the count associated with the location
+
+      if (countryData[country]) {
+        countryData[country] += count; // Add the count to the existing country entry
+      } else {
+        countryData[country] = count; // If country is not yet in the object, initialize it
+      }
     });
+
+    // Step 2: Prepare chart data
+    chartLabels = Object.keys(countryData); // Country names are the labels
+
     chartSeries = [
       {
         name: "Count",
-        data: Object.values(filteredData),
+        data: Object.values(countryData), // Count values are the data for the chart
       },
     ];
   }
