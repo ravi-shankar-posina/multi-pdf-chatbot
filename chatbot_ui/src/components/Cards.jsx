@@ -106,14 +106,23 @@ const CardWithBarChart = ({
     );
   }
 
-  const chartLabels = Object.keys(filteredSubcategoryInfo);
+  // const chartLabels = Object.keys(filteredSubcategoryInfo);
+  // const chartSeries = [
+  //   {
+  //     name: "Subcategory Counts",
+  //     data: Object.values(filteredSubcategoryInfo),
+  //   },
+  // ];
+  const chartLabels = Object.keys(filteredSubcategoryInfo).map((label) => {
+    const parts = label.split(" (");
+    return parts[0];
+  });
   const chartSeries = [
     {
       name: "Subcategory Counts",
       data: Object.values(filteredSubcategoryInfo),
     },
   ];
-
   const barChartData = {
     series: chartSeries,
     options: {
@@ -122,8 +131,9 @@ const CardWithBarChart = ({
         height: 350,
         events: {
           dataPointSelection: (event, chartContext, config) => {
-            const label =
-              config.w.config.xaxis.categories[config.dataPointIndex];
+            // const label = config.w.config.xaxis.categories[config.dataPointIndex];
+            const label = chartLabels[config.dataPointIndex];
+
             onSubCategory1Select(label.split(" (")[0]);
           },
         },
@@ -207,7 +217,17 @@ const CardWithStepLineChart = ({ subcategoryInfo, title, filters }) => {
     );
   }
 
-  const chartLabels = Object.keys(filteredSubcategoryInfo);
+  // const chartLabels = Object.keys(filteredSubcategoryInfo);
+  // const chartSeries = [
+  //   {
+  //     name: "Counts",
+  //     data: Object.values(filteredSubcategoryInfo),
+  //   },
+  // ];
+  const chartLabels = Object.keys(filteredSubcategoryInfo).map((label) => {
+    const parts = label.split(" (");
+    return parts[0];
+  });
   const chartSeries = [
     {
       name: "Counts",

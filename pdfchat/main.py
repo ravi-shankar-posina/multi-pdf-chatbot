@@ -29,6 +29,8 @@ app = Flask(__name__)
 CORS(app, origins="*")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+# Specify encoding to handle non-UTF-8 files
+encoding = "latin1"
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -96,7 +98,12 @@ def load_pdf_vector_store(file_paths, vectordb_path):
     return vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
 # Initialize vector stores
-csv_retriever = load_csv_vector_store("./HowToDataStore.csv", "./StoreFAISSCSV")
+combined_csv_path = "./CombinedDataStore.csv"
+pd.concat([
+    pd.read_csv("./HowToDataStore.csv", encoding=encoding),
+    pd.read_csv("./Updated_HowToDataStore.csv", encoding=encoding)
+]).to_csv(combined_csv_path, index=False)
+csv_retriever = load_csv_vector_store(combined_csv_path, "./StoreFAISSCSV")
 
 pdf_files = [
     "./Reference/12.SD-Sales Monitoring and Analytics.pdf", 
