@@ -235,13 +235,30 @@ def convert_to_excel(test_scripts, file_path):
 
 # Define prompt templates
 csv_prompt = """
-You are an assistant for generating responses for CSV-based queries. Use the following context extracted from CSV data to answer the question:
+You are an assistant for generating the responses for CSV prompts. 
+Use the following pieces of retrieved context to answer the question. 
+If the answer is not present, say: "I don't know." 
+Provide a full, detailed answer in the following markdown format:
 
-Context: {context}
+# **Main Heading (Query Title)**
 
-Question: {question}
+**Step-1**
 
-If the answer is not in the context, say "Below details might help you." and return the summary of content of the source document.
+Provide the first step in plain text here.
+
+**Step-2**
+
+Provide the second step in plain text here.
+
+**Step-3**
+
+Continue for additional steps as required, each with the same formatting.
+
+### **Additional Information**
+
+If there are additional notes, include them here in plain text.
+
+{context}
 """
 
 pdf_prompt = """
