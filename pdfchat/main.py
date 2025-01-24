@@ -304,25 +304,57 @@ def query_pdf():
 
 @app.route("/analyze", methods=["POST"])
 def analyze_excel():
-    query = request.json.get("query", "")
-    
-    # Initialize OpenAI and SmartDataframe
-    llm = OpenAI(api_token=os.getenv("OPENAI_API_KEY"))
-    sdf = SmartDataframe('./output.csv', config={"llm": llm})
-    
-    # Get the response from SmartDataframe
-    response = sdf.chat(query)
-    
-    # Handle response based on its type
-    if isinstance(response, (int, str)):
-        response_data = str(response)
-    elif isinstance(response, pd.DataFrame):
-        response_data = response.to_html()
-    else:
-        response_data = str(response)
+    try:
+        # Extract the query from the request body
+        query = request.json.get("query", "").strip()
+        if not query:
+            return jsonify({"error": "The query parameter is missing. Please provide a valid query."}), 400
 
-    return jsonify({"answer": response_data})
+        # Define the prompt to guide the LLM
+        prompt_template = (
+           "You are an advanced assistant for generating responses related to incidents, CSV data analysis, and graphs. "
+            "Either the user may provide incidents in short descriptions or in long descriptions, you need to provide resolution for the same."
+            "In either cases, provide the response from the csv file."
+            "Use the following pieces of retrieved context to answer "
+            "the question. If the answer is not present, say that: I don't know."
+            "If the query includes the word 'compare', execute both the CSV agent and LIDA graph generation. The CSV agent provides tabular analysis, and LIDA generates graphs.\n"
+            "If the query does not contain 'compare', determine if it is related to CSV analysis, graph generation, or retrieval, and respond accordingly.\n"
+            "Provide a full, detailed answer"
+            "Here is the query: {query}"
+        )
+        prompt = prompt_template.format(query=query)
 
+        # Initialize OpenAI and SmartDataframe
+        llm = OpenAI(api_token=os.getenv("OPENAI_API_KEY"))
+        sdf = SmartDataframe('./output.csv', config={"llm": llm})
+
+        # Process the query using SmartDataframe with the prompt
+        try:
+            response = sdf.chat(prompt)
+        except Exception as chat_error:
+            return jsonify({
+                "error": f"Failed to process the query. Please refine your question. Details: {str(chat_error)}"
+            }), 400
+
+        # Format the response based on its type
+        if isinstance(response, pd.DataFrame):
+            # Convert DataFrame to HTML
+            response_data = response.to_html(index=False)
+        elif isinstance(response, list):
+            # Format list as a comma-separated string
+            response_data = ", ".join(map(str, response))
+        else:
+            # Handle other types (int, str, float)
+            response_data = str(response)
+
+        # Return the response
+        return jsonify({"answer": response_data})
+
+    except FileNotFoundError:
+        return jsonify({"error": "The file './output.csv' could not be found."}), 404
+    except Exception as e:
+        # Catch unexpected errors and log them
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 @app.route('/query', methods=['POST'])
 def query():
     query = request.json.get("query", "")
