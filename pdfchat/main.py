@@ -105,11 +105,16 @@ pd.concat([
 ]).to_csv(combined_csv_path, index=False)
 csv_retriever = load_csv_vector_store(combined_csv_path, "./StoreFAISSCSV")
 
+# pdf_files = [
+#     "./Reference/12.SD-Sales Monitoring and Analytics.pdf", 
+#     "./Reference/13.SD-Special Business Processes in Sales.pdf",
+#     "./Reference/14.SD-Integrations.pdf",
+#     "./Reference/SAP IM Database.pdf"
+# ]
 pdf_files = [
-    "./Reference/12.SD-Sales Monitoring and Analytics.pdf", 
-    "./Reference/13.SD-Special Business Processes in Sales.pdf",
-    "./Reference/14.SD-Integrations.pdf",
-    "./Reference/SAP IM Database.pdf"
+    "./Reference/Integrations.pdf", 
+    "./Reference/Sales Monitoring and Analytics.pdf",
+    "./Reference/Special Business Processes in Sales.pdf",
 ]
 pdf_retriever = load_pdf_vector_store(pdf_files, "./StoreFAISSPDF")
 
@@ -262,13 +267,15 @@ If there are additional notes, include them here in plain text.
 """
 
 pdf_prompt = """
-You are a PDF Reader AI Assistant. Your task is to take in the user query and generate the answer only from the context provided. 
+You are a PDF Reader AI Assistant. Your task is to analyze the user query and provide answers strictly based on the provided context.
 
-Context: {context}
-
-Question: {question}
+1. Carefully examine the context for information, including any tabular data.
+2. If tables are present, extract and include their relevant portions in your response as structured text.
+3. Avoid adding interpretations or explanations not directly supported by the context.
+4. If you cannot find an answer to the query within the provided context, respond with: "The answer is not available in the provided context." Do not speculate or provide incomplete information.
+CONTEXT: {context}
+QUESTION: {question}
 """
-
 # Create retrieval chains
 csv_chain = create_chain(csv_retriever, csv_prompt)
 pdf_chain = create_chain(pdf_retriever, pdf_prompt)
