@@ -4,6 +4,7 @@ import "../App.css";
 import Cards from "../components/Cards";
 import TabNavigation from "../components/TabNavigation";
 import ComplexityCards from "../components/ComplexityCards";
+import Resoursing from "../components/Resoursing";
 
 const COLORS = {
   primary: "#FFA500",
@@ -302,13 +303,7 @@ const IncidentAnalysis = () => {
           />
         );
       case "resourcing":
-        return (
-          <div className="flex items-center justify-center h-[calc(100vh-150px)]">
-            <h2 className="text-2xl text-gray-500">
-              Resourcing View Coming Soon
-            </h2>
-          </div>
-        );
+        return <Resoursing />;
       default:
         return null;
     }

@@ -333,7 +333,7 @@ def analyze_excel():
 
         # Initialize OpenAI and SmartDataframe
         llm = OpenAI(api_token=os.getenv("OPENAI_API_KEY"))
-        sdf = SmartDataframe('./output.csv', config={"llm": llm})
+        sdf = SmartDataframe('./Shutterfly_2024.csv', config={"llm": llm})
 
         # Process the query using SmartDataframe with the prompt
         try:
