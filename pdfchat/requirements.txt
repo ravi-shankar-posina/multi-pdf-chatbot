@@ -19,3 +19,4 @@ python-docx
 langchain_google_genai
 google-generativeai
 crewai
+crewai-tools
