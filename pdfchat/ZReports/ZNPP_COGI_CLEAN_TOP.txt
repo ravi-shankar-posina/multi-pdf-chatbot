@@ -1,0 +1,128 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_COGI_CLEAN_TOP  Data Declarations
+*&---------------------------------------------------------------------*
+
+TYPES : BEGIN OF ty_affw,
+        WEBLNR TYPE WEBLNR,
+        WEBLPOS TYPE CIM_COUNT,
+        matnr TYPE matnr,
+        werks TYPE werks_d,
+        lgort TYPE lgort_d,
+        bwart TYPE bwart,
+        erfmg TYPE erfmg,
+        erfme TYPE erfme,
+        aufnr TYPE aufnr,
+        aufps TYPE co_posnr,
+       END OF ty_affw,
+       BEGIN OF ty_affw1,
+        matnr TYPE matnr,
+        werks TYPE werks_d,
+        lgort TYPE lgort_d,
+        aufnr TYPE aufnr,
+        aufps TYPE co_posnr,
+        WEBLNR TYPE WEBLNR,
+        WEBLPOS TYPE CIM_COUNT,
+        bwart TYPE bwart,
+        erfmg TYPE erfmg,
+        erfme TYPE erfme,
+       END OF ty_affw1,
+       BEGIN OF ty_affw_tot,
+        matnr TYPE matnr,
+        werks TYPE werks_d,
+        lgort TYPE lgort_d,
+        bwart TYPE bwart,
+        erfmg TYPE erfmg,
+        erfme TYPE erfme,
+       END OF ty_affw_tot,
+        BEGIN OF ty_mard,
+        matnr TYPE matnr,
+        werks TYPE werks_d,
+        lgort TYPE lgort_d,
+        labst TYPE labst,
+*        umlme TYPE umlmd,
+       END OF ty_mard,
+        BEGIN OF ty_final,
+         matnr TYPE matnr,
+        werks TYPE werks_d,
+        lgort TYPE lgort_d,
+        bwart TYPE bwart,
+        erfmg TYPE erfmg,
+        erfme TYPE erfme,
+        aufnr TYPE aufnr,
+        aufps TYPE co_posnr,
+        message TYPE msgtx,
+          END OF ty_final.
+DATA  : gt_affw TYPE TABLE OF ty_affw,
+        gt_affw1 TYPE TABLE OF ty_affw,
+        gt_affw2 TYPE TABLE OF ty_affw,
+        gt_affw3 TYPE TABLE OF ty_affw1,
+        gt_affw4 TYPE TABLE OF ty_affw1,
+        gi_affw TYPE ty_affw,
+        gi_affw1 TYPE ty_affw,
+        gi_affw2 TYPE ty_affw1,
+        gt_affw_tot TYPE TABLE OF ty_affw_tot,
+        gt_affw_tot2 TYPE TABLE OF ty_affw_tot,
+        gt_affw_tot1 TYPE TABLE OF ty_affw_tot,
+        gi_affw_tot TYPE ty_affw_tot,
+        gt_mard TYPE TABLE OF ty_mard,
+        gt_mard1 TYPE TABLE OF ty_mard,
+        gi_mard TYPE ty_mard,
+        gi_mard1 TYPE ty_mard,
+        gt_final TYPE TABLE OF ty_final,
+        gi_final TYPE ty_final.
+
+
+DATA : gw_werks TYPE werks_d,
+       gw_lgort TYPE lgort_d,
+       gw_aufnr TYPE aufnr,
+       gw_matnr TYPE matnr,
+       gw_dispo TYPE dispo,
+       gw_bwart TYPE bwart,
+       gw_msgid TYPE arbgb,
+       gw_msgno TYPE msgno,
+       gw_sobkz TYPE sobkz,
+       gw_ztuhcd1   TYPE ztuhcd1,
+       gt_ztuhcd1   TYPE TABLE OF ztuhcd1.
+DATA : gt_bwart TYPE TABLE OF t156.
+CONSTANTS :   gc_name       TYPE string  VALUE 'ZPP_COGI',
+              gc_werk      TYPE string  VALUE 'WERK'.
+
+ TYPES : BEGIN OF ty_final_lgort,
+          werks TYPE werks_d,
+          lgort1 TYPE lgort_d,
+          lgort2 TYPE lgort_d,
+        END OF ty_final_lgort,
+        BEGIN OF ty_final_cogi,
+          matnr TYPE matnr,
+          werks TYPE werks_d,
+          lgort TYPE lgort_d,
+         END OF ty_final_cogi.
+  DATA : gt_final_lgort TYPE TABLE OF ty_final_lgort,
+         gi_final_lgort  TYPE ty_final_lgort,
+         gt_final_cogi TYPE TABLE OF ty_final_cogi,
+         gi_final_cogi TYPE ty_final_cogi.
+  RANGES : r_plant FOR gw_werks,
+           r_lgort FOR gw_lgort.
+    DATA : gi_head TYPE bapi2017_gm_head_01,
+         gt_item TYPE TABLE OF bapi2017_gm_item_create,
+         gi_item TYPE bapi2017_gm_item_create,
+         gt_return TYPE TABLE OF bapiret2,
+         gi_return TYPE bapiret2,
+         gi_head_ret TYPE bapi2017_gm_head_ret,
+         gi_code TYPE BAPI2017_GM_CODE.
+
+      DATA : gi_bdcdata TYPE bdcdata,          "Table type for BDCDATA
+         gi_messtab TYPE bdcmsgcoll,
+         gt_bdcdata TYPE STANDARD TABLE OF bdcdata,     "Int Table for BDC Data
+         gt_messtab TYPE STANDARD TABLE OF bdcmsgcoll.  "Int Table for Messages
+  CONSTANTS: c_msgid_l1(2) VALUE 'L1',
+                          "Message id used to fetch Messages from SAP
+           c_msgtyp_s VALUE 'S',     "Message Type for Success
+           c_msgtyp_w VALUE 'W',
+           c_msgtyp_e VALUE 'E',     "Message Type for Errors
+           c_dat TYPE char10 VALUE 'DAT',  "File fo<rmat for Upload
+           c_dismode VALUE 'N',      "Mode in which BDC runs
+           c_updmode VALUE 'S'.     "Mode in which data loads into SAP
+    DATA : lw_labst TYPE labst,
+       lw_labst1 TYPE labst.
+

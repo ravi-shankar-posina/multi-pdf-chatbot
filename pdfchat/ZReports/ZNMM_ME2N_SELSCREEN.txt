@@ -1,0 +1,79 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_ME2N_SELSCREEN
+*&---------------------------------------------------------------------*
+DATA: gv_selpa TYPE char10,
+      gv_bsart TYPE ekko-bsart,
+      gv_ekgrp TYPE ekko-ekgrp,
+      gv_werks TYPE ewerk,
+      gv_pstyp TYPE epstp,
+      gv_knttp TYPE knttp,
+      gv_eindt TYPE eindt,
+      gv_angdt TYPE angab,                                  "#EC NEEDED
+      gv_ebeln TYPE ebeln,
+      gv_ebelp TYPE ebelp,
+      gv_lifnr TYPE ekko-lifnr,
+      gv_reswk TYPE ekko-reswk,
+      gv_matnr TYPE ekpo-matnr,
+      gv_matkl TYPE ekpo-matkl,
+      gv_bedat TYPE ekko-bedat,
+      gv_ps_psp_pnr TYPE ps_psp_pnr,
+      gv_aufnr TYPE aufnr,
+      gv_nplnr TYPE nplnr,
+      gv_ekorg TYPE ekorg,                                  "#EC NEEDED
+      g_display_variant LIKE disvariant,
+      gv_vbeln TYPE vbeln_co,
+      gv_etenr TYPE eeten,
+      gv_elikz TYPE ELIKZ,
+      gv_loekz TYPE ELOEK.
+
+* Selection Screen
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-003.
+SELECT-OPTIONS: s_ebeln  FOR gv_ebeln,                           "Purchasing Document Number
+                s_ebelp  FOR gv_ebelp.                           "Item Number of Purchasing Document
+*PARAMETERS:     s_listu  TYPE t160o-listu.                       "Scope of List
+SELECT-OPTIONS: s_selpa  FOR gv_selpa DEFAULT 'OPEN',            "Selection Parameters
+                s_bsart  FOR gv_bsart,                           "Document Type
+                s_ekgrp  FOR gv_ekgrp,                           "Purchasing Group
+                s_werks  FOR gv_werks,                           "Plant
+                s_pstyp  FOR gv_pstyp,                           "Item Category
+                s_knttp  FOR gv_knttp,                           "Account Assignment Category
+                s_eindt  FOR gv_eindt.                           "Delivery Date
+PARAMETERS:     p_guldt  TYPE rm06a-p_guldt,                     "Validity Key Date
+                p_rweit  TYPE rm06a-p_rweit.                     "Range of Coverage to
+SELECT-OPTIONS: s_lifnr  FOR gv_lifnr,                           "Vendor
+                s_reswk  FOR gv_reswk,                           "Supplying Plant
+                s_matnr  FOR gv_matnr,                           "Material
+                s_matkl  FOR gv_matkl,                           "Material Group
+                s_bedat  FOR gv_bedat,                           "Document Date
+                s_ps_psp FOR gv_ps_psp_pnr,                      "WBS Element
+                s_nplnr  FOR gv_nplnr,                           "Network
+                s_aufnr  FOR gv_aufnr,                           "Order Number
+                s_vbeln  FOR gv_vbeln,                           "Sales and Distribution Document Number
+                s_etenr  FOR gv_etenr,                           "Delivery Schedule Line Counter
+                s_elikz  FOR gv_elikz,                           "Delivery Completed" Indicator
+                s_loekz  FOR gv_loekz.                           "Deletion Indicator in Purchasing Document
+SELECTION-SCREEN END   OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK settings WITH FRAME TITLE text-082.
+PARAMETERS p_layout TYPE disvariant-variant.                "Layout
+SELECTION-SCREEN COMMENT 47(40) varname FOR FIELD p_layout.
+SELECTION-SCREEN END OF BLOCK settings.
+SELECTION-SCREEN BEGIN OF BLOCK b04 WITH FRAME TITLE text-013.
+SELECTION-SCREEN: BEGIN OF LINE.
+PARAMETERS: p_mod1 RADIOBUTTON GROUP r03.  "ALV
+SELECTION-SCREEN: COMMENT 3(10) text-006.
+SELECTION-SCREEN: END   OF LINE.
+
+SELECTION-SCREEN: BEGIN OF LINE.
+PARAMETERS: p_mod2 RADIOBUTTON GROUP r03.  "Local PC
+SELECTION-SCREEN: COMMENT 3(10) text-007 FOR FIELD p_path.
+PARAMETERS: p_path LIKE rlgrap-filename.
+SELECTION-SCREEN: END   OF LINE.
+
+SELECTION-SCREEN: BEGIN OF LINE.
+PARAMETERS: p_mod3 RADIOBUTTON GROUP r03.  "SAP Server
+SELECTION-SCREEN: COMMENT 3(10) text-008 FOR FIELD p_file.
+PARAMETERS: p_file LIKE rlgrap-filename.
+SELECTION-SCREEN: END   OF LINE.
+SELECTION-SCREEN END OF BLOCK b04.
+

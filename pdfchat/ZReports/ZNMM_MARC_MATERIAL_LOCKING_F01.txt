@@ -1,0 +1,523 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_MARC_MATERIAL_LOCKING_F01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+** Fetch data from ZTMM_MARC_MAT_AL table based on sel screen criteria
+  SELECT * FROM ztmm_marc_mat_al
+    INTO TABLE gtmm_marc_mat_al
+    WHERE tran_no IN s_tran
+      AND werks IN s_plant
+      AND matnr IN s_matnr
+*      AND companycode IN s_ccode
+      AND marc_mat_status = p_status
+      AND created_date IN s_credat
+      AND change_date IN s_chgdat.
+  IF sy-subrc IS INITIAL.
+    SORT gtmm_marc_mat_al BY werks matnr.
+    gt_mat[] = gtmm_marc_mat_al.
+    SORT gt_mat BY matnr.
+    DELETE ADJACENT DUPLICATES FROM gt_mat COMPARING matnr.
+    IF gt_mat IS NOT INITIAL.
+** Fetch AMN data from MARA
+      SELECT matnr
+             matfi
+             zzaltmn
+        FROM mara
+        INTO TABLE gt_mara
+        FOR ALL ENTRIES IN gt_mat
+        WHERE matnr = gt_mat-matnr.
+      IF sy-subrc IS INITIAL.
+        SORT gt_mara BY matnr.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA_L
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_data_l .
+** COmpare AMN in ZTMM_MARC_MAT_AL table and MARA and seperate the ones with mismatch
+  LOOP AT gtmm_marc_mat_al ASSIGNING <gfs_al>.
+    IF <gfs_al> IS ASSIGNED.
+      CLEAR: gi_mara.
+      READ TABLE gt_mara INTO gi_mara WITH KEY matnr = <gfs_al>-matnr BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        IF <gfs_al>-altmn NE gi_mara-zzaltmn.
+          <gfs_al>-marc_mat_status = gc_m. "AMN mismatch
+          <gfs_al>-change_date = sy-datum.
+          <gfs_al>-change_time = sy-uzeit.
+          <gfs_al>-change_by = sy-uname.
+          APPEND <gfs_al> TO gt_amn_mismatch.
+*          CLEAR <gfs_al>.
+
+** COllect into the internal table to be sent in email
+          CLEAR: gi_email.
+          gi_email-matnr = <gfs_al>-matnr.
+          gi_email-text  = text-002.
+          APPEND gi_email TO gt_email.
+          CLEAR gi_email.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+*  DELETE gtmm_marc_mat_al WHERE matnr IS INITIAL.
+** Number of records with AMN mismatch
+  CLEAR gi_amn_mismatch.
+  DESCRIBE TABLE gt_amn_mismatch LINES gi_amn_mismatch.
+
+** Lock the materials with no mismatch in AMN
+  PERFORM lock_materials.
+
+** Delete the succesfully locked materials from ZTMM_MARC_MAT_AL table
+  DELETE ztmm_marc_mat_al FROM TABLE gtmm_marc_mat_al.
+  IF sy-subrc IS INITIAL.
+    COMMIT WORK.
+  ENDIF.
+
+** Update the ZTMM_MARC_MAT_AL table with status M and last update details for AMN mismatch
+** and update last update details for locking failed materials
+  APPEND LINES OF gt_lock_failed TO gt_al.
+  APPEND LINES OF gt_amn_mismatch TO gt_al.
+  MODIFY ztmm_marc_mat_al FROM TABLE gt_al.
+  IF sy-subrc IS INITIAL.
+    COMMIT WORK.
+  ENDIF.
+
+ENDFORM.                    " PROCESS_DATA_L
+*&---------------------------------------------------------------------*
+*&      Form  LOCK_MATERIALS
+*&---------------------------------------------------------------------*
+*       Lock the materials with no mismatch in AMN
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM lock_materials .
+  DATA:  lt_header   TYPE STANDARD TABLE OF bapie1matheader,
+        li_header   TYPE bapie1matheader,
+        lt_clndata  TYPE STANDARD TABLE OF bapie1mara,
+        li_clndata  TYPE bapie1mara,
+        lt_clndatax TYPE STANDARD TABLE OF bapie1marax,
+        li_clndatax TYPE bapie1marax,
+        lt_return   TYPE STANDARD TABLE OF bapie1ret2,
+        li_return   TYPE bapie1ret2,
+        lv_fn       TYPE bapifn VALUE 'UPD',
+        lv_material TYPE matnr.
+  LOOP AT gt_mat INTO gimm_marc_mat_al.
+    READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gimm_marc_mat_al-matnr.
+**MATFI = X maens already material is locked. No need to lock again
+    IF sy-subrc IS INITIAL AND gi_mara-matfi NE 'X'.
+*  LOOP AT gtmm_marc_mat_al ASSIGNING <gfs_al>.
+*    IF <gfs_al> IS ASSIGNED.
+** Prepare internal tables for BAPI
+      li_header-function = lv_fn.
+      li_header-material = gi_mara-matnr.
+      APPEND li_header TO lt_header.
+      li_clndata-function = lv_fn.
+      li_clndata-material = gi_mara-matnr.
+      li_clndata-material_fixed = 'X'.
+      APPEND li_clndata TO lt_clndata.
+      li_clndatax-function = lv_fn.
+      li_clndatax-material = gi_mara-matnr.
+      li_clndatax-material_fixed = 'X'.
+      APPEND li_clndatax TO lt_clndatax.
+** Call BAPI to lock the material
+*      CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+*        EXPORTING
+*          headdata    = li_headdata
+*          clientdata  = li_clidaout
+*          clientdatax = li_clidaoutx
+*        IMPORTING
+*          return      = li_return.
+*
+*      IF sy-subrc = 0 AND li_return-type <> 'E'.
+*** COmmit to realese user lock on material
+*        COMMIT WORK.
+*      ELSEIF li_return-type = 'E'.
+*** if the material couldnot be locked collect it in  a different internal table
+*** There may be multiple entries with the same material based on plant. Update all of them
+*** with last change details
+*        LOOP AT gtmm_marc_mat_al ASSIGNING <gfs_al> WHERE matnr = gimm_marc_mat_al-matnr.
+*          IF <gfs_al> IS ASSIGNED.
+*            <gfs_al>-change_date = sy-datum.
+*            <gfs_al>-change_time = sy-uzeit.
+*            <gfs_al>-change_by = sy-uname.
+*            APPEND <gfs_al> TO gt_lock_failed.
+*            CLEAR <gfs_al>.
+*          ENDIF.
+*        ENDLOOP.
+*
+*** COllect into the internal table to be sent in email
+*        CLEAR: gi_email.
+*        gi_email-matnr = <gfs_al>-matnr.
+*        gi_email-text  = text-001.
+*        APPEND gi_email TO gt_email.
+*        CLEAR gi_email.
+*      ENDIF.
+**    ENDIF.
+*      CLEAR : li_headdata,li_clidaout,li_clidaoutx.
+    ENDIF.
+    CLEAR: li_header, li_clndata, li_clndatax.
+  ENDLOOP.
+  IF lt_header IS NOT INITIAL.
+    CALL FUNCTION 'BAPI_MATERIAL_SAVEREPLICA'
+      EXPORTING
+        noappllog                  = ' '
+        nochangedoc                = ' '
+        testrun                    = ' '
+        inpfldcheck                = 'I'
+*   FLAG_CAD_CALL              = ' '
+*   NO_ROLLBACK_WORK           = ' '
+*   FLAG_ONLINE                = ' '
+* IMPORTING
+*   RETURN                     =
+      TABLES
+        headdata                   = lt_header
+        clientdata                 = lt_clndata
+        clientdatax                = lt_clndatax
+        returnmessages             = lt_return .
+
+** COmmit to release user lock on materials
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'.
+** Incase of errors update table ZTMM_MARC_MAT_AL and send mail
+    LOOP AT lt_return INTO li_return WHERE type = 'E'.
+
+      CLEAR lv_material.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+        EXPORTING
+          input        = li_return-message_v1
+        IMPORTING
+          output       = lv_material
+        EXCEPTIONS
+          length_error = 1
+          OTHERS       = 2.
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ENDIF.
+** if the material couldnot be locked collect it in  a different internal table
+** There may be multiple entries with the same material based on plant. Update all of them
+** with last change details
+      LOOP AT gtmm_marc_mat_al ASSIGNING <gfs_al> WHERE matnr = lv_material.
+        IF <gfs_al> IS ASSIGNED.
+          <gfs_al>-change_date = sy-datum.
+          <gfs_al>-change_time = sy-uzeit.
+          <gfs_al>-change_by = sy-uname.
+          APPEND <gfs_al> TO gt_lock_failed.
+          CLEAR <gfs_al>.
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+  ENDIF.
+
+  DELETE gtmm_marc_mat_al WHERE matnr IS INITIAL.
+
+** Number of materials successfully locked
+  CLEAR: gi_locked.
+  DESCRIBE TABLE gtmm_marc_mat_al LINES gi_locked.
+
+** Number of records which could not be locked
+  CLEAR: gi_lock_fail.
+  DESCRIBE TABLE gt_lock_failed LINES gi_lock_fail.
+
+ENDFORM.                    " LOCK_MATERIALS
+*&---------------------------------------------------------------------*
+*&      Form  SEND_EMAIL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM send_email .
+  DATA: lw_filename           TYPE          string,
+          lo_result_data        TYPE          REF TO cl_salv_ex_result_data_table,
+          lo_data               TYPE          REF TO data,
+          lw_version            TYPE          string,
+          lw_file_type          TYPE          salv_bs_constant,
+          lw_flavour            TYPE          string,
+          lw_contents_line      TYPE          xstring,
+          lt_obj_bin            TYPE          solix_tab,
+          lt_binary_content     TYPE          solix_tab,
+          lt_att_head           TYPE          soli_tab,
+          li_text_line          TYPE          soli,
+          lw_i                  TYPE          sood-objlen,
+          lw_sub                TYPE          so_obj_des,
+          lw_text               TYPE          so_text255,
+          lw_att                TYPE          so_obj_des,
+          lt_line               TYPE          STANDARD TABLE OF ty_email,
+          lw_count              TYPE          so_obj_len,
+          lo_send_request       TYPE          REF TO cl_bcs,
+          lo_document           TYPE          REF TO cl_document_bcs,
+          lo_recipient          TYPE          REF TO if_recipient_bcs,
+          lo_sender             TYPE          REF TO cl_sapuser_bcs,
+          lo_bcs_exception      TYPE          REF TO cx_bcs,
+          lt_main_text          TYPE          bcsy_text,
+          lw_sent_to_all        TYPE          os_boolean,
+          li_email              LIKE LINE OF  s_email.
+
+  CONSTANTS: lc_xlsx(5)       TYPE c  VALUE '.XLSX'.
+
+  lw_text = text-006.
+  APPEND lw_text TO lt_main_text.
+  APPEND INITIAL LINE TO lt_main_text.
+  lw_text = text-007.
+  APPEND lw_text TO lt_main_text.
+  APPEND INITIAL LINE TO lt_main_text.
+  lw_text = text-008.
+  APPEND lw_text TO lt_main_text.
+  lw_text = text-009.
+  APPEND lw_text TO lt_main_text.
+  APPEND INITIAL LINE TO lt_main_text.
+  lw_text = text-010.
+  APPEND lw_text TO lt_main_text.
+  lw_text = text-011.
+  APPEND lw_text TO lt_main_text.
+
+  PERFORM prepare_fieldcat.
+  TRY.
+*     -------- create persistent send request ------------------------
+      lo_send_request = cl_bcs=>create_persistent( ).
+
+      lw_count = 255.
+      CLEAR lw_sub.
+      CONCATENATE 'MARC Mat. Master ALERT for AMN field Mismatch/Lock'(003) lw_sub INTO lw_sub.
+
+*     -------- create and set document with attachment ---------------
+      lo_document = cl_document_bcs=>create_document(
+                      i_type    = 'RAW'    " Type of data
+                      i_text    = lt_main_text     " Email body text
+                      i_length  = lw_count     " String length of email body
+                      i_subject = lw_sub ).
+
+      lt_line[] = gt_email[].
+* Create data object reference.
+      GET REFERENCE OF lt_line INTO lo_data.
+      CLEAR: lo_result_data.
+      lo_result_data =
+      cl_salv_ex_util=>factory_result_data_table(
+           r_data                      = lo_data " internal table data reference
+           t_fieldcatalog              = gt_fldcat"field cat
+       ).
+* get the version from Abstract Super Class for All Transformations
+      CLEAR: lw_version.
+      lw_version = cl_salv_bs_a_xml_base=>get_version( ).
+* Get the file Type
+*     value 10 for XLSX file type
+      CLEAR: lw_file_type.
+      lw_file_type = if_salv_bs_xml=>c_type_xlsx.
+* Get the flavour export
+*      Flavor for Complete ALV XML
+      CLEAR: lw_flavour.
+      lw_flavour = if_salv_bs_c_tt=>c_tt_xml_flavour_export.
+* Transformation of data to XSTRING
+      CLEAR: lw_contents_line.
+      CALL METHOD cl_salv_bs_tt_util=>if_salv_bs_tt_util~transform
+        EXPORTING
+          xml_type      = lw_file_type
+          xml_version   = lw_version
+          r_result_data = lo_result_data
+          xml_flavour   = lw_flavour
+          gui_type      = if_salv_bs_xml=>c_gui_type_gui
+        IMPORTING
+          xml           = lw_contents_line.
+
+
+*  Converting the table contents from xstring to binary
+      CLEAR lt_obj_bin.
+      CALL FUNCTION 'SCMS_XSTRING_TO_BINARY'
+        EXPORTING
+          buffer        = lw_contents_line
+*        IMPORTING
+*          output_length = l_count1
+        TABLES
+          binary_tab    = lt_obj_bin.
+      APPEND LINES OF lt_obj_bin TO lt_binary_content.
+* Four character file extension '.XLSX' is set
+
+      CONCATENATE 'ALM_DATA_MISMATCH_LOCKING_' sy-datum lc_xlsx INTO lw_att.
+
+      lw_filename = lw_att. " provide the extension in file name
+* You can set a file name with a freely selectable file name extension
+* separately from the document description. For this, use the header table
+* of the document or the attachment with the key word '&SO_FILENAME='.
+      CONCATENATE '&SO_FILENAME='
+                  lw_filename
+                  INTO
+                  li_text_line.
+      APPEND li_text_line TO lt_att_head.
+
+*Calculate the xstring length
+      lw_i = xstrlen( lw_contents_line ).
+* Create the attachment reference.
+      CALL METHOD lo_document->add_attachment
+        EXPORTING
+          i_attachment_type    = 'BIN' " type of data
+          i_attachment_subject = lw_att"'File with mismatch/locking failed materials'
+          i_attachment_size    = lw_i   " XTRING length of lw_contents_line
+          i_att_content_hex    = lt_binary_content
+          i_attachment_header  = lt_att_head. "file details
+
+*     add document to send request
+      CALL METHOD lo_send_request->set_document( lo_document ).
+
+      lo_sender = cl_sapuser_bcs=>create( sy-uname ).
+      CALL METHOD lo_send_request->set_sender
+        EXPORTING
+          i_sender = lo_sender.
+
+      LOOP AT s_email INTO li_email.
+*     --------- add recipient (e-mail address) -----------------------
+*     create recipient object
+        IF li_email-low IS NOT INITIAL.
+          lo_recipient = cl_cam_address_bcs=>create_internet_address( li_email-low ).
+*     add recipient object to send request
+          lo_send_request->add_recipient(
+          EXPORTING
+         i_recipient = lo_recipient
+         i_express = 'X' ).
+        ENDIF.
+
+        IF li_email-high IS NOT INITIAL.
+          lo_recipient = cl_cam_address_bcs=>create_internet_address( li_email-high ).
+*     add recipient object to send request
+          lo_send_request->add_recipient(
+          EXPORTING
+         i_recipient = lo_recipient
+         i_express = 'X' ).
+        ENDIF.
+        FREE li_email.
+      ENDLOOP.
+*     ---------- send document ---------------------------------------
+      lw_sent_to_all = lo_send_request->send( i_with_error_screen = 'X' ).
+
+      COMMIT WORK.
+*   ------------ exception handling ----------------------------------
+    CATCH cx_bcs INTO lo_bcs_exception.
+      MESSAGE i865(so) WITH lo_bcs_exception->error_type.
+  ENDTRY.
+ENDFORM.                    " SEND_EMAIL
+*&---------------------------------------------------------------------*
+*&      Form  PREPARE_FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM prepare_fieldcat .
+* Preare the fieldcat for output structure.
+  REFRESH gt_fldcat.
+  PERFORM create_fieldcat USING 'MATNR' text-005 '18'.
+  PERFORM create_fieldcat USING 'TEXT'  text-004 '220'.
+ENDFORM.                    " PREPARE_FIELDCAT
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0747   text
+*      -->P_TEXT_005  text
+*      -->P_0749   text
+*----------------------------------------------------------------------*
+FORM create_fieldcat  USING    p_name  TYPE lvc_fname
+                               p_text  TYPE reptext
+                               p_oplen TYPE lvc_outlen.
+
+  DATA: li_fieldcat TYPE lvc_s_fcat.
+
+  li_fieldcat-fieldname = p_name.     "Fieldname
+  li_fieldcat-outputlen = p_oplen.    "Output length
+  li_fieldcat-reptext   = p_text.     "Column text
+  APPEND li_fieldcat TO gt_fldcat.
+  FREE li_fieldcat.
+
+ENDFORM.                    " CREATE_FIELDCAT
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output .
+  WRITE:/ text-016.
+  SKIP.
+  SKIP.
+  WRITE:/ text-013 , gi_locked.
+  SKIP.
+  WRITE:/ text-014, gi_lock_fail.
+  SKIP.
+  WRITE:/ text-015, gi_amn_mismatch.
+  SKIP.
+  WRITE:/ text-017, gi_amn_corrected.
+ENDFORM.                    " DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  SEPARATE_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM separate_data .
+** By doing the below GTMM_MARC_MAT_AL will have all L status records
+**  and GT_STATUS_A will have all A status records
+  LOOP AT gtmm_marc_mat_al ASSIGNING <gfs_al> WHERE marc_mat_status = 'A' ."ALt mat > 20 chars
+    APPEND <gfs_al> TO gt_status_a.
+    CLEAR <gfs_al>.
+  ENDLOOP.
+  DELETE gtmm_marc_mat_al WHERE matnr IS INITIAL.
+
+ENDFORM.                    " SEPARATE_DATA
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA_A
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_data_a .
+
+  DATA: li_status_a TYPE ztmm_marc_mat_al,
+        lt_amn_corrected TYPE STANDARD TABLE OF ztmm_marc_mat_al,
+        li_len      TYPE i.
+  LOOP AT gt_status_a INTO li_status_a.
+    CLEAR gi_mara.
+    READ TABLE gt_mara INTO gi_mara WITH KEY matnr = li_status_a-matnr.
+    IF sy-subrc IS INITIAL.
+      li_len = strlen( gi_mara-zzaltmn ).
+** If Alternate material length is less than or equal to 20 it means correction has been made
+** Hence the entry can be deleted from ZTMM_MARC_MAT_AL table
+      IF li_len LE 20.
+        APPEND li_status_a TO lt_amn_corrected.
+      ENDIF.
+    ENDIF.
+    CLEAR: gi_mara,li_len,li_status_a.
+  ENDLOOP.
+** Number of records deleted from ZTMM_MARC_MAT_AL
+** for which AMN is corrected in material master
+  DESCRIBE TABLE lt_amn_corrected LINES gi_amn_corrected.
+
+  DELETE ztmm_marc_mat_al FROM TABLE lt_amn_corrected.
+  IF sy-subrc IS INITIAL.
+    COMMIT WORK.
+  ENDIF.
+ENDFORM.                    " PROCESS_DATA_A
+

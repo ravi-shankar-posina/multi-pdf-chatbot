@@ -1,0 +1,249 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SHPMNT_IDOC_REPROCESS_CLS
+*&---------------------------------------------------------------------*
+
+CLASS lcl_shpmnt_start DEFINITION.
+  PUBLIC SECTION.
+    METHODS constructor.
+    METHODS get_idoc_data CHANGING ch_shpmnt LIKE gt_final .
+    METHODS process_shpmnt CHANGING ch_output LIKE gt_output.
+    METHODS status_update .
+    METHODS display_output.
+ENDCLASS.
+
+CLASS lcl_shpmnt_start IMPLEMENTATION.
+  METHOD constructor.
+    CLEAR : gt_output , gt_final , gt_shpmnt  , gwa_final , gwa_output .
+  ENDMETHOD.
+  METHOD get_idoc_data.
+
+    DATA : lwa_eledt20 TYPE e1edt20.
+
+    SELECT docnum , status , stdmes  FROM edidc INTO TABLE @DATA(lt_edidc)
+          WHERE       docnum  IN @s_docnm
+          AND         status  IN @s_stat
+          AND         direct  IN @s_dirct
+          AND         idoctp  IN @s_idoct
+          AND         cimtyp  IN @s_cimty
+          AND         mestyp  IN @s_mesty
+          AND         mescod  IN @s_mescd
+          AND         mesfct  IN @s_msfct
+          AND         rcvpor  IN @s_pppor
+          AND         rcvprt  IN @s_ppprt
+          AND         rcvpfc  IN @s_pppfc
+          AND         rcvprn  IN @s_ppprn
+          AND         sndpor  IN @s_sndpo
+          AND         sndprn  IN @s_sndpr
+          AND         credat  IN @s_credt
+          AND         cretim  IN @s_cretm
+          AND         upddat  IN @s_upddt
+          AND         updtim  IN @s_updtm
+        ORDER BY PRIMARY KEY.
+
+
+    IF lt_edidc IS NOT INITIAL.
+      SELECT  * FROM edid4
+        INTO TABLE gt_shpmnt
+        FOR ALL ENTRIES IN lt_edidc
+        WHERE docnum = lt_edidc-docnum AND
+              segnam = gc_e1edt20.
+
+      IF gt_shpmnt IS NOT INITIAL.
+        SORT gt_shpmnt BY docnum.
+        LOOP AT lt_edidc ASSIGNING FIELD-SYMBOL(<lfs_edidc>).
+          READ TABLE gt_shpmnt ASSIGNING FIELD-SYMBOL(<lfs_shpmnt>) WITH KEY docnum = <lfs_edidc>-docnum BINARY SEARCH.
+          IF sy-subrc = 0.
+            lwa_eledt20 = <lfs_shpmnt>-sdata.
+            IF lwa_eledt20-tknum IS NOT INITIAL.
+
+              CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+                EXPORTING
+                  input  = lwa_eledt20-tknum
+                IMPORTING
+                  output = lwa_eledt20-tknum.
+
+
+              gwa_final-tknum = lwa_eledt20-tknum.
+              gwa_final-docnum = <lfs_edidc>-docnum.
+              APPEND gwa_final TO gt_final.
+              CLEAR: gwa_final.
+            ENDIF.
+          ENDIF.
+        ENDLOOP.
+      ENDIF.
+    ELSE.
+      MESSAGE 'No Data Found'(002) TYPE gc_s DISPLAY LIKE gc_e.
+    ENDIF.
+    IF gt_final IS NOT INITIAL.
+      ch_shpmnt = gt_final.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD process_shpmnt.
+
+    DATA: lwa_header       TYPE bapishipmentheader,
+          lwa_headeraction TYPE bapishipmentheaderaction.
+
+    DATA: lt_return  TYPE STANDARD TABLE OF bapiret2,
+          lwa_return LIKE LINE OF lt_return.
+
+    IF gt_final IS NOT INITIAL.
+      SELECT tknum , sttbg , sttrg
+        FROM vttk INTO TABLE @DATA(lt_vttk)
+        FOR ALL ENTRIES IN @gt_final
+        WHERE tknum EQ @gt_final-tknum
+        AND sttbg EQ @space
+        AND sttrg EQ 5.
+
+      IF lt_vttk IS NOT INITIAL.
+        SORT lt_vttk BY tknum.
+      ENDIF.
+
+      LOOP AT gt_final ASSIGNING FIELD-SYMBOL(<lfs_final>).
+        MOVE-CORRESPONDING <lfs_final> TO gwa_output.
+        READ TABLE lt_vttk ASSIGNING FIELD-SYMBOL(<lfs_vttk>) WITH KEY tknum = <lfs_final>-tknum BINARY SEARCH.
+        IF sy-subrc = 0.
+          REFRESH: lt_return.
+          CLEAR: lwa_header, lwa_headeraction.
+          lwa_header-shipment_num = <lfs_vttk>-tknum.
+          lwa_header-status_shpmnt_start = gc_x.
+
+          lwa_headeraction-shipment_num = gc_x.
+          lwa_headeraction-status_shpmnt_start = gc_c.
+          CALL FUNCTION 'BAPI_SHIPMENT_CHANGE'
+            EXPORTING
+              headerdata       = lwa_header
+              headerdataaction = lwa_headeraction
+            TABLES
+              return           = lt_return.
+
+          CLEAR lwa_return.
+          READ TABLE lt_return INTO lwa_return WITH KEY type = gc_e.
+          IF sy-subrc = 0.
+            gwa_output-msg = lwa_return-message.
+            gwa_output-msgty = gc_e.
+          ELSE.
+            gwa_output-datbg = sy-datum.
+            gwa_output-uatbg = sy-uzeit.
+            gwa_output-msg = TEXT-003.
+            gwa_output-msgty = gc_s.
+            CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+              EXPORTING
+                wait = gc_x.
+          ENDIF.
+        ELSE.
+          gwa_output-msg = TEXT-004.
+          gwa_output-msgty = gc_e.
+        ENDIF.
+        APPEND gwa_output TO gt_output.
+        CLEAR: gwa_output.
+      ENDLOOP.
+    ENDIF.
+
+    IF gt_output IS NOT INITIAL.
+      ch_output = gt_output.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD status_update.
+
+    DATA : lt_docst   TYPE TABLE OF bdidocstat,
+           lwa_docst  TYPE bdidocstat,
+           lt_control LIKE edidc.
+    IF  gt_output IS NOT INITIAL.
+      LOOP AT gt_output ASSIGNING FIELD-SYMBOL(<lfs_output>) WHERE msgty = gc_s.
+
+        lwa_docst-docnum = <lfs_output>-docnum.
+        lwa_docst-status = gc_53.
+        APPEND lwa_docst TO lt_docst.
+        CLEAR : lwa_docst.
+
+        CALL FUNCTION 'IDOC_STATUS_WRITE_TO_DATABASE'
+          EXPORTING
+            idoc_number               = <lfs_output>-docnum
+          IMPORTING
+            idoc_control              = lt_control
+          TABLES
+            idoc_status               = lt_docst
+          EXCEPTIONS
+            idoc_foreign_lock         = 1
+            idoc_not_found            = 2
+            idoc_status_records_empty = 3
+            idoc_status_invalid       = 4
+            db_error                  = 5
+            OTHERS                    = 6.
+        IF sy-subrc <> 0.
+* Implement suitable error handling here
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+
+
+
+  ENDMETHOD.
+
+  METHOD display_output.
+    DATA: lo_alv TYPE REF TO cl_salv_table.
+
+    DATA: lo_columns TYPE REF TO cl_salv_columns,
+          lo_column  TYPE REF TO cl_salv_column.
+
+    IF gt_output IS NOT INITIAL.
+      TRY.
+          CALL METHOD cl_salv_table=>factory
+            EXPORTING
+              list_display = if_salv_c_bool_sap=>false
+            IMPORTING
+              r_salv_table = lo_alv
+            CHANGING
+              t_table      = gt_output.
+        CATCH cx_salv_msg.
+      ENDTRY.
+      lo_columns = lo_alv->get_columns( ).
+
+* modify individual properties
+      TRY.
+          lo_column = lo_columns->get_column( 'MSG' ).
+          lo_column->set_long_text( 'Description' ).        "#EC NOTEXT
+          lo_column->set_medium_text( 'Description' ).      "#EC NOTEXT
+          lo_column->set_short_text( 'Descptn' ).           "#EC NOTEXT
+          lo_column->set_output_length( 23 ).
+        CATCH cx_salv_not_found.                        "#EC NO_HANDLER
+      ENDTRY.
+
+      TRY.
+          lo_column = lo_columns->get_column( 'MSGTY' ).
+          lo_column->set_long_text( 'Message Type' ).       "#EC NOTEXT
+          lo_column->set_medium_text( 'Message Type' ).     "#EC NOTEXT
+          lo_column->set_short_text( 'Msg Type' ).          "#EC NOTEXT
+          lo_column->set_output_length( 15 ).
+        CATCH cx_salv_not_found.                        "#EC NO_HANDLER
+      ENDTRY.
+
+      TRY.
+          lo_column = lo_columns->get_column( 'DATBG' ).
+          lo_column->set_long_text( 'Date Created' ).       "#EC NOTEXT
+          lo_column->set_medium_text( 'Date Created' ).     "#EC NOTEXT
+          lo_column->set_short_text( 'Date Crtd' ).         "#EC NOTEXT
+          lo_column->set_output_length( 15 ).
+        CATCH cx_salv_not_found.                        "#EC NO_HANDLER
+      ENDTRY.
+
+      TRY.
+          lo_column = lo_columns->get_column( 'UATBG' ).
+          lo_column->set_long_text( 'Time Created' ).       "#EC NOTEXT
+          lo_column->set_medium_text( 'Time Created' ).     "#EC NOTEXT
+          lo_column->set_short_text( 'Time Crtd' ).         "#EC NOTEXT
+          lo_column->set_output_length( 15 ).
+        CATCH cx_salv_not_found.                        "#EC NO_HANDLER
+      ENDTRY.
+
+
+
+* display ALV
+      lo_alv->display( ).
+    ENDIF.
+  ENDMETHOD.
+ENDCLASS.
+

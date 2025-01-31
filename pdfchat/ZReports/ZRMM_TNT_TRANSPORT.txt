@@ -1,0 +1,80 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_TNT_TRANSPORT
+*&
+*&---------------------------------------------------------------------*
+*** Created by            : Sumit Srivastava
+*** Creation Date         : 17/04/2014
+*** Transport Request #   : DE3K918841
+*** RICEF Object No #     : RICEF1021
+*** Transaction Code      : ZMM_TRUCK_T10
+*** Description           : Interactive Report to provide Transport details
+***                         First Screen will give Truck Details
+***                         Second Screen will have Handlin Unit related to Truck
+***                         Third Screen will have Shipment details
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***********************************************************************************************
+* DATE               | CR No.          |TR          |CHANGED BY |DESCRIPTION OF CHANGE
+***********************************************************************************************
+* 17-April-2014       | CHG0479115     |DE3K918841  |502237354  | Initial Development
+***********************************************************************************************
+* 04-May-2014         | CHG0479115     |DE3K925434  |502237354  | Status logic is updated with
+*                                                                 FullGR value updation in table
+***********************************************************************************************
+* 09-May-2014         | CHG0479115     |DE3K926092  |502237354  | Match Code Objects have been
+*                                                                 added on Selection Screen
+***********************************************************************************************
+
+REPORT  zrmm_tnt_transport
+        MESSAGE-ID zmm
+        LINE-SIZE 225
+        NO STANDARD PAGE HEADING.
+
+* Top Include
+*-----------------------------------------------------------------------
+INCLUDE znmm_tnt_transport_top.
+*-----------------------------------------------------------------------
+* Include for subroutines
+*-----------------------------------------------------------------------
+INCLUDE znmm_tnt_transport_form.
+*----------------------------------------------------------------------*
+* At Selection-Screen
+*----------------------------------------------------------------------*
+* Subroutine to get Search help for User low value against table ZTMM_TRKID.
+  AT SELECTION-SCREEN on VALUE-REQUEST FOR gs_user-low.
+   PERFORM F4_user.
+* Subroutine to get Search help for User high valueagainst table ZTMM_TRKID.
+  AT SELECTION-SCREEN on VALUE-REQUEST FOR gs_user-high.
+   PERFORM F4_user.
+* Subroutine to get Search help for Reference external shipment low laue against table ZTMM_TRKID.
+  AT SELECTION-SCREEN on VALUE-REQUEST FOR gs_retrk-low.
+   PERFORM F4_retrk.
+* Subroutine to get Search help for Reference external shipment high value against table ZTMM_TRKID.
+  AT SELECTION-SCREEN on VALUE-REQUEST FOR gs_retrk-high.
+   PERFORM F4_retrk.
+* Subroutine to get Search help for Reference external tranport id low value against table ZTMM_TRKID.
+  AT SELECTION-SCREEN on VALUE-REQUEST FOR gs_rtrid-low.
+   PERFORM F4_rtrid.
+* Subroutine to get Search help for Reference external tranport id high value against table ZTMM_TRKID.
+  AT SELECTION-SCREEN on VALUE-REQUEST FOR gs_rtrid-high.
+   PERFORM F4_rtrid.
+
+  AT SELECTION-SCREEN.
+* Subroutine to Validate Truckid against table ZTMM_TRKID.
+   PERFORM validate_truckid.
+* Subroutine to Validate Departure Hub against table ZTMM_HUB.
+   PERFORM validate_dephub.
+* Subroutine to Validate Receiving Hub against table ZTMM_HUB.
+   PERFORM validate_rechub.
+*----------------------------------------------------------------------*
+* Start-of-Selection
+*----------------------------------------------------------------------*
+START-OF-SELECTION.
+* Subroutine to get the list of Trucks from ZTMM_TRKID.
+  PERFORM f_get_truck_list.
+*----------------------------------------------------------------------*
+* End-of-Selection
+*----------------------------------------------------------------------*
+END-OF-SELECTION.
+

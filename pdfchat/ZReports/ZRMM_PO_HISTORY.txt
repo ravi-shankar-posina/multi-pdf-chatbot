@@ -1,0 +1,438 @@
+*=======================================================================
+*= Copyright ©  2000 GE ENERGY  =
+*= ALL RIGHTS RESERVED =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRMM_PO_HISTORY
+* Title             : All PO history
+*
+* Program function  : This program is designed to show all po history
+*
+* Transaction code  : ZMM919
+*
+* Limitations       : NA
+*
+* Table updates     : NA
+*
+* Authorizations    : NA
+*
+* Selection screen  : NA
+*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+************************************************************************
+* DATE         | CR No.        | CHANGED BY   | DESCRIPTION OF CHANG
+************************************************************************
+* 20-Mar-13    | CHG0164872    | 502152413    | Initial Program
+************************************************************************
+************************************************************************
+* 08-Jan-15    | CHG1006001    | 50225517    | Performance Tuining
+************************************************************************
+
+REPORT ZRMM_PO_HISTORY.
+
+TABLES:
+  EKKO,
+  EKPO,
+  EKES,
+  EKET,
+  EKBE,
+  AFVC,
+  PROJ.
+
+TYPES:
+  BEGIN OF TYP_RESULT,
+    EBELN TYPE EKPO-EBELN,             "PO Number
+    BSART TYPE EKKO-BSART,             "PO Order Type
+    EBELP TYPE EKPO-EBELP,             "PO Item
+    MATNR TYPE EKPO-MATNR,             "Material
+    TXZ01 TYPE EKPO-TXZ01,             "Item Desc
+    BELNR TYPE EKBE-BELNR,             "Vendor Invoice No - no display
+    BUDAT TYPE EKBE-BUDAT,             "Posting Date - no display
+    GJAHR TYPE RBKP-GJAHR,             "Invoice Year - no display
+    XBLNR TYPE RBKP-XBLNR,             "Vendor Invoice No
+    BLDAT TYPE RBKP-BLDAT,             "Invoice Date
+    WERKS TYPE EKPO-WERKS,             "Receiving Plant
+    TRAID TYPE LIKP-TRAID,             "Means of Transport ID
+    ERDAT TYPE EKES-ERDAT,             "ASN Creation Date
+    EINDT TYPE EKES-EINDT,             "ASN Delivery Date
+    LIFNR TYPE EKKO-LIFNR,             "Vendor
+    NAME1 TYPE LFA1-NAME1,             "Vendor Name
+    PLIFZ TYPE EKPO-PLIFZ,             "Lead Time
+    BEDAT TYPE EKKO-BEDAT,             "Document Date
+    RCDAT TYPE EKBE-BUDAT,             "Receipt Date
+    EKETD TYPE EKET-EINDT,             "Delivery Date
+    ACTLT TYPE I,                      "Actually Lead Time
+    EKGRP TYPE EKKO-EKGRP,             "Purchase Group
+    NETPR TYPE EKPO-NETPR,             "Net Price
+    PEINH TYPE EKPO-PEINH,             "Per
+    WAERS TYPE EKKO-WAERS,             "Currency
+    MENGE TYPE EKPO-MENGE,             "PO QTY
+    MEINS TYPE EKPO-MEINS,             "Unit
+    WEMNG TYPE EKET-WEMNG,             "Rec QTY
+    BMNGE TYPE EKBE-MENGE,             "Billing QTY
+    LAND1 TYPE LFA1-LAND1,             "Vendor Country
+    ELIKZ TYPE EKPO-ELIKZ,             "Delivery Complete
+    REVNO TYPE EREV-REVNO,             "Reason Version
+    RSCOD TYPE EREV-RSCOD,             "Reasion Code
+    TXZ02 TYPE EREV-TXZ01,             "Reason Text
+    RERDT TYPE EREV-ERDAT,             "Reason change Date
+  END OF TYP_RESULT.
+
+DATA:
+  GS_EKKO TYPE EKKO,
+  GT_EKKO TYPE TABLE OF EKKO,
+  GS_EKPO TYPE EKPO,
+  GT_EKPO TYPE TABLE OF EKPO,
+  GS_EKBE TYPE EKBE,
+  GT_EKBE TYPE TABLE OF EKBE,
+  GS_EKES TYPE EKES,
+  GT_EKES TYPE TABLE OF EKES,
+  GS_LIKP TYPE LIKP,
+  GT_LIKP TYPE TABLE OF LIKP,
+  GS_LFA1 TYPE LFA1,
+  GT_LFA1 TYPE TABLE OF LFA1,
+  GT_EKBE_101 TYPE TABLE OF EKBE,
+  GS_EKET TYPE EKET,
+  GT_EKET TYPE TABLE OF EKET,
+  GS_EREV TYPE EREV,
+  GT_EREV TYPE TABLE OF EREV,
+  GS_T16CT TYPE T16CT,
+  GT_T16CT TYPE TABLE OF T16CT,
+  GS_RBKP TYPE RBKP,
+  GT_RBKP TYPE TABLE OF RBKP.
+
+DATA:
+  GS_RESULT TYPE TYP_RESULT,
+  GT_RESULT TYPE TABLE OF TYP_RESULT.
+
+DATA:
+  GS_FIELDCAT TYPE SLIS_FIELDCAT_ALV,
+  GT_FIELDCAT TYPE SLIS_T_FIELDCAT_ALV,
+  GS_LAYOUT   TYPE SLIS_LAYOUT_ALV.
+
+DATA:
+  GO_STRCT_DESCR TYPE REF TO CL_ABAP_STRUCTDESCR.
+
+CONSTANTS:
+  XFLAG(1) TYPE C VALUE 'X'.
+
+SELECTION-SCREEN BEGIN OF BLOCK B01 WITH FRAME TITLE TEXT-B01.
+SELECT-OPTIONS: S_BEDAT FOR EKKO-BEDAT,
+                S_BUDAT FOR EKBE-BUDAT,
+                S_EBELN FOR EKKO-EBELN,
+                S_LIFNR FOR EKKO-LIFNR,
+                S_WERKS FOR EKPO-WERKS,
+                S_EKORG FOR EKKO-EKORG,
+                S_EKGRP FOR EKKO-EKGRP,
+                S_ELIKZ FOR EKPO-ELIKZ.
+SELECTION-SCREEN END OF BLOCK B01.
+
+INITIALIZATION.
+
+AT SELECTION-SCREEN OUTPUT.
+
+START-OF-SELECTION.
+  PERFORM FRM_GET_DATA.
+  PERFORM FRM_CALCULATE.
+  PERFORM FRM_OUTPUT_RESULT.
+
+END-OF-SELECTION.
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_GET_DATA.
+* Purchasing Document Header
+  SELECT * FROM EKKO INTO TABLE GT_EKKO
+   WHERE EBELN IN S_EBELN
+     AND BEDAT IN S_BEDAT
+     AND LIFNR IN S_LIFNR
+     AND EKORG IN S_EKORG
+     AND EKGRP IN S_EKGRP.
+
+  IF GT_EKKO IS NOT INITIAL.
+* Purchasing Document Item
+    SELECT * FROM EKPO INTO TABLE GT_EKPO
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN
+       AND ELIKZ IN S_ELIKZ
+       AND WERKS IN S_WERKS.
+* History per Purchasing Document
+    SELECT * FROM EKBE INTO TABLE GT_EKBE
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN
+       AND VGABE EQ '2'.                        "Billing
+* Vendor Confirmations
+    SELECT * FROM EKES INTO TABLE GT_EKES
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN.
+* Vendor Master (General Section)
+    SELECT * FROM LFA1 INTO TABLE GT_LFA1
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE LIFNR EQ GT_EKKO-LIFNR.
+* History per Purchasing Document
+    SELECT * FROM EKBE INTO TABLE GT_EKBE_101
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN
+       AND VGABE EQ '1'                        "Goods Receipt
+       AND BEWTP EQ 'E'                        "Goods Receipt
+       AND BWART EQ '101'.                     "GR
+* Scheduling Agreement Schedule Lines
+    SELECT * FROM EKET INTO TABLE GT_EKET
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN.
+* Version in Purchasing
+    SELECT * FROM EREV INTO TABLE GT_EREV
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EDOKN EQ GT_EKKO-EBELN.
+  ENDIF.
+
+  IF GT_EKES IS NOT INITIAL.
+* SD Document: Delivery Header Data
+    SELECT * FROM LIKP INTO TABLE GT_LIKP
+       FOR ALL ENTRIES IN GT_EKES
+     WHERE VBELN = GT_EKES-VBELN.
+  ENDIF.
+* DCM Text for Reason for Change
+  SELECT * FROM T16CT INTO TABLE GT_T16CT
+   WHERE SPRAS EQ 'E'.
+
+  IF GT_EKBE IS NOT INITIAL.
+* Document Header: Invoice Receipt
+    SELECT * FROM RBKP INTO TABLE GT_RBKP
+       FOR ALL ENTRIES IN GT_EKBE
+     WHERE BELNR EQ GT_EKBE-BELNR
+       AND GJAHR EQ GT_EKBE-GJAHR.
+  ENDIF.
+ENDFORM.                    "FRM_GET_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_CALCULATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_CALCULATE.
+
+  SORT GT_EKKO BY EBELN.
+  SORT GT_EKPO BY EBELN EBELP.
+  SORT GT_EKBE BY CPUDT CPUTM.
+  SORT GT_EKES BY EBELN EBELP ETENS.
+  SORT GT_EKET BY EBELN EBELP EINDT.
+  SORT GT_LIKP BY VBELN.
+  SORT GT_LFA1 BY LIFNR.
+  SORT GT_T16CT BY SPRAS RSCOD.
+  SORT GT_RBKP BY BELNR GJAHR.
+*** Changes started by Karthik Kalindi CHG1006001 on 08/01.2015.
+  SORT GT_EKBE_101 BY EBELN EBELP CPUDT DESCENDING CPUTM DESCENDING.
+*** Changes ended by Karthik Kalindi CHG1006001 on 08/01.2015.
+  SORT GT_EREV BY BSTYP EDOKN EDOKP REVNO DESCENDING.
+  DELETE ADJACENT DUPLICATES FROM GT_EREV COMPARING BSTYP EDOKN EDOKP.
+
+  LOOP AT GT_EKPO INTO GS_EKPO.
+    CLEAR GS_EKKO.
+    READ TABLE GT_EKKO INTO GS_EKKO
+      WITH KEY EBELN = GS_EKPO-EBELN BINARY SEARCH.
+    CLEAR GS_LFA1.
+    READ TABLE GT_LFA1 INTO GS_LFA1
+      WITH KEY LIFNR = GS_EKKO-LIFNR BINARY SEARCH.
+    CLEAR GS_EREV.
+    READ TABLE GT_EREV INTO GS_EREV
+      WITH KEY EDOKN = GS_EKPO-EBELN BINARY SEARCH.
+    CLEAR GS_T16CT.
+    READ TABLE GT_T16CT INTO GS_T16CT
+      WITH KEY RSCOD = GS_EREV-RSCOD BINARY SEARCH.
+
+    GS_RESULT-EBELN = GS_EKPO-EBELN.
+    GS_RESULT-BSART = GS_EKKO-BSART.
+    GS_RESULT-EBELP = GS_EKPO-EBELP.
+    GS_RESULT-MATNR = GS_EKPO-MATNR.
+    GS_RESULT-TXZ01 = GS_EKPO-TXZ01.
+    GS_RESULT-WERKS = GS_EKPO-WERKS.
+    GS_RESULT-LIFNR = GS_EKKO-LIFNR.
+    GS_RESULT-NAME1 = GS_LFA1-NAME1.
+    GS_RESULT-PLIFZ = GS_EKPO-PLIFZ.
+    GS_RESULT-BEDAT = GS_EKKO-BEDAT.
+    GS_RESULT-EKGRP = GS_EKKO-EKGRP.
+    GS_RESULT-NETPR = GS_EKPO-NETPR.
+    GS_RESULT-PEINH = GS_EKPO-PEINH.
+    GS_RESULT-WAERS = GS_EKKO-WAERS.
+    GS_RESULT-MENGE = GS_EKPO-MENGE.
+    GS_RESULT-MEINS = GS_EKPO-MEINS.
+    GS_RESULT-LAND1 = GS_LFA1-LAND1.
+    GS_RESULT-ELIKZ = GS_EKPO-ELIKZ.
+    GS_RESULT-REVNO = GS_EREV-REVNO.
+    GS_RESULT-RSCOD = GS_EREV-RSCOD.
+    GS_RESULT-RERDT = GS_EREV-ERDAT.
+
+    CLEAR GS_EKBE.
+    LOOP AT GT_EKBE INTO GS_EKBE
+      WHERE EBELN = GS_EKPO-EBELN
+        AND EBELP = GS_EKPO-EBELP.
+      GS_RESULT-BELNR = GS_EKBE-BELNR.
+      GS_RESULT-BUDAT = GS_EKBE-BUDAT.
+      GS_RESULT-GJAHR = GS_EKBE-GJAHR.
+      GS_RESULT-BMNGE = GS_EKBE-MENGE.
+    ENDLOOP.
+
+    CLEAR GS_RBKP.
+    READ TABLE GT_RBKP INTO GS_RBKP
+      WITH KEY BELNR = GS_RESULT-BELNR
+               GJAHR = GS_RESULT-GJAHR BINARY SEARCH.
+    GS_RESULT-BLDAT = GS_RBKP-BLDAT.
+    GS_RESULT-XBLNR = GS_RBKP-XBLNR.
+
+    CLEAR GS_EKES.
+    SORT GT_EKES BY EBELN EBELP VBELN DESCENDING.
+    READ TABLE GT_EKES INTO GS_EKES
+      WITH KEY EBELN = GS_EKPO-EBELN
+               EBELP = GS_EKPO-EBELP.
+    CLEAR GS_LIKP.
+    READ TABLE GT_LIKP INTO GS_LIKP
+      WITH KEY VBELN = GS_EKES-VBELN BINARY SEARCH.
+    GS_RESULT-TRAID = GS_LIKP-TRAID.
+
+    CLEAR GS_EKES.
+    SORT GT_EKES BY EBELN EBELP ERDAT DESCENDING.
+    READ TABLE GT_EKES INTO GS_EKES
+      WITH KEY EBELN = GS_EKPO-EBELN
+               EBELP = GS_EKPO-EBELP.
+    GS_RESULT-ERDAT = GS_EKES-ERDAT.
+
+    CLEAR GS_EKES.
+    SORT GT_EKES BY EBELN EBELP EINDT DESCENDING.
+    READ TABLE GT_EKES INTO GS_EKES
+      WITH KEY EBELN = GS_EKPO-EBELN
+               EBELP = GS_EKPO-EBELP.
+    GS_RESULT-EINDT = GS_EKES-EINDT.
+
+    CLEAR GS_EKBE.
+*    SORT GT_EKBE_101 BY EBELN EBELP CPUDT DESCENDING CPUTM DESCENDING.
+    READ TABLE GT_EKBE_101 INTO GS_EKBE
+      WITH KEY EBELN = GS_EKPO-EBELN
+               EBELP = GS_EKPO-EBELP.
+    GS_RESULT-RCDAT = GS_EKBE-BUDAT.
+
+    LOOP AT GT_EKET INTO GS_EKET
+      WHERE EBELN = GS_EKPO-EBELN
+        AND EBELP = GS_EKPO-EBELP.
+      GS_RESULT-EKETD = GS_EKET-EINDT.
+      GS_RESULT-WEMNG = GS_RESULT-WEMNG + GS_EKET-WEMNG.
+    ENDLOOP.
+
+    IF GS_EREV-TXZ01 IS INITIAL.
+      GS_RESULT-TXZ02 = GS_T16CT-RSTXT.
+    ELSE.
+      GS_RESULT-TXZ02 = GS_EREV-TXZ01.
+    ENDIF.
+
+    IF GS_RESULT-RCDAT IS NOT INITIAL AND GS_RESULT-BEDAT IS NOT INITIAL.
+      GS_RESULT-ACTLT = GS_RESULT-RCDAT - GS_RESULT-BEDAT.
+    ENDIF.
+
+    APPEND GS_RESULT TO GT_RESULT.
+    CLEAR GS_RESULT.
+  ENDLOOP.
+
+ENDFORM.                    "FRM_CALCULATE
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_OUTPUT_RESULT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_OUTPUT_RESULT.
+  PERFORM FRM_BUILT_CAT.
+  PERFORM FRM_DISPLAY_ALV.
+ENDFORM.                    "FRM_OUTPUT_RESULT
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_BUILT_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_BUILT_CAT.
+  PERFORM FIELDCAT USING:
+    'EBELN'	TEXT-T01,
+    'BSART'	TEXT-T02,
+    'EBELP'	TEXT-T03,
+    'MATNR'	TEXT-T04,
+    'TXZ01'	TEXT-T05,
+    'XBLNR'	TEXT-T06,
+    'BLDAT'	TEXT-T07,
+    'WERKS'	TEXT-T08,
+    'TRAID'	TEXT-T09,
+    'ERDAT'	TEXT-T10,
+    'EINDT'	TEXT-T11,
+    'LIFNR'	TEXT-T12,
+    'NAME1'	TEXT-T13,
+    'PLIFZ'	TEXT-T14,
+    'BEDAT'	TEXT-T15,
+    'EKETD'	TEXT-T16,
+    'RCDAT'	TEXT-T17,
+    'ACTLT'	TEXT-T18,
+    'EKGRP'	TEXT-T19,
+    'NETPR'	TEXT-T20,
+    'PEINH'	TEXT-T21,
+    'WAERS'	TEXT-T22,
+    'MENGE'	TEXT-T23,
+    'MEINS'	TEXT-T24,
+    'WEMNG'	TEXT-T25,
+    'BMNGE'	TEXT-T26,
+    'LAND1'	TEXT-T27,
+    'ELIKZ'	TEXT-T28,
+    'REVNO'	TEXT-T29,
+    'RSCOD'	TEXT-T30,
+    'TXZ02'	TEXT-T31,
+    'RERDT'	TEXT-T32.
+ENDFORM.                    "FRM_BUILT_CAT
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_DISPLAY_ALV.
+
+  GS_LAYOUT-COLWIDTH_OPTIMIZE = XFLAG.
+  GS_LAYOUT-ZEBRA             = XFLAG.
+  GS_LAYOUT-DETAIL_POPUP      = XFLAG.
+
+*  SORT GT_RESULT BY AMPEL DESCENDING MATNR WERKS.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      I_BYPASSING_BUFFER = XFLAG
+      I_BUFFER_ACTIVE    = SPACE
+      I_CALLBACK_PROGRAM = SY-REPID
+      IS_LAYOUT          = GS_LAYOUT
+      IT_FIELDCAT        = GT_FIELDCAT
+    TABLES
+      T_OUTTAB           = GT_RESULT.
+
+ENDFORM.                    "FRM_DISPLAY_ALV
+
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_FNAME    text
+*      -->P_STEXT    text
+*----------------------------------------------------------------------*
+FORM FIELDCAT USING P_FNAME P_STEXT.
+  CLEAR GS_FIELDCAT.
+  GS_FIELDCAT-FIELDNAME = P_FNAME.
+  GS_FIELDCAT-SELTEXT_L = P_STEXT.
+  GS_FIELDCAT-DDICTXT   = 'L'.
+  IF P_FNAME = 'EBELN' OR P_FNAME = 'EBELP' OR P_FNAME = 'BSART'.
+    GS_FIELDCAT-KEY = 'X'.
+  ENDIF.
+  APPEND GS_FIELDCAT TO GT_FIELDCAT.
+  CLEAR GS_FIELDCAT.
+ENDFORM.                    "FIELDCAT
+

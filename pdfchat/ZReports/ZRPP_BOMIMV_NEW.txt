@@ -1,0 +1,61 @@
+*&---------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Created by            : 502277866 sekhar.p
+*** Creation Date         : 05/08/2015
+*** Transport Request #   : DE3K965144
+*** RICEF Object No #     : RICEF1564
+*** TCODE                 : ZPP018
+*** Change request No     : CHG1384511
+*** Description           : Report is copied from tcode zpp003 and added extralogic
+**                          to show only materials having phantom assembley and changed
+**                          selection screen
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+*12.08.2015           CHG1384511        502277866   commented some fields for alv dispaly
+*                                                   changed logic for inputfile
+*13.08.2015           CHG1384511        502277866   changed logic for phantom assembly materials
+*08.12.2015           CHG1608306        502277866   changed logic for comaring levels
+*22.01.2016           CHG1730762        502277866   Added new column alternate material for final output
+***------------------------------------------------------------------***
+REPORT  zrpp_bomimv_new
+            NO STANDARD PAGE HEADING
+            MESSAGE-ID 29.
+****Data Declarations
+INCLUDE znpp_bomtop_new.
+***selection screen
+INCLUDE znpp_bomtop_scr.
+
+START-OF-SELECTION.
+  PERFORM get_data.
+
+END-OF-SELECTION.
+****displaying data
+  PERFORM write_data.
+**** for downloading data to excel sheet
+  IF p_excel EQ 'X'.
+    PERFORM f_excel_download.
+  ENDIF.
+
+
+  INCLUDE znpp_bom_main_new.
+*&---------------------------------------------------------------------*
+*&      Form  F4_FILESELECT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_fileselect USING p_exfile.
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+    IMPORTING
+      file_name     = p_exfile.
+ENDFORM.                    " F4_FILESELECT
+

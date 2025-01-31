@@ -1,0 +1,37 @@
+*&---------------------------------------------------------------------*
+*& Report ZRPP_BOM_COM
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+* Name                          : ZRPP_BOM_COM
+* Tcode                         : ZBOM_COM
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 22 Feb 2023
+* Transport Request #           : DE3K9A0I78
+* RICEF Object No #             : RICEF2614
+* Description                   : Report to display info record details
+*                                 along with price of components
+*----------------------------------------------------------------------*
+*&--------------------------------------------------------------------------------------------*
+* 22-Feb-2023 | RICEF2614 | DE3K9A0I78 |USSOSUB1  |Initial Version
+*&--------------------------------------------------------------------------------------------*
+* 14-Mar-2023 | RICEF2614 | DE3K9A0JDS |USSOSUB1  |Quality bug fix
+*&--------------------------------------------------------------------------------------------*
+
+INCLUDE zrpp_bom_com_top.
+INCLUDE zrpp_bom_com_f01.
+
+
+AT SELECTION-SCREEN.
+  PERFORM validate_screen.
+
+AT SELECTION-SCREEN OUTPUT.
+  PERFORM validate_output.
+
+START-OF-SELECTION.
+
+  PERFORM get_data.
+  PERFORM process_data.
+  PERFORM build_cat.
+

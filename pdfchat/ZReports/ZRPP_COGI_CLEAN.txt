@@ -1,0 +1,130 @@
+*****************************************************************************************
+*=================================================================
+*= Copyright ©  2000 GE ENERGY  =
+*= ALL RIGHTS RESERVED =
+*=================================================================
+*****************************************************************************************
+* PROGRAM DOCUMENTATION
+******************************************************************************************
+*** Created by             : Sekhar.Perala (502277866)
+*** Creation Date          : 06-MARCH-2015
+*** Transport Request #    : DE3K960079
+*** RICEF Object No #      : RICEF1480
+*** Transaction Code       : ZPP013
+***Change request No       : CHG1107257
+*** Description            : THIS is a Automation Program to clean Cogi entries with goods movement errors
+*                            this report will move the stock form actual sloc to sloc in hardcode table after that
+*                            by using bdc will run cogi tcode to clean error entries. After completion of execution
+*                            it will disply alv report for log
+*****************************************************************************************
+***********************************************************************************************************
+*  DATE       | CR No            | CHANGED BY           | DESCRIPTION OF CHANGE
+*03.10.2015    CHG1107257           502277866              Added logic for processing cogi when quntity is lesser than actual
+**                                                         and added logic to remove duplicate entries
+*31.03.2015    CHG1135259           502277866              added specical stock in selection screen
+*13.06.2018    GECHG0202708         502765654              Bypassing of Batch Job Failures when no data
+***********************************************************************************************************
+*05.09.2018    GECHG0280122         502765654              Batch Job Failures Job is getting failed as there is no data to process
+*                                                          change this error message to information message to avoid the job fails
+***********************************************************************************************************
+REPORT  zrpp_cogi_clean.
+INCLUDE znpp_cogi_clean_top.
+INCLUDE znpp_cogi_clean_scr.
+
+START-OF-SELECTION.
+
+**** Retriving hardcode entries.
+  PERFORM ztuhcd1_entries.
+**** Retriving data from affw table and validating with stock
+  PERFORM get_data.
+*** moving stock from actual sloc to hardcode entry sloc
+  PERFORM move_stock.
+**** Running all cogi entries by using bdc for tcode COGI.
+  SORT gt_final_cogi BY matnr werks lgort.
+  LOOP AT gt_affw INTO gi_affw.
+    gi_affw2-matnr = gi_affw-matnr.
+    gi_affw2-werks = gi_affw-werks.
+    gi_affw2-lgort = gi_affw-lgort.
+    gi_affw2-bwart = gi_affw-bwart.
+    gi_affw2-erfmg = gi_affw-erfmg.
+    gi_affw2-erfme = gi_affw-erfme.
+    gi_affw2-aufnr = gi_affw-aufnr.
+    gi_affw2-aufps = gi_affw-aufps.
+    gi_affw2-weblnr = gi_affw-weblnr.
+    gi_affw2-weblpos = gi_affw-weblpos.
+    APPEND gi_affw2 TO gt_affw3.
+    CLEAR :gi_affw2.
+  ENDLOOP.
+  REFRESH gt_affw1.
+  SORT gt_affw3 BY matnr werks lgort aufnr.
+  LOOP AT gt_affw3 INTO gi_affw2.
+    gi_affw-matnr = gi_affw2-matnr.
+    gi_affw-werks = gi_affw2-werks.
+    gi_affw-lgort = gi_affw2-lgort.
+    gi_affw-bwart = gi_affw2-bwart.
+    gi_affw-erfmg = gi_affw2-erfmg.
+    gi_affw-erfme = gi_affw2-erfme.
+    gi_affw-aufnr = gi_affw2-aufnr.
+    gi_affw-aufps = gi_affw2-aufps.
+    gi_affw-weblnr = gi_affw2-weblnr.
+    gi_affw-weblpos = gi_affw2-weblpos.
+    AT END OF aufnr.
+      APPEND gi_affw TO gt_affw1.
+    ENDAT.
+  ENDLOOP.
+
+  LOOP AT gt_affw1 INTO gi_affw.
+    READ TABLE gt_final_cogi INTO gi_final_cogi WITH KEY matnr = gi_affw-matnr
+                                                         werks = gi_affw-werks
+                                                         lgort = gi_affw-lgort BINARY SEARCH.
+    IF sy-subrc EQ 0.
+
+      PERFORM f2200_bdc_dynpro      USING 'CORUAFFW' '1000'.
+      PERFORM f2300_bdc_field       USING 'BDC_CURSOR'
+                                          'P_OLD'.
+      PERFORM f2300_bdc_field      USING 'BDC_OKCODE'
+                                         '=ONLI'.
+      PERFORM f2300_bdc_field       USING 'S_WERKS-LOW'
+                                          gi_affw-werks.
+      PERFORM f2300_bdc_field       USING 'S_LGORT-LOW'
+                                         gi_affw-lgort.
+      PERFORM f2300_bdc_field       USING 'S_MATNR-LOW'
+                                       gi_affw-matnr.
+
+      PERFORM f2300_bdc_field       USING 'S_AUFNR-LOW'
+                                         gi_affw-aufnr.
+      PERFORM f2300_bdc_field       USING 'R_SINGLE'
+                                            'X'.
+      PERFORM f2300_bdc_field       USING 'P_OLD'
+                                            'X'.
+      PERFORM f2200_bdc_dynpro       USING 'SAPMSSY0' '0120'.
+      PERFORM f2300_bdc_field       USING 'BDC_CURSOR'
+                                    '07/04'.
+      PERFORM f2300_bdc_field       USING 'BDC_OKCODE'
+                                    '=AMAK'.
+      PERFORM f2200_bdc_dynpro      USING 'SAPMSSY0' '0120'.
+      PERFORM f2300_bdc_field       USING 'BDC_CURSOR'
+                                    '07/04'.
+      PERFORM f2300_bdc_field       USING 'BDC_OKCODE'
+                                    '=BU'.
+      PERFORM f2400_call_transaction.
+      REFRESH : gt_messtab,gt_bdcdata.
+    ELSE.
+      gi_final-matnr = gi_affw-matnr.
+      gi_final-werks = gi_affw-werks.
+      gi_final-lgort = gi_affw-lgort.
+      gi_final-bwart = gi_affw-bwart.
+      gi_final-erfmg = gi_affw-erfmg.
+      gi_final-erfme = gi_affw-erfme.
+      gi_final-aufnr = gi_affw-aufnr.
+      gi_final-aufps = gi_affw-aufps.
+      gi_final-message = 'NOT PROCESSED'(002).
+      APPEND gi_final TO gt_final.
+
+    ENDIF.
+    CLEAR : gi_final.
+  ENDLOOP.
+  PERFORM disply_result.
+*  INCLUDE zrpp_cogi_clean_process.
+  INCLUDE znpp_cogi_clean_process.
+

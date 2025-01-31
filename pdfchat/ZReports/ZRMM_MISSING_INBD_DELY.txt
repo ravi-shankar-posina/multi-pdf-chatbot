@@ -1,0 +1,50 @@
+*&---------------------------------------------------------------------*
+*& Report ZRMM_MISSING_INBD_DELY
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+* PROGRAM DOCUMENTATION                                               *
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+*** Created by             : Venkata Sateesh R                        *
+*** Creation Date          : 23-MAR-2023                              *
+*** Transport Request #    : DE3K9A0JJY                               *
+*** RICEF Object No #      : RICEF2638                                *
+*** Change request No      : CHG2023004                               *
+*** Description            : This program is to display the missing   *
+*                            Inbound delivery information             *
+***********************************************************************
+* DATE      | CR No.     | CHANGED BY | DESCRIPTION OF CHANGE
+***********************************************************************
+*23-Mar-2023| CHG2023004 | USVERAY    |Initial Version
+***********************************************************************
+REPORT zrmm_missing_inbd_dely NO STANDARD PAGE HEADING
+                              LINE-SIZE 132.
+
+*&---------------------------------------------------------------------*
+*& Top Include for Data Declareation
+*&---------------------------------------------------------------------*
+INCLUDE zrmm_missing_inbd_dely_top.    "Global Data
+*&---------------------------------------------------------------------*
+*& Sel Include for Selection Screen
+*&---------------------------------------------------------------------*
+INCLUDE zrmm_missing_inbd_dely_sel.    "Selection Screen
+*&---------------------------------------------------------------------*
+*& F01 Include for Forms Declareation
+*&---------------------------------------------------------------------*
+INCLUDE zrmm_missing_inbd_dely_f01.    "FORM-Routines
+
+START-OF-SELECTION.
+*Sub-Routine to Fetch Data
+  PERFORM fetch_data.
+*Sub-Routine to Populate Data
+  PERFORM populate_data.
+*Fieldcat Declaration
+  PERFORM build_fieldcat.
+
+  IF gt_final[] IS NOT INITIAL.
+*To Display Data in ALV format
+    PERFORM display_alv.
+  ELSE.
+    MESSAGE TEXT-002 TYPE gc_s.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+

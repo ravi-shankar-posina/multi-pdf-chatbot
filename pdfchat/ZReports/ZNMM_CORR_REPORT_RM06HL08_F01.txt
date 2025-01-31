@@ -1,0 +1,452 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_CORR_REPORT_RM06HL08_F01
+*&---------------------------------------------------------------------*
+
+FORM set_indices USING p_wamng TYPE wamng.
+  CLEAR: xt_eket, lv_aktind, lv_firstind, lv_lastind, lv_maxinde.
+  CLEAR: lv_ind_glmng, lv_ind_wamng , lv_ind_wemng .
+  LOOP AT xt_eket.
+    lv_maxinde = lv_maxinde + 1.
+    IF p_wamng LT xt_eket-menge AND lv_firstind EQ 0.
+      lv_firstind = lv_maxinde.
+    ENDIF.
+    IF p_wamng NE 0.
+      lv_lastind = lv_maxinde.
+    ENDIF.
+    IF xt_eket-glmng NE 0.
+      lv_ind_glmng = lv_maxinde.
+    ENDIF.
+    IF xt_eket-wamng NE 0.
+      lv_ind_wamng  = lv_maxinde.
+    ENDIF.
+    IF xt_eket-wemng NE 0.
+      lv_ind_wemng  = lv_maxinde.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.
+
+FORM distribution_plus USING p_wamng TYPE wamng p_glmng TYPE glmng.
+  IF lv_quan1 GT 0.
+    lv_aktind = lv_firstind.
+    WHILE lv_aktind BETWEEN 1 AND lv_maxinde.
+      READ TABLE xt_eket INDEX lv_aktind.
+*     if xeket-bedat gt ekbe-cpudt.
+*         lv_aktind = lv_aktind + 1.
+*         continue.
+*     endif.
+      lv_refe1 = p_glmng - p_wamng.
+      IF lv_refe1 GT 0.
+        IF lv_refe1 >= lv_quan1.
+          p_wamng = p_wamng + lv_quan1.
+          lv_quan1 = 0.
+*          IF '&1' NE 'ETT-WEMNG'.                           "846463
+          xt_eket-fixkz = abap_true.
+*          ENDIF.
+          PERFORM modify_xeket.
+          EXIT.
+        ELSE.
+          p_wamng = p_glmng.
+          lv_quan1 = lv_quan1 - lv_refe1.
+*          IF '&1' NE 'ETT-WEMNG'.                           "846463
+          xt_eket-fixkz = abap_true.
+*          ENDIF.
+          PERFORM modify_xeket.
+        ENDIF.
+      ENDIF.
+      lv_aktind = lv_aktind + 1.
+    ENDWHILE.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  MODIFY_XEKET
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM modify_xeket .
+  MODIFY xt_eket INDEX lv_aktind.
+ENDFORM.
+
+FORM distribution_minus USING p_wamng TYPE wamng p_glmng TYPE glmng.
+  IF lv_quan1 GT 0.
+    lv_aktind = lv_maxinde.
+    WHILE lv_aktind GT 0.
+      READ TABLE xt_eket INDEX lv_aktind.
+      lv_refe1 = p_wamng - p_glmng.
+      IF lv_refe1 GT 0.
+        IF lv_refe1 >= lv_quan1.
+          p_wamng = p_wamng - lv_quan1.
+          lv_quan1 = 0.
+*         reset of eket-fixkz for MRP-planned schedule lines     "846463
+          IF xt_eket-fixkz NE space.
+            IF xt_eket-glmng = 0 AND xt_eket-wamng = 0 AND
+               xt_eket-wemng = 0 AND xt_eket-estkz = c_b. " AND
+*               '&1' = 'ETT-GLMNG'.
+              CLEAR xt_eket-fixkz.
+            ENDIF.
+          ENDIF.
+          MODIFY xt_eket INDEX lv_aktind.
+          EXIT.
+        ELSE.
+          lv_quan1 = lv_quan1 - lv_refe1.
+          p_wamng = p_glmng.
+*         reset of eket-fixkz for MRP-planned schedule lines     "846463
+          IF xt_eket-fixkz NE space.
+            IF xt_eket-glmng = 0 AND xt_eket-wamng = 0 AND
+               xt_eket-wemng = 0 AND xt_eket-estkz = c_b. "AND
+*               '&1' = 'ETT-GLMNG'.
+              CLEAR xt_eket-fixkz.
+            ENDIF.
+          ENDIF.
+          MODIFY xt_eket INDEX lv_aktind.
+        ENDIF.
+      ENDIF.
+      lv_aktind = lv_aktind - 1.
+    ENDWHILE.
+  ENDIF.
+ENDFORM.
+
+
+FORM overdelivery USING p_wamng TYPE wamng.
+  IF lv_quan1 GT 0.
+    READ TABLE xt_eket INDEX lv_maxinde.
+    p_wamng =  p_wamng + lv_quan1.
+    MODIFY xt_eket INDEX lv_maxinde.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  LIST_INCONSISTENCY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM list_inconsistency .
+
+  WRITE: / TEXT-200.
+* Localize potential candidates
+  IF p_bstyp IS NOT INITIAL.
+    CLEAR: s_docg.
+    s_docg-sign = 'I'.
+    s_docg-option = 'EQ'.
+    s_docg-low =  p_bstyp.
+    APPEND s_docg TO s_docg.
+
+  ENDIF.
+*
+  SELECT    ek~ebeln
+            ek~bstyp
+            ek~bsart
+            ek~aedat
+            ek~lifnr
+            ek~ekorg
+            ek~ekgrp
+            ep~ebelp
+            ep~matnr
+            ep~werks
+            et~etenr
+            et~wamng
+            et~glmng
+    FROM ekko AS ek
+    INNER JOIN ekpo AS ep
+    ON ek~ebeln = ep~ebeln
+    INNER JOIN eket AS et
+    ON ek~ebeln = et~ebeln
+    INTO TABLE lt_valid
+    WHERE ek~ebeln IN gs_ebeln AND
+            ek~bstyp IN s_docg AND
+            ek~bsart IN gs_bsart AND
+            ek~aedat IN gs_aedat AND
+            ek~lifnr IN gs_lifnr AND
+            ek~ekorg IN gs_ekorg AND
+            ek~ekgrp IN gs_ekgrp AND
+            ep~ebelp IN gs_ebelp AND
+            ep~matnr IN gs_matnr AND
+            ep~werks IN gs_werks AND
+          ( et~wamng > 0 OR et~glmng > 0 ).
+
+  SORT lt_valid BY ebeln ebelp.
+  DELETE ADJACENT DUPLICATES FROM lt_valid COMPARING ebeln ebelp.
+
+  IF lt_valid[] IS NOT INITIAL.   " Added by USSHSAT1 TR DE3K9A0QFZ on 15/04/2024
+    SELECT * FROM eket INTO TABLE xt_eket
+                   FOR ALL ENTRIES IN lt_valid
+                   WHERE ebeln = lt_valid-ebeln
+                   AND   ebelp = lt_valid-ebelp.
+  ENDIF. " Added by USSHSAT1 TR DE3K9A0QFZ on 15/04/2024
+
+
+  LOOP AT lt_valid INTO lw_valid.
+    CLEAR: lv_xtran, lv_xdeli.
+* Determine if it is a transport order (WAMNG > 0 for at least one line)
+* and if SD is involved (GLMNG > 0 for at least one line).
+    LOOP AT xt_eket WHERE ebeln = lw_valid-ebeln AND ebelp = lw_valid-ebelp.
+      IF lv_xtran EQ space AND xt_eket-wamng NE 0.
+        lv_xtran = abap_true.
+      ENDIF.
+      IF lv_xdeli EQ space AND xt_eket-glmng NE 0.
+        lv_xdeli = abap_true.
+      ENDIF.
+    ENDLOOP.
+    CHECK lv_xtran = abap_true.
+* Determine if we have inconsistent quantity relations
+    h_subrc = 4.
+    LOOP AT xt_eket WHERE ebeln = lw_valid-ebeln AND ebelp = lw_valid-ebelp.
+      IF xt_eket-wemng > xt_eket-wamng.
+        h_subrc = 0.
+        EXIT.
+      ENDIF.
+      IF xt_eket-wamng > xt_eket-glmng AND lv_xdeli = abap_true.
+        h_subrc = 0.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+    CHECK h_subrc = 0.
+    WRITE: / lw_valid-ebeln, lw_valid-ebelp.
+    CLEAR: lw_valid.
+  ENDLOOP.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  CORRECT_INCONSISTENCY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM correct_inconsistency .
+  CLEAR: ut_eket.
+  WRITE: / TEXT-201. "p_ebeln.
+
+  IF p_bstyp IS NOT INITIAL.
+    CLEAR: s_docg.
+    s_docg-sign = 'I'.
+    s_docg-option = 'EQ'.
+    s_docg-low =  p_bstyp.
+    APPEND s_docg TO s_docg.
+
+  ENDIF.
+
+  SELECT    ek~ebeln
+            ek~bstyp
+            ek~bsart
+            ek~aedat
+            ek~lifnr
+            ek~ekorg
+            ek~ekgrp
+            ep~ebelp
+            ep~matnr
+            ep~werks
+            et~etenr
+            et~wamng
+            et~glmng
+    FROM ekko AS ek
+    INNER JOIN ekpo AS ep
+    ON ek~ebeln = ep~ebeln
+    INNER JOIN eket AS et
+    ON ek~ebeln = et~ebeln
+    INTO TABLE lt_valid
+    WHERE ek~ebeln IN gs_ebeln AND
+            ek~bstyp IN s_docg AND
+            ek~bsart IN gs_bsart AND
+            ek~aedat IN gs_aedat AND
+            ek~lifnr IN gs_lifnr AND
+            ek~ekorg IN gs_ekorg AND
+            ek~ekgrp IN gs_ekgrp AND
+            ep~ebelp IN gs_ebelp AND
+            ep~matnr IN gs_matnr AND
+            ep~werks IN gs_werks AND
+          ( et~wamng > 0 OR et~glmng > 0 ).
+
+  SORT lt_valid BY ebeln ebelp.
+  DELETE ADJACENT DUPLICATES FROM lt_valid COMPARING ebeln ebelp.
+
+  IF lt_valid[] IS NOT INITIAL. " Added by USSHSAT1 TR DE3K9A0QFZ on 15/04/2024
+
+    SELECT * FROM eket INTO TABLE bt_eket FOR ALL ENTRIES IN lt_valid
+                                      WHERE ebeln = lt_valid-ebeln AND
+                                            ebelp = lt_valid-ebelp.
+    IF sy-subrc = 0. " Added by USSHSAT1 TR DE3K9A0QFZ on 15/04/2024
+      SORT bt_eket BY ebeln ebelp etenr.
+    ENDIF.
+  ENDIF." Added by USSHSAT1 TR DE3K9A0QFZ on 15/04/2024
+
+***
+
+
+  LOOP AT lt_valid INTO lw_valid.
+* Determine if it is a transport order (WAMNG > 0 for at least one line)
+    CLEAR lv_xtran.
+    LOOP AT bt_eket WHERE ebeln = lw_valid-ebeln AND ebelp = lw_valid-ebelp.
+      IF lv_xtran EQ space AND bt_eket-wamng NE 0.
+        lv_xtran = abap_true.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+    CHECK lv_xtran = abap_true.
+* Move to XEKET (to be modified) and YEKET (old version)
+    REFRESH: xt_eket, yt_eket.
+    CLEAR lv_maxind.
+    LOOP AT bt_eket WHERE  ebeln = lw_valid-ebeln AND ebelp = lw_valid-ebelp.
+      ADD 1 TO lv_maxind.
+      MOVE bt_eket TO xt_eket.
+      APPEND xt_eket.
+      MOVE bt_eket TO yt_eket.
+      APPEND yt_eket.
+    ENDLOOP.
+* Determine if SD is involved (GLMNG > 0 for at least one line)
+    CLEAR lv_xdeli.
+    LOOP AT xt_eket.
+      IF lv_xdeli EQ space AND xt_eket-glmng NE 0.
+        lv_xdeli = abap_true.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+* Determine if we have inconsistent quantity relations
+    h_subrc = 4.
+    LOOP AT xt_eket.
+      IF xt_eket-wemng > xt_eket-wamng.
+        h_subrc = 0.
+        EXIT.
+      ENDIF.
+      IF xt_eket-wamng > xt_eket-glmng AND lv_xdeli = abap_true.
+        h_subrc = 0.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+    IF h_subrc = 0.
+* Clear WAMNG and WEMNG and redistribute them
+      ULINE NO-GAP.
+      WRITE: / sy-vline NO-GAP, (10) TEXT-301 NO-GAP, sy-vline NO-GAP,
+              (5) TEXT-001 NO-GAP, sy-vline NO-GAP,
+              (4)  TEXT-101 NO-GAP, sy-vline NO-GAP, (10) TEXT-102 NO-GAP, sy-vline NO-GAP,
+              (17) TEXT-103 NO-GAP , sy-vline NO-GAP, (17) TEXT-104 NO-GAP, sy-vline NO-GAP,
+              (17) TEXT-105 NO-GAP, sy-vline NO-GAP, (17) TEXT-106 NO-GAP, sy-vline NO-GAP,
+              (17) TEXT-107 NO-GAP , sy-vline NO-GAP, (17) TEXT-108 NO-GAP, sy-vline NO-GAP.
+      ULINE NO-GAP.
+      LOOP AT xt_eket.
+        IF lv_xdeli = abap_true.
+          CLEAR xt_eket-wamng.
+        ENDIF.
+        CLEAR xt_eket-wemng.
+        MODIFY xt_eket.
+      ENDLOOP.
+* Redistribute WAMNG and WEMNG from PO history
+**this code is the copy of standard report directly without any changes
+      TABLES: *ekbe.                                       "NEW
+      SORT xt_eket BY ebeln ebelp eindt etenr.               "NEW
+      CLEAR: ekbe, *ekbe.                                  "NEW
+      SELECT        * FROM  ekbe
+             WHERE  ebeln      = lw_valid-ebeln
+             AND    ebelp       = lw_valid-ebelp
+             AND    ( vgabe       = c_1    OR        "Goods receipt
+                      vgabe       = c_6 )            "Goods issue
+             ORDER BY vgabe DESCENDING  cpudt ASCENDING
+                                        cputm ASCENDING.
+        lv_quan1 = ekbe-menge.
+        IF ekbe-vgabe = c_6.
+          CHECK lv_xdeli = abap_true.
+          IF ekbe-vgabe NE *ekbe-vgabe.
+            PERFORM set_indices USING xt_eket-wamng.
+          ENDIF.
+          IF ekbe-shkzg = c_h.
+            IF lv_ind_glmng NE 0.
+              PERFORM distribution_plus USING xt_eket-wamng xt_eket-glmng.
+            ENDIF.
+            PERFORM distribution_plus USING xt_eket-wamng xt_eket-menge.
+            PERFORM overdelivery USING xt_eket-wamng.
+          ELSEIF ekbe-shkzg = c_s.
+            PERFORM distribution_minus USING xt_eket-wamng 0.
+            IF lv_quan1 GT 0.
+              MESSAGE a803(me).
+            ENDIF.
+          ENDIF.
+        ENDIF.          " ekbe-vgabe = '6', Warenausgang
+        IF ekbe-vgabe = c_1.
+          IF ekbe-vgabe NE *ekbe-vgabe.
+            PERFORM set_indices USING xt_eket-wemng.
+          ENDIF.
+          IF ekbe-shkzg = c_s.
+            IF lv_ind_wamng  NE 0.
+              PERFORM distribution_plus USING xt_eket-wemng xt_eket-wamng.
+            ENDIF.
+            IF lv_ind_glmng NE 0.
+              PERFORM distribution_plus USING xt_eket-wemng xt_eket-glmng.
+            ENDIF.
+            PERFORM distribution_plus USING xt_eket-wemng xt_eket-menge.
+            PERFORM overdelivery USING xt_eket-wemng.
+          ELSE.
+            PERFORM distribution_minus  USING xt_eket-wemng 0.
+            IF lv_quan1 GT 0.
+              MESSAGE a803(me).
+            ENDIF.
+          ENDIF.
+        ENDIF. " ekbe-vgabe = '1' , Wareneingang
+        *ekbe = ekbe.
+
+      ENDSELECT.
+* Output list
+      SET EXTENDED CHECK OFF.
+
+      LOOP AT yt_eket.
+        READ TABLE xt_eket INDEX sy-tabix.
+        WRITE: / sy-vline NO-GAP ,lw_valid-ebeln NO-GAP ,sy-vline NO-GAP , lw_valid-ebelp NO-GAP, sy-vline NO-GAP,
+               xt_eket-etenr NO-GAP, sy-vline NO-GAP, xt_eket-eindt NO-GAP , sy-vline NO-GAP,
+               xt_eket-menge NO-GAP, sy-vline NO-GAP,
+               xt_eket-glmng NO-GAP, sy-vline NO-GAP,
+               yt_eket-wamng NO-GAP, sy-vline NO-GAP,
+               yt_eket-wemng NO-GAP, sy-vline NO-GAP,
+               xt_eket-wamng NO-GAP, sy-vline NO-GAP,
+               xt_eket-wemng NO-GAP, sy-vline NO-GAP.
+*        ULINE.
+      ENDLOOP.
+      SET EXTENDED CHECK ON.
+      APPEND LINES OF xt_eket TO ut_eket.
+    ELSE.
+*        WRITE: / TEXT-001, xekpo-ebelp, TEXT-002.
+    ENDIF.
+    CLEAR: lw_valid,xt_ekpo,bt_eket.
+    REFRESH: xt_ekpo.
+  ENDLOOP.
+  ULINE NO-GAP.
+  IF p_test EQ space.
+    UPDATE eket FROM TABLE ut_eket.
+    WRITE: / TEXT-003.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  MODIFY_SCREEN
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM modify_screen .
+
+  IF p_list IS NOT INITIAL.
+    LOOP AT SCREEN.
+      IF screen-group1 = c_m1.
+        CLEAR: p_test.
+        screen-input = c_0.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ENDIF.
+
+  IF p_excute IS NOT INITIAL.
+    LOOP AT SCREEN .
+      IF screen-group1 = c_m1.
+        p_test = abap_true.
+        screen-input = c_1.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ENDIF.
+
+ENDFORM.
+

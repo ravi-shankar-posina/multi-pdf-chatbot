@@ -1,0 +1,113 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_UPD_DMND_SPIKE_EMAIL_TOP
+*&---------------------------------------------------------------------*
+*&***------------------------------------------------------------------***
+*** Created by            : Manas MIsra
+*** Creation Date         : 27/02/2023
+*** Transport Request #   : DE3K9A0J08
+*** RICEF Object No #     : 2635
+*** TC ode                : ZMM2635
+*** Description           : Conversion & maintaince program to upload
+***                         Demand Spike ELIP  table
+***                         Data would be uploaded via  a file from PC
+*&---------------------------------------------------------------------*
+TABLES : somlreci1, zds911e.
+
+TYPES : BEGIN OF gty_upload_alv,
+          sel(1)      TYPE c,
+          field_style TYPE lvc_t_styl,
+          del_flg(1)  TYPE c.
+          INCLUDE STRUCTURE zds911e.
+        TYPES END OF gty_upload_alv.
+
+TYPES: BEGIN OF gty_upload,
+         tabname    TYPE dd02l-tabname,
+         spmon      TYPE zds911e-spmon,
+         vkorg      TYPE zds911e-vkorg,
+         vtweg      TYPE zds911e-vtweg,
+         spart      TYPE zds911e-spart,
+         mvgr1      TYPE zds911e-mvgr1,
+         matnr      TYPE zds911e-matnr,
+         werks      TYPE zds911e-werks,
+         absat      TYPE zds911e-absat,
+         wmeng      TYPE zds911e-wmeng,
+         zsale_hist TYPE zds911e-zsale_hist,
+         basme      TYPE zds911e-basme,
+       END OF gty_upload,
+       BEGIN OF gty_upload_e,
+         tabname      TYPE dd02l-tabname,
+         spmon        TYPE zds911e-spmon,
+         vkorg        TYPE zds911e-vkorg,
+         vtweg        TYPE zds911e-vtweg,
+         spart        TYPE zds911e-spart,
+         mvgr1        TYPE zds911e-mvgr1,
+         matnr        TYPE zds911e-matnr,
+         werks        TYPE zds911e-werks,
+         absat        TYPE zds911e-absat,
+         wmeng        TYPE zds911e-wmeng,
+         zsale_hist   TYPE zds911e-zsale_hist,
+         basme        TYPE zds911e-basme,
+         type(1)      TYPE c,
+         message(150) TYPE c,
+       END OF gty_upload_e,
+       gtt_upload   TYPE STANDARD TABLE OF gty_upload WITH DEFAULT KEY,
+       gtt_upload_e TYPE STANDARD TABLE OF gty_upload_e WITH DEFAULT KEY,
+       BEGIN OF gty_parameters,
+         p_test(1),
+         p_purge(1),
+         p_is1      TYPE dd02l-tabname,
+       END OF gty_parameters,
+       BEGIN OF gty_header,
+         name TYPE c LENGTH 30,
+       END OF gty_header.
+
+DATA: gt_upload          TYPE gtt_upload,
+      gw_upload          TYPE gty_upload,
+      gt_upload_tmp      TYPE gtt_upload,
+      gt_upload_e        TYPE gtt_upload_e,
+      gw_upload_e        TYPE gty_upload_e,
+      gt_upload_s        TYPE gtt_upload_e,
+      gw_upload_s        TYPE gty_upload_e,
+      gv_error_records   TYPE sy-index,
+      gv_success_records TYPE sy-index,
+      gv_total_records   TYPE sy-index,
+      gt_zds911e         TYPE STANDARD TABLE OF zds911e,
+      gt_zds911e_tmp     TYPE STANDARD TABLE OF zds911e,
+      gt_zds911e_del     TYPE STANDARD TABLE OF zds911e,
+      gw_zds911e         TYPE zds911e,
+      gt_parameters      TYPE STANDARD TABLE OF gty_parameters,
+      gt_header          TYPE TABLE OF gty_header,
+      gt_upload_alv      TYPE STANDARD TABLE OF gty_upload_alv,
+      gt_fcat            TYPE  lvc_t_fcat,
+      gs_layout          TYPE  lvc_s_layo,
+      gv_error_message   TYPE string.
+
+DATA : gt_cmd   TYPE TABLE OF sy-ucomm,
+       gt_fname TYPE tline_t.
+
+DATA : err_typ(1)     TYPE c,
+       text_count(50) TYPE c,
+       text(50)       TYPE c,
+       msgtyp(30)     TYPE c,
+       msg_typ(1)     TYPE c,
+       ex_root        TYPE REF TO cx_root.
+
+DATA: subrc       TYPE sy-subrc,
+      gs_stylerow TYPE lvc_s_styl,
+      rt_extab    TYPE slis_t_extab.
+
+DATA : rs_selfield TYPE slis_selfield,
+*       lv_fname    TYPE fieldname,
+       gv_jobcount TYPE tbtcjob-jobcount,
+       gs_params   TYPE pri_params.
+
+DATA : jobstatus(10) TYPE c,
+       gv_jobname    TYPE tbtcjob-jobname VALUE 'UPD_DMND_SPIKE'.
+
+CONSTANTS : c_tab     TYPE c VALUE cl_abap_char_utilities=>horizontal_tab,
+            c_cret    TYPE c VALUE cl_abap_char_utilities=>cr_lf,
+            c_bg_prog TYPE progname VALUE 'ZRMM_UPD_DMND_SPIKE_ELIP_BG',
+            c_xls(4)  VALUE '.XLS',
+            c_xlsx(5) VALUE '.XLSX',
+            c_dat     TYPE char10 VALUE 'DAT'.
+

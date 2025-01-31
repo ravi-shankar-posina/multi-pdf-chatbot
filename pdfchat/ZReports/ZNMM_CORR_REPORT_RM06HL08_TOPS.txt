@@ -1,0 +1,105 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_CORR_REPORT_RM06HL08_TOPS
+*&---------------------------------------------------------------------*
+
+TABLES: ekko , ekpo, eket, ekbe.
+
+DATA: BEGIN OF lt_ekpo OCCURS 100,
+        ebeln LIKE ekpo-ebeln,
+        ebelp LIKE ekpo-ebelp,
+      END OF lt_ekpo.
+
+DATA: BEGIN OF bt_eket OCCURS 10.
+        INCLUDE STRUCTURE eket.
+      DATA: END OF bt_eket.
+
+DATA: BEGIN OF xt_eket OCCURS 10.
+        INCLUDE STRUCTURE eket.
+      DATA: END OF xt_eket.
+
+DATA: BEGIN OF ut_eket OCCURS 10.
+        INCLUDE STRUCTURE eket.
+      DATA: END OF ut_eket.
+
+DATA: BEGIN OF yt_eket OCCURS 10.
+        INCLUDE STRUCTURE eket.
+      DATA: END OF yt_eket.
+
+DATA: BEGIN OF xt_ekpo OCCURS 10,
+        ebelp LIKE ekpo-ebelp,
+      END OF xt_ekpo.
+
+TYPES: BEGIN OF ty_ekko,
+         ebeln TYPE ebeln,
+         bstyp TYPE ebstyp,
+         bsart TYPE esart,
+         aedat TYPE erdat,
+         lifnr TYPE elifn,
+         ekorg TYPE ekorg,
+         ekgrp TYPE bkgrp,
+         ebelp TYPE ebelp,
+         matnr TYPE matnr,
+         werks TYPE ewerk,
+         etenr TYPE eeten,
+         wamng TYPE wamng,
+         glmng TYPE glmng,
+       END OF ty_ekko.
+
+DATA: lt_valid TYPE TABLE OF ty_ekko,
+      lw_valid TYPE ty_ekko.
+
+DATA: h_subrc   LIKE sy-subrc,
+      lv_quan1  LIKE ekbe-menge,
+      lv_quan2  LIKE ekbe-menge,
+      lv_xtran  LIKE sy-calld,
+      lv_xdeli  LIKE sy-calld,
+      lv_maxind LIKE sy-tabix.
+
+
+*!!! NEW
+DATA: lv_refe1     LIKE  eket-menge,
+      lv_aktind    LIKE sy-tabix,
+      lv_maxinde   LIKE sy-tabix,
+      lv_firstind  LIKE sy-tabix,
+      lv_lastind   LIKE sy-tabix,
+      lv_ind_glmng LIKE sy-tabix,
+      lv_ind_wamng LIKE sy-tabix,
+      lv_ind_wemng LIKE sy-tabix.
+
+
+CONSTANTS: c_m1 TYPE char2 VALUE 'M1',
+           c_0  TYPE char1 VALUE '0',
+           c_1  TYPE char1 VALUE '1',
+           c_b  TYPE char1 VALUE 'B',
+           c_6  TYPE char1 VALUE '6',
+           c_s  TYPE char1 VALUE 'S',
+           c_h  TYPE char1 VALUE 'H'.
+
+ranges: s_docg FOR ekko-bstyp.
+
+
+
+*********Selection Screen*********************
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-031.
+PARAMETERS: p_bstyp TYPE ekko-bstyp DEFAULT 'L'.
+SELECT-OPTIONS: gs_bsart FOR ekko-bsart,
+                gs_ekorg FOR ekko-ekorg,
+                gs_ekgrp FOR ekko-ekgrp,
+                gs_lifnr FOR ekko-lifnr,
+                gs_ebeln FOR ekko-ebeln,
+                gs_ebelp FOR ekpo-ebelp,
+                gs_matnr FOR ekpo-matnr,
+                gs_werks FOR ekpo-werks,
+                gs_aedat FOR ekko-aedat.
+SELECTION-SCREEN END OF BLOCK b1.
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-033.
+PARAMETERS: p_list RADIOBUTTON GROUP rad1 DEFAULT 'X'USER-COMMAND u1.
+
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT 1(10) TEXT-300.
+SELECTION-SCREEN END OF LINE.
+PARAMETERS: p_excute RADIOBUTTON GROUP rad1,
+            p_test   AS CHECKBOX DEFAULT 'X' MODIF ID m1.
+SELECTION-SCREEN END OF BLOCK b2.
+

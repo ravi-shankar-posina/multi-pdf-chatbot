@@ -1,0 +1,73 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_ETO_AUTO_PIR_SCREEN
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_ETO_AUTO_PIR_SCREEN
+*&---------------------------------------------------------------------*
+TYPES : BEGIN OF ty_knttp,
+        knttp TYPE eban-knttp,
+        text  TYPE char40,
+        END OF ty_knttp.
+TYPES: BEGIN OF ty_ekgrp,
+        ekgrp TYPE ekgrp,
+       END OF ty_ekgrp,
+       BEGIN OF ty_mate,
+         matnr TYPE matnr,
+       END OF ty_mate,
+       BEGIN OF ty_sord,
+         vbeln TYPE vbeln,
+       END OF ty_sord.
+DATA: gt_ekgrp TYPE TABLE OF ty_ekgrp,
+      gt_mate TYPE TABLE OF ty_mate,
+      gt_sord TYPE TABLE OF ty_sord.
+
+DATA : gt_knttp TYPE TABLE OF ty_knttp,
+       gi_knttp TYPE ty_knttp.
+
+DATA : gw_kntp TYPE char1,
+      gv_werks TYPE werks_d.
+
+TABLES : prps, eban ,  resb.
+
+SELECT-OPTIONS : s_werks FOR gw_werks NO INTERVALS  NO-EXTENSION OBLIGATORY,
+                 s_ekgrp FOR gw_ekgrp NO INTERVALS  MATCHCODE OBJECT h_t024 MODIF ID md3 OBLIGATORY,
+                 s_rdate FOR gw_rdate  OBLIGATORY,
+                 s_mat   FOR gw_matnr NO INTERVALS.
+SELECT-OPTIONS: p_sorder FOR gw_vbeln NO INTERVALS NO-EXTENSION,
+                P_item   FOR gw_posnr NO INTERVALS NO-EXTENSION,
+                p_system  FOR gw_system NO INTERVALS NO-EXTENSION. "ZDSRST.
+
+AT SELECTION-SCREEN ON s_werks.
+  SELECT SINGLE werks FROM t001w INTO gv_werks
+    WHERE werks EQ s_werks-low.
+    IF sy-subrc NE 0.
+      MESSAGE 'Invalid Plant' TYPE 'E'.
+    ENDIF.
+AT SELECTION-SCREEN ON s_ekgrp.
+  SELECT ekgrp FROM t024 INTO TABLE gt_ekgrp
+    WHERE ekgrp IN s_ekgrp.
+    IF sy-subrc NE 0.
+      MESSAGE 'Invalid Purchase Group' TYPE 'E'.
+    ENDIF.
+
+AT SELECTION-SCREEN ON s_mat.
+  SELECT matnr FROM mara INTO TABLE gt_mate
+    WHERE matnr IN s_mat.
+    IF sy-subrc NE 0.
+      MESSAGE 'Invalid Material' TYPE 'E'.
+    ENDIF.
+
+AT SELECTION-SCREEN ON p_sorder.
+  IF p_sorder IS NOT INITIAL.
+  SELECT vbeln FROM vbak INTO TABLE gt_sord
+    WHERE vbeln IN p_sorder.
+    IF sy-subrc NE 0.
+      MESSAGE 'Invalid Sales Order' TYPE 'E'.
+    ENDIF.
+    ENDIF.
+*  IF s_ekgrp-low IS INITIAL AND gp_r3 IS INITIAL.
+*    MESSAGE 'Enter Purchase group value' TYPE 'E'.
+*  ENDIF.
+*AT SELECTION-SCREEN OUTPUT.
+*  PERFORM modify_screen_ats.
+

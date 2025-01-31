@@ -1,0 +1,15 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_BOM_LOG_DELETE_SCR
+*&---------------------------------------------------------------------*
+
+DATA : gw_date TYPE datum,
+       gw_werks TYPE werks_d,
+       gw_pspel TYPE ZPSPEL,
+       gw_aufnr TYPE AUFNR.
+
+
+SELECT-OPTIONS: s_date FOR gw_date  NO INTERVALS NO-EXTENSION OBLIGATORY,
+                s_werks FOR gw_werks NO INTERVALS no-EXTENSION OBLIGATORY,
+                s_pspel FOR gw_pspel NO INTERVALS no-EXTENSION,
+                s_aufnr FOR gw_aufnr .
+

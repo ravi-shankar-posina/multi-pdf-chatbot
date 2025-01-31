@@ -1,0 +1,868 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_MARC_PPP_SHIP_PER_DELIV
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+****---------------------------------------------------------------------------***
+**** Change History                                                            ***
+****---------------------------------------------------------------------------***
+**** Changed by            : 502209589
+**** Change Date           : 24-01-2022
+**** Transport Request     : DE3K9A0BK3
+**** CR Number             : CHG0191538
+**** Description           : This Program will be called through Output type Z007.
+*                            Program creates separate Shipments for each delivery in Shipment.
+****---------------------------------------------------------------------------**
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* DATE         | CR No.     |CHANGED BY | TR            | DESCRIPTION OF CHANGE
+* 24.01.2022   | CHG0191538 | 502209589| DE3K9A0BK3     | Initial Development
+* 11.02.2022   | CHG0191538 | 502209589| JE3K904768     | Email notification logic is incorporated
+* 09.03.2022   | CHG0191538 | 502209589| JE3K905620     | Processing log sould show error when any Delivery PGI is not happend
+* 17.03.2022   | CHG0191538 | 502209589| JE3K905834     | Hardcode entries fecthing logic and new condition types used to validate data.
+* 08.08.2022   | CR #1B_009 | USSHSAT1 | DE3K9A0F47     | Spli delivery validation fro freight Cost updation
+* 10.11.2022   | CR #1B_009 | USSHSAT1 | DE3K9A0H63     | Global Variable clearingfor freight error
+* 21.02.2023   | CHG0191538 | USSHGUP3 | DE3K9A0IY5     | Fix for related to o/p type Z007 failing
+* 11.10.2023   | CHG0191538 | USSARED1 | DE3K9A0N77     | Fix for related to o/p type Z007 failing for different condition types
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ---------------------------
+
+REPORT  zrmm_marc_ppp_ship_per_deliv MESSAGE-ID zmm01.
+TABLES nast.
+
+TYPES: BEGIN OF ty_vttp,
+         tknum TYPE vpobjkey,
+         tpnum TYPE tpnum,
+         vbeln TYPE vbeln_vl,
+       END OF ty_vttp,
+
+       BEGIN OF ty_vttk,
+         tknum      TYPE tknum,
+         shtyp      TYPE shtyp,
+         tplst      TYPE tplst,
+         signi      TYPE signi,
+         exti1      TYPE exti1,
+         add01      TYPE vttk_add01,
+         text2      TYPE vttk_text2,
+         text3      TYPE vttk_text3,
+         tndr_trkid TYPE tndr_trkid,
+       END OF ty_vttk ,
+
+       BEGIN OF ty_vepo,
+         venum TYPE venum,
+         velin TYPE velin,
+         vbeln TYPE vbeln_vl,
+         posnr TYPE posnr_vl,
+         unvel TYPE unvel,
+         vemng TYPE vemng,
+         vemeh TYPE vemeh,
+         matnr TYPE matnr,
+       END OF ty_vepo,
+
+       BEGIN OF ty_likp,
+         vbeln        TYPE vbeln_vl,
+         vkorg        TYPE vkorg,
+         kunag        TYPE kunag,
+         zztsd_bolasn TYPE zbol_asn, " ++ BY USSHSAT11, 26-07-2022 , TOPS Changes , TR DE3K9A0EM0  SD-XXX-I-ASN Processing
+       END OF ty_likp,
+
+       BEGIN OF ty_vbuk,
+         vbeln TYPE vbeln,
+       END OF ty_vbuk,
+
+       BEGIN OF ty_vekp,
+         venum  TYPE venum,
+         exidv  TYPE exidv,
+         brgew  TYPE brgew_vekp,
+         btvol  TYPE btvol_vekp,
+         vhilm  TYPE vhilm,
+         inhalt TYPE inhalt,
+         exidv2 TYPE exidv2,
+         namef  TYPE namef,
+         nambe  TYPE nambe,
+       END OF ty_vekp.
+
+
+DATA: gw_retcode_ds    TYPE sysubrc,
+      gt_vttp          TYPE TABLE OF ty_vttp,
+      gt_vttp_vbeln    TYPE TABLE OF ty_vttp,
+      gt_vttp_new      TYPE TABLE OF ty_vttp,
+      gt_vbuk          TYPE TABLE OF ty_vbuk,
+      gt_vttk          TYPE TABLE OF ty_vttk,
+      gt_likp          TYPE TABLE OF ty_likp,
+      gt_b972          TYPE TABLE OF b972,
+      gt_b938          TYPE TABLE OF b938,
+      gi_b938          TYPE b938,
+      gi_b972          TYPE b972,  " Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+      gt_vepo          TYPE TABLE OF ty_vepo,
+      gt_vekp          TYPE TABLE OF ty_vekp,
+      gt_vekp_new      TYPE TABLE OF ty_vekp,
+      gi_vekp_new      TYPE ty_vekp,
+      gi_vekp          TYPE  ty_vekp,
+      gi_vepo          TYPE  ty_vepo,
+      gi_vbuk          TYPE  ty_vbuk,
+      gi_likp          TYPE  ty_likp,
+      gi_vttk          TYPE  ty_vttk,
+      gi_vttp          TYPE  ty_vttp,
+      gt_error         TYPE TABLE OF ty_vttp,
+      gt_hdunheader    TYPE TABLE OF bapishipmenthdunheader,
+      gt_hdunitem      TYPE TABLE OF bapishipmenthdunitem,
+      gi_hu_header     TYPE leint_yhu_header,
+      gi_hu_value      TYPE hum_update_header,
+      gt_hu_header     TYPE leint_yhu_header_t,
+      gt_hu_value      TYPE hum_update_header_t,
+      gi_shipt_hea     TYPE bapishipmentheader,
+      gi_shipt_hea_act TYPE bapishipmentheaderaction,
+      gt_return        TYPE STANDARD TABLE OF bapiret2,
+      gt_return_change TYPE STANDARD TABLE OF bapiret2,
+      gi_return        TYPE bapiret2,
+      gt_shipment_itm  TYPE STANDARD TABLE OF bapishipmentitem,
+      gt_ztuhcd1       TYPE TABLE OF ztuhcd1,
+      gi_ztuhcd1       TYPE ztuhcd1,
+      gi_shipment_itm  TYPE bapishipmentitem,
+      gi_headerdata    TYPE bapishipmentheader,
+      gi_hdunheader    TYPE bapishipmenthdunheader,
+      gi_hdunitem      TYPE bapishipmenthdunitem,
+      gw_shipment      TYPE bapishipmentids-shipmentnum,
+      gv_hd_exid(4)    TYPE n,
+      gw_total_rec(5)  TYPE c,
+      gw_error_rec(5)  TYPE c,
+      gw_succ_rec(5)   TYPE c,
+      gw_pgi, " Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+      gw_tops_i, " ++ BY USSHSAT11, 26-07-2022 , TOPS Changes , TR DE3K9A0EM0  SD-XXX-I-ASN Processing
+      gw_ne(5),
+      gw_frt_ne(5)."++ BY USSHSAT11, 26-07-2022 , TOPS Changes , TR DE3K9A0EM0  SD-XXX-I-ASN Processing
+
+FIELD-SYMBOLS: <gi_vttp> TYPE ty_vttp.
+
+RANGES: r_kschl FOR nast-kschl,
+        r_kappl FOR nast-kappl.
+*&---------------------------------------------------------------------*
+*&      Form  PROCESSING
+*&---------------------------------------------------------------------*
+FORM processing USING gw_return_code_ds
+                 gw_us_screen_ds TYPE c.
+
+  PERFORM entry USING    gw_us_screen_ds
+                      CHANGING gw_retcode_ds.
+  gw_return_code_ds = gw_retcode_ds.
+ENDFORM.                    "PROCESSING
+*&---------------------------------------------------------------------*
+*&      Form  entry
+*&---------------------------------------------------------------------*
+FORM entry      USING   gw_us_screen_ds
+                CHANGING gw_retcode_c_ds.
+  DATA :lw_msg_v1 TYPE sy-msgv1,
+        lw_msg_v2 TYPE sy-msgv1.
+
+  r_kschl-sign = 'I'.
+  r_kschl-option = 'EQ'.
+  r_kschl-low    = 'ZMF1'.
+  APPEND r_kschl.
+  r_kschl-sign = 'I'.
+  r_kschl-option = 'EQ'.
+  r_kschl-low    = 'ZMF2'.
+  APPEND r_kschl.
+  r_kschl-sign = 'I'.
+  r_kschl-option = 'EQ'.
+  r_kschl-low    = 'ZMF3'.
+  APPEND r_kschl.
+  r_kschl-sign = 'I'.
+  r_kschl-option = 'EQ'.
+  r_kschl-low    = 'ZMF4'.
+  APPEND r_kschl.
+* Start of change by 502209589 JE3K905834 CHG0191538 17-03-2022
+  PERFORM entries_fetch.
+* End of change by 502209589 JE3K905834 CHG0191538 17-03-2022
+  PERFORM get_data.
+
+  PERFORM process_data USING   gw_us_screen_ds
+                CHANGING gw_retcode_c_ds.
+
+
+* Start of program by 502209589  CHG0191538 JE3K905620 09-03-2022
+  LOOP AT gt_return INTO gi_return WHERE type = 'E'.
+    MESSAGE gi_return-message TYPE 'S'.
+  ENDLOOP.
+* End of program by 502209589  CHG0191538 JE3K905620 09-03-2022
+  IF gw_retcode_c_ds = '0'.
+    syst-msgty = 'S'.
+  ELSE.
+    syst-msgty = 'E'.
+  ENDIF.
+  gw_error_rec = gw_total_rec - gw_succ_rec - gw_ne - gw_frt_ne.
+  IF gw_error_rec > 0 OR gw_pgi = '1'. " Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+    gw_retcode_c_ds = '1'.
+    PERFORM send_mail. "Modified by 502209589 JE3K904768 on 11-02-22
+    syst-msgty = 'E'.
+  ENDIF.
+*SOC BY  USSHSAT1  DE3K9A0F47 Spli delivery validation fro freight Cost updation
+  IF gw_error_rec > 0 OR gw_tops_i = '1'.
+    gw_retcode_c_ds = '1'.
+    syst-msgty = 'E'.
+  ENDIF.
+*DOC BY  USSHSAT1  DE3K9A0F47 Spli delivery validation fro freight Cost updation
+
+*    below mesages are avialable in Processing log
+  CONCATENATE 'Total' ':' gw_total_rec ',' 'Error' ':' gw_error_rec ',' 'Suc' ':' gw_succ_rec ',' 'Not Eligible' ':' gw_ne  INTO lw_msg_v1.
+  CONCATENATE ',' 'FreightCost Err' ':' gw_frt_ne INTO lw_msg_v2.  "USSHSAT1  DE3K9A0F47 Spli delivery validation fro freight Cost updation
+
+  syst-msgid = 'ZMM'.
+  syst-msgno = '119'.
+  CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+    EXPORTING
+      msg_arbgb              = syst-msgid
+      msg_nr                 = syst-msgno
+      msg_ty                 = syst-msgty
+      msg_v1                 = lw_msg_v1
+      msg_v2                 = lw_msg_v2
+*     MSG_V3                 = ' '
+*     MSG_V4                 = ' '
+    EXCEPTIONS
+      message_type_not_valid = 1
+      no_sy_message          = 2
+      OTHERS                 = 3.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+
+
+ENDFORM.                    "processing
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+FORM get_data .
+  DATA li_vttp TYPE ty_vttp.
+  FREE: gt_vttp,gt_vttk,gt_vbuk,gt_likp,gt_b972,gt_vttp_vbeln,gt_vekp,gt_vepo.
+  CLEAR gw_pgi. " Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+  CLEAR: gw_total_rec , gw_frt_ne , gw_ne , gw_succ_rec , gw_error_rec , gw_tops_i. " Added by USSHSAT1  DE3K9A0H63 OMB-2189-I-Report-Pick-Pack_PGI_V4.7
+  SELECT tknum
+         tpnum
+         vbeln
+         FROM vttp
+         INTO TABLE gt_vttp
+         WHERE tknum = nast-objky.
+  IF sy-subrc = 0.
+    DESCRIBE TABLE gt_vttp LINES gw_total_rec.
+    SELECT vbeln
+           FROM vbuk
+            INTO TABLE gt_vbuk
+            FOR ALL ENTRIES IN gt_vttp
+            WHERE vbeln = gt_vttp-vbeln
+            AND   wbstk = 'C'.
+
+    IF gt_vttp IS NOT INITIAL.
+      SELECT vbeln
+             vkorg
+             kunag
+             zztsd_bolasn   " ++ BY  USSHSAT1  DE3K9A0F47 Spli delivery validation fro freight Cost updation
+             FROM likp
+             INTO TABLE gt_likp
+             FOR ALL ENTRIES IN gt_vttp
+             WHERE vbeln = gt_vttp-vbeln.
+      IF sy-subrc = 0.
+        SELECT * FROM b972
+            INTO TABLE gt_b972
+            FOR ALL ENTRIES IN gt_likp
+            WHERE kappl IN r_kappl  "Modified by 502209589 JE3K905834 CHG0191538 17-03-2022
+             AND  kschl IN r_kschl   " Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+             AND  zzshtyp = 'Z007'
+             AND  vkorg   = gt_likp-vkorg
+             AND  kunnr   = gt_likp-kunag.
+* SOC BY USSARED1, TR - DE3K9A0N77 11-10-2023
+        SELECT * FROM b938
+          INTO TABLE gt_b938
+          FOR ALL ENTRIES IN gt_likp
+          WHERE kappl IN r_kappl
+          AND  kschl IN r_kschl
+          AND  shtyp = 'Z007'
+          AND  vkorg   = gt_likp-vkorg
+          AND  kunnr   = gt_likp-kunag.
+
+        APPEND LINES OF gt_b972 TO gt_b938.
+        SORT gt_b938 BY kappl kschl vkorg kunnr.
+        DELETE gt_b938 WHERE kappl IS INITIAL.   " Delete empty records.
+        IF gt_b938[] IS NOT INITIAL.
+*        IF sy-subrc = 0.                      "* TR - DE3K9A0N77
+          LOOP AT gt_likp INTO gi_likp.
+*            READ TABLE gt_b972 INTO gi_b972 WITH KEY vkorg   = gi_likp-vkorg   kunnr   = gi_likp-kunag. " Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+*            IF sy-subrc <> 0.
+*              IF gi_b972-kschl+0(3) = 'ZMF'. " Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+*              DELETE gt_vttp WHERE vbeln = gi_likp-vbeln.
+*              gw_ne = gw_ne + 1.
+* TR - DE3K9A0N77
+*              ENDIF.
+*            ENDIF.
+*          ENDLOOP.
+* TR - DE3K9A0N77
+*            ELSE.
+* Start of change by 502209589 JE3K905834 CHG0191538 17-03-2022
+*              SELECT * FROM b938
+*                INTO TABLE gt_b938
+*                FOR ALL ENTRIES IN gt_likp
+*                WHERE kappl IN r_kappl
+*                 AND  kschl IN r_kschl
+*                 AND  shtyp = 'Z007'
+*                 AND  vkorg   = gt_likp-vkorg
+*                 AND  kunnr   = gt_likp-kunag.
+*              IF sy-subrc = 0.
+*            LOOP AT gt_likp INTO gi_likp.  " * TR - DE3K9A0N77
+            READ TABLE gt_b938 INTO gi_b938 WITH KEY vkorg   = gi_likp-vkorg   kunnr   = gi_likp-kunag.
+            IF sy-subrc <> 0.
+              DELETE gt_vttp WHERE vbeln = gi_likp-vbeln.  " Delete when no entry in B972 & B938 tables.
+              gw_ne = gw_ne + 1.
+            ENDIF.
+*            ENDLOOP.                      " * TR - DE3K9A0N77
+*              ELSE.
+*            IF gt_b938[] IS INITIAL.
+**                IF gt_b972[] IS INITIAL.     " " * TR - DE3K9A0N77
+** End of change by 502209589 JE3K905834 CHG0191538 17-03-2022
+*              MESSAGE 'No Data To Be Process'(001) TYPE 'S'.
+**          gw_retcode_ds = '0'. " Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+*              gw_ne = gw_total_rec.
+*              EXIT.
+*            ENDIF.                      " " * TR - DE3K9A0N77
+          ENDLOOP.                        "* TR - DE3K9A0N77
+        ELSEIF gt_b938[] IS INITIAL.
+*                IF gt_b972[] IS INITIAL.     " " * TR - DE3K9A0N77
+* End of change by 502209589 JE3K905834 CHG0191538 17-03-2022
+          MESSAGE 'No Data To Be Process'(001) TYPE 'S'.
+*          gw_retcode_ds = '0'. " Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+          gw_ne = gw_total_rec.
+          EXIT.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+*      ENDLOOP.
+*  ENDIF.
+*  ENDIF.
+*ENDIF.
+* EOC BY USSARED1, TR - DE3K9A0N77 11-10-2023
+    IF gt_vttp IS NOT INITIAL.
+      SELECT venum
+             exidv
+             brgew
+             btvol
+             vhilm
+             inhalt
+             exidv2
+             namef
+             nambe
+             FROM vekp INTO TABLE gt_vekp
+             FOR ALL ENTRIES IN gt_vttp
+             WHERE vpobj   = '04'
+             AND  vpobjkey = gt_vttp-tknum.
+      IF sy-subrc = 0.
+        SELECT venum
+               velin
+               vbeln
+               posnr
+               unvel
+               vemng
+               vemeh
+               matnr
+               FROM vepo INTO TABLE gt_vepo
+               FOR ALL ENTRIES IN gt_vekp
+               WHERE venum = gt_vekp-venum.
+        IF sy-subrc = 0.
+          SORT gt_vepo BY venum.
+        ENDIF.
+      ENDIF.
+
+      SELECT tknum
+          tpnum
+          vbeln
+          FROM vttp
+          INTO TABLE gt_vttp_vbeln
+          FOR ALL ENTRIES IN gt_vttp
+          WHERE vbeln = gt_vttp-vbeln.
+      IF sy-subrc = 0.
+        SELECT tknum
+               shtyp
+               tplst
+               signi
+               exti1
+               add01
+               text2
+               text3
+               tndr_trkid
+               FROM vttk
+               INTO TABLE gt_vttk
+               FOR ALL ENTRIES IN gt_vttp_vbeln
+               WHERE tknum = gt_vttp_vbeln-tknum+0(10).
+        IF sy-subrc = 0.
+          LOOP AT gt_vttk INTO gi_vttk WHERE shtyp = 'Z007' .
+            READ TABLE gt_vttp_vbeln INTO gi_vttp WITH KEY tknum = gi_vttk-tknum.
+            IF sy-subrc = 0.
+              READ TABLE gt_vttp INTO li_vttp WITH KEY vbeln = gi_vttp-vbeln.
+              IF sy-subrc = 0.
+*                delete the entries where delivery has shipment z007
+                DELETE gt_vttp WHERE vbeln = li_vttp-vbeln.
+                gw_ne = gw_ne + 1.
+              ENDIF.
+            ENDIF.
+          ENDLOOP.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    "SOC BY  USSHSAT1  DE3K9A0F47 Spli delivery validation fro freight Cost updation
+    IF gt_vttp[] IS NOT INITIAL.
+      LOOP AT gt_vttp ASSIGNING  <gi_vttp>.
+        READ TABLE gt_likp INTO gi_likp WITH KEY vbeln = <gi_vttp>-vbeln.
+        IF sy-subrc = 0 AND  gi_likp-zztsd_bolasn = 'I'.
+*          APPEND <gi_vttp> TO gt_error.
+          CLEAR <gi_vttp>.
+          gw_frt_ne = gw_frt_ne + 1.
+          CONDENSE gw_frt_ne.
+          gw_tops_i = '1'.
+        ENDIF.
+      ENDLOOP.
+      DELETE gt_vttp WHERE vbeln IS INITIAL.
+    ENDIF.
+    "EOC BY  USSHSAT1  DE3K9A0F47 Spli delivery validation fro freight Cost updation
+
+* Start of program by 502209589  CHG0191538 JE3K905620 09-03-2022
+    IF gt_vttp[] IS NOT INITIAL.
+      LOOP AT gt_vttp ASSIGNING  <gi_vttp>.
+        READ TABLE gt_vbuk INTO gi_vbuk WITH KEY vbeln = <gi_vttp>-vbeln.
+        IF sy-subrc <> 0.
+          APPEND <gi_vttp> TO gt_error.
+          CLEAR <gi_vttp>.
+          gw_ne = gw_ne + 1.
+          gw_pgi = '1'.
+        ENDIF.
+      ENDLOOP.
+      DELETE gt_vttp WHERE vbeln IS INITIAL.
+    ENDIF.
+* End of program by 502209589  CHG0191538 JE3K905620 09-03-2022
+
+  ENDIF.
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA
+*&---------------------------------------------------------------------*
+FORM process_data USING   gw_us_screen_ds
+                CHANGING gw_retcode_c_ds.
+  TYPES: BEGIN OF ty_exid,
+           exidv  TYPE exidv,
+           num(5),
+         END OF ty_exid.
+  DATA: lt_exid  TYPE TABLE OF ty_exid,
+        lw_venum TYPE venum,
+        li_vepo  TYPE ty_vepo,
+        li_exid  TYPE ty_exid.
+
+  CLEAR: gw_error_rec,gw_succ_rec.
+
+  LOOP AT gt_vekp INTO gi_vekp.
+    gv_hd_exid = gv_hd_exid + 1.
+    CONCATENATE '$' gv_hd_exid
+           INTO gi_hdunheader-hdl_unit_exid.
+    li_exid-num = gi_hdunheader-hdl_unit_exid.
+    li_exid-exidv = gi_vekp-venum.
+    APPEND li_exid TO lt_exid.
+    CLEAR li_exid.
+  ENDLOOP.
+  CLEAR gv_hd_exid.
+
+  LOOP AT gt_vttp INTO gi_vttp.
+    CLEAR gi_vttk.
+    READ TABLE gt_vttk INTO gi_vttk WITH KEY tknum = gi_vttp-tknum.
+    IF sy-subrc = 0.
+
+*Updating Shipment Item data
+      gi_shipment_itm-delivery = gi_vttp-vbeln.
+      APPEND gi_shipment_itm TO gt_shipment_itm.
+      CLEAR:gi_shipment_itm.
+
+*     Creating Shipment output Z007
+      gi_headerdata-trans_plan_pt = gi_vttk-tplst.
+      gi_headerdata-shipment_type = 'Z007'.
+      gi_headerdata-status_plan   = 'X'.
+      gi_headerdata-status_compl  = 'X'.
+
+      gi_headerdata-container_id               = gi_vttk-signi.
+      CLEAR:gi_headerdata-text_1.
+      gi_headerdata-text_2                     = gi_vttk-text2.
+      gi_headerdata-tendering_carrier_track_id = gi_vttk-tndr_trkid.
+      gi_headerdata-external_id_1              = gi_vttk-exti1.
+      gi_headerdata-text_3                     = gi_vttk-text3.
+      gi_headerdata-suppl_1                    = gi_vttk-add01.
+
+*Planning Execution - Start
+      FREE: gt_hdunheader,gt_hdunitem.
+
+      CLEAR lw_venum.
+      LOOP AT gt_vepo INTO gi_vepo WHERE vbeln = gi_vttp-vbeln.
+        READ TABLE lt_exid INTO li_exid WITH KEY exidv = gi_vepo-venum.
+        IF sy-subrc = 0.
+          gi_hdunitem-hdl_unit_exid_into   = li_exid-num.
+        ENDIF.
+        READ TABLE lt_exid INTO li_exid WITH KEY exidv = gi_vepo-unvel.
+        IF sy-subrc = 0.
+          gi_hdunitem-hdl_unit_exid   = li_exid-num.
+        ENDIF.
+        gi_hdunitem-deliv_numb         = gi_vepo-vbeln.
+        gi_hdunitem-deliv_item         = gi_vepo-posnr.
+        gi_hdunitem-pack_qty           = gi_vepo-vemng.
+        gi_hdunitem-sales_unit         = gi_vepo-vemeh.
+        gi_hdunitem-material           = gi_vepo-matnr.
+        gi_hdunitem-hu_item_type       = gi_vepo-velin.
+        APPEND gi_hdunitem TO gt_hdunitem.
+        CLEAR:gi_hdunitem.
+        READ TABLE gt_vepo INTO li_vepo WITH KEY unvel = gi_vepo-venum.
+        IF sy-subrc  = 0.
+          READ TABLE lt_exid INTO li_exid WITH KEY exidv = li_vepo-venum.
+          IF sy-subrc = 0.
+            gi_hdunitem-hdl_unit_exid_into   = li_exid-num.
+          ENDIF.
+          READ TABLE lt_exid INTO li_exid WITH KEY exidv = li_vepo-unvel.
+          IF sy-subrc = 0.
+            gi_hdunitem-hdl_unit_exid   = li_exid-num.
+          ENDIF.
+          gi_hdunitem-hu_item_type       = gi_vepo-velin."'1'.
+          APPEND gi_hdunitem TO gt_hdunitem.
+          CLEAR:gi_hdunitem.
+        ENDIF.
+        IF lw_venum <> gi_vepo-venum OR lw_venum IS INITIAL.
+          READ TABLE gt_vekp INTO gi_vekp WITH KEY venum = gi_vepo-venum.
+          IF sy-subrc = 0.
+            CLEAR gi_hdunheader.
+            READ TABLE lt_exid INTO li_exid WITH KEY exidv = gi_vekp-venum.
+            IF sy-subrc = 0.
+              gi_hdunheader-hdl_unit_exid  = li_exid-num.
+            ENDIF.
+            gi_hdunheader-ship_mat = gi_vekp-vhilm."'PALLET US'.
+
+            gi_hdunheader-unit_of_wt       = 'LB'.
+            gi_hdunheader-tare_unit_wt     = 'LB'.
+
+            gi_hdunheader-total_vol        = gi_vekp-btvol.
+            gi_hdunheader-volumeunit_iso   = 'INQ'.
+            gi_hdunheader-tare_uni_vol_iso = 'INQ'.
+            gi_hdunheader-tare_unit_wt_iso = 'LBR'.
+            gi_hdunheader-unit_of_wt_iso   = 'LBR'.
+            gi_hdunheader-total_wght       = gi_vekp-brgew.
+            gi_hdunheader-content      = gi_vekp-inhalt.
+            APPEND gi_hdunheader TO gt_hdunheader.
+
+          ENDIF.
+          lw_venum = gi_vekp-venum.
+        ENDIF.
+      ENDLOOP. " Vepo
+      CLEAR gw_shipment.
+      IF NOT gi_headerdata-trans_plan_pt IS INITIAL
+          AND gt_hdunitem[] IS NOT INITIAL.
+        FREE:gt_return.
+*SOC by USSHGUP3 on 21.02.2023 TR-DE3K9A0IY5
+        SORT gt_hdunitem BY hdl_unit_exid_into hdl_unit_exid deliv_numb deliv_item.
+        DELETE ADJACENT DUPLICATES FROM gt_hdunitem COMPARING hdl_unit_exid_into hdl_unit_exid deliv_numb deliv_item.
+
+        DATA(lt_vepo) = gt_vepo.
+        DATA(lt_vekp) = gt_vekp.
+        SORT lt_vepo BY venum.
+        SORT lt_vekp BY venum.
+        SORT lt_exid BY exidv.
+        DELETE ADJACENT DUPLICATES FROM lt_vepo COMPARING venum.
+        SORT lt_vepo BY unvel.
+
+        LOOP AT lt_vepo INTO DATA(ls_vepo) WHERE vbeln = gi_vttp-vbeln.
+          READ TABLE lt_vepo INTO DATA(ls_vepo_v) WITH KEY unvel = ls_vepo-venum BINARY SEARCH.
+          IF sy-subrc = 0.
+            READ TABLE lt_vekp INTO gi_vekp WITH KEY venum = ls_vepo_v-venum BINARY SEARCH.
+            IF sy-subrc = 0.
+              CLEAR gi_hdunheader.
+              READ TABLE lt_exid INTO li_exid WITH KEY exidv = gi_vekp-venum BINARY SEARCH.
+              IF sy-subrc = 0.
+                gi_hdunheader-hdl_unit_exid  = li_exid-num.
+              ENDIF.
+              gi_hdunheader-ship_mat = gi_vekp-vhilm."'PALLET US'.
+
+              gi_hdunheader-unit_of_wt       = 'LB'.
+              gi_hdunheader-tare_unit_wt     = 'LB'.
+
+              gi_hdunheader-total_vol        = gi_vekp-btvol.
+              gi_hdunheader-volumeunit_iso   = 'INQ'.
+              gi_hdunheader-tare_uni_vol_iso = 'INQ'.
+              gi_hdunheader-tare_unit_wt_iso = 'LBR'.
+              gi_hdunheader-unit_of_wt_iso   = 'LBR'.
+              gi_hdunheader-total_wght       = gi_vekp-brgew.
+              gi_hdunheader-content      = gi_vekp-inhalt.
+              APPEND gi_hdunheader TO gt_hdunheader.
+              CLEAR gi_hdunheader.
+            ENDIF.
+          ENDIF.
+        ENDLOOP.
+
+        SORT gt_hdunheader BY hdl_unit_exid.
+        DELETE ADJACENT DUPLICATES FROM gt_hdunheader COMPARING hdl_unit_exid.
+*EOC by USSHGUP3 on 21.02.2023 TR-DE3K9A0IY5
+        CALL FUNCTION 'BAPI_SHIPMENT_CREATE'
+          EXPORTING
+            headerdata = gi_headerdata
+          IMPORTING
+            transport  = gw_shipment
+          TABLES
+            hdunheader = gt_hdunheader     "Will Hold HU Creation Data
+            itemdata   = gt_shipment_itm   "Will Hold Shipment Creation Data
+            hdunitem   = gt_hdunitem       "Will Hold Packing Creation Data
+            return     = gt_return.
+        IF NOT gt_return[] IS INITIAL.
+          CLEAR:gi_return.
+          READ TABLE gt_return INTO gi_return
+                                       WITH KEY type = 'S'
+                                                id   = 'VW'
+                                                number = '515'.
+          IF sy-subrc = 0.
+            CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+              EXPORTING
+                wait = 'X'.
+*   Update the Namef,Nambe and exidv fields
+            PERFORM update_track_fm.
+*       chaning the new shipment to trigger output types and updating shipment start flag value
+            PERFORM change_shipment.
+
+*Updating Tracking Number in Handling Unit
+            CLEAR:gi_return.
+            READ TABLE gt_return INTO gi_return
+                         WITH KEY type   = 'S'
+                                  id     = 'VW'
+                                  number = '515'.
+            IF sy-subrc = 0.
+              gw_retcode_c_ds = '0'.
+              gw_succ_rec = gw_succ_rec + 1.
+            ENDIF.
+          ELSE.
+            gw_retcode_c_ds = '1'.
+            APPEND gi_vttp TO gt_error. " Modified by 502209589 JE3K904768 on 11-02-22
+          ENDIF.
+        ENDIF.
+        FREE: gt_hdunheader,gt_hdunitem,gt_shipment_itm.
+      ENDIF.
+    ENDIF. "vttk
+  ENDLOOP. "vttp
+ENDFORM.                    " PROCESS_DATA
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_TRACK_FM
+*&---------------------------------------------------------------------*
+FORM update_track_fm .
+  DATA li_vekp TYPE ty_vekp.
+  SELECT tknum
+        tpnum
+        vbeln
+        FROM vttp
+        INTO TABLE gt_vttp_new
+        WHERE tknum = gw_shipment.
+  IF sy-subrc = 0.
+    SELECT venum
+           exidv
+           brgew
+           btvol
+           vhilm
+           inhalt
+           exidv2
+           namef
+           nambe
+           FROM vekp INTO TABLE gt_vekp_new
+           FOR ALL ENTRIES IN gt_vttp_new
+           WHERE vpobj   = '04'
+            AND  vpobjkey = gt_vttp_new-tknum.
+  ENDIF.
+  LOOP AT gt_vekp_new INTO gi_vekp_new.
+    READ TABLE gt_vekp INTO li_vekp WITH KEY inhalt = gi_vekp_new-inhalt.
+    IF sy-subrc = 0.
+
+      gi_hu_header-venum  = gi_vekp_new-venum.
+      gi_hu_header-exidv  = li_vekp-exidv.
+      gi_hu_header-exidv2 = li_vekp-exidv2.
+      APPEND gi_hu_header TO gt_hu_header.
+
+      gi_hu_value-hdl_unit_itid = gi_vekp_new-venum.
+      gi_hu_value-hdl_unit_exid = li_vekp-exidv.
+      gi_hu_value-field_name    = 'EXIDV2'.
+      gi_hu_value-field_value   = li_vekp-exidv2.
+      APPEND gi_hu_value TO gt_hu_value.
+
+      gi_hu_value-field_name    = 'NAMEF'.
+      gi_hu_value-field_value   = li_vekp-namef.
+      APPEND gi_hu_value TO gt_hu_value.
+
+      gi_hu_value-field_name    = 'NAMBE'.
+      gi_hu_value-field_value   = li_vekp-nambe.
+      APPEND gi_hu_value TO gt_hu_value.
+      CLEAR:gi_hu_header,gi_hu_value.
+      CALL FUNCTION 'LEINT_HU_UPDATE'
+        EXPORTING
+          it_hu_header = gt_hu_header
+          it_hu_value  = gt_hu_value
+          iv_commit    = 'X'.
+    ENDIF.
+  ENDLOOP.
+
+
+  CLEAR: gt_hu_value[],gt_hu_header.
+ENDFORM.                    " UPDATE_TRACK_FM
+*&---------------------------------------------------------------------*
+*&      Form  CHANGE_SHIPMENT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM change_shipment .
+  CLEAR:gi_shipt_hea,gi_shipt_hea_act.
+  gi_shipt_hea-shipment_num = gw_shipment.
+  gi_shipt_hea-status_shpmnt_start = 'X'.
+
+  gi_shipt_hea_act-status_shpmnt_start = 'C'.
+
+  FREE:gt_return_change.
+  CALL FUNCTION 'BAPI_SHIPMENT_CHANGE'
+    EXPORTING
+      headerdata       = gi_shipt_hea
+      headerdataaction = gi_shipt_hea_act
+    TABLES
+      return           = gt_return_change.
+  READ TABLE gt_return_change WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+  IF sy-subrc <> 0.
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+      EXPORTING
+        wait = 'X'.
+  ENDIF.
+ENDFORM.                    " CHANGE_SHIPMENT
+*&---------------------------------------------------------------------*
+*&      Form  SEND_MAIL
+*&---------------------------------------------------------------------*
+*       EMail send logic
+*----------------------------------------------------------------------*
+FORM send_mail .
+
+  DATA: lo_send_request   TYPE REF TO cl_bcs,
+        lo_document       TYPE REF TO cl_document_bcs,
+        lo_sender         TYPE REF TO if_sender_bcs,
+        lo_recipient      TYPE REF TO if_recipient_bcs VALUE IS INITIAL,
+        lo_recipient1     TYPE REF TO if_recipient_bcs VALUE IS INITIAL,
+        lt_msg_body       TYPE bcsy_text,
+        li_msg_body       TYPE soli,
+        lx_document_bcs   TYPE REF TO cx_document_bcs,
+        lv_sent_to_all    TYPE os_boolean,
+        lv_subject        TYPE so_obj_des,
+        lv_att_sub        TYPE so_obj_des,
+        in_mailid         TYPE ad_smtpadr,
+        lcl_bcs_exception TYPE REF TO cx_bcs,
+        lc_marc           TYPE string VALUE 'MARC',
+        lc_obj            TYPE string VALUE 'ZRMM_MARC_PPP_SHIP_PER_DELIV', "Modified by 502209589  CHG0191538 JE3K905620 09-03-2022
+        v_message(100).
+
+  SELECT SINGLE email INTO in_mailid
+                      FROM ztbidl
+                      WHERE intid = lc_marc
+                      AND   obj_name = lc_obj
+                      AND   seq_number = 1.
+  IF sy-subrc = 0.
+    TRY .
+        "create send request
+        lo_send_request = cl_bcs=>create_persistent( ).
+
+        "create message body and subject
+        li_msg_body-line = TEXT-004.
+        APPEND li_msg_body TO lt_msg_body.
+        li_msg_body-line = nast-objky.
+        APPEND li_msg_body TO lt_msg_body.
+        APPEND INITIAL LINE TO lt_msg_body.
+*      error deliveries and customer details are keeping in body
+        LOOP AT gt_error INTO gi_vttp.
+          READ TABLE gt_likp INTO gi_likp WITH KEY vbeln = gi_vttp-vbeln.
+          IF sy-subrc = 0.
+            CONCATENATE gi_likp-vbeln gi_likp-kunag INTO li_msg_body-line SEPARATED BY '   '.
+            APPEND li_msg_body TO lt_msg_body.
+          ENDIF.
+        ENDLOOP.
+
+        lv_subject = TEXT-002.
+        "put your text into the document
+        lo_document = cl_document_bcs=>create_document(
+        i_type = 'RAW'
+        i_text = lt_msg_body
+        i_subject = lv_subject ).
+
+* Pass the document to send request
+        lo_send_request->set_document( lo_document ).
+
+        "Create sender
+        lo_sender = cl_sapuser_bcs=>create( sy-uname ).
+
+        "Set sender
+        lo_send_request->set_sender( lo_sender ).
+
+        "Create recipient
+        lo_recipient = cl_cam_address_bcs=>create_internet_address( in_mailid ).
+
+*Set recipient
+        lo_send_request->add_recipient(
+        EXPORTING
+        i_recipient = lo_recipient
+        i_express = abap_true
+        ).
+
+* Send email
+        lo_send_request->send(
+        EXPORTING
+        i_with_error_screen = abap_true
+        RECEIVING
+        result = lv_sent_to_all ).
+
+      CATCH cx_bcs INTO lcl_bcs_exception.
+        v_message = lcl_bcs_exception->get_text( ).
+        MESSAGE e119 WITH v_message.
+    ENDTRY.
+
+* Commit Work to send the email
+    COMMIT WORK.
+
+  ENDIF.
+ENDFORM.                    " SEND_MAIL
+*&---------------------------------------------------------------------*
+*&      Form  ENTRIES_FETCH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM entries_fetch .
+  FREE: gt_ztuhcd1,r_kschl,r_kappl.
+  gi_ztuhcd1-name  = sy-repid.
+  APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  LOOP AT gt_ztuhcd1 INTO gi_ztuhcd1.
+    CASE  gi_ztuhcd1-field.
+      WHEN 'KAPPL'.
+        r_kappl-sign   = 'I'.
+        r_kappl-option = 'EQ'.
+        r_kappl-low    = gi_ztuhcd1-low.
+        APPEND r_kappl.
+
+      WHEN 'KSCHL'.
+        r_kschl-sign   = 'I'.
+        r_kschl-option = 'EQ'.
+        r_kschl-low    = gi_ztuhcd1-low.
+        APPEND r_kschl.
+      WHEN OTHERS.
+    ENDCASE.
+  ENDLOOP.
+
+ENDFORM.                    " ENTRIES_FETCH
+

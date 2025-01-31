@@ -1,0 +1,459 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZRMM_DOWNLOAD_LTEXT_DISPLAYF01 .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_alv .
+
+*  PERFORM frm_built_cat.     "Commented by Vijay Kumar N DE3K968996 CHG1637971 20/01/2016
+  PERFORM display_output.
+
+ENDFORM.                    " DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output .
+  DATA: lwa_layout_ds TYPE   slis_layout_alv,
+        lv_ptext      TYPE   symsgv.
+
+  lwa_layout_ds-colwidth_optimize = gc_x.
+  lv_ptext = TEXT-007.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer = 'X'
+      i_buffer_active    = space
+      i_save             = 'A'
+      i_callback_program = sy-repid
+      is_layout          = lwa_layout_ds
+      it_fieldcat        = gt_fieldcat[]
+    TABLES
+      t_outtab           = gt_text
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+        WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                    " DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  F4_FILESELECT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_fileselect .
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+    IMPORTING
+      file_name     = gp_file.
+ENDFORM.                    " F4_FILESELECT
+*&---------------------------------------------------------------------*
+*&      Form  FRM_BUILT_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM frm_built_cat .
+
+  CLEAR: gt_fieldcat.
+  PERFORM fieldcat USING:
+    'TDNAME'     TEXT-t07,
+    'TDID'       TEXT-t08,
+    'TDOBJECT'   TEXT-t09,
+    'TDSPRAS'	   TEXT-t10,
+    'TDFORMAT'   TEXT-t11,
+    'TDLINE'     TEXT-t12,
+    'VORNR'      TEXT-t13.    " Added by 503103496 DE3K9A0DUS CHG0207844
+ENDFORM.                    " FRM_BUILT_CAT
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0100   text
+*      -->P_TEXT_T07  text
+*----------------------------------------------------------------------*
+FORM fieldcat  USING    p_fname TYPE any
+                        p_stext TYPE any.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = p_fname.
+  wa_fieldcat-reptext_ddic   = p_stext.
+  wa_title-title        = p_stext.
+
+  APPEND wa_title TO gt_title.
+  CLEAR: wa_title.
+
+  APPEND wa_fieldcat TO gt_fieldcat.
+  CLEAR wa_fieldcat.
+
+ENDFORM.                    " FIELDCAT
+*&---------------------------------------------------------------------*
+*&      Form  F_EXCEL_DOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_excel_download .
+  DATA :  lv_ptext TYPE symsgv.
+
+  IF NOT gt_text[] IS INITIAL.
+    wa_filename = gp_file.
+    CONCATENATE TEXT-010 wa_filename INTO lv_ptext.
+
+    CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+      EXPORTING
+        text = lv_ptext.
+
+* Download the data into EXCL format.
+    CALL FUNCTION 'GUI_DOWNLOAD'
+      EXPORTING
+        filename                = wa_filename
+        filetype                = TEXT-008
+*Begin of changes done by Vijay Kumar N DE3K968996 CHG1637971 20/01/2016
+*       append                  = gc_x
+        confirm_overwrite       = gc_x
+*End of changes done by Vijay Kumar N DE3K968996 CHG1637971 20/01/2016
+* Begin of Changes by 503103496 DE3K9A0DT3 RITM5224188
+        codepage                = '4310'
+* End of Changes by 503103496 DE3K9A0DT3 RITM5224188
+      TABLES
+        data_tab                = gt_text
+        fieldnames              = gt_title
+      EXCEPTIONS
+        file_write_error        = 1
+        no_batch                = 2
+        gui_refuse_filetransfer = 3
+        invalid_type            = 4
+        no_authority            = 5
+        unknown_error           = 6
+        header_not_allowed      = 7
+        separator_not_allowed   = 8
+        filesize_not_allowed    = 9
+        header_too_long         = 10
+        dp_error_create         = 11
+        dp_error_send           = 12
+        dp_error_write          = 13
+        unknown_dp_error        = 14
+        access_denied           = 15
+        dp_out_of_memory        = 16
+        disk_full               = 17
+        dp_timeout              = 18
+        file_not_found          = 19
+        dataprovider_exception  = 20
+        control_flush_error     = 21
+        OTHERS                  = 22.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      EXIT.
+    ELSE .
+      MESSAGE i070 WITH  TEXT-009.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " F_EXCEL_DOWNLOAD
+*&---------------------------------------------------------------------*
+*&      Form  LOG_PROGRAM_INFO
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM log_program_info .
+
+  CHECK sy-batch = gc_x.
+  MESSAGE i899(mm).
+  MESSAGE i899(mm) WITH TEXT-100.
+  MESSAGE i899(mm).
+
+ENDFORM.                    " LOG_PROGRAM_INFO
+*&---------------------------------------------------------------------*
+*&      Form  OPEN_FILES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM open_files .
+  DATA: gt_ztuhcd1_ds TYPE TABLE OF ztuhcd1,
+        gi_ztuhcd1_ds TYPE ztuhcd1.
+
+  CONSTANTS: gc_program TYPE char50 VALUE 'ZRMM_DOWNLOAD_LTEXT',
+             gc_key     TYPE char4  VALUE 'AL11',
+             gc_field   TYPE char4  VALUE 'PATH'.
+
+  CLEAR: gi_ztuhcd1_ds.
+  REFRESH: gt_ztuhcd1_ds.
+  gi_ztuhcd1_ds-name  = gc_program.
+  APPEND gi_ztuhcd1_ds TO gt_ztuhcd1_ds.
+  CLEAR  gi_ztuhcd1_ds.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1_ds
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+    SORT  gt_ztuhcd1_ds BY name field index_no.
+    CLEAR gi_ztuhcd1_ds.
+  ENDIF.
+
+  IF gp_ofile IS INITIAL.
+    READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name  = gc_program
+                                                         zkey  = gc_key
+                                                         field = gc_field.
+    IF sy-subrc IS INITIAL.
+      MOVE gi_ztuhcd1_ds-low TO gp_ofile.
+    ENDIF.
+  ENDIF.
+
+
+*Open output file
+  OPEN DATASET gp_ofile FOR OUTPUT IN TEXT MODE ENCODING DEFAULT.
+  IF sy-subrc NE 0.
+    MESSAGE e899(mm) WITH TEXT-101.
+  ENDIF.
+
+*Output individual text lines
+
+  LOOP AT gt_text INTO wa_text.
+**Output TEXT record
+    TRANSFER wa_text TO gp_ofile.
+    IF sy-subrc NE 0.
+      MESSAGE e899(mm) WITH TEXT-125.                       "#EC *
+    ENDIF.
+  ENDLOOP.
+
+*Close output files
+  PERFORM close_output_files.
+
+*Output execution statistics
+  PERFORM output_statistics.
+
+*Log ending message to job writer
+  PERFORM log_ending_message.
+
+ENDFORM.                    " OPEN_FILES
+*&---------------------------------------------------------------------*
+*&      Form  CLOSE_OUTPUT_FILES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM close_output_files .
+
+*Close output file
+  CLOSE DATASET gp_ofile.
+  IF sy-subrc NE 0.
+    MESSAGE e899(mm) WITH TEXT-106.
+  ENDIF.
+
+
+ENDFORM.                    " CLOSE_OUTPUT_FILES
+*&---------------------------------------------------------------------*
+*&      Form  LOG_ENDING_MESSAGE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM log_ending_message .
+
+  IF sy-batch = gc_x.
+    MESSAGE i899(mm).
+    MESSAGE i899(mm) WITH TEXT-111.
+    MESSAGE i899(mm).
+  ELSE.
+    SKIP 2.
+    WRITE / TEXT-111.
+  ENDIF.
+
+ENDFORM.                    " LOG_ENDING_MESSAGE
+*&---------------------------------------------------------------------*
+*&      Form  OUTPUT_STATISTICS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM output_statistics .
+  IF sy-batch = gc_x.
+    MESSAGE i899(mm) WITH : TEXT-116 gv_num_htxt,
+                        TEXT-117 gv_num_ltxt.
+  ELSE.
+    WRITE : / TEXT-116, 50 gv_num_htxt,
+            / TEXT-117, 50 gv_num_ltxt.
+  ENDIF.
+
+ENDFORM.                    " OUTPUT_STATISTICS
+*&---------------------------------------------------------------------*
+*&      Form  PROCESSING_BLOCK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM processing_block .
+*  Begin of Changes by 503103496 DE3K9A0DT3 CHG0207844
+  CONSTANTS :lc_plnty_n TYPE plnty VALUE 'N',
+             lc_plnty_s TYPE plnty  VALUE 'S',
+             lc_360n(5) TYPE c VALUE '360N'.
+* End of Changes by 503103496 DE3K9A0DT3 CHG0207844
+  REFRESH gt_stxh.
+  CLEAR   wa_stxh.
+*Retrieve text header info
+  SELECT tdobject tdname tdid tdspras
+      INTO TABLE gt_stxh
+      FROM stxh
+      WHERE tdobject IN gs_objec AND
+            tdname   IN gs_tdnam AND
+            tdid     IN gs_tdid   AND
+            tdspras  IN gs_spras.
+  IF sy-subrc IS INITIAL.
+    SORT gt_stxh BY tdobject tdname tdid.
+  ENDIF.
+*  Begin of Changes by 503103496 DE3K9A0DT3 CHG0207844
+  IF p_werks IS NOT INITIAL.  "  Added by 503103496 DE3K9A0DXA CHG0207844
+* Get the Task list-operation/activity
+    SELECT plnty
+             plnnr
+             plnkn
+             zaehl
+             loekz
+             vornr      " Added by 503103496 DE3K9A0DUS CHG0207844
+             werks
+             txtsp
+        FROM plpo
+        INTO TABLE gt_plpo
+       WHERE plnty IN (lc_plnty_n, lc_plnty_s )
+      AND   loekz EQ space
+       AND werks EQ p_werks
+        AND txtsp IN gs_spras.
+    IF sy-subrc EQ 0.
+      SORT gt_plpo BY werks.
+*     Fill the TDNAME With PLPO Values
+      LOOP AT gt_plpo INTO gi_plpo.
+        CONCATENATE lc_360n gi_plpo-plnnr gi_plpo-plnkn gi_plpo-zaehl INTO gi_werks-tdname.
+        gi_werks-vornr = gi_plpo-vornr.    " Added by 503103496 DE3K9A0DUS CHG0207844
+        APPEND gi_werks TO gt_werks.
+        CLEAR gi_werks.
+      ENDLOOP.
+    ENDIF.
+    SORT gt_werks BY tdname.
+  ENDIF.    " Added by 503103496 DE3K9A0DXA CHG0207844
+*  End of Changes by 503103496 DE3K9A0DT3 CHG0207844
+*Loop through text header
+  LOOP AT gt_stxh INTO wa_stxh.
+*Clearing intarnal tables & Work areas
+    REFRESH gt_lines.
+    CLEAR : wa_lines, wa_text.
+* Begin of Changes by 503103496 DE3K9A0DT3 CHG0198828
+    IF p_werks IS NOT INITIAL.    " Added by 503103496  DE3K9A0DXA CHG0207844
+*    Check the TDNAME
+      READ TABLE gt_werks INTO gi_werks WITH KEY tdname = wa_stxh-tdname BINARY SEARCH .
+      IF sy-subrc EQ 0.
+*End of Changes byb 503103496 DE3K9A0DT3 CHG0207844
+*Load text header information to text itab
+
+        wa_text-tdobject =  wa_stxh-tdobject.
+        wa_text-tdname   =  wa_stxh-tdname.
+        wa_text-tdid     =  wa_stxh-tdid.
+        wa_text-tdspras  =  wa_stxh-tdspras.
+        wa_text-vornr    = gi_werks-vornr .   " Added by 503103496 DE3K9A0DUS CHG0207844
+*Retrieve text lines
+        CALL FUNCTION 'READ_TEXT'
+          EXPORTING
+            id       = wa_stxh-tdid
+            language = wa_stxh-tdspras
+            name     = wa_stxh-tdname
+            object   = wa_stxh-tdobject
+          TABLES
+            lines    = gt_lines
+          EXCEPTIONS
+            OTHERS   = 1.
+
+*If no text is returned, iterate loop
+        IF sy-subrc NE 0.
+          CONTINUE.
+        ELSE.
+          ADD 1 TO gv_num_htxt.
+        ENDIF.
+
+*Output individual text lines
+        LOOP AT gt_lines INTO wa_lines.
+          wa_text-tdformat =  wa_lines-tdformat.
+          wa_text-tdline   =  wa_lines-tdline.
+          APPEND wa_text TO gt_text.
+*      CLEAR wa_text.         "Commented by Vijay Kumar N DE3K968996 CHG1637971 20/01/2016
+          ADD 1 TO gv_num_ltxt.
+        ENDLOOP.
+      ENDIF.      " Added  by 503103496 DE3K9A0DT3 CHG0207844
+    ELSEIF p_werks IS INITIAL.      " Added by 503103496  DE3K9A0DXA CHG0207844
+*load text header information to text itab
+      wa_text-tdobject =  wa_stxh-tdobject.
+      wa_text-tdname   =  wa_stxh-tdname.
+      wa_text-tdid     =  wa_stxh-tdid.
+      wa_text-tdspras  =  wa_stxh-tdspras.
+*Retrieve text lines
+      CALL FUNCTION 'READ_TEXT'
+        EXPORTING
+          id       = wa_stxh-tdid
+          language = wa_stxh-tdspras
+          name     = wa_stxh-tdname
+          object   = wa_stxh-tdobject
+        TABLES
+          lines    = gt_lines
+        EXCEPTIONS
+          OTHERS   = 1.
+
+*If no text is returned, iterate loop
+      IF sy-subrc NE 0.
+        CONTINUE.
+      ELSE.
+        ADD 1 TO gv_num_htxt.
+      ENDIF.
+
+*Output individual text lines
+      LOOP AT gt_lines INTO wa_lines.
+        wa_text-tdformat =  wa_lines-tdformat.
+        wa_text-tdline   =  wa_lines-tdline.
+        APPEND wa_text TO gt_text.
+*      CLEAR wa_text.         "Commented by Vijay Kumar N DE3K968996 CHG1637971 20/01/2016
+        ADD 1 TO gv_num_ltxt.
+      ENDLOOP.
+
+    ENDIF.        " Added by 503103496  DE3K9A0DXA CHG0207844
+  ENDLOOP.
+
+ENDFORM.                    " PROCESSING_BLOCK
+

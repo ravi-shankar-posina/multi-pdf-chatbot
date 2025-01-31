@@ -1,0 +1,116 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_BATTERY_STRU
+*&---------------------------------------------------------------------*
+TYPE-POOLS: slis.
+*&---------------------------------------------------------------------*
+*&** TYPES Declaration
+*&---------------------------------------------------------------------*
+TYPES  : BEGIN OF ty_marc_ausp_klah,
+            objek   TYPE  objnum,
+            klart   TYPE  klassenart,
+            clint   TYPE  clint,
+            adzhl   TYPE  adzhl,
+            atinn   TYPE  atinn,
+            class   TYPE  klasse_d,
+         END OF ty_marc_ausp_klah,
+*
+         BEGIN OF ty_makt,
+            matnr TYPE matnr,                        "Material Number
+            maktx TYPE maktx,                        "Material Description
+         END OF ty_makt,
+*
+         BEGIN OF ty_cabnt,
+            atinn TYPE atinn,                       "Internal characteristic
+            spras TYPE spras,                       "Language Key
+            adzhl TYPE adzhl,                       "Internal counter for archiving objects via engin. chg. mgmt
+            atbez TYPE atbez,                       "Characteristic description
+         END OF ty_cabnt,
+*
+         BEGIN OF ty_cawn,
+           atinn TYPE atinn,                       "Internal characteristic
+           atzhl TYPE atzhl,                       "Int counter
+           adzhl TYPE adzhl,                       "Internal counter for archiving objects via engin. chg. mgmt
+           atwrt TYPE atwrt,                       "Characteristic Value
+         END OF ty_cawn,
+*
+         BEGIN OF ty_cawnt,
+            atinn TYPE atinn,                       "Internal characteristic
+            atzhl TYPE atzhl,                       "Int counter
+            spras TYPE spras,                       "Language Key
+            adzhl TYPE adzhl,                       "Internal counter for archiving objects via engin. chg. mgmt
+            atwtb TYPE atwtb,                       "Characteristic value description
+         END OF ty_cawnt,
+
+         BEGIN OF ty_cabn,
+           atinn TYPE atinn,
+           atnam TYPE atnam,
+         END OF ty_cabn.
+*
+TYPES  : BEGIN OF ty_final,
+            sku     TYPE matnr,                        "Material Number
+            sku_d   TYPE maktx,                        "Material Description
+*            werks   TYPE werks_d,                      "Plant
+            klart   TYPE klassenart,                   "Class Type
+            class   TYPE klasse_d,                     "Class
+            class_d TYPE klschl,                       "Class Description
+            atnam   TYPE atnam,                        "Characteristic
+            atbez   TYPE atbez,                        "Characteristic description
+            atwrt   TYPE atwrt,                        "Characteristic Value
+            atwtb   TYPE atwtb,                        "Characteristic value description
+*         dispo   TYPE dispo,                        "MRP Controller
+         END OF ty_final.
+TYPES: BEGIN OF ty_class,
+          objek   TYPE  kssk-objek,
+          klart   TYPE  kssk-klart,
+          clint   TYPE  kssk-clint,
+          adzhl   TYPE  ausp-adzhl,
+          atinn   TYPE  ausp-atinn,
+          class   TYPE  klah-class,
+      END OF ty_class.
+
+*&---------------------------------------------------------------------*
+*&** Work Areas Declaration
+*&---------------------------------------------------------------------*
+DATA : gi_marc_ausp_klah_ds  TYPE ty_marc_ausp_klah,
+       gi_makt_ds            TYPE ty_makt,
+       gi_cabnt_ds           TYPE ty_cabnt,
+       gi_cawn_ds            TYPE ty_cawn,
+       gi_cabn_ds            TYPE ty_cabn,
+       gi_cawnt_ds           TYPE ty_cawnt,
+       gi_final_ds           TYPE ty_final,
+       gi_fcat               TYPE slis_fieldcat_alv.
+*local workarea
+DATA : gi_classtruct_ds      TYPE  sclass,
+       gi_val_char           TYPE  clobjdat.
+DATA: gt_class  TYPE STANDARD TABLE OF ty_class,
+      gs_class  TYPE  ty_class.
+*&---------------------------------------------------------------------*
+*&** Internal Table Declaration
+*&---------------------------------------------------------------------*
+DATA : gt_marc_ausp_klah  TYPE STANDARD TABLE OF ty_marc_ausp_klah,
+       gt_makt            TYPE STANDARD TABLE OF ty_makt,
+       gt_cabnt           TYPE STANDARD TABLE OF ty_cabnt,
+       gt_cawn            TYPE STANDARD TABLE OF ty_cawn,
+       gt_cawnt           TYPE STANDARD TABLE OF ty_cawnt,
+       gt_cabn            TYPE STANDARD TABLE OF ty_cabn,
+       gt_final           TYPE STANDARD TABLE OF ty_final,
+       gt_fcat            TYPE  slis_t_fieldcat_alv.
+*local internal tables
+DATA :   gt_classtruct    TYPE STANDARD TABLE OF sclass,
+         gt_val_char      TYPE STANDARD TABLE OF clobjdat.
+
+*&---------------------------------------------------------------------*
+*&  CONSTANTS DECLARATION
+*&---------------------------------------------------------------------*
+CONSTANTS : c_sku     TYPE char3 VALUE 'SKU',
+            c_sku_d   TYPE char5 VALUE 'SKU_D',
+            c_werks   TYPE char5 VALUE 'WERKS',
+            c_klart   TYPE char5 VALUE 'KLART',
+            c_class   TYPE char5 VALUE 'CLASS',
+            c_class_d TYPE char7 VALUE 'CLASS_D',
+            c_atnam   TYPE char5 VALUE 'ATNAM',
+            c_atbez   TYPE char5 VALUE 'ATBEZ',
+            c_atwrt   TYPE char5 VALUE 'ATWRT',
+            c_atwtb   TYPE char5 VALUE 'ATWTB',
+            c_dispo   TYPE char5 VALUE 'DISPO'.
+

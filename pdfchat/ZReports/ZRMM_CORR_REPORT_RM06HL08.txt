@@ -1,0 +1,48 @@
+*&---------------------------------------------------------------------*
+*& Report ZRMM_CORR_REPORT_RM06HL08
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*** Created by            : USSHSAT1 (Shweta Satle)
+*** Creation Date         : 27/03/2024
+*** Transport Request #   : DE3K9A0E1N
+*** T-Code                : ZMM2741
+*** RICEF Object No #     : RICEF2741
+*** Description           : Correction Report: Inconsistencies:
+***                         EKET-WEMNG/WAMNG/GLMNG . This report is a copy of Standard report
+***                         RM06HL08 with additional selection screen criteria
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+* DATE               | TR No.          |CHANGED BY          |DESCRIPTION OF CHANGE
+*-----------------------------------------------------------------------------------------------*
+* 15-04-2024           DE3K9A0QFZ       USSHSAT1             Initial check missing before fetching data form table.
+************************************************************************
+
+REPORT zrmm_corr_report_rm06hl08.
+
+INCLUDE znmm_corr_report_rm06hl08_tops.
+
+INCLUDE znmm_corr_report_rm06hl08_f01.
+
+**&--------------------------------------------------------------------&*
+**&------------------------AT SELECTION-SCREEN-------------------------&*
+**&--------------------------------------------------------------------&*
+AT SELECTION-SCREEN OUTPUT.
+**  Modify Screen
+  PERFORM modify_screen.
+
+*&-------------------------------------------------------------------&*
+*&------------------------START-OF-SELECTION-------------------------&*
+*&-------------------------------------------------------------------&*
+START-OF-SELECTION.
+  IF  p_list IS NOT INITIAL.
+    PERFORM list_inconsistency.
+  ELSEIF p_excute IS NOT INITIAL.
+    PERFORM correct_inconsistency.
+  ENDIF.
+

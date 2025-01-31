@@ -1,0 +1,63 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_DMND_REORG_VARIANT
+*&
+*&---------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Created by            : SreeLatha Dachepalli,502347739
+*** Creation Date         : 13-Oct-2014
+*** Transport Request #   : DE3K951973
+*** RICEF Object No #     : RICEF1421
+*** Description           : Demand Reorganisation Variant for Batch Job
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+**************************************************************************************
+* TR #       | DATE         | CHANGED BY         |Incident No| DESCRIPTION OF CHANGE
+**************************************************************************************
+* DE3K951973 |13-Oct-2014  | Sreelatha Dachepalli| INC4768901    | Object Created
+*            |             |      502347739      |               |
+**************************************************************************************
+REPORT  zrmm_dmnd_reorg_variant.
+* this program is used to run on daily basis to update the variant in MD74 tcode, for updating the variant with last sunday date
+CONSTANTS: gc_day TYPE sdba_day VALUE '7',
+           gc_before_after TYPE p08_sign VALUE '-',
+           gc_var(25) VALUE 'ZPP_DMREORG_WEEK_PERIOD',
+           gc_type VALUE 'P',
+           gc_numb VALUE '0',
+           gc_sign VALUE ' ',
+           gc_succ(28) VALUE 'SUCCESSFULLY UPDATED TABLE',
+           gc_error(25) VALUE 'TABLE ENTRY NOT UPDATED'.
+
+DATA: gw_tvarvc TYPE tvarvc,
+      gv_date TYPE sy-datum,
+      gv_day_text(9).
+
+CALL FUNCTION 'HR_GB_DAY_RELATIVE_TO_DATE'
+  EXPORTING
+    date            = sy-datum
+    day_in_week     = gc_day
+    before_or_after = gc_before_after
+  IMPORTING
+    new_date        = gv_date
+    day_text        = gv_day_text.
+
+gw_tvarvc-name = gc_var.
+gw_tvarvc-type = gc_type.
+gw_tvarvc-numb = gc_numb.
+gw_tvarvc-sign = gc_sign.
+gw_tvarvc-opti = gc_sign.
+gw_tvarvc-low  = gv_date.
+gw_tvarvc-high = gc_sign.
+gw_tvarvc-clie_indep = gc_sign.
+
+MODIFY tvarvc FROM gw_tvarvc.
+IF sy-subrc = 0.
+  WRITE: gc_succ.
+ELSE.
+  WRITE: gc_error.
+ENDIF.
+

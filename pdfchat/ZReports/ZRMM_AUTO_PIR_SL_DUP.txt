@@ -1,0 +1,69 @@
+*&---------------------------------------------------------------------*
+
+*=======================================================================
+*= Copyright © 2013 GE IS                                              =
+*= ALL RIGHTS RESERVED                                                 =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : zrmm_auto_pir_sl_dup
+* Created by        : Priyadip Saha, USPRSAH
+* Transport Request : DE3K9A0SQZ
+* RICEF Object No   : RICEF1974
+* Transaction code  : NA
+* Change request No : GECHG0488738
+* Description       : This is duplicate program of ZRMM_AUTO_PIR_SL.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 29-AUG-2024        |  DE3K9A0SQZ      |USPRSAH   | Added this duplicate program to indentify the error in Production
+*-------------------------------------------------------------------------------------------
+
+REPORT  zrmm_auto_pir_sl_dup.
+
+INCLUDE znmm_auto_pir_sl_top_dup.
+
+INCLUDE znmm_auto_pir_sl_screen_dup.
+
+INCLUDE znmm_auto_pir_sl_forms_dup.
+
+
+INCLUDE znmm_auto_pir_sl_forms_mvpir_d.
+
+
+START-OF-SELECTION.
+
+  PERFORM get_harcode_values.
+
+  PERFORM  get_pr_data.
+  "check plant to use mulitple vendor pir logic , if not found in hardcoding table use existing logic on single vendor.
+
+  READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name = sy-repid    "++DE3K9A0U11 USPRSAH
+                                                       zkey  = 'MPIR'
+                                                       low = s_werks-low.
+  IF sy-subrc EQ 0 AND gp_r2 IS NOT INITIAL.
+
+    PERFORM template_data_mvpir.         "template data for multiple vendor
+
+    PERFORM  final_data_mvpir.            "final data for multiple vendor
+
+    PERFORM bcd_me11_me01_mvpir.          " bdc for for multiple vendor
+  ELSE.
+
+    PERFORM template_data.
+
+    PERFORM  final_data.
+
+    PERFORM bcd_me11_me01.
+  ENDIF.
+
+  PERFORM send_error_to_email.    "Filter out records with any error in status,send those over email.
+
+  PERFORM dispaly_data.
+

@@ -1,0 +1,63 @@
+*&---------------------------------------------------------------------*
+* Name                          : ZRMM_DATA_ERROR
+* Tcode                         : ZMM113
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 25 Sep 2023
+* Transport Request #           : DE3K9A0N21
+* RICEF Object No #             : RICEF2684
+* Description                   : Card Missmatch for ZTMM_PICT
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 09.10.2023   | RICEF-2684|USSOSUB1  |Quality bug fix
+*----------------------------------------------------------------------*
+*************************************************************************
+* CHANGED BY | DATE        | TR #       | CR No(   INCUM).  | DESCRIPTION OF CHANGE
+******************************************************************************
+* CHTAMUR    | 08/Nov/2024 | DE3K9A0U0J | 87274 | PICT Minor issue fixes
+*****************************************************************************************
+
+INCLUDE zrmm_data_mismatch_top.
+
+INITIALIZATION .
+
+  DATA : lv_year TYPE gjahr,
+         lv_werk TYPE werks_d,
+         lv_vers TYPE zde_version.
+  ""imported from Z_M_PHYSICAL_INVENTORY_F01 (Tcode-zmm109) line no-63
+  IMPORT lv_werk FROM  MEMORY ID 'WERK'.
+  IF sy-subrc  = 0.
+    s_plant-option = 'EQ' .
+    s_plant-sign = 'I' .
+    s_plant-low =  lv_werk.
+    APPEND s_plant .
+  ENDIF.
+  IMPORT lv_vers FROM  MEMORY ID 'VERS'.
+  IF sy-subrc  = 0.
+    s_ver-option = 'EQ' .
+    s_ver-sign = 'I' .
+    s_ver-low =  lv_vers.
+    APPEND s_ver .
+  ENDIF.
+
+  FREE MEMORY ID 'WERK'.
+  FREE MEMORY ID 'VERS'.
+  FREE MEMORY ID 'YEAR'.
+
+AT SELECTION-SCREEN OUTPUT.
+  PERFORM validate.
+
+AT SELECTION-SCREEN.
+  PERFORM validate_output.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR s_ver-low.
+  PERFORM f4_ver.
+
+START-OF-SELECTION.
+
+  PERFORM get_data.
+  PERFORM buildcat_display.
+
+end-OF-selection.
+
+  INCLUDE zrmm_data_mismatch_f01.
+

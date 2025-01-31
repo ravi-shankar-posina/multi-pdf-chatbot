@@ -1,0 +1,36 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_DATA_AVAILABILITY
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------**
+***----------------------------------------------------------------------***
+*** Created by            : Prakash reddy K
+*** Creation Date         : 27-Nov-19
+*** Transport Request #   : DE3K994862
+*** RICEF Object No #     : RICEF2065
+*** Change request No     : GERITM6432434
+*** Description           : This report is designed to obtain the correct row count of the data
+*                           user exported for the SAP migration case of SJV. The logic is to count the table
+*                           for joined tables which match the desired conditions.
+***-----------------------------------------------------------------------***
+*----------------------------------------------------------------------------
+* Change Log
+*----------------------------------------------------------------------------
+**************************************************************************************
+*  DATE      |  CR No.      | Changed by   |TR Number  | DESCRIPTION OF CHANG
+*27.11.2019   GERITM6432434   502209589     DE3K994862   Object Creation
+**************************************************************************************
+
+REPORT  zrmm_data_availability NO STANDARD PAGE HEADING.
+
+INCLUDE: znmm_data_availability_top,
+         znmm_data_availability_sel_scr.
+
+PERFORM data_processing.
+
+PERFORM display_alv.
+
+INCLUDE znmm_data_availability_main.
+

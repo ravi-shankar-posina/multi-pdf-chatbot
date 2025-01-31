@@ -1,0 +1,151 @@
+*&---------------------------------------------------------------------*
+*& Report ZRMM_MOVE_PICC_DATA
+*&---------------------------------------------------------------------*
+* Name                          : ZRMM_MOVE_PICC_DATA
+* Created by                    : Anilkumar Bodempudi
+* Creation Date                 : 09 May 2024
+* Transport Request #           : DE3K9A0QXS
+* RICEF Object No #             : RICEF2684
+* Description                   : Move ZTMM_PICT to ZTMM_PICT_1
+*----------------------------------------------------------------------*
+* Name                          : ZRMM_MOVE_PICC_DATA
+* Created by                    : Tamil Selvan Murugesan
+* Creation Date                 : 18 Jun 2024
+* Transport Request #           : DE3K9A0RP3
+* RICEF Object No #             : RICEF2684
+* Description                   : Move ZTMM_PICT to ZTMM_PICT_1
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+** BOC Anil DE3K9A0QXS        USANBOD11
+REPORT zrmm_move_picc_data MESSAGE-ID 00.
+PARAMETERS : p_werks TYPE werks_d OBLIGATORY,
+             p_gjahr TYPE gjahr OBLIGATORY,
+             p_versn TYPE zde_version OBLIGATORY.
+DATA : lt_pict     TYPE STANDARD TABLE OF ztmm_pict,
+       lt_pict1    TYPE STANDARD TABLE OF ztmm_pict_1,
+       ls_pict1    TYPE ztmm_pict_1,
+       lt_pict1_01 TYPE STANDARD TABLE OF ztmm_pict_1.   " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+
+TYPE-POOLS: slis .
+
+TYPES: BEGIN OF ty_picc,
+         piyear  TYPE zde_piyear,
+         werks   TYPE werks_d,
+         version TYPE zde_version,
+       END OF ty_picc.
+
+TYPES: BEGIN OF ty_date,
+         piyear  TYPE zde_piyear,
+         werks   TYPE werks_d,
+         pidate  TYPE zde_pidate,
+         version TYPE zde_version,
+       END OF ty_date.
+
+DATA: it_picc     TYPE TABLE OF ty_picc,                    "#EC NEEDED
+      wa_picc     TYPE ty_picc,                             "#EC NEEDED
+      it_date     TYPE TABLE OF ty_date,                    "#EC NEEDED
+      wa_date     TYPE ty_date,                             "#EC NEEDED
+      it_pict     TYPE STANDARD TABLE OF ztmm_pict , "ZTMM_PICT.  "#EC NEEDED
+      wa_pict     TYPE ztmm_pict,                           "#EC NEEDED
+      it_pict_dtl TYPE TABLE OF ztmm_pict,                  "#EC NEEDED
+      wa_pict_dtl TYPE ztmm_pict      .                     "#EC NEEDED
+
+DATA  : lv_proc_flg ,    lv_noproc_flg  .
+
+REFRESH : it_picc ,  it_date , it_pict .
+
+SELECT piyear werks pidate version FROM ztmm_pi_date INTO TABLE it_date
+WHERE piyear = p_gjahr AND
+      werks = p_werks AND
+      version = p_versn..
+IF sy-subrc = 0.
+  SORT it_date BY piyear werks.                .
+ENDIF.
+
+
+IF it_date[] IS NOT INITIAL .
+  SELECT *                                         "#EC "#EC CI_NOFIRST
+   FROM ztmm_pict INTO TABLE it_pict
+   FOR ALL ENTRIES IN it_date
+   WHERE gjahr = it_date-piyear AND
+         werks = it_date-werks   AND
+         entdate = it_date-pidate .
+  IF sy-subrc = 0.
+    SORT it_pict BY werks gjahr .                .
+  ENDIF.
+
+ENDIF.
+
+IF it_pict[] IS NOT INITIAL.
+  SELECT *  FROM ztmm_pict_1 INTO TABLE lt_pict1 FOR ALL ENTRIES IN it_pict WHERE gjahr = it_pict-gjahr
+                                                                            AND   werks = it_pict-werks
+                                                                            AND   entdate = it_pict-entdate.
+*                                                                            and   VERSION = P_VERSN .            " --- CHANGE BY CHTAMUR -> DE3K9A0RP3
+  IF sy-subrc EQ 0.
+    CLEAR lt_pict1_01.         " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+    lt_pict1_01 = lt_pict1.   " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+    DELETE lt_pict1 WHERE version NE p_versn. " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+    IF lt_pict1 IS NOT INITIAL.
+      ls_pict1 = VALUE #( lt_pict1[ archive = 'X' ] OPTIONAL ) .
+      IF ls_pict1 IS NOT INITIAL.
+        lv_noproc_flg  = 'X' .
+      ELSE.
+        ls_pict1 = VALUE #( lt_pict1[ archive =  space ] OPTIONAL ) .
+        IF ls_pict1 IS NOT INITIAL.
+          lv_proc_flg  = 'X' .
+        ENDIF.
+      ENDIF.
+    ELSE.
+      lv_proc_flg  = 'X' .
+    ENDIF.
+  ELSE.                         " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+    lv_proc_flg  = 'X' .        " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+  ENDIF.                                                       " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+
+  IF lv_proc_flg = 'X' .
+    SORT lt_pict1 BY gjahr werks .
+
+    DELETE ztmm_pict_1 FROM TABLE lt_pict1.
+
+    " Insert entries into the target table
+    REFRESH :lt_pict1 .
+    LOOP AT it_pict INTO DATA(ls_pict).
+
+      READ TABLE lt_pict1_01 WITH KEY zintc = ls_pict-zintc     " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+                                      zcount = ls_pict-zcount
+                                      werks = ls_pict-werks
+                                      gjahr = ls_pict-gjahr
+                                      gidat = ls_pict-gidat
+                                      inccd = ls_pict-inccd
+                                      lgort = ls_pict-lgort
+                                      TRANSPORTING NO FIELDS.
+
+      IF sy-subrc NE 0.                                             " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+
+        MOVE-CORRESPONDING ls_pict TO ls_pict1.
+        ls_pict1-version  = p_versn .
+        ls_pict1-changed_usrid = sy-uname .
+        ls_pict1-last_date = sy-datum .
+        ls_pict1-last_time = sy-uzeit .
+        APPEND ls_pict1 TO lt_pict1.
+
+      ENDIF.                                                        " +++ CHANGE BY CHTAMUR -> DE3K9A0RP3
+    ENDLOOP.
+    " Insert entries into the database table
+    IF lt_pict1[] IS NOT INITIAL .
+      INSERT ztmm_pict_1 FROM TABLE  lt_pict1.
+    ENDIF.
+    IF sy-subrc = 0.
+      MESSAGE s398(00) WITH 'Entries Transferred successfully.'.
+    ELSE.
+      MESSAGE e398(00) WITH 'Error occurred while Transferring entries.'.
+    ENDIF.
+
+  ELSE.
+    MESSAGE e398(00) WITH 'No Active version exist'.
+  ENDIF.
+ELSE.
+  MESSAGE e398(00) WITH 'Version does not exist'.
+ENDIF.
+** EOC Anil DE3K9A0QXS        USANBOD11
+

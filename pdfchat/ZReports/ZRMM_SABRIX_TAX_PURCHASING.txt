@@ -1,0 +1,584 @@
+***--------------------------------------------------------------------*
+*** Created by            : Mallikarjun Vaja                           *
+*** Creation Date         : 16/04/2013                                 *
+*** Transport Request #   : DE3K907619                                 *
+*** RICEF Object No #     : RICEF286                                   *
+*** Description           : This program is designed for displaying    *
+***                         Open purchase Documents for SABRIX.        *
+***--------------------------------------------------------------------*
+*=================================================================
+*= Copyright ©  2000 GE ENERGY
+*= ALL RIGHTS RESERVED =
+*=================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRMM_SABRIX_TAX_PURCHASING
+*
+* Title             : Sabrix Tax Purchase Report
+*
+* Program function  : This program is designed for displaying open  purchase Documents for SABRIX.
+*
+* Transaction code  : ZMM940
+*
+* Limitations       : NA
+*
+* Table updates     : NA
+*
+* Authorizations    : NA
+*
+* Selection screen  : NA
+*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***************************************************************************************
+* DATE               | CR No.          |CHANGED BY   |DESCRIPTION OF CHANGE
+***************************************************************************************
+* 02-May-13          | CHG0173953      |502055609    |New Report
+* 14-May-13          | CHG0173953      |502055609    |Modified the Tax Logic to read only TAX RATE <> '0' and also
+*                                                     Added checkbox on Selection screen and extra fields 'MGLIEF' and 'MGINV' to report
+* 20-May-13          | CHG0173953      |502055609    |Added Extra fields 'KSCHL/REVNO/REVOK/RSCODTXZ01' as per the requirement.
+***************************************************************************************
+
+REPORT  ZRMM_SABRIX_TAX_PURCHASING  NO STANDARD PAGE HEADING .
+TYPE-POOLS SLIS .
+TABLES : EKKO , EKPO .
+*Types
+TYPES : BEGIN OF TY_EKKO_EKPO,
+        EBELN TYPE EKKO-EBELN,
+        BUKRS TYPE EKKO-BUKRS,
+        BSART TYPE EKKO-BSART,
+        LIFNR TYPE EKKO-LIFNR,
+        EKORG TYPE EKKO-EKORG,
+        EKGRP TYPE EKKO-EKGRP,
+        WAERS TYPE EKKO-WAERS,
+        BEDAT TYPE EKKO-BEDAT,
+        LANDS TYPE EKKO-LANDS,
+        LLIEF TYPE EKKO-LLIEF,
+        KNUMV TYPE EKKO-KNUMV,
+        EBELP TYPE EKPO-EBELP,
+        LOEKZ TYPE EKPO-LOEKZ,
+        TXZ01 TYPE EKPO-TXZ01,
+        MATNR TYPE EKPO-MATNR,
+        WERKS TYPE EKPO-WERKS,
+        MATKL TYPE EKPO-MATKL,
+        MENGE TYPE EKPO-MENGE,
+        MEINS TYPE EKPO-MEINS,
+        NETWR TYPE EKPO-NETWR,
+        MWSKZ TYPE EKPO-MWSKZ,
+        ZWERT TYPE EKPO-ZWERT,
+        PSTYP TYPE EKPO-PSTYP,
+        KNTTP TYPE EKPO-KNTTP,
+        TXJCD TYPE EKPO-TXJCD,
+        BSTYP TYPE EKPO-BSTYP,
+        BWTAR TYPE EKPO-BWTAR,
+        ABMNG TYPE EKPO-ABMNG,
+        KTMNG TYPE EKPO-KTMNG,
+        MTART TYPE EKPO-MTART,
+        WEBRE TYPE EKPO-WEBRE,
+        ELIKZ TYPE EKPO-ELIKZ,
+        WEPOS TYPE EKPO-WEPOS,
+        MGLIEF TYPE MEREP_MGLIEF,
+        EREKZ TYPE EKPO-EREKZ,
+        MGINV TYPE MEREP_MGINV,
+        REPOS TYPE EKPO-REPOS,
+        KBETR TYPE KOMV-KBETR,
+        KWERT TYPE KOMV-KWERT,
+        KSCHL  TYPE KOMV-KSCHL,
+        REVNO TYPE EKKO-REVNO,
+        NAME1 TYPE LFA1-NAME1,
+        NAME2 TYPE LFA1-NAME2,
+        RSCOD TYPE EREV-RSCOD,
+        RTXZ01 TYPE EREV-TXZ01,
+        REVOK TYPE EREV-REVOK,
+        END OF TY_EKKO_EKPO .
+TYPES: BEGIN OF TY_KONV,
+        KNUMV TYPE KONV-KNUMV,
+        KPOSN TYPE KONV-KPOSN,
+        ZAEHK TYPE KONV-ZAEHK,
+        KSCHL TYPE KONV-KSCHL,
+        KAWRT TYPE KONV-KAWRT,
+        KWERT TYPE KONV-KWERT,
+        END OF TY_KONV.
+TYPES : BEGIN OF TY_EREV,
+        EDOKN TYPE EREV-EDOKN,
+        REVNO TYPE EREV-REVNO,
+        RSCOD TYPE EREV-RSCOD,
+        TXZ01 TYPE EREV-TXZ01,
+        REVOK TYPE EREV-REVOK,
+        END OF TY_EREV.
+
+*Internal Tables
+DATA : I_EKKO_EKPO  TYPE TABLE OF TY_EKKO_EKPO.
+DATA : I_KOMV TYPE TABLE OF KOMV.
+DATA : I_FCAT TYPE SLIS_T_FIELDCAT_ALV .
+DATA : I_EKBES TYPE TABLE OF EKBES.
+DATA : I_KONV TYPE TABLE OF TY_KONV .
+DATA : I_EREV TYPE TABLE OF TY_EREV .
+
+*WorkAreas
+DATA : WA_EKKO_EKPO TYPE TY_EKKO_EKPO.
+DATA : WA_TAXCOM  TYPE TAXCOM .
+DATA : WA_TAXCOM2  TYPE TAXCOM .
+DATA : WA_KOMV TYPE  KOMV.
+DATA : WA_FCAT TYPE SLIS_FIELDCAT_ALV .
+DATA : WA_LAYOUT TYPE SLIS_LAYOUT_ALV .
+DATA : wa_variant TYPE  disvariant.
+DATA : WA_EKBES TYPE EKBES .
+DATA : WA_KONV TYPE TY_KONV .
+DATA : WA_EREV TYPE TY_EREV .
+DATA : V_TABIX TYPE SY-TABIX .
+DATA : V_COUNT TYPE I .
+
+SELECTION-SCREEN BEGIN OF BLOCK B1 WITH FRAME TITLE TEXT-001 .
+SELECT-OPTIONS : S_EKORG FOR EKKO-EKORG ,
+                 S_BSART FOR EKKO-BSART ,
+                 S_EBELN FOR EKKO-EBELN ,
+                 S_BUKRS FOR EKKO-BUKRS ,
+                 S_LIFNR FOR EKKO-LIFNR ,
+                 S_MWSKZ FOR EKPO-MWSKZ .
+SELECTION-SCREEN SKIP.
+PARAMETERS : R_FM RADIOBUTTON GROUP G1 ,
+             R_KONV RADIOBUTTON GROUP G1.
+PARAMETERS : P_PO AS CHECKBOX .
+SELECTION-SCREEN END OF BLOCK B1.
+
+START-OF-SELECTION .
+  PERFORM GET_DATA .
+  IF P_PO = 'X' .
+    PERFORM FORMAT_DATA.
+  ENDIF .
+  PERFORM CREATE_FCAT .
+  PERFORM DISP_ALV .
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM GET_DATA .
+*Select the PO Header and Item data
+  SELECT EKKO~EBELN
+         EKKO~BUKRS
+         EKKO~BSART
+         EKKO~LIFNR
+         EKKO~EKORG
+         EKKO~EKGRP
+         EKKO~WAERS
+         EKKO~BEDAT
+         EKKO~LANDS
+         EKKO~LLIEF
+         EKKO~KNUMV
+         EKKO~REVNO
+         EKPO~EBELP
+         EKPO~LOEKZ
+         EKPO~TXZ01
+         EKPO~MATNR
+         EKPO~WERKS
+         EKPO~MATKL
+         EKPO~MENGE
+         EKPO~MEINS
+         EKPO~NETWR
+         EKPO~MWSKZ
+         EKPO~ZWERT
+         EKPO~PSTYP
+         EKPO~KNTTP
+         EKPO~TXJCD
+         EKPO~BSTYP
+         EKPO~BWTAR
+         EKPO~ABMNG
+         EKPO~KTMNG
+         EKPO~MTART
+         EKPO~WEBRE
+         EKPO~ELIKZ
+         EKPO~WEPOS
+         EKPO~EREKZ
+         EKPO~REPOS
+         LFA1~NAME1
+         LFA1~NAME2
+         INTO CORRESPONDING FIELDS OF TABLE I_EKKO_EKPO
+         FROM EKKO
+         INNER JOIN EKPO ON EKKO~EBELN = EKPO~EBELN
+         INNER JOIN LFA1 ON EKKO~LIFNR = LFA1~LIFNR
+         WHERE EKKO~EBELN IN S_EBELN
+         AND   EKKO~BUKRS IN S_BUKRS
+         AND   EKKO~BSART IN S_BSART
+         AND   EKKO~LIFNR IN S_LIFNR
+         AND   EKKO~EKORG IN S_EKORG
+         AND   EKPO~MWSKZ IN S_MWSKZ .
+
+
+*Select the Condition Type Data for Above records with
+*additional restriction condition on tax class indicator
+  IF I_EKKO_EKPO IS NOT INITIAL .
+    SELECT KNUMV
+           KPOSN
+           ZAEHK
+           KSCHL
+           KAWRT
+           KWERT
+           FROM KONV
+           INTO TABLE I_KONV
+           FOR ALL ENTRIES IN I_EKKO_EKPO
+           WHERE KNUMV = I_EKKO_EKPO-KNUMV
+*           AND   KPOSN = I_EKKO_EKPO-EBELP
+*          AND   KVSL1 <> ' '  "Account key
+           AND   KOAID = 'D'   "Condition class - 'D' means TAX
+           AND   KSCHL = 'NAVS' .
+    SORT I_KONV BY KNUMV KPOSN .
+
+*SELECT the Version status,  Version Reason, Version.
+    SELECT EDOKN REVNO RSCOD TXZ01 REVOK
+      FROM EREV
+      INTO TABLE I_EREV
+      FOR ALL ENTRIES IN I_EKKO_EKPO
+      WHERE EDOKN = I_EKKO_EKPO-EBELN
+      AND   REVNO = I_EKKO_EKPO-REVNO .
+  ENDIF .
+
+*Calculate the Tax Rate and Tax Amount using FM 'CALCULATE_TAX_ITEM'
+  LOOP AT I_EKKO_EKPO INTO WA_EKKO_EKPO.
+    V_TABIX = SY-TABIX .
+    IF R_FM = 'X' .
+      CLEAR WA_TAXCOM.
+      WA_TAXCOM-BUKRS = WA_EKKO_EKPO-BUKRS.
+      WA_TAXCOM-BUDAT = WA_EKKO_EKPO-BEDAT.
+      WA_TAXCOM-WAERS = WA_EKKO_EKPO-WAERS.
+      WA_TAXCOM-KPOSN = WA_EKKO_EKPO-EBELP.
+      WA_TAXCOM-MWSKZ = WA_EKKO_EKPO-MWSKZ.
+      WA_TAXCOM-TXJCD = WA_EKKO_EKPO-TXJCD.
+      WA_TAXCOM-SHKZG = 'H'.
+      WA_TAXCOM-XMWST = 'X'.
+      IF WA_EKKO_EKPO-BSTYP EQ 'F'.
+        WA_TAXCOM-WRBTR = WA_EKKO_EKPO-NETWR.
+      ELSE.
+        WA_TAXCOM-WRBTR = WA_EKKO_EKPO-ZWERT.
+      ENDIF.
+      WA_TAXCOM-LIFNR = WA_EKKO_EKPO-LIFNR.
+      WA_TAXCOM-LAND1 = WA_EKKO_EKPO-LANDS.
+      WA_TAXCOM-EKORG = WA_EKKO_EKPO-EKORG.
+      WA_TAXCOM-HWAER = WA_EKKO_EKPO-WAERS.
+      WA_TAXCOM-LLIEF = WA_EKKO_EKPO-LLIEF.
+      WA_TAXCOM-BLDAT = WA_EKKO_EKPO-BEDAT.
+      WA_TAXCOM-MATNR = WA_EKKO_EKPO-MATNR.
+      WA_TAXCOM-WERKS = WA_EKKO_EKPO-WERKS.
+      WA_TAXCOM-BWTAR = WA_EKKO_EKPO-BWTAR.
+      WA_TAXCOM-MATKL = WA_EKKO_EKPO-MATKL.
+      WA_TAXCOM-MEINS = WA_EKKO_EKPO-MEINS.
+      IF WA_EKKO_EKPO-BSTYP EQ 'F'.
+        WA_TAXCOM-MGLME = WA_EKKO_EKPO-MENGE.
+      ELSE.
+        IF WA_EKKO_EKPO-BSTYP EQ 'K' AND WA_EKKO_EKPO-ABMNG GT 0.
+          WA_TAXCOM-MGLME = WA_EKKO_EKPO-ABMNG.
+        ELSE.
+          WA_TAXCOM-MGLME = WA_EKKO_EKPO-KTMNG.
+        ENDIF.
+      ENDIF.
+      IF WA_TAXCOM-MGLME EQ 0.
+        WA_TAXCOM-MGLME = 1000.
+      ENDIF.
+      WA_TAXCOM-MTART = WA_EKKO_EKPO-MTART.
+
+*CALCULATION OF TAX
+      CALL FUNCTION 'CALCULATE_TAX_ITEM'
+        EXPORTING
+*         ANZAHLUNG           = ' '
+          DIALOG              = ' '
+          DISPLAY_ONLY        = ' '
+*         INKLUSIVE           = ' '
+*         I_ANWTYP            = ' '
+*         I_DMBTR             = '0'
+*         I_MWSTS             = '0'
+          I_TAXCOM            = WA_TAXCOM
+*         PRUEFEN             = ' '
+*         RESET               = ' '
+        IMPORTING
+*         E_NAVFW             =
+          E_TAXCOM            = WA_TAXCOM2
+*         E_XSTVR             =
+*         NAV_ANTEIL          =
+        TABLES
+          T_XKOMV             = I_KOMV
+        EXCEPTIONS
+          MWSKZ_NOT_DEFINED   = 1
+          MWSKZ_NOT_FOUND     = 2
+          MWSKZ_NOT_VALID     = 3
+          STEUERBETRAG_FALSCH = 4
+          COUNTRY_NOT_FOUND   = 5
+          OTHERS              = 6.
+*    READ TABLE  I_KOMV INTO  WA_KOMV
+*                 WITH KEY   KPOSN  = WA_EKKO_EKPO-EBELP
+*                            KOAID  = 'D' . "D means TAX
+*
+*
+*    IF SY-SUBRC EQ 0.
+*      IF WA_EKKO_EKPO-KBETR <> 0 .
+*       WA_EKKO_EKPO-KBETR = WA_KOMV-KBETR / 10 .
+*      ENDIF.
+*      IF WA_EKKO_EKPO-KWERT <> 0 .
+*       WA_EKKO_EKPO-KWERT = WA_KOMV-KWERT .
+*      ENDIF .
+*      MODIFY I_EKKO_EKPO FROM WA_EKKO_EKPO INDEX V_TABIX TRANSPORTING KBETR KWERT .
+*    ENDIF.
+      LOOP AT I_KOMV INTO  WA_KOMV WHERE KPOSN  = WA_EKKO_EKPO-EBELP AND   KOAID  = 'D' AND KBETR <> 0 AND KWERT <> '0'. "D means TAX.
+        WA_EKKO_EKPO-KBETR = WA_KOMV-KBETR / 10 .
+        WA_EKKO_EKPO-KWERT = WA_KOMV-KWERT .
+        MODIFY I_EKKO_EKPO FROM WA_EKKO_EKPO INDEX V_TABIX TRANSPORTING KBETR KWERT .
+      ENDLOOP.
+      REFRESH I_KOMV.
+      CLEAR   WA_KOMV.
+    ELSE.
+**Calculate the Tax Amount and Tax Rate using KONV TABLE
+*CALCULATE TAX RATE
+      clear V_COUNT.
+      LOOP AT I_KONV INTO WA_KONV WHERE KNUMV = WA_EKKO_EKPO-KNUMV
+                                  AND   KPOSN = WA_EKKO_EKPO-EBELP
+                                  AND   KSCHL = 'NAVS' .
+        V_COUNT = V_COUNT + 1 .
+        IF WA_KONV-ZAEHK = 1 .  "If there are more than one records exist,  please always take the first one.
+          If WA_KONV-KWERT <> 0 and  WA_KONV-KAWRT  <> 0 .
+            WA_EKKO_EKPO-KBETR = ( WA_KONV-KWERT * 100 ) / WA_KONV-KAWRT .
+            WA_EKKO_EKPO-KWERT = WA_KONV-KWERT .
+          ELSEIF WA_KONV-KWERT = 0 and  WA_KONV-KAWRT  = 0 .
+            WA_EKKO_EKPO-KBETR = 100 .
+            WA_EKKO_EKPO-KWERT = WA_KONV-KWERT .
+          ELSEIF WA_KONV-KWERT = 0 and  WA_KONV-KAWRT <> 0 .
+            WA_EKKO_EKPO-KBETR = 0 .
+            WA_EKKO_EKPO-KWERT = WA_KONV-KWERT .
+          ELSEIF WA_KONV-KWERT <> 0 and  WA_KONV-KAWRT = 0 .
+            WA_EKKO_EKPO-KBETR = 999 .
+            WA_EKKO_EKPO-KWERT = 999 .
+          ENDIF .
+          WA_EKKO_EKPO-KSCHL = '1' .
+          MODIFY I_EKKO_EKPO FROM WA_EKKO_EKPO INDEX V_TABIX TRANSPORTING KWERT KBETR KSCHL.
+        ENDIF .
+        IF V_COUNT > 1 .
+          WA_EKKO_EKPO-KSCHL = 'X' .
+          MODIFY I_EKKO_EKPO FROM WA_EKKO_EKPO INDEX V_TABIX TRANSPORTING KSCHL.
+        ENDIF .
+      ENDLOOP .
+      IF SY-SUBRC <> 0 . "If No Rec found in Above LOOP
+        WA_EKKO_EKPO-KBETR = 999 .
+        WA_EKKO_EKPO-KWERT = 999 .
+        WA_EKKO_EKPO-KSCHL = '' .
+        MODIFY I_EKKO_EKPO FROM WA_EKKO_EKPO INDEX V_TABIX TRANSPORTING KWERT KBETR KSCHL.
+      ENDIF .
+    ENDIF .
+
+    IF wa_ekko_ekpo-loekz IS INITIAL. "If the Item in not deleted..then only calculate QTY and INVOICE
+*CALCULATE Qty to be delivered
+      CALL FUNCTION 'ME_READ_HISTORY'
+        EXPORTING
+          EBELN  = WA_EKKO_EKPO-EBELN
+          EBELP  = WA_EKKO_EKPO-EBELP
+          WEBRE  = WA_EKKO_EKPO-WEBRE
+        TABLES
+          XEKBES = I_EKBES.
+      READ TABLE I_EKBES INTO WA_EKBES INDEX 1 .
+      IF WA_EKKO_EKPO-pstyp NE cl_mmpur_constants=>pstyp_9.
+        WA_EKKO_EKPO-mglief =
+            WA_EKKO_EKPO-menge - abs( WA_ekbes-wemng + WA_ekbes-wesbs ).
+        IF WA_EKKO_EKPO-mglief < 0 OR
+           WA_EKKO_EKPO-elikz NE space OR
+           WA_EKKO_EKPO-wepos EQ space.
+          CLEAR: WA_EKKO_EKPO-mglief.
+        ENDIF.
+        MODIFY I_EKKO_EKPO FROM WA_EKKO_EKPO INDEX V_TABIX TRANSPORTING  MGLIEF .
+      ENDIF .
+
+*CALCULATE Qty to be invoiced
+      IF ( WA_EKKO_EKPO-erekz = 'X' ).
+        CLEAR: WA_EKKO_EKPO-mginv.
+      ELSEIF WA_EKKO_EKPO-wepos NE space AND
+           ( WA_EKKO_EKPO-elikz NE space OR
+             abs( WA_EKBES-wemng ) > WA_EKKO_EKPO-menge ).
+
+        WA_EKKO_EKPO-mginv = abs( WA_EKBES-wemng ) - abs( WA_EKBES-remng ).
+
+      ELSE.
+        WA_EKKO_EKPO-mginv = WA_EKKO_EKPO-menge - abs( WA_EKBES-remng ).
+
+      ENDIF.
+
+      IF WA_EKKO_EKPO-mginv  < 0 OR
+         WA_EKKO_EKPO-repos EQ space.
+        CLEAR: WA_EKKO_EKPO-mginv.
+      ENDIF.
+      MODIFY I_EKKO_EKPO FROM WA_EKKO_EKPO INDEX V_TABIX TRANSPORTING  MGINV .
+      REFRESH I_EKBES .
+      CLEAR  : WA_EKBES.
+    endif .
+
+
+*Read	Version status,  Version Reason, Version Text
+    CLEAR WA_EREV .
+    READ TABLE I_EREV INTO WA_EREV WITH KEY EDOKN = WA_EKKO_EKPO-EBELN
+                                            REVNO = WA_EKKO_EKPO-REVNO .
+    IF SY-SUBRC = 0 .
+      WA_EKKO_EKPO-REVOK = WA_EREV-REVOK .
+      WA_EKKO_EKPO-RSCOD = WA_EREV-RSCOD .
+      WA_EKKO_EKPO-RTXZ01 = WA_EREV-TXZ01 .
+      MODIFY I_EKKO_EKPO FROM WA_EKKO_EKPO INDEX V_TABIX TRANSPORTING REVOK RSCOD RTXZ01.
+    ENDIF .
+  ENDLOOP .
+  clear : wa_ekko_ekpo, v_tabix .
+  SORT I_EKKO_EKPO BY EBELN EBELP .
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM CREATE_FCAT .
+  PERFORM ADD_FIELD_INFO USING :  '1' 'EBELN' 'I_EKKO_EKPO' 'EKKO' 'EBELN' '' ,
+                                  '2' 'EKORG' 'I_EKKO_EKPO' 'EKKO' 'EKORG' '' ,
+                                  '3' 'BSART' 'I_EKKO_EKPO' 'EKKO' 'BSART' '' ,
+                                  '4' 'LIFNR' 'I_EKKO_EKPO' 'EKKO' 'LIFNR' '' ,
+                                  '5' 'NAME1' 'I_EKKO_EKPO' 'LFA1' 'NAME1' '' ,
+                                  '6' 'NAME2' 'I_EKKO_EKPO' 'LFA1' 'NAME2' '' ,
+                                  '7' 'WAERS' 'I_EKKO_EKPO' 'EKKO' 'WAERS' '' ,
+                                  '8' 'BUKRS' 'I_EKKO_EKPO' 'EKKO' 'BUKRS' '' ,
+                                  '9' 'BEDAT' 'I_EKKO_EKPO' 'EKKO' 'BEDAT' '' ,
+                                 '10' 'EKGRP' 'I_EKKO_EKPO' 'EKKO' 'EKGRP' '' ,
+                                 '11' 'EBELP' 'I_EKKO_EKPO' 'EKPO' 'EBELP' '' ,
+                                 '12' 'LOEKZ' 'I_EKKO_EKPO' 'EKPO' 'LOEKZ' '' ,
+                                 '13' 'PSTYP' 'I_EKKO_EKPO' 'EKPO' 'PSTYP' '' ,
+                                 '14' 'KNTTP' 'I_EKKO_EKPO' 'EKPO' 'KNTTP' '' ,
+                                 '15' 'MATNR' 'I_EKKO_EKPO' 'EKPO' 'MATNR' '' ,
+                                 '16' 'TXZ01' 'I_EKKO_EKPO' 'EKPO' 'TXZ01' '' ,
+                                 '17' 'WERKS' 'I_EKKO_EKPO' 'EKPO' 'WERKS' '' ,
+                                 '18' 'MATKL' 'I_EKKO_EKPO' 'EKPO' 'MATKL' '' ,
+                                 '19' 'MENGE' 'I_EKKO_EKPO' 'EKPO' 'MENGE' '' ,
+                                 '20' 'NETWR' 'I_EKKO_EKPO' 'EKPO' 'NETWR' '' ,
+                                 '21' 'MWSKZ' 'I_EKKO_EKPO' 'EKPO' 'MWSKZ' '' ,
+                                 '22' 'KBETR' 'I_EKKO_EKPO' 'KOMV' 'KBETR' '' ,
+                                 '23' 'KWERT' 'I_EKKO_EKPO' 'KOMV' 'KWERT' '' ,
+                                 '24' 'KSCHL' 'I_EKKO_EKPO' 'KOMV' 'KSCHL' '' ,
+                                 '25' 'MGLIEF' 'I_EKKO_EKPO' 'MEREP_OUTTAB_PURCHDOC' 'MGLIEF' '' ,
+                                 '26' 'MGINV'  'I_EKKO_EKPO' 'MEREP_OUTTAB_PURCHDOC' 'MGINV' '' ,
+                                 '27' 'REVNO'  'I_EKKO_EKPO' 'EKKO' 'REVNO' '' ,
+                                 '28' 'REVOK'  'I_EKKO_EKPO' 'EREV' 'REVOK' '' ,
+                                 '29' 'RSCOD'  'I_EKKO_EKPO' 'EREV' 'RSCOD' '' ,
+                                 '30' 'RTXZ01'  'I_EKKO_EKPO' 'EREV' 'TXZ01' '' .
+
+
+
+
+ENDFORM.                    " CREATE_FCAT
+*&---------------------------------------------------------------------*
+*&      Form  DISP_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM DISP_ALV .
+
+  WA_LAYOUT-COLWIDTH_OPTIMIZE = 'X' .
+  wa_variant-report = sy-repid.
+  wa_variant-username = sy-uname.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+   EXPORTING
+*   I_INTERFACE_CHECK                 = ' '
+*   I_BYPASSING_BUFFER                = ' '
+*   I_BUFFER_ACTIVE                   = ' '
+     I_CALLBACK_PROGRAM                = SY-REPID
+*   I_CALLBACK_PF_STATUS_SET          = ' '
+*   I_CALLBACK_USER_COMMAND           = ' '
+*   I_CALLBACK_TOP_OF_PAGE            = ' '
+*   I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*   I_CALLBACK_HTML_END_OF_LIST       = ' '
+*   I_STRUCTURE_NAME                  =
+*   I_BACKGROUND_ID                   = ' '
+*   I_GRID_TITLE                      =
+*   I_GRID_SETTINGS                   =
+   IS_LAYOUT                         = WA_LAYOUT
+   IT_FIELDCAT                       = I_FCAT
+*   IT_EXCLUDING                      =
+*   IT_SPECIAL_GROUPS                 =
+*   IT_SORT                           =
+*   IT_FILTER                         =
+*   IS_SEL_HIDE                       =
+*   I_DEFAULT                         = 'X'
+   I_SAVE                            = 'A'
+   IS_VARIANT                        = wa_variant
+*   IT_EVENTS                         =
+*   IT_EVENT_EXIT                     =
+*   IS_PRINT                          =
+*   IS_REPREP_ID                      =
+*   I_SCREEN_START_COLUMN             = 0
+*   I_SCREEN_START_LINE               = 0
+*   I_SCREEN_END_COLUMN               = 0
+*   I_SCREEN_END_LINE                 = 0
+*   I_HTML_HEIGHT_TOP                 = 0
+*   I_HTML_HEIGHT_END                 = 0
+*   IT_ALV_GRAPHICS                   =
+*   IT_HYPERLINK                      =
+*   IT_ADD_FIELDCAT                   =
+*   IT_EXCEPT_QINFO                   =
+*   IR_SALV_FULLSCREEN_ADAPTER        =
+* IMPORTING
+*   E_EXIT_CAUSED_BY_CALLER           =
+*   ES_EXIT_CAUSED_BY_USER            =
+    TABLES
+      T_OUTTAB                          = I_EKKO_EKPO
+* EXCEPTIONS
+*   PROGRAM_ERROR                     = 1
+*   OTHERS                            = 2
+            .
+  IF SY-SUBRC <> 0.
+* Implement suitable error handling here
+  ENDIF.
+ENDFORM.                    " DISP_ALV
+*&---------------------------------------------------------------------*
+*&      Form  ADD_FIELD_INFO
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0588   text
+*      -->P_0589   text
+*      -->P_0590   text
+*      -->P_0591   text
+*      -->P_0592   text
+*      -->P_0593   text
+*----------------------------------------------------------------------*
+FORM ADD_FIELD_INFO  USING F_POS F_FIELDNAME F_TABNAME F_REF_TABNAME F_REF_FIELDNAME F_TEXT .
+  WA_FCAT-COL_POS       = F_POS .
+  WA_FCAT-FIELDNAME     = F_FIELDNAME .
+  WA_FCAT-TABNAME       = F_TABNAME .
+  WA_FCAT-REF_TABNAME   = F_REF_TABNAME .
+  WA_FCAT-REF_FIELDNAME = F_REF_FIELDNAME .
+  WA_FCAT-SELTEXT_M     = F_TEXT.
+  APPEND WA_FCAT TO I_FCAT .
+  CLEAR WA_FCAT .
+ENDFORM.                    " ADD_FIELD_INFO
+*&---------------------------------------------------------------------*
+*&      Form  FORMAT_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM FORMAT_DATA .
+*If this Checkbox is checked, then if all items of one PO has zero Qty to be delivered and Zero Qtye to be invoiced.
+*Then we don’t’ display the PO in result.
+  SORT I_EKKO_EKPO BY EBELN EBELP .
+  LOOP AT  I_EKKO_EKPO INTO WA_EKKO_EKPO.
+    AT END OF EBELN.
+      SUM.
+      IF WA_EKKO_EKPO-MGLIEF = 0 AND WA_EKKO_EKPO-MGINV = 0 .
+        DELETE I_EKKO_EKPO  WHERE EBELN = WA_EKKO_EKPO-EBELN .
+      ENDIF .
+    ENDAT .
+  ENDLOOP.
+ENDFORM.                    " FORMAT_DATA
+

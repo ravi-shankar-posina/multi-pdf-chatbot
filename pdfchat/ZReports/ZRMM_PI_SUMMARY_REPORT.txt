@@ -1,0 +1,89 @@
+*&---------------------------------------------------------------------*
+*& Report ZRMM_PI_SUMMARY_REPORT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name             : ZRMM_PI_SUMMARY_REPORT
+* Created by       : Anil Kumar
+* Transport Request: DE3K9A0M72
+* RICEF Object No  : RICEF2684
+* Description      : PI Summary report and Phantom explosion programs.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*========================================================================================
+*** Change History                                                                  ***
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*****************************************************************************************
+*  DATE      |  TR NO.    |  CR No.    | Changed by  |  DESCRIPTION OF CHANG
+*****************************************************************************************
+*09/21/2023  | DE3K9A0MYF | SCM-2684   | USANBOD11   | PI - Summary / Detail changes
+*****************************************************************************************
+*****************************************************************************************
+*10/09/2023  | DE3K9A0N91 | SCM-2684   | USANBOD11   | PI - Summary / Detail changes
+****************************************************************************************
+*09/05/2024  | DE3K9A0QXS | SCM-2684   | USANBOD11   | card lock-Get from PICT_1 table
+******************************************************************************************
+*****************************************************************************************
+* CHANGED BY  | DATE        | TR #       |CR No(INCUM | DESCRIPTION OF CHANG
+*****************************************************************************************
+* CHTAMUR     | 09/09/2024  | DE3K9A0T02 | CHG2078268 | PI tool issue fixes and improvements   *
+*----------------------------------------------------------------------*
+* CHTAMUR    | 08/Nov/2024 | DE3K9A0U0J | 87274 | PICT Minor issue fixes
+*----------------------------------------------------------------------*
+
+REPORT zrmm_pi_summary_report.
+
+TABLES: ztmm_pict ,ztmm_pict_1, ztmm_picc_log, ztmm_pi_date. " DE3K9A0QXS        USANBOD11
+
+SELECT-OPTIONS: "s_piyear FOR ztmm_picc_log-piyear OBLIGATORY ,    " --- DE3K9A0T02 -> CHTAMUR
+                s_werks FOR ztmm_picc_log-werks OBLIGATORY,
+                s_piyear FOR ztmm_picc_log-piyear OBLIGATORY ,     " +++ DE3K9A0T02 -> CHTAMUR
+                s_ver FOR ztmm_picc_log-version OBLIGATORY.
+
+INCLUDE zrmm_pi_summary_report_top.
+INCLUDE zrmm_pi_summary_report_builf01.
+
+INITIALIZATION .
+  ""imported from Z_M_PHYSICAL_INVENTORY_F01 (Tcode-zmm109) line no-63
+  sy-subrc  = sy-subrc .
+  DATA : lv_year TYPE gjahr,
+         lv_werk TYPE werks_d,
+         lv_vers TYPE zde_version.
+  IMPORT lv_year FROM  MEMORY ID 'YEAR'.
+  IF sy-subrc  = 0.
+    s_piyear-option = 'EQ' .
+    s_piyear-sign = 'I' .
+    s_piyear-low =  lv_year.
+    APPEND s_piyear .
+  ENDIF.
+  IMPORT lv_werk FROM  MEMORY ID 'WERK'.
+  IF sy-subrc  = 0.
+    s_werks-option = 'EQ' .
+    s_werks-sign = 'I' .
+    s_werks-low =  lv_werk.
+    APPEND s_werks .
+  ENDIF.
+  IMPORT lv_vers FROM  MEMORY ID 'VERS'.
+  IF sy-subrc  = 0.
+    s_ver-option = 'EQ' .
+    s_ver-sign = 'I' .
+    s_ver-low =  lv_vers.
+    APPEND s_ver .
+  ENDIF.
+  FREE MEMORY ID 'YEAR'.
+  FREE MEMORY ID 'WERK'.
+  FREE MEMORY ID 'VERS'.
+* Validate Plant
+AT SELECTION-SCREEN ON s_werks. " DE3K9A0MYF       USANBOD11
+  PERFORM f_validate_werks.     " DE3K9A0MYF       USANBOD11
+
+START-OF-SELECTION .
+  PERFORM get_data .
+  PERFORM process_data.
+
+END-OF-SELECTION.
+  PERFORM build_fcat.
+  PERFORM display_alv.
+

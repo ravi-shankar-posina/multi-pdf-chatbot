@@ -1,0 +1,202 @@
+
+*&---------------------------------------------------------------------*
+*&  Include           ZNCC_SEND_EMAIL
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  f4000_SEND_MAIL
+*&---------------------------------------------------------------------*
+* Form used to format Error Records and send mail
+*----------------------------------------------------------------------*
+FORM f4000_send_mail TABLES it_attach STRUCTURE wa_attach
+                     USING  p_desc.
+
+
+  DATA: l_seq(10),
+        l_format TYPE  so_obj_tp VALUE 'XLS',
+        l_attdescription TYPE  so_obj_nam,
+        l_attfilename TYPE  so_obj_des VALUE 'filename',
+        l_sender_address LIKE  soextreci1-receiver,
+        l_sender_address_type LIKE  soextreci1-adr_typ,
+        l_firstname like adrp-name_first,
+        l_lastname like adrp-name_last,
+        l_name(75).
+
+  REFRESH it_message.
+
+  l_attdescription      = space.
+  l_sender_address      = space.
+  l_sender_address_type = space.
+
+  select single b~name_first
+         b~name_last
+    into (l_firstname, l_lastname)
+    from usr21 as a inner join adrp as b
+    on a~persnumber = b~persnumber
+
+    where a~bname = sy-uname.
+
+  CLEAR wa_message.
+  wa_message-line = text-017.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+
+  wa_message-line = space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = text-018.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  CONCATENATE text-002 g_tot_cnt INTO wa_message-line
+                                 SEPARATED BY space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  CONCATENATE text-003 g_succ_cnt INTO wa_message-line
+                                 SEPARATED BY space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  CONCATENATE text-004 g_err_cnt INTO wa_message-line
+                                 SEPARATED BY space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = text-019.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = text-020.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = text-021.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = space.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = text-022.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+  wa_message-line = text-023.
+  APPEND wa_message TO it_message.
+  CLEAR wa_message.
+
+* Fill the document data.
+  g_doc_data-doc_size = 1.
+
+* Fill the document data and get size of attachment
+  CLEAR g_doc_data.
+  READ TABLE it_attach INTO wa_attach INDEX g_cnt.
+  g_doc_data-doc_size =
+     ( g_cnt - 1 ) * 255 + STRLEN( wa_attach ).
+  g_doc_data-obj_langu  = sy-langu.
+  g_doc_data-obj_name   = c_obj_name.
+  g_doc_data-obj_descr  = p_desc.
+  g_doc_data-sensitivty = c_sensitivty.
+
+  REFRESH it_attachment.
+  it_attachment[] = it_attach[].
+
+* Describe the body of the message
+  CLEAR wa_packing_list.
+  REFRESH it_packing_list.
+  wa_packing_list-transf_bin = space.
+  wa_packing_list-head_start = 1.
+  wa_packing_list-head_num = 0.
+  wa_packing_list-body_start = 1.
+  DESCRIBE TABLE it_message LINES wa_packing_list-body_num.
+  wa_packing_list-doc_type = c_doc_type.
+  APPEND wa_packing_list TO it_packing_list.
+  CLEAR wa_packing_list.
+* Create attachment notification
+  wa_packing_list-transf_bin = c_x.
+  wa_packing_list-head_start = 1.
+  wa_packing_list-head_num   = 1.
+  wa_packing_list-body_start = 1.
+
+  DESCRIBE TABLE it_attachment LINES wa_packing_list-body_num.
+  wa_packing_list-doc_type   =  l_format.
+  wa_packing_list-obj_descr  =  l_attdescription.
+  wa_packing_list-obj_name   =  text-024.
+  wa_packing_list-doc_size   =  wa_packing_list-body_num * 255.
+  APPEND wa_packing_list TO it_packing_list.
+
+* Add the recipients email address
+  CLEAR wa_receivers.
+  REFRESH it_receivers.
+  LOOP AT s_email.
+    wa_receivers-receiver = s_email-low.
+    wa_receivers-rec_type = c_rec_type.
+    wa_receivers-com_type = c_com_type.
+    wa_receivers-notif_del = c_x.
+    wa_receivers-notif_ndel = c_x.
+    APPEND wa_receivers TO it_receivers.
+    CLEAR wa_receivers.
+  ENDLOOP.
+
+  CALL FUNCTION 'SO_DOCUMENT_SEND_API1'
+    EXPORTING
+      document_data              = g_doc_data
+      put_in_outbox              = c_x
+      sender_address             = l_sender_address
+      sender_address_type        = l_sender_address_type
+      commit_work                = c_x
+    IMPORTING
+      sent_to_all                = g_sent_all
+    TABLES
+      packing_list               = it_packing_list
+      contents_bin               = it_attachment
+      contents_txt               = it_message
+      receivers                  = it_receivers
+    EXCEPTIONS
+      too_many_receivers         = 1
+      document_not_sent          = 2
+      document_type_not_exist    = 3
+      operation_no_authorization = 4
+      parameter_error            = 5
+      x_error                    = 6
+      enqueue_error              = 7
+      OTHERS                     = 8.
+  IF sy-subrc = 0.
+    WRITE:/ sy-uline.
+    WRITE:/10 text-011 COLOR 1.
+    SKIP.
+    WRITE:/30 text-009.
+  ELSE.
+    WRITE:/ sy-uline.
+    WRITE:/10 text-011 COLOR 1.
+    SKIP.
+    CASE sy-subrc.
+      WHEN '1'.
+        WRITE:/30 text-e01.
+      WHEN '2'.
+        WRITE:/30 text-e02.
+      WHEN '3'.
+        WRITE:/30 text-e03.
+      WHEN '4'.
+        WRITE:/30 text-e04.
+      WHEN '5'.
+        WRITE:/30 text-e05.
+      WHEN '6'.
+        WRITE:/30 text-e05.
+      WHEN '7'.
+        WRITE:/30 text-e06.
+      WHEN '8'.
+        WRITE:/30 text-d02.
+    ENDCASE.
+  ENDIF.
+  WRITE:/ sy-uline.
+
+ENDFORM.                    " F4000_SEND_MAIL
+

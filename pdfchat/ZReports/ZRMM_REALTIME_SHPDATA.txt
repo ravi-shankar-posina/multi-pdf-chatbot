@@ -1,0 +1,95 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_REALTIME_SHPDATA
+***------------------------------------------------------------------***
+*** Created by            : Sumit Srivastava
+*** Creation Date         : 05/18/2015
+*** Transport Request #   : DE3K961305
+*** RICEF Object No #     : 1498
+*** TCODE           #     : ZMM1498
+*** Description           : This program reports-out the real-time shipping data
+***                         The report will provide deliveries and Production order details
+***                         with multiple timestamps like pick,pack, pgi, comfirmation etc based on
+***                         selection input of plant, date and other fields
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+********************************************************************************
+* DATE              |CR            |TR No.     |CHANGED BY |DESCRIPTION OF CHANGE
+********************************************************************************
+* 18-MAY-2015       | CHG1221724   | DE3K961305 | Sumit      |Object Creation
+********************************************************************************
+* 05-JUN-2015       | CHG1221724   | DE3K962786 | Sumit      |Selection Screen changes
+********************************************************************************
+* 15-JUN-2015       | CHG1221724   | DE3K963420 | Sumit      |Logic changes for Data Fetch
+********************************************************************************
+* 18-JUN-2015       | CHG1221724   | DE3K963663 | Sumit      |Variable correction
+********************************************************************************
+* 22-JUN-2015       | CHG1221724   | DE3K963744 | Sumit      | Separater value change
+***************************************************************************************************************************************************
+* 16-JUL-2015       | CHG1350046   | DE3K964445 | Satish.P   |  corrections made for Dispalying correct Product orders  in the out put of the report
+*****************************************************************************************************************************************************
+* 28-JUL-2015       | CHG1407193   | DE3K964959 | Satish.P   |  Adding few fields in selection screen
+*****************************************************************************************************************************************************
+* 02-Sep-2015       | CHG1427209   | DE3K965854 | Vijay N    |  Adding RDD fields in output and changed logic for GID of RDD field
+*****************************************************************************************************************************************************
+* 08-Sep-2015       | CHG1440132   | DE3K966010 | Vijay N    |  Changes added for RDD (Selection-Screen) and
+*                                                               Added logic for pulling multiple delivers with multiple line items
+*****************************************************************************************************************************************************
+* 20-Oct-2015       | CHG1507718   | DE3K966627 | Vijay N    |  Added FTP Server logic to store file in FTP server
+*****************************************************************************************************************************************************
+* 12-Apr-2017       | CHG2532220   | DE3K974944 | 502683007  |  Changed FTP Server details to SFTP server details
+*****************************************************************************************************************************************************
+* 28-May-2019       | GECHG0492040 | DE3K992155 | 502431892  |  Changes for GERITM2887400:Modify LPSFC PGI report
+*****************************************************************************************************************************************************
+* 20-Aug-2019       |  GECHG0572145| DE3K993221 | 502225516  |  Changes for  GECHG0572145 :Modify LPSFC PGI report
+*****************************************************************************************************************************************************
+REPORT  zrmm_realtime_shpdata
+        MESSAGE-ID zmm
+        LINE-SIZE 225
+        NO STANDARD PAGE HEADING.
+
+INCLUDE znmm_realtime_shpdata_top.
+
+INCLUDE znmm_realtime_shpdata_sscr.
+
+INCLUDE znmm_realtime_shpdata_form.
+*Begin of changes done by Vijay Kumar N CHG1507718  DE3K966627  06/10/2015
+INITIALIZATION.
+***Start of changes on 12-Apr-2017   for CHG2532220 DE3K974944
+*  p_host = text-b27.
+*  p_user = text-b28.
+*  p_pass = text-b29.
+*  p_ftpf = text-b34.
+***end of changes  on 12-Apr-2017   for CHG2532220 DE3K974944
+  AT SELECTION-SCREEN OUTPUT.
+  LOOP AT SCREEN.
+    IF screen-name = 'P_PASS'.
+      screen-invisible = '1'.
+      MODIFY SCREEN.
+    ENDIF.
+  ENDLOOP.
+*End of changes done by Vijay Kumar N CHG1507718 DE3K966627  06/10/2015
+START-OF-SELECTION.
+*select required data from standard table
+  PERFORM select_data.
+
+END-OF-SELECTION.
+*prepare a final internal table
+  PERFORM prepare_final_data.
+
+  IF gt_final_ds IS NOT INITIAL
+    AND p_mod1 IS NOT INITIAL.
+**Build the catalogue structure
+    PERFORM build_fieldcatalog.
+*Call Alv grid to display
+    PERFORM display_output .
+*Begin of changes done by Vijay Kumar N CHG1507718 DE3K966627  06/10/2015
+  ELSEIF p_mod4 IS NOT INITIAL.
+*Download to Local PC
+*    PERFORM ftp_server. "commented on  12-Apr-2017   for CHG2532220 DE3K974944
+    PERFORM send_data_proxy."Added on  12-Apr-2017   for CHG2532220 DE3K974944
+*End of changes done by Vijay Kumar N CHG1507718 DE3K966627  06/10/2015
+  ELSE.
+    MESSAGE I090(ZMM) WITH 'NO DATA FOR REQUIRED SELECTION'.
+  ENDIF.
+

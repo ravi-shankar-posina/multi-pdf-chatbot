@@ -1,0 +1,772 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_IDOC_STATUS_FORMS
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  FETCH_RECORDS
+*&---------------------------------------------------------------------*
+************************************************************************
+* DATE       |  TR No    |  CHANGED BY  | DESCRIPTION OF change
+************************************************************************
+* 09/05/2022    DE3K9A0CZH    USDEJAI     EHP8 Defect - LCHR issue
+************************************************************************
+FORM fetch_records.
+  RANGES: lr_bwart FOR ekbe-bwart.
+  DATA : gw_cnt   TYPE i,
+         ls_final TYPE ty_final,
+         lw_idx   TYPE sy-tabix,
+         lw_menge TYPE menge_d. "  QUAN  13  3 Quantity,
+  DATA: lt_ekbe  TYPE STANDARD TABLE OF ty_ekbe,
+        lt_ekbe1 TYPE STANDARD TABLE OF ty_ekbe,
+        ls_ekbe  TYPE ty_ekbe,
+        ls_ekbe1 TYPE ty_ekbe.
+****Begin of Changes by 503162060 on Dated 29/07/2021  TR: DE3K9A08Y6..
+  RANGES: lr_segnam FOR edid4-segnam.
+****End of Changes by 503162060 on Dated 29/07/2021  TR: DE3K9A08Y6..
+
+  CLEAR: lw_idx,gw_cnt,lw_menge,lt_ekbe,lt_ekbe1,ls_ekbe,ls_ekbe1,
+         ls_final.
+  SELECT
+       docnum "type EDI_DOCNUM,  "NUMC 16  0 IDoc number
+       status "type EDI_STATUS,  "CHAR 2 0 Status of IDoc
+       direct ":type EDI_DIRECT,  "CHAR 1 0 Direction for IDoc
+       mestyp "type EDI_MESTYP,  "CHAR 30  0 Message Type
+       credat
+  FROM edidc
+  INTO TABLE gt_edidc
+WHERE
+         status IN s_status
+     AND direct IN s_direct
+     AND mestyp IN s_mestyp
+     AND docnum IN s_docnum
+     AND credat IN s_credat.
+  IF sy-subrc = 0.
+    SELECT
+           docnum
+           credat
+           cretim
+           status
+           statxt
+           segnum
+           segfld
+           stamid
+           stamno
+      FROM edids
+      INTO TABLE gt_edids
+      FOR ALL ENTRIES IN gt_edidc
+     WHERE docnum EQ gt_edidc-docnum
+       AND status EQ gt_edidc-status
+       AND credat EQ gt_edidc-credat
+       AND stamno IN s_stamno.
+    IF sy-subrc = 0.
+****Begin of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08Y6.
+      lr_segnam-sign = 'I'.
+      lr_segnam-option = 'EQ'.
+      lr_segnam-low = 'E1EDL41'.
+      APPEND lr_segnam.
+      lr_segnam-sign = 'I'.
+      lr_segnam-option = 'EQ'.
+      lr_segnam-low = 'E1EDL24'.
+      APPEND lr_segnam.
+      lr_segnam-sign = 'I'.
+      lr_segnam-option = 'EQ'.
+      lr_segnam-low = 'E1EDL20'.
+      APPEND lr_segnam.
+      lr_segnam-sign = 'I'.
+      lr_segnam-option = 'EQ'.
+      lr_segnam-low = 'E1EDT13'.
+      APPEND lr_segnam.
+      lr_segnam-sign = 'I'.
+      lr_segnam-option = 'EQ'.
+      lr_segnam-low = 'E1EDP02'.
+      APPEND lr_segnam.
+      lr_segnam-sign = 'I'.
+      lr_segnam-option = 'EQ'.
+      lr_segnam-low = 'E1EDP01'.
+      APPEND lr_segnam.
+      lr_segnam-sign = 'I'.
+      lr_segnam-option = 'EQ'.
+      lr_segnam-low = 'E1EDP20'.
+      APPEND lr_segnam.
+      lr_segnam-sign = 'I'.
+      lr_segnam-option = 'EQ'.
+      lr_segnam-low = 'E1EDT13'.
+      APPEND lr_segnam.
+****End of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08Y6.
+****Begin of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+      lr_segnam-sign = 'I'.
+      lr_segnam-option = 'EQ'.
+      lr_segnam-low = 'E1EDK01'.
+      APPEND lr_segnam.
+****End of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+
+      SELECT
+             docnum
+             counter
+             segnam
+             dtint2 " USDEJAI for  DE3K9A0CZH
+             sdata
+        FROM edid4
+        INTO TABLE gt_edid4
+        FOR ALL ENTRIES IN gt_edids
+        WHERE docnum EQ gt_edids-docnum
+**changed beging by badar on 16th april 2021 *DE3K9A067U
+*        ORDER BY PRIMARY KEY.
+**changed beging by badar on 16th april 2021 *DE3K9A067U
+****Begin of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08Y6.
+        AND   segnam IN lr_segnam.
+****End of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08Y6.
+
+      IF sy-subrc = 0.
+***Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+        CASE s_stamno-low.
+          WHEN '190'.
+            CLEAR gw_190.
+***End of Changes by 503162060 on Dated 03/06/2021 TR: DE3K9A07O5
+            DELETE gt_edid4
+             WHERE segnam NE 'E1EDL41'
+               AND segnam NE 'E1EDL24'
+               AND segnam NE 'E1EDL20'
+               AND segnam NE 'E1EDT13'.
+****Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+            gw_190 = 'X'.
+          WHEN '794'.
+            CLEAR gw_794.
+            CLEAR gw_794.
+            DELETE gt_edid4 WHERE  segnam NE 'E1EDP02'
+                        AND segnam NE 'E1EDP01'
+                        AND segnam NE 'E1EDP20'
+                        AND segnam NE 'E1EDT13'
+****Begin of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+                        AND segnam NE 'E1EDK01'.
+****End of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+
+            gw_794 = 'X'.
+          WHEN OTHERS.
+        ENDCASE.
+****End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+      ELSE.
+        MESSAGE e090(zmm) WITH 'No Data found for given intputs'(026) TEXT-026.
+      ENDIF.
+    ELSE.
+      MESSAGE e090(zmm) WITH 'No Data found for given intputs'(026) TEXT-026.
+    ENDIF.
+    IF gw_794 = 'X'.
+      PERFORM gw_794.
+    ENDIF.
+    IF gw_190 = 'X'.
+      LOOP AT gt_edid4 INTO gs_edid4.
+        CLEAR gw_cnt.
+        DESCRIBE TABLE gt_final LINES gw_cnt.
+        CLEAR gs_final.
+        READ TABLE gt_final INTO gs_final
+                        WITH KEY docnum = gs_edid4-docnum.
+        IF sy-subrc = 0.
+          lw_idx   = sy-tabix.
+          CASE gs_edid4-segnam.
+            WHEN 'E1EDL20'.
+              gs_e1edl20 = gs_edid4-sdata.
+              APPEND gs_e1edl20 TO gt_e1edl20.
+              gs_final-lifex      = gs_e1edl20-lifex.
+              MODIFY gt_final FROM gs_final
+                             INDEX lw_idx
+                       TRANSPORTING lifex.
+            WHEN 'E1EDT13'.
+              gs_e1edt13 = gs_edid4-sdata.
+              APPEND gs_e1edt13 TO gt_e1edt13.
+              gs_final-ntanf      = gs_e1edt13-ntanf.
+              MODIFY gt_final FROM gs_final
+                             INDEX lw_idx
+                      TRANSPORTING ntanf.
+            WHEN 'E1EDL24'.
+              gs_e1edl24 = gs_edid4-sdata.
+              IF gs_final-segnam = gs_edid4-segnam.
+                APPEND gs_e1edl24 TO gt_e1edl24.
+                gs_final-lfimg      = gs_e1edl24-lfimg.
+                gs_final-meins      = gs_e1edl24-meins.
+                gs_final-bstnr      = ' '.
+                gs_final-posex      = ' '.
+                gs_final-segnam = gs_edid4-segnam.
+                APPEND gs_final TO gt_final.
+              ELSE.
+                APPEND gs_e1edl24 TO gt_e1edl24.
+                gs_final-segnam = gs_edid4-segnam.
+                gs_final-lfimg      = gs_e1edl24-lfimg.
+                gs_final-meins      = gs_e1edl24-meins.
+                MODIFY gt_final FROM gs_final
+                               INDEX lw_idx
+                        TRANSPORTING segnam lfimg meins.
+              ENDIF.
+            WHEN 'E1EDL41'.
+              gs_e1edl41 = gs_edid4-sdata.
+              APPEND gs_e1edl41 TO gt_e1edl41.
+              CLEAR ls_final.
+              READ TABLE gt_final INTO gs_final INDEX gw_cnt.
+              IF gs_final-posex IS NOT INITIAL.
+                "           do nothing
+              ELSE.
+                gs_final-bstnr     = gs_e1edl41-bstnr.
+                gs_final-posex     = gs_e1edl41-posex.
+                MODIFY gt_final INDEX  gw_cnt
+                                 FROM gs_final
+                        TRANSPORTING bstnr posex.
+              ENDIF.
+          ENDCASE.
+        ELSE.
+          gs_final-docnum       = gs_edid4-docnum.
+          gs_final-segnam       = gs_edid4-segnam.
+          gs_final-categ        = 'LA'.
+          CLEAR gs_edids.
+          READ TABLE gt_edids
+                INTO gs_edids
+             WITH KEY docnum = gs_edid4-docnum.
+          IF sy-subrc = 0.
+            gs_final-credat     = gs_edids-credat.
+            gs_final-statxt     = gs_edids-statxt.
+          ENDIF.
+          CASE gs_edid4-segnam.
+            WHEN 'E1EDL20'.
+              gs_e1edl20 = gs_edid4-sdata.
+              APPEND gs_e1edl20 TO gt_e1edl20.
+              gs_final-lifex    = gs_e1edl20-lifex.
+              APPEND gs_final   TO gt_final.
+            WHEN 'E1EDT13'.
+              gs_e1edt13 = gs_edid4-sdata.
+              APPEND gs_e1edt13 TO gt_e1edt13.
+              gs_final-ntanf    = gs_e1edt13-ntanf.
+              APPEND gs_final   TO gt_final.
+            WHEN 'E1EDL24'.
+              gs_e1edl24 = gs_edid4-sdata.
+              APPEND gs_e1edl24 TO gt_e1edl24.
+              gs_final-lfimg    = gs_e1edl24-lfimg.
+              gs_final-meins    = gs_e1edl24-meins.
+              APPEND gs_final   TO gt_final.
+            WHEN 'E1EDL41'.
+              gs_e1edl41 = gs_edid4-sdata.
+              APPEND gs_e1edl41 TO gt_e1edl41.
+              gs_final-bstnr    = gs_e1edl41-bstnr.
+              gs_final-posex    = gs_e1edl41-posex.
+              APPEND gs_final   TO gt_final.
+          ENDCASE.
+        ENDIF.
+        CLEAR:gs_edids,
+              gs_edid4,
+              gs_final,
+              gs_e1edl20,
+              gs_e1edt13.
+      ENDLOOP.
+      IF gt_e1edl41[] IS NOT INITIAL.
+        SELECT
+              ebeln
+              ernam
+              lifnr
+              ekorg
+              ekgrp
+              bedat
+         FROM ekko
+   INTO TABLE gt_ekko
+  FOR ALL ENTRIES IN gt_e1edl41
+       WHERE ebeln = gt_e1edl41-bstnr+0(10).
+      ENDIF.
+
+    ENDIF.
+    IF gt_ekko[] IS NOT INITIAL.
+      SELECT
+             ekgrp
+             eknam
+             smtp_addr
+        FROM t024
+  INTO TABLE gt_t024
+FOR ALL ENTRIES IN gt_ekko
+       WHERE ekgrp EQ gt_ekko-ekgrp.
+      IF sy-subrc = 0.
+*          " DO NOTHING
+      ENDIF.
+      SELECT
+             ebeln
+             ebelp
+             matnr
+             werks
+             infnr
+             menge
+             meins
+             bstae
+        FROM ekpo
+  INTO TABLE gt_ekpo
+FOR ALL ENTRIES IN gt_ekko
+       WHERE ebeln = gt_ekko-ebeln.
+      IF gt_ekpo[] IS NOT INITIAL.
+**** Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5.
+        SELECT
+           matnr
+           werks
+           bstmi
+           bstrf
+         FROM marc
+         INTO TABLE gt_marc
+         FOR ALL ENTRIES IN gt_ekpo
+         WHERE matnr = gt_ekpo-matnr
+           AND werks = gt_ekpo-werks.
+****End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+        SELECT
+              infnr
+**** Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+              werks
+              minbm
+****End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+              bstae
+          FROM eine
+         INTO TABLE gt_eine
+        FOR ALL ENTRIES IN gt_ekpo
+         WHERE infnr EQ gt_ekpo-infnr
+****Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+           AND werks = gt_ekpo-werks..
+****End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+        IF sy-subrc = 0.
+*          " DO NOTHING
+        ENDIF.
+      ENDIF.
+      IF gt_ekpo[] IS NOT INITIAL.
+        lr_bwart-sign = 'I'.
+        lr_bwart-option = 'EQ'.
+        lr_bwart-low = '101'.
+        APPEND lr_bwart.
+        lr_bwart-sign = 'I'.
+        lr_bwart-option = 'EQ'.
+        lr_bwart-low = '102'.
+        APPEND lr_bwart.
+        SELECT ebeln
+               ebelp
+               bwart
+               menge
+               dmbtr
+               wrbtr
+               FROM ekbe
+               INTO TABLE gt_ekbe
+               FOR ALL ENTRIES IN gt_ekpo
+               WHERE ebeln = gt_ekpo-ebeln
+               AND   ebelp = gt_ekpo-ebelp
+               AND   bwart IN lr_bwart.
+        IF sy-subrc = 0.
+          lt_ekbe[] = gt_ekbe[].
+          DELETE lt_ekbe WHERE bwart = '101'.
+          SORT lt_ekbe BY ebeln ebelp.
+          LOOP AT lt_ekbe INTO ls_ekbe.
+            CLEAR: ls_ekbe1.
+            lw_menge = lw_menge + ls_ekbe-menge.
+            ls_ekbe1 = ls_ekbe.
+            AT END OF ebelp.
+              ls_ekbe1-menge = lw_menge.
+              APPEND ls_ekbe1 TO lt_ekbe1.
+              CLEAR: lw_menge.
+            ENDAT.
+          ENDLOOP.
+
+          lt_ekbe[] = gt_ekbe[].
+          DELETE lt_ekbe WHERE bwart = '102'.
+          SORT lt_ekbe BY ebeln ebelp.
+          LOOP AT lt_ekbe INTO ls_ekbe.
+            CLEAR: ls_ekbe1.
+            lw_menge = lw_menge + ls_ekbe-menge.
+            ls_ekbe1 = ls_ekbe.
+            AT END OF ebelp.
+              ls_ekbe1-menge = lw_menge.
+              APPEND ls_ekbe1 TO lt_ekbe1.
+              CLEAR: lw_menge.
+            ENDAT.
+          ENDLOOP.
+          gt_ekbe[] = lt_ekbe1[].
+        ENDIF.
+      ENDIF.
+    ELSE.
+      MESSAGE e090(zmm) WITH 'No Data found for given intputs'(026) TEXT-026.
+    ENDIF.
+  ELSE.
+    MESSAGE e090(zmm) WITH 'No Data found for given intputs'(026) TEXT-026.
+  ENDIF.
+ENDFORM.                    " FETCH_RECORDS
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCATALOG
+*&---------------------------------------------------------------------*
+FORM fieldcatalog .
+  PERFORM fieldcat USING:
+                   gc_docnum      'IDOC No.'(002)                 TEXT-002,
+                   gc_credat      'IDOC Creation Date'(003)       TEXT-003,
+                   gc_statxt      'IDOC Error Message'(024)       TEXT-024,
+                   gc_bstnr       'PO Number'(017)                TEXT-017,
+                   gc_posex       'PO Line Item Number'(018)      TEXT-018,
+                   gc_bedat       'PO Creation Date'(020)         TEXT-020,
+                   gc_ernam	      'PO Created By ID'(023)         TEXT-023,
+                   gc_ekgrp       'PO Purchasing Group'(007)      TEXT-007,
+                   gc_werks       'PO Plant Code'(009)            TEXT-009,
+                   gc_lifnr       'PO Vendor Number'(006)         TEXT-006,
+                   gc_matnr       'PO Item Material Number'(008)  TEXT-008,
+                   gc_meins_po    'PO Item UOM'(021)              TEXT-021,
+                   gc_menge       'PO Item Qty.'(011)             TEXT-011,
+                   gc_bstae_po    'PO Item Conf. Ctrl Key'(022)   TEXT-022,
+                   gc_infnr       'PIR Number'(010)               TEXT-010,
+                   gc_bstae       'PIR Conf. Ctrl Key'(013)       TEXT-013,
+                   gc_categ       'IDOC Conf. Category'(025)      TEXT-025,
+                   gc_ntanf       'IDOC Delivery Date'(019)       TEXT-019,
+                   gc_lfimg       'IDOC Delivery Qty.'(015)       TEXT-015,
+                   gc_meins       'IDOC UOM'(016)                 TEXT-016,
+                   gc_lifex       'IDOC Reference Text.'(014)     TEXT-014,
+                   gc_smtp_addr   'User Responsible for Issue Resolution'(012) TEXT-012,
+                   gc_menge_po    'GR Qty'(028) TEXT-028,
+****Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+                   gc_bstmi       'Min. Lot Size'(029)            TEXT-029,
+                   gc_bstrf       'Rounding Val.'(030)            TEXT-030,
+****Begin of Changes by 503162060 on Dated 03/06/2021 DE3K9A07QT CHG0176150
+*                   gc_minbm       'From Info Record'(031)         text-031.
+                   gc_minbm       'Min. Order Qty. in PIR'(031)         TEXT-031.
+****End of Changes by 503162060 on Dated 03/06/2021 DE3K9A07QT CHG0176150
+****End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+ENDFORM.                    " FIELDCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  PREPARE_DATA
+*&---------------------------------------------------------------------*
+FORM prepare_data .
+  DATA: lw_syindex TYPE sy-tabix,
+        lw_menge   TYPE menge_d.
+  CLEAR lw_syindex.
+
+  LOOP AT gt_final INTO gs_final.
+    lw_syindex = sy-tabix.
+    CLEAR gs_ekko.
+    READ TABLE gt_ekko
+          INTO gs_ekko
+      WITH KEY ebeln = gs_final-bstnr.
+    IF sy-subrc = 0.
+      gs_final-ebeln       = gs_ekko-ebeln.
+      gs_final-ernam       = gs_ekko-ernam.
+      gs_final-lifnr       = gs_ekko-lifnr.
+      gs_final-ekorg       = gs_ekko-ekorg.
+      gs_final-ekgrp       = gs_ekko-ekgrp.
+      gs_final-bedat       = gs_ekko-bedat.
+      CLEAR gs_t024.
+      READ TABLE gt_t024
+            INTO gs_t024
+       WITH  KEY ekgrp     = gs_ekko-ekgrp.
+      IF sy-subrc = 0.
+        gs_final-smtp_addr = gs_t024-smtp_addr.
+      ENDIF.
+      CLEAR gs_ekpo.
+      READ TABLE gt_ekpo
+            INTO gs_ekpo
+     WITH KEY ebeln        = gs_ekko-ebeln
+              ebelp        = gs_final-posex.
+      IF sy-subrc = 0.
+        gs_final-matnr     = gs_ekpo-matnr.
+        gs_final-werks     = gs_ekpo-werks.
+        gs_final-infnr     = gs_ekpo-infnr.
+        gs_final-menge     = gs_ekpo-menge.
+        gs_final-meins_po  = gs_ekpo-meins.
+        gs_final-bstae_po  = gs_ekpo-bstae.
+        CLEAR gs_eine.
+        READ TABLE gt_eine
+              INTO gs_eine
+          WITH KEY infnr   = gs_ekpo-infnr
+                   werks   = gs_ekpo-werks.    "
+        IF sy-subrc = 0.
+          gs_final-minbm   = gs_eine-minbm.    "
+          gs_final-bstae   = gs_eine-bstae.
+        ENDIF.
+      ENDIF.
+      CLEAR gs_ekbe.
+      READ TABLE gt_ekbe INTO gs_ekbe WITH KEY ebeln = gs_ekpo-ebeln
+                                               ebelp = gs_ekpo-ebelp
+                                               bwart = '101'.
+
+      IF sy-subrc = 0.
+        lw_menge  = gs_ekbe-menge.
+      ENDIF.
+      CLEAR gs_ekbe.
+      READ TABLE gt_ekbe INTO gs_ekbe WITH KEY ebeln = gs_ekpo-ebeln
+                                               ebelp = gs_ekpo-ebelp
+                                               bwart = '102'.
+      IF sy-subrc = 0.
+        lw_menge  = gs_ekbe-menge - lw_menge.
+      ENDIF.
+      gs_final-menge_po = lw_menge.
+
+      READ TABLE gt_marc INTO gs_marc
+        WITH KEY matnr = gs_ekpo-matnr
+                 werks = gs_ekpo-werks.
+      IF sy-subrc = 0.
+        gs_final-bstmi   = gs_marc-bstmi.
+        gs_final-bstrf   = gs_marc-bstrf.
+      ENDIF.
+      READ TABLE gt_eine INTO gs_eine
+      WITH KEY  infnr	= gs_ekpo-infnr
+                werks = gs_ekpo-werks.
+      IF sy-subrc = 0.
+        gs_final-minbm = gs_eine-minbm.
+      ENDIF.
+
+      MODIFY gt_final FROM gs_final
+                     INDEX lw_syindex
+              TRANSPORTING ebeln
+                           ernam
+                           lifnr
+                           ekorg
+                           ekgrp
+                           bedat
+                           smtp_addr
+                           matnr
+                           werks
+                           infnr
+                           menge
+                           meins_po
+                           bstae_po
+                           bstae
+                           menge_po
+
+                           bstmi
+                           bstrf
+                           minbm..
+    ENDIF.
+    CLEAR : gs_final,lw_menge.
+  ENDLOOP.
+ENDFORM.                    " PREPARE_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCAT
+*&---------------------------------------------------------------------*
+FORM fieldcat USING p_fname p_stext p_title.
+  CLEAR gs_fcat.
+  gs_fcat-fieldname = p_fname.
+  gs_fcat-seltext_l = p_stext.
+  gs_title-title    = p_title.
+  APPEND gs_title TO gt_title.
+  APPEND gs_fcat  TO gt_fcat.
+  CLEAR gs_fcat.
+ENDFORM.                    " FIELDCAT
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_LAYOUT
+*&---------------------------------------------------------------------*
+FORM build_layout .
+  gt_layout-zebra = gc_x.
+  gt_layout-colwidth_optimize = gc_x.
+ENDFORM.                    " BUILD_LAYOUT
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_DATA
+*&---------------------------------------------------------------------*
+FORM display_data .
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program      = sy-repid
+      i_callback_user_command = 'USER_COMMAND'
+      it_fieldcat             = gt_fcat
+      is_layout               = gt_layout
+      i_grid_title            = 'IDOC Status Report'
+    TABLES
+      t_outtab                = gt_final.
+ENDFORM.                    " DISPLAY_DATA
+*&---------------------------------------------------------------------*
+*&      Form  user_command
+*&---------------------------------------------------------------------*
+FORM user_command USING r_ucomm TYPE sy-ucomm
+                        rs_selfield TYPE slis_selfield.
+  SET PARAMETER ID 'BES' FIELD rs_selfield-value.
+  SET PARAMETER ID 'DCN' FIELD rs_selfield-value.
+  SET PARAMETER ID 'INF' FIELD rs_selfield-value.
+  CLEAR gs_final.
+  READ TABLE gt_final INTO gs_final WITH KEY docnum = rs_selfield-value.
+  IF sy-subrc = 0.
+    SUBMIT rseidoc2 WITH  credat = gs_final-credat
+                    WITH   docnum = gs_final-docnum AND RETURN.
+  ENDIF.
+  CLEAR gs_final.
+  READ TABLE gt_final INTO gs_final WITH KEY bstnr = rs_selfield-value.
+  IF sy-subrc = 0.
+    CALL  TRANSACTION 'ME23N' AND SKIP FIRST SCREEN.
+  ENDIF.
+  CLEAR gs_final.
+  READ TABLE gt_final INTO gs_final WITH KEY infnr = rs_selfield-value.
+  IF sy-subrc = 0.
+    SET PARAMETER ID 'LIF' FIELD gs_final-lifnr.
+    SET PARAMETER ID 'MAT' FIELD gs_final-matnr.
+    SET PARAMETER ID 'EKO' FIELD gs_final-ekorg.
+    SET PARAMETER ID 'WRK' FIELD gs_final-werks.
+    SET PARAMETER ID 'INF' FIELD gs_final-infnr.
+    CALL TRANSACTION 'ME13'AND SKIP FIRST SCREEN.
+  ENDIF.
+ENDFORM.                    "user_command
+*&---------------------------------------------------------------------*
+*&      Form  HOTSPOTCATALOG
+*&---------------------------------------------------------------------*
+FORM hotspotcatalog .
+  LOOP AT gt_fcat  INTO gs_fcat.
+    IF gs_fcat-fieldname = 'DOCNUM'.
+      gs_fcat-hotspot = gc_x."'X'.
+      MODIFY gt_fcat FROM gs_fcat.
+    ENDIF.
+    IF gs_fcat-fieldname = 'BSTNR'. "BES
+      gs_fcat-hotspot = gc_x."'X'.
+      MODIFY gt_fcat FROM gs_fcat.
+    ENDIF.
+    IF gs_fcat-fieldname = 'INFNR'. "BES
+      gs_fcat-hotspot = gc_x."'X'.
+      MODIFY gt_fcat FROM gs_fcat.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.                    " HOTSPOTCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  GW_794
+*&---------------------------------------------------------------------*
+FORM gw_794 .
+  LOOP AT gt_edid4 INTO gs_edid4.
+    CLEAR gw_cnt.
+    DESCRIBE TABLE gt_final LINES gw_cnt.
+    CLEAR gs_final.
+****Begin of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2
+    CASE gs_edid4-segnam.
+      WHEN 'E1EDK01'.
+        gs_e1edk01 = gs_edid4-sdata.
+        APPEND gs_e1edk01 TO gt_e1edk01.
+        gw_lifex   = gs_e1edk01-belnr.
+    ENDCASE.
+****End of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2
+
+    READ TABLE gt_final INTO gs_final WITH KEY docnum = gs_edid4-docnum.
+    IF sy-subrc = 0.
+      lw_idx   = sy-tabix.
+      CASE gs_edid4-segnam.
+        WHEN 'E1EDP01'.
+          gs_e1edp01 = gs_edid4-sdata.
+          IF gs_final-posex EQ gs_e1edp01-posex.
+*** do nothing.
+          ELSE.
+*** adding new line item information for the same idoc no.
+            APPEND gs_e1edp01 TO gt_e1edp01.
+            gs_final-segnam      = gs_edid4-segnam.
+****Begin of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2
+***            gs_final-posex       = gs_e1edp01-posex.
+****End of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2
+            gs_final-meins       = gs_e1edp01-menee.
+****Begin of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2
+            gs_final-lifex       = gw_lifex.
+****End of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2
+            APPEND gs_final TO gt_final.
+          ENDIF.
+        WHEN 'E1EDP02'.
+          gs_e1edp02         = gs_edid4-sdata.
+          APPEND gs_e1edp02 TO gt_e1edp02.
+          IF gs_final-posex EQ gs_e1edp02-zeile.
+            gs_final-bstnr     = gs_e1edp02-belnr.
+****Begin of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2.
+            gs_final-posex     = gs_e1edp02-zeile.
+****End of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2.
+            MODIFY gt_final FROM gs_final
+*                             INDEX lw_idx
+                             INDEX gw_cnt  " on 05.06.2021 DE3K9A07QA CHG0176150
+                      TRANSPORTING bstnr posex.
+****Begin of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2.
+          ELSE.
+            gs_final-bstnr     = gs_e1edp02-belnr.
+            gs_final-posex     = gs_e1edp02-zeile.
+            MODIFY gt_final FROM gs_final
+                             INDEX gw_cnt
+                      TRANSPORTING bstnr posex.
+****End of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2.
+          ENDIF.
+        WHEN 'E1EDP20'.
+          gs_e1edp20 = gs_edid4-sdata.
+          APPEND gs_e1edp20 TO gt_e1edp20.
+          CLEAR ls_final.
+          READ TABLE gt_final INTO gs_final INDEX gw_cnt." WITH KEY docnum = gs_edid4-docnum.
+          IF gs_final-posex IS NOT INITIAL.
+            gs_final-lfimg   = gs_e1edp20-wmeng.
+            gs_final-ntanf   = gs_e1edp20-edatu.
+            MODIFY gt_final FROM gs_final
+                 INDEX gw_cnt
+          TRANSPORTING lfimg ntanf. "wmeng edatu.
+          ENDIF.
+****Begin of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2.
+****Begin of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+***        WHEN 'E1EDK01'.
+***          gs_e1edk01 = gs_edid4-sdata.
+***          APPEND gs_e1edk01 TO gt_e1edk01.
+***          CLEAR ls_final.
+***          READ TABLE gt_final INTO gs_final INDEX gw_cnt." WITH KEY docnum = gs_edid4-docnum.
+***          IF gs_final-posex IS NOT INITIAL.
+***            gs_final-lifex   = gs_e1edk01-belnr.
+***            MODIFY gt_final FROM gs_final
+***                 INDEX gw_cnt
+***          TRANSPORTING lifex . "wmeng edatu.
+***          ENDIF.
+****End of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+****End of Changes by 503162060 on Dated 30/07/2021 TR: DE3K9A08Z2.
+      ENDCASE.
+    ELSE.
+      gs_final-docnum       = gs_edid4-docnum.
+      gs_final-segnam       = gs_edid4-segnam.
+*******Begin of Changes by 503162060 on Dated 03/06/2021 DE3K9A07QT CHG0176150
+*      gs_final-categ        = 'LA'.
+      gs_final-categ        = 'AB'.
+*******End of Changes by 503162060 on Dated 03/06/2021 DE3K9A07QT CHG0176150
+      CLEAR gs_edids.
+      READ TABLE gt_edids INTO gs_edids WITH KEY docnum = gs_edid4-docnum.
+      IF sy-subrc = 0.
+        gs_final-credat     = gs_edids-credat.
+        gs_final-statxt     = gs_edids-statxt.
+      ENDIF.
+      CASE gs_edid4-segnam.
+*** *** for PO line item uom and line item
+        WHEN 'E1EDP01'.
+          gs_e1edp01 = gs_edid4-sdata.
+          APPEND gs_e1edp01 TO gt_e1edp01.
+          gs_final-posex   = gs_e1edp01-posex.
+          gs_final-meins   = gs_e1edp01-menee.
+****Begin of Changes by 503162060 on Dated 30/07/2021 TR: DE3K9A08Z2.
+          gs_final-lifex   = gw_lifex.
+****End of Changes by 503162060 on Dated 30/07/2021 TR: DE3K9A08Z2.
+          APPEND gs_final TO gt_final.
+        WHEN 'E1EDP02'.
+          gs_e1edp02 = gs_edid4-sdata.
+          APPEND gs_e1edp02 TO gt_e1edp02.
+          gs_final-bstnr     = gs_e1edp02-belnr.
+          APPEND gs_final TO gt_final.
+        WHEN 'E1EDP20'.
+          gs_e1edp20 = gs_edid4-sdata.
+          APPEND gs_e1edp20 TO gt_e1edp20.
+          gs_final-lfimg   = gs_e1edp20-wmeng.
+          gs_final-ntanf   = gs_e1edp20-edatu.
+          APPEND gs_final TO gt_final.
+****Begin of Changes by 503162060 on Dated 30/07/2021 TR: DE3K9A08Z2.
+****Begin of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+***        WHEN 'E1EDK01'.
+***          gs_e1edk01 = gs_edid4-sdata.
+***          APPEND gs_e1edk01 TO gt_e1edk01.
+***          gs_final-lifex   = gs_e1edk01-belnr.
+***          APPEND gs_final TO gt_final.
+****End of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+****End of Changes by 503162060 on Dated 30/07/2021 TR: DE3K9A08Z2.
+      ENDCASE.
+    ENDIF.
+    CLEAR:gs_edids,
+          gs_edid4,
+          gs_final,
+*          gs_e1edl20, " on 05.06.2021 DE3K9A07QA CHG0176150
+          gs_e1edp20,
+          gs_e1edp02,
+          gs_e1edp01,
+          gs_e1edt13,
+****Begin of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+          gs_e1edk01.
+****End of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+  ENDLOOP.
+  IF gt_e1edp02[] IS NOT INITIAL.
+    SELECT
+           ebeln
+           ernam
+           lifnr
+           ekorg
+           ekgrp
+           bedat
+      FROM ekko
+    INTO TABLE gt_ekko
+      FOR ALL ENTRIES IN gt_e1edp02
+        WHERE ebeln = gt_e1edp02-belnr+0(10).
+  ENDIF.
+ENDFORM.                    " GW_794
+

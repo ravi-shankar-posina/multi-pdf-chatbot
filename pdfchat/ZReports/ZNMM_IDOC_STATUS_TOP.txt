@@ -1,0 +1,254 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_IDOC_STATUS_TOP
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&  Typs Group declaration
+*&---------------------------------------------------------------------*
+************************************************************************
+* DATE       |  TR No    |  CHANGED BY  | DESCRIPTION OF change
+************************************************************************
+* 09/05/2022    DE3K9A0CZH    USDEJAI     EHP8 Defect - LCHR issue
+************************************************************************
+*type pools for alv declarations
+TYPE-POOLS: slis.
+TYPES:
+  BEGIN OF ty_edidc,
+    docnum TYPE edi_docnum,  "NUMC 16  0 IDoc number
+    status TYPE edi_status,  "CHAR 2 0 Status of IDoc
+    direct TYPE edi_direct,  "CHAR 1 0 Direction for IDoc
+    mestyp TYPE edi_mestyp,  "CHAR 30  0 Message Type
+    credat TYPE edi_ccrdat,  "DATS 8 0 IDoc Created On
+  END OF ty_edidc,
+
+  BEGIN OF ty_edids,
+    docnum TYPE edi_docnum,  "NUMC 16  0 IDoc number
+    credat TYPE edi_credat, "  DATS  8 0 Date status record was created
+    cretim TYPE edi_cretim,  "TIMS 6 0 Time status record was created
+    status TYPE edi_status,  "CHAR 2 0 Status of IDoc
+    statxt TYPE  edi_statx_, " CHAR  70  0 Text for status code
+    segnum TYPE idocssgnum,  "NUMC 6 0 Number of SAP segment
+    segfld TYPE edi_segfld,  "CHAR 30  0 Field Name in SAP Segment
+    stamid TYPE edi_stamid,  "CHAR 20  0 Status message ID
+    stamno TYPE edi_stamno,  "NUMC 3 0 Status message number
+  END OF ty_edids,
+
+  BEGIN OF ty_edid4,
+    docnum  TYPE edi_docnum,  "NUMC 16  0 IDoc number
+    counter TYPE edi_clustc,  "NUMC 3 0 Counter in cluster table
+    segnam  TYPE edi_segnam,  "CHAR 30  0 Name of SAP segment
+    dtint2  TYPE edi_dtint2,  " USDEJAI for  DE3K9A0CZH
+    sdata   TYPE edi_sdata,   "lchr  1000  0 APPLICATION DATA
+  END OF ty_edid4,
+
+  BEGIN OF ty_ekko,
+    ebeln TYPE ebeln,  "CHAR 10  0 Purchasing Document Number
+    ernam TYPE ernam, "  CHAR  12  0 Name of Person who Created the Object
+    lifnr TYPE elifn, "CHAR 10  0 Vendor Account Number 14
+    ekorg TYPE ekorg, "Purchasing Organization
+    ekgrp TYPE bkgrp,  "CHAR  3 0 Purchasing Group23
+    bedat TYPE ebdat,  "DATS  8 0 Purchasing Document Date 27
+  END OF ty_ekko,
+
+  BEGIN OF ty_ekpo,
+    ebeln TYPE ebeln,  "CHAR 10  0 Purchasing Document Number
+    ebelp TYPE ebelp,  "NUMC 5 0 Item Number of Purchasing Document
+    matnr TYPE matnr,  "CHAR 18  0 Material Number 9
+    werks TYPE ewerk,  "CHAR 4 0 Plant 12
+    infnr TYPE infnr,  "CHAR 10  0 Number of Purchasing Info Record16
+    menge TYPE bstmg,  "QUAN 13  3 Purchase Order Quantity 19
+    meins	TYPE bstme,   "Purchase Order Unit of Measure
+    bstae	TYPE bstae,   "Confirmation Control Key
+  END OF ty_ekpo,
+
+***Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+  BEGIN OF ty_marc,
+    matnr TYPE matnr, "CHAR 18  0 Material Number
+    werks TYPE werks_d,  "CHAR  4 0 Plant
+    bstmi TYPE bstmi, "QUAN 13  3 Minimum Lot Size
+    bstrf TYPE bstrf, "QUAN 13  3 Rounding value for purchase order quantity
+  END OF ty_marc,
+***End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+
+  BEGIN OF ty_t024,
+    ekgrp     TYPE ekgrp,      "CHAR  3 0 Purchasing Group
+    eknam     TYPE eknam,         "CHAR 18  0 Description of purchasing group
+    smtp_addr TYPE  ad_smtpadr, "CHAR 241 0 E-Mail Address
+  END OF ty_t024,
+
+  BEGIN OF ty_enine,
+    infnr TYPE infnr,  "CHAR 10  0 Number of Purchasing Info Record16
+***Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+    werks TYPE ewerk,
+    minbm TYPE minbm,   " QUAN  13  3 Minimum Purchase Order Quantity
+***End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+    bstae TYPE bstae,
+  END OF ty_enine,
+
+  BEGIN OF ty_title,
+    title(35),
+  END OF ty_title,
+
+  BEGIN OF ty_ekbe,
+    ebeln TYPE ebeln,
+    ebelp TYPE ebelp,
+    bwart TYPE bwart,
+    menge TYPE menge_d,  "  Quantity
+    dmbtr TYPE dmbtr,
+    wrbtr TYPE wrbtr,
+  END OF ty_ekbe,
+
+  BEGIN OF ty_final,
+    docnum    TYPE edi_docnum,  "NUMC 16  0 IDoc number
+    credat    TYPE edi_credat, "  DATS  8 0 Date status record was created
+    bedat     TYPE edi_credat, "  DATS  8 0 Date status record was created
+    segnam    TYPE edi_segnam,  "CHAR 30  0 Name of SAP segment
+    ebeln     TYPE ebeln,  "CHAR 10  0 Purchasing Document Number
+    lifnr     TYPE elifn, "CHAR 10  0 Vendor Account Number 14
+    ekgrp     TYPE bkgrp,  "CHAR 3 0 Purchasing Group23
+    matnr     TYPE matnr,  "CHAR 18  0 Material Number 9
+    werks     TYPE ewerk,  "CHAR 4 0 Plant 12
+    infnr     TYPE infnr,  "CHAR 10  0 Number of Purchasing Info Record16
+    menge     TYPE bstmg,  "QUAN 13  3 Purchase Order Quantity 19
+    smtp_addr TYPE ad_smtpadr, "CHAR 241 0 E-Mail Address
+    bstae	    TYPE bstae,
+    bstae_po  TYPE bstae,
+    lifex     TYPE char35,
+    lfimg     TYPE char15,
+    meins     TYPE char3,
+    meins_po  TYPE char3,
+    bstnr     TYPE char35,
+    posex     TYPE char6,
+    ntanf	    TYPE edidat8,
+    ernam     TYPE ernam, "  CHAR  12  0 Name of Person who Created the Object
+    statxt    TYPE edi_statx_, " CHAR  70  0 Text for status code
+    categ     TYPE char2,
+    ekorg     TYPE ekorg,
+    menge_po  TYPE menge_d, "Quantity
+***Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+    bstmi     TYPE bstmi, "QUAN 13  3 Minimum Lot Size
+    bstrf     TYPE bstrf, "QUAN 13  3 Rounding value for purchase order quantity
+    minbm     TYPE minbm,
+***End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+  END OF ty_final.
+
+*&---------------------------------------------------------------------*
+*&  Internal tables declaration
+*&---------------------------------------------------------------------*
+
+DATA: gt_edids   TYPE STANDARD TABLE OF ty_edids,
+      gt_edidc   TYPE STANDARD TABLE OF ty_edidc,
+      gt_edid4   TYPE STANDARD TABLE OF ty_edid4,
+      gt_t024    TYPE STANDARD TABLE OF ty_t024,
+      gt_ekko    TYPE STANDARD TABLE OF ty_ekko,
+      gt_ekpo    TYPE STANDARD TABLE OF ty_ekpo,
+      gt_ekbe    TYPE STANDARD TABLE OF ty_ekbe,
+      gt_eine    TYPE STANDARD TABLE OF ty_enine,
+      gt_e1edl41 TYPE STANDARD TABLE OF e1edl41,
+      gt_e1edl24 TYPE STANDARD TABLE OF e1edl24,
+      gt_e1edl20 TYPE STANDARD TABLE OF e1edl20,
+      gt_e1edt13 TYPE STANDARD TABLE OF e1edt13,
+***Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+      gt_marc    TYPE STANDARD TABLE OF ty_marc,
+      gt_e1edp20 TYPE STANDARD TABLE OF e1edp20,
+      gt_e1edp02 TYPE STANDARD TABLE OF e1edp02,
+      gt_e1edp01 TYPE STANDARD TABLE OF e1edp01,
+***End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+****Begin of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+      gt_e1edk01 TYPE STANDARD TABLE OF e1edk01,
+****End of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+
+      gt_title   TYPE TABLE OF          ty_title,
+      gt_final   TYPE STANDARD TABLE OF ty_final WITH HEADER LINE.
+
+*&---------------------------------------------------------------------*
+*& work ARea declaration
+*&---------------------------------------------------------------------*
+DATA:
+  gs_edids     TYPE ty_edids,
+  gs_edidc     TYPE ty_edidc,
+  gs_edid4     TYPE ty_edid4,
+  gs_t024      TYPE ty_t024,
+  gs_ekko      TYPE ty_ekko,
+  gs_eine      TYPE ty_enine,
+  gs_ekpo      TYPE ty_ekpo,
+  gs_ekbe      TYPE ty_ekbe,
+  gs_final     TYPE ty_final,
+  gs_e1edl41   TYPE e1edl41,
+  gs_e1edl24   TYPE e1edl24,
+  gs_e1edl20   TYPE e1edl20,
+  gs_e1edt13   TYPE e1edt13,
+  gs_fcat      TYPE slis_fieldcat_alv,
+  gs_title     TYPE ty_title,
+  gt_fcat      TYPE slis_t_fieldcat_alv,
+  gt_layout    TYPE slis_layout_alv,
+  gs_fieldcat  TYPE slis_fieldcat_alv,
+  gt_eventexit TYPE slis_t_event_exit,
+  gs_eventexit TYPE slis_event_exit,
+****Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+  gs_marc      TYPE ty_marc,
+  gs_e1edp20   TYPE e1edp20,
+  gs_e1edp02   TYPE e1edp02,
+  gs_e1edp01   TYPE e1edp01,
+****End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+****Begin of Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+  gs_e1edk01   TYPE e1edk01.
+****Endof Changes by 503162060 on Dated 29/07/2021 TR: DE3K9A08YG.
+
+*&---------------------------------------------------------------------*
+*&  Global variable declaration
+*&---------------------------------------------------------------------*
+DATA:
+  gw_status TYPE  edi_status,
+  gw_docnum TYPE  edi_docnum,
+  gw_credat TYPE  edi_credat,
+  gw_stamno TYPE  edi_stamno,
+  gw_direct TYPE  edi_direct,
+  gw_mestyp TYPE  edi_mestyp.
+***Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+DATA:
+  gw_190   TYPE  c,
+  gw_794   TYPE  c,
+  gw_cnt   TYPE  i,
+****Begin of Changes by 503162060 on Dated 30/07/2021 TR: DE3K9A08Z2.
+  gw_lifex TYPE e1edl20-lifex.
+****End of Changes by 503162060 on Dated 30/07/2021 TR:DE3K9A08Z2.
+DATA: ls_final  TYPE ty_final.
+DATA: lw_idx    TYPE sy-tabix.
+***End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+*&---------------------------------------------------------------------*
+*& Constants declaration
+*&---------------------------------------------------------------------*
+CONSTANTS:
+
+  gc_docnum    TYPE char16     VALUE 'DOCNUM',  "NUMC 16  0 IDoc number
+  gc_credat    TYPE edi_credat VALUE 'CREDAT', "  DATS  8 0 Date status record was created
+  gc_bedat     TYPE char5      VALUE 'BEDAT',
+  gc_segnam    TYPE edi_segnam VALUE 'SEGNAM',  "CHAR 30  0 Name of SAP segment
+  gc_ebeln     TYPE ebeln      VALUE 'EBELN',  "CHAR 10  0 Purchasing Document Number
+  gc_lifnr     TYPE elifn      VALUE 'LIFNR', "CHAR 10  0 Vendor Account Number 14
+  gc_ekgrp     TYPE char5      VALUE 'EKGRP',  "CHAR 3 0 Purchasing Group23
+  gc_matnr     TYPE matnr      VALUE 'MATNR',  "CHAR 18  0 Material Number 9
+  gc_werks     TYPE char5      VALUE 'WERKS',  "CHAR 4 0 Plant 12
+  gc_infnr     TYPE infnr      VALUE 'INFNR',  "CHAR 10  0 Number of Purchasing Info Record16
+  gc_menge     TYPE char15     VALUE 'MENGE',  "QUAN 13  3 Purchase Order Quantity 19
+  gc_smtp_addr TYPE char12     VALUE 'SMTP_ADDR', "CHAR 241 0 E-Mail Address
+  gc_bstae     TYPE char8      VALUE 'BSTAE',
+  gc_bstae_po  TYPE char10     VALUE 'BSTAE_PO',
+  gc_lifex     TYPE char35     VALUE 'LIFEX',
+  gc_lfimg     TYPE char15     VALUE 'LFIMG',
+  gc_meins     TYPE char5      VALUE 'MEINS',
+  gc_meins_po  TYPE char7      VALUE 'MEINS',
+  gc_bstnr     TYPE char35     VALUE 'BSTNR',
+  gc_posex     TYPE char6      VALUE 'POSEX',
+  gc_ntanf     TYPE char5      VALUE 'NTANF',
+  gc_ernam     TYPE char5      VALUE 'ERNAM',
+  gc_categ     TYPE char5      VALUE 'CATEG',
+  gc_statxt    TYPE char6      VALUE 'STATXT', " CHAR  70  0 Text for status code
+  gc_x         TYPE char1      VALUE 'X',
+  gc_menge_po  TYPE char8      VALUE 'MENGE_PO',
+***Begin of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+  gc_bstmi     TYPE char5      VALUE 'BSTMI',     "'Min. Lot Size'(029)            text-029,
+  gc_bstrf     TYPE char5      VALUE 'BSTRF',    "'Rounding Val.'(030)            text-030,
+  gc_minbm     TYPE char5      VALUE 'MINBM'. "'From Info Record'(031)         text-031..
+***End of Changes by 503162060 on Dated 03/06/2021 TR:DE3K9A07O5
+

@@ -1,0 +1,1293 @@
+*&---------------------------------------------------------------------*
+*&      Form  CLEAR_REFRESH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM clear_refresh .
+*******************clearing the content in work area
+  CLEAR : gi_final_ds, gi_likp_ds, gi_vbpa_ds, gi_vttp_ds,
+          gi_vttk_ds, gi_t173t_ds, gi_vbuk_ds, gi_ltak_ds,
+          gi_kna1_ds, gi_lips_ds, gi_vbap_ds, gi_vbfa_ds,
+          gi_vbup_ds, gi_vbak_ds, gi_vbuk1_ds, gi_ltak1_ds.
+****************Clearing the content in internal table
+  REFRESH : gt_final_ds, gt_likp_ds, gt_vttp_ds,
+            gt_lips_ds,  gt_vbap_ds, gt_vbpa_ds,
+            gt_vbfa_ds,  gt_vbup_ds, gt_vbak_ds,
+            gt_vttk_ds,  gt_t173t_ds,gt_vbuk_ds,
+            gt_kna1_ds,  gt_ltak_ds, gt_vbuk1_ds , gt_ltak1_ds.
+
+ENDFORM.                    " CLEAR_REFRESH
+*&---------------------------------------------------------------------*
+*&      Form  build_fieldcatalog
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM build_fieldcatalog .
+*************Build Fieldcatlog
+  PERFORM  popu_fcatf USING:
+  '1'   c_tabname   'FAGENT'     flag       text-050     '4'  ,
+  '2'   c_tabname   'CARRIER'    flag       text-051     '4' ,
+  '3'   c_tabname   'VSART'      no_outt    text-052     '10'  ,
+  '4'   c_tabname   'SHIPTYPE'   flag       text-053     '10'  ,
+  '5'   c_tabname   'HSTAT'      flag       text-054     '1'  ,
+  '6'   c_tabname   'DELNO'      flag       text-055     '10'  ,
+  '7'   c_tabname   'DCREATE'    flag       text-056     '8'  ,
+  '8'   c_tabname   'GOODISSUE'  flag       text-057     '8'  ,
+  '9'   c_tabname   'TORDNO'     flag       text-058     '10'  ,
+  '10'  c_tabname   'SHIPTO'     flag       text-059     '10'  ,
+  '11'  c_tabname   'SOLDTON'    flag       text-060     '35'  ,
+  '12'  c_tabname   'SVALUE'     flag       text-061     '13'  ,
+  '13'  c_tabname   'CURR'       flag       text-062     '5'  ,
+  '14'  c_tabname   'DLRDD'      flag       text-063     '15'  ,
+  '15'  c_tabname   'NDELINES'   flag       text-064     '6'  .
+
+ENDFORM.                    "build_fieldcatalog
+*&---------------------------------------------------------------------*
+*&      Form  display_output
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM display_output .
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer = 'X'
+      i_buffer_active    = space
+      i_save             = 'A'
+      i_callback_program = sy-repid
+      it_fieldcat        = gt_fldcat_ds
+      it_sort            = gt_sort_ds
+    TABLES
+      t_outtab           = gt_final_ds
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+ENDFORM.                  " DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  popu_fcatf
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->FP_COL_POS    text
+*      -->FP_TABNAME    text
+*      -->FP_FIELDNAME  text
+*      -->NO_OUTT       text
+*      -->FP_SELTEXT_L  text
+*      -->FP_OUTPUTLEN  text
+*----------------------------------------------------------------------*
+FORM popu_fcatf  USING fp_col_pos       TYPE sycucol
+                      fp_tabname       TYPE slis_tabname
+                       fp_fieldname     TYPE slis_fieldname
+                       no_outt          TYPE slis_fieldcat_main0-no_out
+                       fp_seltext_l     TYPE scrtext_l
+                       fp_outputlen     TYPE outputlen.
+******Filling the Filed Catlog
+  l_fld-col_pos       = fp_col_pos.
+  l_fld-tabname       = fp_tabname.
+**** CHG0479115 DE3K941845 modification starts by 502237354 18/07/2014
+*  l_fld-no_out        =    no_outt.
+**** CHG0479115 DE3K941845 modification ends by 502237354 18/07/2014
+  l_fld-fieldname     = fp_fieldname.
+  l_fld-seltext_l     = fp_seltext_l.
+  l_fld-outputlen     = fp_outputlen.
+  l_fld-fix_column    = 'X'.
+******  Appending to internal table
+  APPEND l_fld TO gt_fldcat_ds.
+**  clear the local variable  fld.
+  CLEAR l_fld.
+ENDFORM.                    "popu_fcatf
+*&---------------------------------------------------------------------*
+*&      Form  ENTRIES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_wmtable .
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+  DATA : lv_daycount  TYPE i,
+         lv_daycount1 TYPE i.
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+  LOOP AT gt_ltak_ds INTO gi_ltak_ds." WHERE vbeln = gi_vbuk_ds-vbeln.
+    READ TABLE gt_likp_ds INTO gi_likp_ds WITH KEY vbeln = gi_ltak_ds-vbeln.
+    IF sy-subrc IS INITIAL.
+      gi_final_ds-shipto    = gi_likp_ds-kunnr.
+      gi_final_ds-delno     = gi_likp_ds-vbeln.
+      gi_final_ds-hstat     = gi_likp_ds-wbstk.
+      gi_final_ds-erzet     = gi_likp_ds-erzet.
+      gi_final_ds-tordno    = gi_ltak_ds-tanum.
+      CONCATENATE gi_likp_ds-erdat+6(2) gi_likp_ds-erdat+4(2) gi_likp_ds-erdat+0(4) INTO gv_erdat
+           SEPARATED BY '.'.
+      gi_final_ds-dcreate   = gv_erdat .
+      CONCATENATE gi_likp_ds-wadat+6(2) gi_likp_ds-wadat+4(2) gi_likp_ds-wadat+0(4) INTO gv_wadat
+           SEPARATED BY '.'.
+      gi_final_ds-goodissue =  gv_wadat .
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+*      READ TABLE gt_vttp_ds INTO gi_vttp_ds WITH KEY vbeln = gi_likp_ds-vbeln BINARY SEARCH.
+*      IF sy-subrc IS INITIAL.
+*        READ TABLE gt_vttk_ds INTO gi_vttk_ds WITH KEY tknum = gi_vttp_ds-tknum BINARY SEARCH.
+       READ TABLE gt_tvro_ds INTO gi_tvro_ds WITH KEY route = gi_likp_ds-route BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+*          gi_final_ds-vsart = gi_vttk_ds-vsart.
+           gi_final_ds-vsart = gi_tvro_ds-vsart.
+          READ TABLE gt_t173t_ds INTO gi_t173t_ds WITH KEY vsart = gi_tvro_ds-vsart"gi_vttk_ds-vsart
+                                                           spras = sy-langu BINARY SEARCH .
+          IF sy-subrc IS INITIAL.
+            gi_final_ds-shiptype = gi_t173t_ds-bezei .
+          ENDIF.
+        ENDIF.
+*      ENDIF.
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+      READ TABLE gt_kna1_ds INTO gi_kna1_ds WITH KEY  kunnr = gi_likp_ds-kunnr BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_final_ds-soldton = gi_kna1_ds-name1.
+        gi_final_ds-scountry = gi_kna1_ds-counc.
+      ENDIF.
+      LOOP AT gt_lips_ds INTO gi_lips_ds WHERE vbeln = gi_likp_ds-vbeln.
+        gv_count = gv_count + 1.
+        CLEAR: gi_vbak_ds, gv_datecount.
+        READ TABLE gt_vbak_ds INTO gi_vbak_ds WITH KEY vbeln = gi_lips_ds-vgbel BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          PERFORM caculation_dates.
+          lv_daycount = lv_daycount + gv_datecount .
+          CLEAR gi_vbpa_ds.
+        READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY field = gc_parvw_ds
+                                                             index_no = 2 BINARY SEARCH.
+        IF sy-subrc = 0.
+***********parvw value 'cr'
+          READ TABLE gt_vbpa_ds INTO gi_vbpa_ds WITH KEY vbeln = gi_vbak_ds-vbeln
+                                                              posnr = gi_lips_ds-posnr
+                                                              parvw = gi_ztuhcd1_ds-low BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            gi_final_ds-fagent = gi_vbpa_ds-lifnr.
+          ENDIF.
+        ENDIF.
+        READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY field = gc_parvw_ds
+                                                             index_no = 3 BINARY SEARCH.
+        IF sy-subrc = 0.
+*****   parvw value 'cu'
+          READ TABLE gt_vbpa_ds INTO gi_vbpa_ds WITH KEY vbeln = gi_vbak_ds-vbeln
+                                                          posnr = gi_lips_ds-posnr
+                                                          parvw =  gi_ztuhcd1_ds-low BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            gi_final_ds-carrier = gi_vbpa_ds-kunnr.
+          ENDIF.
+        ENDIF.
+        ENDIF.
+        CLEAR gi_vbup_ds.
+        CLEAR gi_vbap_ds.              " to get sales value  and currency
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+        IF gi_final_ds-vsart = '03'. "ITC
+          PERFORM caculation_dates1.
+          lv_daycount1 = lv_daycount + gv_datecount1 .
+          READ TABLE gt_ekpo_ds INTO gi_ekpo_ds WITH KEY ebeln = gi_lips_ds-vgbel
+                                                       ebelp = gi_lips_ds-vgpos BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            gv_netwr1 = gv_netwr1 + gi_ekpo_ds-netwr.
+            READ TABLE gt_ekko_ds INTO gi_ekko_ds WITH KEY ebeln = gi_ekpo_ds-ebeln BINARY SEARCH.
+            IF sy-subrc IS INITIAL.
+               gi_final_ds-curr      = gi_ekko_ds-waers.
+            ENDIF.
+          ENDIF.
+        ELSE.
+          READ TABLE gt_vbap_ds INTO gi_vbap_ds WITH KEY vbeln = gi_lips_ds-vgbel
+                                                       posnr = gi_lips_ds-vgpos BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+           gi_final_ds-curr      = gi_vbap_ds-waerk.
+           gv_netwr1 = gv_netwr1 + gi_vbap_ds-netwr.
+          ENDIF.
+        ENDIF.
+        AT END OF vbeln.                                "#EC AT_LOOP_WH
+          gi_final_ds-svalue = gv_netwr1.
+          gi_final_ds-ndelines = gv_count.
+          IF gi_final_ds-vsart = '03'.
+            gi_final_ds-dlrdd     =  lv_daycount1 .
+          ELSE.
+            gi_final_ds-dlrdd     =  lv_daycount .
+          ENDIF.
+          CLEAR:gv_count,gv_netwr1,lv_daycount, lv_daycount1.
+        ENDAT.
+        CLEAR: gi_vbfa_ds,gi_ekko_ds,gi_ekpo_ds." to get number of delivery lines.
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+      ENDLOOP.
+    ENDIF.
+    APPEND gi_final_ds TO gt_final_ds.
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+    CLEAR: gi_likp_ds,gi_vttp_ds, gi_vttk_ds, gi_t173t_ds, gi_ltak_ds, gi_kna1_ds, gi_final_ds, gi_tvro_ds.
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+  ENDLOOP.
+    if s_stype[] is NOT INITIAL.
+    delete gt_final_ds WHERE vsart not IN s_stype.
+  endif.
+ENDFORM.                    "populate_wmtable
+*&---------------------------------------------------------------------*
+*&      Form  populate_ftable
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM populate_ftable.
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+  DATA : lv_daycount  TYPE i,
+         lv_daycount1 TYPE i.
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+  LOOP AT gt_likp_ds INTO gi_likp_ds.
+    gi_final_ds-shipto    = gi_likp_ds-kunnr.
+    gi_final_ds-delno     = gi_likp_ds-vbeln.
+    gi_final_ds-hstat     = gi_likp_ds-wbstk.
+    gi_final_ds-erzet     = gi_likp_ds-erzet.
+    gi_final_ds-erdat     = gi_likp_ds-erdat.
+    CONCATENATE gi_likp_ds-erdat+6(2) gi_likp_ds-erdat+4(2) gi_likp_ds-erdat+0(4) INTO gv_erdat
+         SEPARATED BY '.'.
+    gi_final_ds-dcreate   = gv_erdat .
+    CONCATENATE gi_likp_ds-wadat+6(2) gi_likp_ds-wadat+4(2) gi_likp_ds-wadat+0(4) INTO gv_wadat
+         SEPARATED BY '.'.
+    gi_final_ds-goodissue =  gv_wadat .
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+*    READ TABLE gt_vttp_ds INTO gi_vttp_ds WITH KEY vbeln = gi_likp_ds-vbeln BINARY SEARCH.
+    READ TABLE gt_tvro_ds INTO gi_tvro_ds WITH KEY route = gi_likp_ds-route BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+*      READ TABLE gt_vttk_ds INTO gi_vttk_ds WITH KEY tknum = gi_vttp_ds-tknum BINARY SEARCH.
+*      IF sy-subrc IS INITIAL.
+*        gi_final_ds-vsart = gi_vttk_ds-vsart.
+         gi_final_ds-vsart = gi_tvro_ds-vsart.
+        READ TABLE gt_t173t_ds INTO gi_t173t_ds WITH KEY vsart = gi_tvro_ds-vsart"gi_vttk_ds-vsart
+                                                         spras = sy-langu BINARY SEARCH .
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-shiptype = gi_t173t_ds-bezei .
+        ENDIF.
+      ENDIF.
+*    ENDIF.
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+    READ TABLE gt_ltak1_ds INTO gi_ltak1_ds WITH KEY vbeln = gi_likp_ds-vbeln BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final_ds-tordno = gi_ltak1_ds-tanum.
+    ENDIF.
+    READ TABLE gt_kna1_ds INTO gi_kna1_ds WITH KEY  kunnr = gi_likp_ds-kunnr BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final_ds-soldton = gi_kna1_ds-name1.
+      gi_final_ds-scountry = gi_kna1_ds-counc.
+    ENDIF.
+    LOOP AT gt_lips_ds INTO gi_lips_ds WHERE vbeln = gi_likp_ds-vbeln.
+      gv_count = gv_count + 1.
+      CLEAR: gi_vbak_ds, gv_datecount.
+      READ TABLE gt_vbak_ds INTO gi_vbak_ds WITH KEY vbeln = gi_lips_ds-vgbel BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        PERFORM caculation_dates.
+        lv_daycount = lv_daycount + gv_datecount .
+        CLEAR: gi_vbpa_ds, gi_ztuhcd1_ds.
+        READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY field = gc_parvw_ds
+                                                             index_no = 2 BINARY SEARCH.
+        IF sy-subrc = 0.
+**********parvw value 'cr'
+        READ TABLE gt_vbpa_ds INTO gi_vbpa_ds WITH KEY vbeln = gi_vbak_ds-vbeln
+                                                            posnr = gi_lips_ds-posnr
+                                                            parvw = gi_ztuhcd1_ds-low BINARY SEARCH."
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-fagent = gi_vbpa_ds-lifnr.
+        ENDIF.
+        ENDIF.
+        CLEAR gi_ztuhcd1_ds.
+        READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY field = gc_parvw_ds
+                                                             index_no = 3 BINARY SEARCH.
+        IF sy-subrc = 0.
+****   parvw value 'cu'
+        READ TABLE gt_vbpa_ds INTO gi_vbpa_ds WITH KEY vbeln = gi_vbak_ds-vbeln
+                                                        posnr = gi_lips_ds-posnr
+                                                        parvw =  gi_ztuhcd1_ds-low BINARY SEARCH."gi_ztuhcd1_ds-low
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-carrier = gi_vbpa_ds-kunnr.
+        ENDIF.
+        ENDIF.
+      ENDIF.
+      CLEAR gi_vbup_ds.
+      CLEAR gi_vbap_ds.              " to get sales value  and currency
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+      IF gi_final_ds-vsart = '03'. "ITC
+          PERFORM caculation_dates1.
+          lv_daycount1 = lv_daycount + gv_datecount1 .
+          READ TABLE gt_ekpo_ds INTO gi_ekpo_ds WITH KEY ebeln = gi_lips_ds-vgbel
+                                                       ebelp = gi_lips_ds-vgpos BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            gv_netwr1 = gv_netwr1 + gi_ekpo_ds-netwr.
+            READ TABLE gt_ekko_ds INTO gi_ekko_ds WITH KEY ebeln = gi_ekpo_ds-ebeln BINARY SEARCH.
+            IF sy-subrc IS INITIAL.
+               gi_final_ds-curr      = gi_ekko_ds-waers.
+            ENDIF.
+          ENDIF.
+      ELSE.
+          READ TABLE gt_vbap_ds INTO gi_vbap_ds WITH KEY vbeln = gi_lips_ds-vgbel
+                                                       posnr = gi_lips_ds-vgpos BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+           gi_final_ds-curr      = gi_vbap_ds-waerk.
+           gv_netwr1 = gv_netwr1 + gi_vbap_ds-netwr.
+          ENDIF.
+      ENDIF.
+      AT END OF vbeln.                                  "#EC AT_LOOP_WH
+        gi_final_ds-svalue = gv_netwr1.
+        gi_final_ds-ndelines = gv_count.
+          IF gi_final_ds-vsart = '03'.
+            gi_final_ds-dlrdd     =  lv_daycount1 .
+          ELSE.
+            gi_final_ds-dlrdd     =  lv_daycount .
+          ENDIF.
+        CLEAR:gv_count,gv_netwr1,lv_daycount,lv_daycount1.
+      ENDAT.
+      CLEAR: gi_vbfa_ds, gi_ekko_ds, gi_ekpo_ds." to get number of delivery lines.
+    ENDLOOP.
+    APPEND gi_final_ds TO gt_final_ds.
+    CLEAR: gi_likp_ds,gi_vttp_ds, gi_vttk_ds, gi_t173t_ds, gi_ltak1_ds, gi_kna1_ds, gi_tvro_ds, gi_final_ds.
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+  ENDLOOP.
+  if s_stype[] is NOT INITIAL.
+    delete gt_final_ds WHERE vsart not IN s_stype.
+  endif.
+*  ENDLOOP.
+ENDFORM.                    "populate_ftable
+*&---------------------------------------------------------------------*
+*&      Form  currency
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM currency.
+  READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY field = gc_bukrs_ds
+                                                       index_no = 1 BINARY SEARCH.
+  IF sy-subrc = 0.
+    SELECT SINGLE bukrs
+           butxt
+           waers
+           FROM t001
+           INTO gi_t001_ds
+           WHERE bukrs = gi_ztuhcd1_ds-low.
+    IF sy-subrc = 0 .
+      gw_sociedad_tx = gi_t001_ds-butxt.
+    ENDIF.
+    gv_l_waers = gi_t001_ds-waers.
+  ENDIF.
+ENDFORM.                    "currency
+*&---------------------------------------------------------------------*
+*&      Form  znmm_likp
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_likp.
+  REFRESH gt_likp_ds.
+****Fetching the data from the table: LIKP ie: SD Document: Delivery Header Data
+  if gt_lips_ds is NOT INITIAL.
+  SELECT likp~vbeln
+         likp~erdat
+         likp~erzet
+         likp~wadat
+         likp~kunnr
+         likp~werks
+         likp~vkorg
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+         likp~route
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+         vbuk~lvstk
+         vbuk~wbstk
+         INTO TABLE gt_likp_ds
+         FROM likp
+         INNER JOIN vbuk
+         ON likp~vbeln = vbuk~vbeln
+         FOR ALL ENTRIES IN gt_lips_ds
+         WHERE likp~vbeln = gt_lips_ds-vbeln
+           AND likp~vkorg IN s_vkorg
+           AND likp~vstel IN s_vstel
+           AND likp~kunnr IN s_cust
+           AND vbuk~kostk IN s_kostk
+           AND vbuk~wbstk IN s_wbstk.
+  IF gt_likp_ds IS NOT INITIAL.
+    SORT gt_likp_ds BY vbeln.
+  ENDIF.
+ endif.
+ENDFORM.                    "znmm_likp
+*&---------------------------------------------------------------------*
+*&      Form  znmm_lips
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_lips.
+*****Fecthing the lips data
+    SELECT vbeln
+         posnr
+         vgbel
+         vgpos
+         lfimg
+         erzet
+         erdat
+         werks
+         netwr
+         FROM lips
+         INTO TABLE gt_lips_ds
+         WHERE vbeln in s_vbeln
+         AND   werks = p_werks.
+    IF gt_lips_ds IS NOT INITIAL.
+      SORT gt_lips_ds BY vbeln posnr.
+    ENDIF.
+ENDFORM.                    "znmm_lips
+*&---------------------------------------------------------------------*
+*&      Form  znmm_vttp
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+FORM get_vttp.
+***fetching Shipment type
+*  IF gt_likp_ds IS NOT INITIAL.
+*    SELECT vbeln
+*           tknum
+*      FROM vttp
+*      INTO TABLE gt_vttp_ds
+*      FOR ALL ENTRIES IN gt_likp_ds
+*      WHERE vbeln = gt_likp_ds-vbeln.
+*    IF gt_vttp_ds IS NOT INITIAL.
+*      SORT gt_vttp_ds BY vbeln.
+*    ENDIF.
+*  ENDIF.
+ENDFORM.                    "znmm_vttp
+*&---------------------------------------------------------------------*
+*&      Form  znmm_ekko
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_ekko.
+  IF gt_lips_ds IS NOT INITIAL.
+    SELECT ebeln
+           waers
+      FROM ekko
+      INTO TABLE gt_ekko_ds
+      FOR ALL ENTRIES IN gt_lips_ds
+      WHERE ebeln = gt_lips_ds-vgbel.
+      IF sy-subrc IS INITIAL.
+        SORT gt_ekko_ds BY ebeln.
+      ENDIF.
+   ENDIF.
+ ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  znmm_EKPO
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_ekpo.
+  IF gt_lips_ds IS NOT INITIAL.
+    SELECT ebeln
+           ebelp
+           netwr
+      FROM ekpo
+      INTO TABLE gt_ekpo_ds
+      FOR ALL ENTRIES IN gt_lips_ds
+      WHERE ebeln = gt_lips_ds-vgbel.
+      IF sy-subrc IS INITIAL.
+        SORT gt_ekpo_ds BY ebeln ebelp.
+      ENDIF.
+   ENDIF.
+ ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  znmm_vttk
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_vttk.
+******Fecthing vttk data
+*  IF gt_vttp_ds IS NOT INITIAL.
+*    SELECT tknum
+*            vsart
+*      FROM vttk
+*      INTO TABLE gt_vttk_ds
+*      FOR ALL ENTRIES IN gt_vttp_ds
+*      WHERE tknum = gt_vttp_ds-tknum
+*      AND   vsart IN s_stype.
+*    IF gt_vttk_ds IS NOT INITIAL.
+*      SORT gt_vttk_ds BY tknum.
+*    ENDIF.
+*  ENDIF.
+ENDFORM.                    "znmm_vttk
+*&---------------------------------------------------------------------*
+*&      Form  znmm_tvro
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_tvro.
+  IF gt_likp_ds IS NOT INITIAL.
+    SELECT route
+           vsart
+      FROM tvro
+      INTO TABLE gt_tvro_ds
+      FOR ALL ENTRIES IN gt_likp_ds
+      WHERE route = gt_likp_ds-route
+       AND  vsart IN s_stype.
+      if sy-subrc is INITIAL.
+        SORT gt_tvro_ds by route.
+      ENDIF.
+  ENDIF.
+ ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  ZNMM_T173T
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_t173t .
+****Fecthing t173t data
+*  IF gt_vttk_ds IS NOT INITIAL.
+  if gt_tvro_ds IS NOT INITIAL.
+    SELECT vsart bezei spras
+         FROM t173t
+         INTO TABLE gt_t173t_ds
+         FOR ALL ENTRIES IN gt_tvro_ds"gt_vttk_ds
+         WHERE vsart = gt_tvro_ds-vsart"gt_vttk_ds-vsart
+         AND   spras = sy-langu  .
+    IF gt_t173t_ds IS NOT INITIAL.
+      SORT gt_t173t_ds BY vsart spras.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " ZNMM_T173T
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+*&---------------------------------------------------------------------*
+*&      Form  znmm_vbup
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_vbup.
+*****"Total Goods Movement Status -Item Level:
+  IF gt_likp_ds IS NOT INITIAL.
+    SELECT vbeln
+            posnr
+            koqua
+            wbsta
+            fksta
+            kosta
+        FROM vbup
+        INTO TABLE gt_vbup_ds
+        FOR ALL ENTRIES IN gt_likp_ds
+        WHERE vbeln = gt_likp_ds-vbeln.
+    IF gt_vbup_ds IS NOT INITIAL.
+      SORT gt_vbup_ds BY vbeln.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "znmm_vbup
+*&---------------------------------------------------------------------*
+*&      Form  znmm_kna1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_kna1.
+****Ship to Party Name
+  IF gt_likp_ds IS NOT INITIAL.
+    SELECT  kunnr
+            name1
+            counc
+           FROM kna1
+           INTO TABLE gt_kna1_ds
+           FOR ALL ENTRIES IN gt_likp_ds
+           WHERE kunnr = gt_likp_ds-kunnr.
+    IF gt_kna1_ds IS NOT INITIAL.
+      SORT gt_kna1_ds BY kunnr.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "znmm_kna1
+*&---------------------------------------------------------------------*
+*&      Form  znmm_vbfa
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_vbfa.
+****No. Of delivery lines.
+  IF gt_likp_ds IS NOT INITIAL.
+    SELECT vbeln
+           posnn
+           erdat
+           erzet
+      FROM vbfa
+      INTO TABLE gt_vbfa_ds
+      FOR ALL ENTRIES IN gt_likp_ds
+      WHERE vbeln = gt_likp_ds-vbeln.
+    IF gt_vbfa_ds IS NOT INITIAL.
+      SORT gt_vbfa_ds BY vbeln.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "znmm_vbfa
+*&---------------------------------------------------------------------*
+*&      Form  znmm_vbak
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_vbak.
+****" fetching Forwarding Agent and carrier
+  IF gt_lips_ds IS NOT INITIAL.
+    SELECT  vbeln
+            kunnr
+            vkorg
+            vtweg
+            spart
+            vdatu
+       FROM vbak
+      INTO TABLE gt_vbak_ds
+      FOR ALL ENTRIES IN gt_lips_ds
+      WHERE vbeln = gt_lips_ds-vgbel.
+    IF gt_vbak_ds IS NOT INITIAL.
+      SORT gt_vbak_ds BY vbeln.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "znmm_vbak
+*&---------------------------------------------------------------------*
+*&      Form  znmm_knvv
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_knvv.
+******Fecthing knvv data
+  IF gt_vbak_ds IS NOT INITIAL.
+    SELECT kunnr
+          vkorg
+          vtweg
+          spart
+          ktgrd
+          kvgr3
+          bzirk
+          FROM knvv
+          INTO TABLE gt_knvv_ds
+          FOR ALL ENTRIES IN gt_vbak_ds
+          WHERE kunnr = gt_vbak_ds-kunnr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_knvv_ds.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "znmm_knvv
+*&---------------------------------------------------------------------*
+*&      Form  znmm_vbpa
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_vbpa.
+*****Fecthing vbpa data
+  IF gt_vbak_ds IS NOT INITIAL.
+    SELECT vbeln
+             posnr
+             parvw
+             kunnr
+             lifnr
+             FROM vbpa
+             INTO TABLE gt_vbpa_ds
+             FOR ALL ENTRIES IN gt_vbak_ds
+             WHERE vbeln = gt_vbak_ds-vbeln.
+    IF gt_vbpa_ds IS NOT INITIAL.
+      SORT gt_vbpa_ds BY vbeln posnr parvw.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "znmm_vbpa
+*&---------------------------------------------------------------------*
+*&      Form  znmm_ltak
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_ltak.
+****Fecthing ltak data
+  LOOP AT gt_likp_ds INTO gi_likp_ds  WHERE lvstk  NE ' '.
+    gi_vbuk1_ds-vbeln = gi_likp_ds-vbeln.
+    APPEND gi_vbuk1_ds TO gt_vbuk1_ds.
+    CLEAR gi_likp_ds.
+  ENDLOOP.
+  IF gt_vbuk1_ds IS NOT INITIAL.
+    SELECT vbeln
+           tanum
+           FROM  ltak
+           INTO TABLE gt_ltak_ds
+           FOR ALL ENTRIES IN gt_vbuk1_ds
+           WHERE vbeln = gt_vbuk1_ds-vbeln.
+    IF gt_ltak_ds IS NOT INITIAL.
+      SORT gt_ltak_ds BY vbeln.
+    ENDIF.
+  ENDIF.
+
+  IF gt_likp_ds is NOT INITIAL.
+    IF gt_vbuk1_ds IS NOT INITIAL.
+    SELECT vbeln
+           tanum
+           FROM  ltak
+           INTO TABLE gt_ltak1_ds
+           FOR ALL ENTRIES IN gt_likp_ds
+           WHERE vbeln = gt_likp_ds-vbeln.
+    IF gt_ltak_ds IS NOT INITIAL.
+      SORT gt_ltak1_ds BY vbeln.
+    ENDIF.
+  ENDIF.
+  ENDIF.
+ENDFORM.                    "znmm_ltak
+*&---------------------------------------------------------------------*
+*&      Form  znmm_vbap
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_vbap.
+****Fecthing vbap data
+  IF gt_lips_ds IS NOT INITIAL.
+    SELECT vbeln
+           posnr
+           netwr
+           kwmeng
+           waerk  FROM vbap
+           INTO TABLE gt_vbap_ds
+           FOR ALL ENTRIES IN gt_lips_ds
+           WHERE vbeln = gt_lips_ds-vgbel AND
+                 posnr = gt_lips_ds-vgpos.
+    IF gt_vbap_ds IS NOT INITIAL.
+      SORT gt_vbap_ds BY vbeln posnr.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "znmm_vbap
+*&---------------------------------------------------------------------*
+*&      Form  znmm_vbuk
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_vbuk.
+
+ENDFORM.                    "znmm_vbuk
+*&---------------------------------------------------------------------*
+*&      Form  CALCULATIONS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM calculations .
+  gt_pdate = sy-datum - 1.
+  LOOP AT gt_final_ds INTO gi_final_ds.
+**************DOMESTIC Details
+    IF gi_final_ds-vsart = '01' .
+      MOVE gi_final_ds TO gi_dome_ds.
+      IF gi_dome_ds-hstat <> 'C'.
+*** Total of W/O confirmed values  for domestic
+        gv_netwr2 = gv_netwr2 + gi_dome_ds-svalue.
+** Total lines of W/O Confirmed for domestic
+        gv_c1     = gv_c1 + 1.
+      ELSEIF gi_dome_ds-hstat = 'C'.
+****Total of confirmed values for domestic
+        gv_netwr_dc = gv_netwr_dc + gi_dome_ds-svalue.
+***Total of lines confirmed for domestic.
+        gv_c2 = gv_c2 + 1.
+      ENDIF.
+***Total Value in ( Value w/o confirmation + Confirmed value”)
+      gv_netwr_tvalue1 =  gv_netwr2 +  gv_netwr_dc.
+****Total Lines ( “b. Line w/o confirmation + d. Lines confirmed)
+      gv_tot_lines1 = gv_c1 + gv_c2.
+***** avg = Total value / Total Lines:
+      gv_avg1 = gv_netwr_tvalue1 / gv_tot_lines1 .
+      APPEND gi_dome_ds TO gt_dome_ds.
+      CLEAR gi_dome_ds.
+***********EXPORT Details
+    ELSEIF gi_final_ds-vsart = '02'.
+      MOVE gi_final_ds TO gi_expo_ds.
+      IF gi_expo_ds-hstat <> 'C'.
+*** Total of W/O confirmed values  for export
+        gv_netwr3 = gv_netwr3 + gi_expo_ds-svalue.
+***Total lines of W/O Confirmed for export
+        gv_c3 = gv_c3 + 1.
+      ELSEIF gi_expo_ds-hstat = 'C'.
+****Total of confirmed values for export
+        gv_netwr_exc = gv_netwr_exc + gi_expo_ds-svalue.
+***Total of lines confirmed for export.
+        gv_c4 = gv_c4 + 1.
+      ENDIF.
+*******Total Value  = ( Value w/o confirmation + Confirmed value”)
+        gv_netwr_tvalue2 =  gv_netwr3 +  gv_netwr_exc.
+***Total Lines = ( Line w/o confirmation + Lines confirmed”)
+        gv_tot_lines2 = gv_c3 + gv_c4.
+***** avg = Total value /  Total Lines:
+        gv_avg2 = gv_netwr_tvalue2 / gv_tot_lines2.
+        APPEND gi_expo_ds TO gt_expo_ds.
+        CLEAR gi_expo_ds.
+*      ENDIF.
+*********ITC Details
+    ELSEIF gi_final_ds-vsart = '03'.
+      MOVE gi_final_ds TO gi_itc_ds.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+      IF gi_itc_ds-hstat <> 'C'.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+*** Total of W/O confirmed values  for ITC
+        gv_netwr4 = gv_netwr4 + gi_itc_ds-svalue.
+***Total lines of W/O Confirmed for ITC
+        gv_c5 = gv_c5 + 1.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+      ELSEIF gi_itc_ds-hstat = 'C'.
+****Total of confirmed values for ITC
+        gv_netwr_itc = gv_netwr_itc + gi_itc_ds-svalue.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+***Total of lines confirmed for ITC.
+        gv_c6 = gv_c6 + 1.
+      ENDIF.
+**** Total Value in = ( Value w/o confirmation + Confirmed value)
+      gv_netwr_tvalue3 =  gv_netwr4 +  gv_netwr_itc.
+******  Total Lines = (“b. Line w/o confirmation + d. Lines confirmed”)
+      gv_tot_lines3 = gv_c5 + gv_c6.
+*** AVG = Total value / Total Lines:
+      gv_avg3 = gv_netwr_tvalue3 / gv_tot_lines3.
+      APPEND gi_itc_ds TO gt_itc_ds.
+      CLEAR gi_itc_ds.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+    ELSEIF gi_final_ds-vsart = ' '.
+*********Others
+      MOVE gi_final_ds TO gi_oth_ds.
+      IF gi_oth_ds-hstat <> 'C'.
+*** Total of W/O confirmed values  for ITC
+        gv_netwr11 = gv_netwr11 + gi_oth_ds-svalue.
+***Total lines of W/O Confirmed for ITC
+        gv_c19 = gv_c19 + 1.
+      ELSEIF gi_oth_ds-hstat = 'C'.
+****Total of confirmed values for ITC
+        gv_netwr_oth = gv_netwr_oth + gi_oth_ds-svalue.
+***Total of lines confirmed for ITC.
+        gv_c20 = gv_c20 + 1.
+      ENDIF.
+**** Total Value in = ( Value w/o confirmation + Confirmed value)
+      gv_netwr_tvalue4 =  gv_netwr11 +  gv_netwr_oth.
+******  Total Lines = (“b. Line w/o confirmation + d. Lines confirmed”)
+      gv_tot_lines4 = gv_c19 + gv_c20.
+*** AVG = Total value / Total Lines:
+      gv_avg4 = gv_netwr_tvalue4 / gv_tot_lines4.
+      APPEND gi_oth_ds TO gt_oth_ds.
+      CLEAR gi_oth_ds.
+    ENDIF.
+    CLEAR:gi_dome_ds, gi_itc_ds , gi_expo_ds, gi_oth_ds.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+*****************8Aging greater than 24 hours
+**************DOMESTIC Details
+    IF gi_final_ds-vsart = '01' and gi_final_ds-erdat <= gt_pdate AND gi_final_ds-erzet < sy-uzeit .
+      MOVE gi_final_ds TO gi_dome_ds.
+      IF gi_dome_ds-hstat <> 'C'.
+*** Total of W/O confirmed values  for domestic
+        gv_netwr5 = gv_netwr5 + gi_dome_ds-svalue.
+** Total lines of W/O Confirmed for domestic
+        gv_c7     = gv_c7 + 1.
+      ELSEIF gi_dome_ds-hstat = 'C'.
+****Total of confirmed values for domestic
+        gv_netwr_dc1 = gv_netwr_dc1 + gi_dome_ds-svalue.
+***Total of lines confirmed for domestic.
+        gv_c8 = gv_c8 + 1.
+      ENDIF.
+***********EXPORT Details
+    ELSEIF gi_final_ds-vsart = '02' and gi_final_ds-erdat <= gt_pdate AND gi_final_ds-erzet < sy-uzeit.
+      MOVE gi_final_ds TO gi_expo_ds.
+      IF gi_expo_ds-hstat <> 'C'.
+*** Total of W/O confirmed values  for export
+        gv_netwr6 = gv_netwr6 + gi_expo_ds-svalue.
+***Total lines of W/O Confirmed for export
+        gv_c9 = gv_c9 + 1.
+      ELSEIF gi_expo_ds-hstat = 'C'.
+****Total of confirmed values for export
+        gv_netwr_exc1 = gv_netwr_exc1 + gi_expo_ds-svalue.
+***Total of lines confirmed for export.
+        gv_c10 = gv_c10 + 1.
+      ENDIF.
+*      ENDIF.
+*********ITC Details
+    ELSEIF gi_final_ds-vsart = '03' and gi_final_ds-erdat <= gt_pdate AND gi_final_ds-erzet < sy-uzeit.
+      MOVE gi_final_ds TO gi_itc_ds.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+      IF gi_itc_ds-hstat <> 'C'.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+*** Total of W/O confirmed values  for ITC
+        gv_netwr7 = gv_netwr7 + gi_itc_ds-svalue.
+***Total lines of W/O Confirmed for ITC
+        gv_c11 = gv_c11 + 1.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+      ELSEIF gi_itc_ds-hstat = 'C'.
+****Total of confirmed values for ITC
+        gv_netwr_itc1 = gv_netwr_itc1 + gi_itc_ds-svalue.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+***Total of lines confirmed for ITC.
+        gv_c12 = gv_c12 + 1.
+      ENDIF.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+*********OTHERS Details
+    ELSEIF gi_final_ds-vsart = ' ' and gi_final_ds-erdat <= gt_pdate AND gi_final_ds-erzet < sy-uzeit.
+      MOVE gi_final_ds TO gi_oth_ds.
+      IF gi_oth_ds-hstat <> 'C'.
+*** Total of W/O confirmed values  for Others
+        gv_netwr12 = gv_netwr12 + gi_oth_ds-svalue.
+***Total lines of W/O Confirmed for Others
+        gv_c21 = gv_c21 + 1.
+      ELSEIF gi_oth_ds-hstat = 'C'.
+****Total of confirmed values for Others
+        gv_netwr_oth1 = gv_netwr_oth1 + gi_oth_ds-svalue.
+***Total of lines confirmed for Others.
+        gv_c22 = gv_c22 + 1.
+      ENDIF.
+    ENDIF.
+    CLEAR:gi_dome_ds, gi_itc_ds , gi_expo_ds, gi_oth_ds.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+*************Aging greter than 24 hours
+*****************8Aging less than 24 hours
+**************DOMESTIC Details
+    IF gi_final_ds-vsart = '01' and gi_final_ds-erdat <= gt_pdate AND gi_final_ds-erzet >= sy-uzeit .
+      MOVE gi_final_ds TO gi_dome_ds.
+      IF gi_dome_ds-hstat <> 'C'.
+*** Total of W/O confirmed values  for domestic
+        gv_netwr8 = gv_netwr8 + gi_dome_ds-svalue.
+** Total lines of W/O Confirmed for domestic
+        gv_c13     = gv_c13 + 1.
+      ELSEIF gi_dome_ds-hstat = 'C'.
+****Total of confirmed values for domestic
+        gv_netwr_dc2 = gv_netwr_dc2 + gi_dome_ds-svalue.
+***Total of lines confirmed for domestic.
+        gv_c14 = gv_c14 + 1.
+      ENDIF.
+***********EXPORT Details
+    ELSEIF gi_final_ds-vsart = '02' and gi_final_ds-erdat <= gt_pdate AND gi_final_ds-erzet >= sy-uzeit.
+      MOVE gi_final_ds TO gi_expo_ds.
+      IF gi_expo_ds-hstat <> 'C'.
+*** Total of W/O confirmed values  for export
+        gv_netwr9 = gv_netwr9 + gi_expo_ds-svalue.
+***Total lines of W/O Confirmed for export
+        gv_c15 = gv_c15 + 1.
+      ELSEIF gi_expo_ds-hstat = 'C'.
+****Total of confirmed values for export
+        gv_netwr_exc2 = gv_netwr_exc2 + gi_expo_ds-svalue.
+***Total of lines confirmed for export.
+        gv_c16 = gv_c16 + 1.
+      ENDIF.
+*      ENDIF.
+*********ITC Details
+    ELSEIF gi_final_ds-vsart = '03' and gi_final_ds-erdat <= gt_pdate AND gi_final_ds-erzet >= sy-uzeit.
+      MOVE gi_final_ds TO gi_itc_ds.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+      IF gi_itc_ds-hstat <> 'C'.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+*** Total of W/O confirmed values  for ITC
+        gv_netwr10 = gv_netwr10 + gi_itc_ds-svalue.
+***Total lines of W/O Confirmed for ITC
+        gv_c17 = gv_c17 + 1.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+      ELSEIF gi_itc_ds-hstat = 'C'.
+****Total of confirmed values for ITC
+        gv_netwr_itc2 = gv_netwr_itc2 + gi_itc_ds-svalue.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+***Total of lines confirmed for ITC.
+        gv_c18 = gv_c18 + 1.
+      ENDIF.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+*********Others Details
+    ELSEIF gi_final_ds-vsart = ' ' and gi_final_ds-erdat <= gt_pdate AND gi_final_ds-erzet >= sy-uzeit.
+      MOVE gi_final_ds TO gi_oth_ds.
+      IF gi_oth_ds-hstat <> 'C'.
+*** Total of W/O confirmed values  for ITC
+        gv_netwr13 = gv_netwr13 + gi_oth_ds-svalue.
+***Total lines of W/O Confirmed for ITC
+        gv_c23 = gv_c23 + 1.
+      ELSEIF gi_oth_ds-hstat = 'C'.
+****Total of confirmed values for ITC
+        gv_netwr_oth2 = gv_netwr_oth2 + gi_oth_ds-svalue.
+***Total of lines confirmed for ITC.
+        gv_c24 = gv_c24 + 1.
+      ENDIF.
+    ENDIF.
+*************Aging less than 24 hours
+  CLEAR:gi_dome_ds, gi_itc_ds , gi_expo_ds , gi_oth_ds.
+  ENDLOOP.
+*******Main total for value W/C  .
+  gv_twcv =  gv_netwr2 + gv_netwr3 + gv_netwr4 + gv_netwr11.
+*******Main total for value W/C for greater than 24 HRs .
+  gv_twcv1 =  gv_netwr5 + gv_netwr6 + gv_netwr7 + gv_netwr12.
+*******Main total for value W/C for less than 24 HRs .
+  gv_twcv2 =  gv_netwr8 + gv_netwr9 + gv_netwr10 + gv_netwr13.
+*******Main total for lines W/C
+  gv_tlwc = gv_c1 + gv_c3 + gv_c5 + gv_c19.
+*******Main total for lines W/C greater than 24 Hrs
+  gv_tlwc1 = gv_c7 + gv_c9 + gv_c11 + gv_c21.
+*******Main total for lines W/C less than 24 HRs
+  gv_tlwc2 = gv_c13 + gv_c15 + gv_c17 + gv_c23.
+****Main total for confirmed values
+  gv_tcv  = gv_netwr_dc + gv_netwr_exc + gv_netwr_itc + gv_netwr_oth.
+****Main total for confirmed values greater than 24 HRs
+  gv_tcv1  = gv_netwr_dc1 + gv_netwr_exc1 + gv_netwr_itc1 + gv_netwr_oth1.
+****Main total for confirmed values less than 24 HRs
+  gv_tcv2  = gv_netwr_dc2 + gv_netwr_exc2 + gv_netwr_itc2 + gv_netwr_oth2.
+****Main total for confirmed lines
+  gv_tcl  = gv_c2 + gv_c4 + gv_c6 + gv_c20.
+****Main total for confirmed lines
+  gv_tcl1  = gv_c8 + gv_c10 + gv_c12 + gv_c22.
+****Main total for confirmed lines
+  gv_tcl2  = gv_c14 + gv_c16 + gv_c18 + gv_c24.
+***** main total for  total W/C vlaues and confirmed values
+  gv_ttv   = gv_netwr_tvalue1 + gv_netwr_tvalue2 + gv_netwr_tvalue3 + gv_netwr_tvalue4.
+****Main total for W/C lines and confirmed lines
+  gv_ttl   = gv_tot_lines1 + gv_tot_lines2 + gv_tot_lines3 + gv_tot_lines4.
+********** Avg = Total value /  Total Lines:
+  gv_tavg  = gv_ttv / gv_ttl .
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+ENDFORM.                    " CALCULATIONS
+*&---------------------------------------------------------------------*
+*&      Form  CACULATION_DATES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM caculation_dates  .
+  CALL FUNCTION 'SD_DATETIME_DIFFERENCE'
+    EXPORTING
+      date1            = gi_vbak_ds-vdatu
+      time1            = sy-uzeit
+      date2            = gi_likp_ds-wadat
+      time2            = sy-uzeit
+    IMPORTING
+      datediff         = gv_datecount
+*     TIMEDIFF         =
+*     EARLIEST         =
+    EXCEPTIONS
+      invalid_datetime = 1
+      OTHERS           = 2.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+               WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                    " CACULATION_DATES
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+*&---------------------------------------------------------------------*
+*&      Form  CACULATION_DATES1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM caculation_dates1  .
+
+    CALL FUNCTION 'SD_DATETIME_DIFFERENCE'
+    EXPORTING
+      date1            = gi_likp_ds-erdat
+      time1            = sy-uzeit
+      date2            = gi_likp_ds-wadat
+      time2            = sy-uzeit
+    IMPORTING
+      datediff         = gv_datecount1
+*     TIMEDIFF         =
+*     EARLIEST         =
+    EXCEPTIONS
+      invalid_datetime = 1
+      OTHERS           = 2.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+               WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                    " CACULATION_DATES1
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+*&---------------------------------------------------------------------*
+*&      Form  HARDCODE_ENTRIES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM hardcode_entries .
+  gi_ztuhcd1_ds-name = gc_field_name_ds .
+  APPEND gi_ztuhcd1_ds TO gt_ztuhcd1_ds.
+  CLEAR gi_ztuhcd1_ds.
+*fecthing the hard code entries
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1_ds
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+    SORT gt_ztuhcd1_ds BY field index_no.
+  ENDIF.
+ENDFORM.                    " HARDCODE_ENTRIES
+*&---------------------------------------------------------------------*
+*&      Form  WRITE_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM write_data .
+  ULINE.
+  WRITE: /15   text-002  ,
+          40   text-003  ,
+          65   text-004  ,
+          85   text-005  ,
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+          115  text-006  ,
+          140  text-007  ,
+          158  text-008  .
+  ULINE.
+*****Domestic data
+  WRITE: /1   text-009         ,
+          15  gv_netwr2        CENTERED        ,
+          40  gv_c1,
+          65  gv_netwr_dc      CENTERED    ,
+          85  gv_c2            CENTERED    ,
+         110  gv_netwr_tvalue1 CENTERED, "RIGHT-JUSTIFIED ,
+         140  gv_tot_lines1    CENTERED ,
+         160  gv_avg1          CENTERED .
+  CLEAR gv_netwr2.
+*******   Export data
+  WRITE: /1   text-010       ,
+          15  gv_netwr3        CENTERED   ,
+          40  gv_c3,
+          65  gv_netwr_exc     CENTERED ,
+          85  gv_c4            CENTERED,
+         110  gv_netwr_tvalue2 CENTERED," RIGHT-JUSTIFIED,
+         140  gv_tot_lines2    CENTERED,
+         160  gv_avg2          CENTERED.
+  CLEAR gv_netwr3.
+******* ITC data
+  WRITE: /1    text-011           ,
+          15   gv_netwr4        CENTERED ,
+          40   gv_c5,
+          65   gv_netwr_itc     CENTERED     ,
+          85   gv_c6            CENTERED   ,
+          110  gv_netwr_tvalue3 CENTERED  ,
+          140  gv_tot_lines3    CENTERED  ,
+          160  gv_avg3          CENTERED  .
+  CLEAR gv_netwr4.
+******* OTHERS data
+  WRITE: /1    text-013           ,
+          15   gv_netwr11        CENTERED ,
+          40   gv_c19,
+          65   gv_netwr_oth     CENTERED     ,
+          85   gv_c20           CENTERED   ,
+          110  gv_netwr_tvalue4 CENTERED  ,
+          140  gv_tot_lines4    CENTERED  ,
+          160  gv_avg4          CENTERED  .
+  CLEAR gv_netwr4.
+  ULINE.
+  SKIP.
+  WRITE: /1   text-012  ,
+         15   gv_twcv  CENTERED ,
+         40   gv_tlwc,
+         65   gv_tcv   CENTERED,
+         85   gv_tcl   CENTERED ,
+         110  gv_ttv   CENTERED ,
+         140  gv_ttl   CENTERED ,
+         160  gv_tavg  CENTERED .
+  ULINE.
+
+  SKIP 5.
+  ULINE.
+  WRITE: /45 'OLDNESS  >  24 HRS',
+         92 sy-vline,
+         125 'OLDNESS  <  24 HRS'.
+  WRITE: /15 text-002 ,
+          35 text-003 ,
+          55 text-004,
+          75 text-005,
+          92 sy-vline,
+          97 text-002 ,
+          117 text-003 ,
+          137 text-004,
+          157 text-005.
+  ULINE.
+  WRITE :/1  text-009,
+         15  gv_netwr5    CENTERED,
+         35  gv_c7,
+         55  gv_netwr_dc1 CENTERED,
+         75  gv_c8,
+         92  sy-vline,
+         97  gv_netwr8    CENTERED,
+         117 gv_c13,
+         137 gv_netwr_dc2 CENTERED,
+         157 gv_c14.
+  WRITE :/1 text-010,
+         15  gv_netwr6     CENTERED,
+         35  gv_c9,
+         55  gv_netwr_exc1 CENTERED,
+         75  gv_c10,
+         92  sy-vline,
+         97  gv_netwr9     CENTERED,
+         117 gv_c15,
+         137 gv_netwr_exc2 CENTERED,
+         157 gv_c16.
+  WRITE :/1 text-011,
+         15  gv_netwr7     CENTERED,
+         35  gv_c11,
+         55  gv_netwr_itc1 CENTERED,
+         75  gv_c12,
+         92  sy-vline,
+         97  gv_netwr10    CENTERED,
+         117 gv_c17,
+         137 gv_netwr_itc2 CENTERED,
+         157 gv_c18.
+   WRITE :/1 text-013,
+         15  gv_netwr12     CENTERED,
+         35  gv_c21,
+         55  gv_netwr_oth1 CENTERED,
+         75  gv_c22,
+         92  sy-vline,
+         97  gv_netwr13    CENTERED,
+         117 gv_c23,
+         137 gv_netwr_oth2 CENTERED,
+         157 gv_c24.
+  ULINE.
+  WRITE 92 sy-vline.
+  WRITE :/1 text-012,
+         15  gv_twcv1 CENTERED,
+         35  gv_tlwc1,
+         55  gv_tcv1  CENTERED,
+         75  gv_tcl1,
+         92  sy-vline,
+         97  gv_twcv2 CENTERED,
+         117 gv_tlwc2 ,
+         137 gv_tcv2  CENTERED,
+         157 gv_tcl2.
+  ULINE.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+ENDFORM.                    " WRITE_DATA
+" ENTRIES
+*&---------------------------------------------------------------------*
+*&      Form  POPULATE_RANGES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_ranges .
+  REFRESH: gr_kostk , gr_wbstk.
+  CLEAR: gr_kostk , gr_wbstk.
+
+*  IF NOT p_pstat IS INITIAL.
+*    gr_kostk-sign = 'I'.
+*    gr_kostk-option = 'EQ'.
+*    gr_kostk-low = p_pstat.
+*    APPEND gr_kostk.
+*  ENDIF.
+*  IF NOT p_gstat IS INITIAL.
+*    gr_wbstk-sign = 'I'.
+*    gr_wbstk-option = 'EQ'.
+*    gr_wbstk-low = p_gstat.
+*    APPEND gr_wbstk.
+*  ENDIF.
+ENDFORM.                    " POPULATE_RANGES
+*&---------------------------------------------------------------------*
+*&      Form  SORT_TABLE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM sort_table .
+  IF p_sortd IS NOT INITIAL.
+    SORT gt_final_ds BY dlrdd.
+  ELSEIF p_sortv IS NOT INITIAL.
+    SORT gt_final_ds BY svalue.
+  ELSEIF p_sortv IS NOT INITIAL.
+    SORT gt_final_ds BY shipto.
+  ENDIF.
+ENDFORM.                    " SORT_TABLE
+

@@ -1,0 +1,23 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PREVENT_DELIVERY_TOP
+*&---------------------------------------------------------------------*
+TYPE-POOLS : slis,icon.
+
+TYPES: BEGIN OF ty_msg,
+         doc_type(2) TYPE c,
+         doc_num(12) TYPE c,
+         item(12) TYPE c,
+         remarks TYPE char50,
+         msgtyp TYPE c,
+         msg TYPE char70,
+         icon(4) TYPE c,
+       END OF ty_msg.
+DATA:gt_msg TYPE STANDARD TABLE OF ty_msg,
+     gw_msg TYPE ty_msg.
+************************************************************************
+* A L V  V A R I A B L E S   D E C L A R A T I O N
+************************************************************************
+DATA : gi_fieldcat TYPE slis_fieldcat_alv,
+       gt_fieldcat TYPE slis_t_fieldcat_alv,
+       gi_layout TYPE slis_layout_alv.
+

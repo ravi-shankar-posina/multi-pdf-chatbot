@@ -1,0 +1,86 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNRMM_PO_TAX_REPORT_TOP
+*&---------------------------------------------------------------------*
+
+TYPES: BEGIN OF ty_ekko,
+       ebeln TYPE ebeln,
+       ernam TYPE ernam,
+       bedat TYPE ebdat,
+       ekorg TYPE ekorg,
+       ekgrp TYPE bkgrp,
+       bsart TYPE esart,
+       lifnr TYPE elifn,
+       knumv TYPE knumv,
+       END OF ty_ekko.
+
+TYPES: BEGIN OF ty_ekpo,
+       ebeln TYPE ebeln,
+       ebelp TYPE ebelp,
+       werks TYPE ewerk,
+       matnr TYPE matnr,
+       matkl TYPE matkl,
+       infnr TYPE infnr,
+       mwskz TYPE mwskz,
+       END OF ty_ekpo.
+
+TYPES: BEGIN OF ty_konv,
+       knumv TYPE knumv,
+       kposn TYPE kposn,
+       kschl TYPE kscha,
+       mwsk1 TYPE mwskz,
+       END OF ty_konv.
+
+TYPES: BEGIN OF ty_eine,
+       infnr TYPE infnr,
+       ekorg TYPE ekorg,
+       werks TYPE werks,
+       mwskz TYPE mwskz,
+       END OF ty_eine.
+
+TYPES: BEGIN OF ty_final,
+       ebeln TYPE ebeln,
+       ernam TYPE ernam,
+       bedat TYPE ebdat,
+       ekorg TYPE ekorg,
+       ekgrp TYPE bkgrp,
+       bsart TYPE esart,
+       lifnr TYPE elifn,
+       ebelp TYPE ebelp,
+       werks TYPE ewerk,
+       matnr TYPE matnr,
+       matkl TYPE matkl,
+       mwskz TYPE mwskz,
+       mwsk1 TYPE mwskz,
+       mwskz1 TYPE mwskz,
+       END OF ty_final.
+
+DATA: gt_ekko TYPE TABLE OF ty_ekko,
+      gt_ekpo TYPE TABLE OF ty_ekpo,
+      gt_konv TYPE TABLE OF ty_konv,
+      gt_eine TYPE TABLE OF ty_eine,
+      gt_fieldcat TYPE slis_t_fieldcat_alv,
+      gt_final TYPE TABLE OF ty_final,
+      gw_ekko TYPE ty_ekko,
+      gw_ekpo TYPE ty_ekpo,
+      gw_konv TYPE ty_konv,
+      gw_eine TYPE ty_eine,
+      gw_fieldcat TYPE slis_fieldcat_alv,
+      gw_final TYPE ty_final,
+      gi_ztuhcd1_ds TYPE ztuhcd1,
+      gt_ztuhcd1_ds TYPE TABLE OF ztuhcd1.
+
+DATA: g_bedat TYPE ebdat,
+      g_ebeln TYPE ebeln,
+      g_ekorg TYPE ekorg,
+      g_bsart TYPE t161-bsart,
+      g_lifnr TYPE elifn,
+      g_matnr TYPE matnr,
+      g_matkl TYPE matkl,
+      g_mwskz TYPE mwskz,
+      g_ernam TYPE ernam,
+      g_ekgrp TYPE bkgrp.
+
+CONSTANTS : gc_form_name_ds TYPE tdsfname VALUE 'ZRMM_PO_TAX_COMPARISON_REPORT',
+            gc_tax          TYPE zkey1    VALUE 'TAX',
+            gc_kschl        TYPE zfield   VALUE 'KSCHL'.
+

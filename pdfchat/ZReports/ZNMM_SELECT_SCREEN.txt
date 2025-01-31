@@ -1,0 +1,131 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SELECT_SCREEN
+*&---------------------------------------------------------------------*
+**&---------------------------------------------------------------------*
+**&  SELECTION SCREEN
+**&---------------------------------------------------------------------*
+TABLES cabn.
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-014.
+
+SELECT-OPTIONS : s_sku   FOR mara-matnr,
+                 s_class FOR klah-class  OBLIGATORY NO INTERVALS NO-EXTENSION DEFAULT 'COMPLIANCE',
+                 s_atnam FOR cabn-atnam NO INTERVALS.
+*                 s_werks FOR t001w-werks.
+SELECTION-SCREEN END OF BLOCK b1.
+*&---------------------------------------------------------------------*
+*&      Form  F4HELP_CLASS
+*&---------------------------------------------------------------------*
+
+FORM f4help_class .
+  TYPES: BEGIN OF ty_klah,   "Class Header Data
+*         klart TYPE klassenart, "Class Type
+         class TYPE klasse_d,   "Class number
+         END OF ty_klah.
+  DATA: lt_klah TYPE STANDARD TABLE OF ty_klah,
+        ls_klah TYPE ty_klah.
+  REFRESH lt_klah.
+  CLEAR ls_klah.
+  SELECT   class FROM klah INTO TABLE lt_klah
+    WHERE klart = '001'.
+*--- fieldnames (columns) for F4
+  DATA: ls_fieldnames_sh TYPE dfies,
+        lt_fieldnames_sh TYPE TABLE OF dfies.
+*--- return values for F4
+  DATA: ls_sel_values_sh TYPE ddshretval,
+        lt_sel_values_sh TYPE TABLE OF ddshretval.
+  REFRESH : lt_sel_values_sh,lt_fieldnames_sh.
+  CLEAR : ls_sel_values_sh,ls_fieldnames_sh.
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'S_CLASS'
+      value_org       = 'S'
+    TABLES
+      value_tab       = lt_klah
+      field_tab       = lt_fieldnames_sh
+      return_tab      = lt_sel_values_sh
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc <> 0.
+    MESSAGE 'No values found for Class number'(017) TYPE 'E' DISPLAY LIKE 'I'.
+       LEAVE LIST-PROCESSING.
+  ELSE.
+    READ TABLE lt_sel_values_sh INTO ls_sel_values_sh INDEX 1.
+    MOVE ls_sel_values_sh-fieldval TO s_class-low.
+  ENDIF.
+ENDFORM.                    " F4HELP_CLASS
+*&---------------------------------------------------------------------*
+*&      Form  F4HELP_CLASS_NAME
+*&---------------------------------------------------------------------*
+FORM f4help_class_name .
+  DATA : lt_class TYPE STANDARD TABLE OF  sclass,
+        lt_objectdata TYPE STANDARD TABLE OF  clobjdat,   "Classification data of object for classes
+        lt_objects    TYPE STANDARD TABLE OF  clobjekte,  "Objects for the class
+        ls_objectdata TYPE  clobjdat.   "Classification data of object for classes
+
+  TYPES: BEGIN OF ty_atnam,
+         atnam TYPE atnam,
+         END OF ty_atnam.
+  DATA: lt_atnam TYPE STANDARD TABLE OF ty_atnam,
+        ls_atnam TYPE ty_atnam.
+  REFRESH lt_atnam.
+  CLEAR ls_atnam.
+  IF s_class-low IS NOT INITIAL.
+    CALL FUNCTION 'CLAF_OBJECTS_OF_CLASS'
+      EXPORTING
+        class              = s_class-low "'X'
+        classtext          = 'X'
+        classtype          = '001'
+      TABLES
+        t_class            = lt_class
+        t_objectdata       = lt_objectdata
+        t_objects          = lt_objects
+      EXCEPTIONS
+        no_classification  = 1
+        invalid_class_type = 2
+        OTHERS             = 3.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ELSE.
+      SORT lt_objectdata BY atnam.
+      REFRESH lt_atnam.
+      CLEAR: ls_atnam,ls_objectdata.
+      LOOP AT lt_objectdata INTO ls_objectdata.
+        ls_atnam = ls_objectdata-atnam.
+        APPEND ls_atnam TO lt_atnam.
+      ENDLOOP.
+      DELETE ADJACENT DUPLICATES FROM lt_atnam.
+    ENDIF.
+
+*--- fieldnames (columns) for F4
+    DATA: ls_fieldnames_sh TYPE dfies,
+          lt_fieldnames_sh TYPE TABLE OF dfies.
+*--- return values for F4
+    DATA: ls_sel_values_sh TYPE ddshretval,
+          lt_sel_values_sh TYPE TABLE OF ddshretval.
+    REFRESH : lt_sel_values_sh,lt_fieldnames_sh.
+    CLEAR : ls_sel_values_sh,ls_fieldnames_sh.
+    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+      EXPORTING
+        retfield        = 'S_ATNAM'
+        value_org       = 'S'
+      TABLES
+        value_tab       = lt_atnam
+        field_tab       = lt_fieldnames_sh
+        return_tab      = lt_sel_values_sh
+      EXCEPTIONS
+        parameter_error = 1
+        no_values_found = 2
+        OTHERS          = 3.
+    IF sy-subrc <> 0.
+      MESSAGE 'No values found for Class number'(017) TYPE 'E' DISPLAY LIKE 'I'.
+      LEAVE LIST-PROCESSING.
+    ELSE.
+      READ TABLE lt_sel_values_sh INTO ls_sel_values_sh INDEX 1.
+      MOVE ls_sel_values_sh-fieldval TO s_atnam-low.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " F4HELP_CLASS_NAME
+

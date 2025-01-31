@@ -1,0 +1,33 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_MMRV_WRAPPER_MASS_TOP
+*&---------------------------------------------------------------------*
+*** Created by            : Himanshu Gupta
+*** Creation Date         : 20th Sept 2020
+*** Transport Request #   : DE3K9A00D5
+*** RICEF Object No #     : RICEF 2198
+*** Description           : Allow Posting to Previous period
+***------------------------------------------------------------------***
+*************************************************************************
+* DATE      | CR No.       |CHANGED BY    |DESCRIPTION OF CHANGE
+*************************************************************************
+*20 Sept2020|GECHG0933737  |Himanshu gupta| Initial program
+
+TABLES: t001.
+
+DATA:  gv_err  TYPE c.
+
+DATA: BEGIN OF gt_bdcdata OCCURS 0.
+        INCLUDE STRUCTURE bdcdata.
+DATA: END OF gt_bdcdata.
+
+DATA: gt_msg TYPE TABLE OF bdcmsgcoll,
+      gw_msg LIKE LINE  OF gt_msg.
+
+CONSTANTS: gc_mark   TYPE c VALUE 'X',
+           gc_umark  TYPE c VALUE ' ',
+           gc_u      TYPE c VALUE 'U',
+           gc_sap(3) TYPE c VALUE 'SAP'.
+
+DATA  gv_xruem.
+*DATA  gv_xruev.
+

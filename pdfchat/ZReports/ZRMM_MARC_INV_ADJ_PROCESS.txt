@@ -1,0 +1,52 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_MARC_INV_ADJ_REPROCESS
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*** Created by            : Prakash Reddy
+*** Creation Date         : 21.01.2022
+*** Transport Request #   : DE3K9A0BGX
+*** T-Code                : ZMMINV
+*** RICEF Object No #     : 2187
+*** Change request No     : CHG0191538
+*** Description           : Program to process/reprocess MARC Invenroty Adj
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE         | CR No.     |TR NO.      |CHANGED BY      |DESCRIPTION OF CHANGE
+*****************************************************************************************
+*21-02-2022    CHG0191538   DE3K9A0BGX    502209589         Initial Development
+*31-05-2022    CHG0191538   DE3K9A0DQE    USPRADI           Bug fixes
+*02-06-2022    CHG0191538   DE3K9A0DSH    USPRADI           Changes to consider Local Material number
+* instead of Alternate Material number
+*07-06-2022    CHG0191538   DE3K9A0DW2    USPRADI           Bug Fixes
+*17-06-2022    CHG0191538   DE3K9A0E6F    USPRADI           Bug Fixes
+*****************************************************************************************
+
+REPORT  zrmm_marc_inv_adj_process MESSAGE-ID zmm01.
+INCLUDE:  znmm_marc_inv_adj_pros_top,
+          znmm_marc_inv_adj_pros_sel,
+          znmm_marc_inv_adj_processf01.
+
+AT SELECTION-SCREEN OUTPUT.
+
+  PERFORM modify_screen.
+
+START-OF-SELECTION.
+  PERFORM refresh_var.
+*  Fetch all data
+  PERFORM get_data.
+*  Process the data
+  PERFORM process_row.
+*  display data in ALV
+  PERFORM sec_alv.
+*  update FN and File tables
+  PERFORM update_file_table.
+*  Print and Email logic
+  PERFORM print_smartform.
+

@@ -1,0 +1,75 @@
+*&---------------------------------------------------------------------*
+*& Report  ZPMM_SERVICE_ORDER
+*&
+***------------------------------------------------------------------***
+*** Created by            : Sumit Srivastava
+*** Creation Date         : 21/03/2014
+*** Transport Request #   : DE3K921149
+*** RICEF Object No #     : RICEF1064
+*** Transaction Code      : ZMM1064
+*** Description           : Report to download and Print Service Order
+***                         Details
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 21-March-2014       | CHG0479115       |502237354  | Initial Development
+*************************************************************************
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 07-nov-2014        |  RITM3049332    |502287934 |
+*************************************************************************
+* changes done for the pick up of address from adrc table and changes done
+* for work center and description of work center *************************
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 26-nov-2014        |  RITM3049332    |502287934 |
+*************************************************************************
+* changes are done for street field in the address table to fecth the
+* value*******************************************************************
+**************************************************************************
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 09-dec-2014        |  RITM3049332    |502287934 |
+*************************************************************************
+* performance tuning for performed for the object ZRMM_SERVICE_ORDER
+* *******************************************************************
+**************************************************************************
+
+
+REPORT  zrmm_service_order LINE-SIZE 255
+                           LINE-COUNT 58
+                           NO STANDARD PAGE HEADING
+                           MESSAGE-ID zmm.
+
+INCLUDE znmm_service_order_top.
+INCLUDE znmm_service_order_selscr.
+
+START-OF-SELECTION.
+
+  PERFORM f_get_aufk.
+
+  IF gt_aufk_ds IS INITIAL.
+    MESSAGE e083(zmm) WITH text-000.
+    EXIT.
+  ENDIF.
+*Fill all order details
+  PERFORM f_fill_order_header.
+
+  PERFORM f_write.
+  IF gp_excel IS NOT INITIAL AND gp_exfil IS NOT INITIAL.
+    PERFORM f_pc_download.
+  ELSEIF gp_excel IS NOT INITIAL AND gp_exfil IS INITIAL.
+    MESSAGE e083(zmm) WITH text-056.
+  ENDIF.
+
+  INCLUDE znmm_service_order_form.
+

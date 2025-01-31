@@ -1,0 +1,1225 @@
+*=======================================================================
+*= Copyright ©  2000 GE ENERGY  =
+*= ALL RIGHTS RESERVED =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRMM_MATERIAL_MASTER
+* Title             : Material Master Report
+*
+* Program function  :
+*
+* Transaction code  : ZMM934
+*
+* Limitations       : NA
+*
+* Table updates     : NA
+*
+* Authorizations    : NA
+*
+* Selection screen  : 1000
+*
+* RICEF Object No   : RICEF278
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE         | CR No.       |CHANGED BY  | DESCRIPTION OF CHANG       *
+*************************************************************************
+* 03-MAR-2013  | CHG0164872   |Frankie     | Initial Program            *
+*************************************************************************
+
+REPORT  ZRMM_MATERIAL_MASTER.
+
+TABLES:
+  MARA,
+  MARC,
+  MVKE,
+  MAKT,
+  AUSP.
+
+TYPE-POOLS:
+  SLIS.
+
+TYPES:
+  BEGIN OF TY_WH_DATA.
+    INCLUDE TYPE MLGN.
+TYPES:
+    LGTYP TYPE LGTYP,
+    LGPLA TYPE LGPLA,
+  END OF TY_WH_DATA.
+TYPES:
+  BEGIN OF TY_T001W,
+    WERKS TYPE T001W-WERKS,
+    LAND1 TYPE T001W-LAND1,
+  END OF TY_T001W.
+TYPES:
+  BEGIN OF TY_ITAB,
+    TAB_NAME TYPE CHAR20,
+    TAB_ROWS TYPE I,
+  END OF TY_ITAB.
+TYPES:
+  BEGIN OF TY_MATNR,
+    MATNR TYPE CHAR50,
+  END OF TY_MATNR.
+TYPES:
+  BEGIN OF TY_MAT_UP.
+    INCLUDE TYPE ZSMM_MATERIL_UPLOAD.
+TYPES:
+    LGORT_X  TYPE CHAR40,
+    STATUS_DES TYPE ATWTB,
+  END OF TY_MAT_UP.
+TYPES:
+  BEGIN OF TY_MARC_L.
+    INCLUDE TYPE MARC.
+TYPES:
+    LANGU TYPE SPRAS,
+  END OF TY_MARC_L.
+
+DATA:
+  WA_CABN    TYPE CABN,
+  WA_MARA    TYPE MARA,
+  WA_MLVSV   TYPE MLVSV,
+  WA_MAKT    TYPE MAKT,
+  WA_MLAN    TYPE MLAN,
+  WA_MARC_L  TYPE MARC,
+  WA_MARC    TYPE TY_MARC_L,
+  WA_MARD    TYPE MARD,
+  WA_MBEW    TYPE MBEW,
+  WA_MAEX    TYPE MAEX,
+  WA_MVKE    TYPE MVKE,
+  WA_T001W   TYPE TY_T001W,
+  WA_AUSP    TYPE AUSP,
+  WA_CAWNT   TYPE CAWNT,
+  WA_MAT_UP  TYPE TY_MAT_UP,
+  WA_MLGN    TYPE MLGN,
+  WA_MLGT    TYPE MLGT,
+  WA_WH_DATA TYPE TY_WH_DATA,
+  WA_ITAB    TYPE TY_ITAB,
+  WA_MATNR   TYPE TY_MATNR,
+  WA_LINE    TYPE TLINE,
+  WMPOP      TYPE MPOP,
+  W_LAY      TYPE SLIS_LAYOUT_ALV,
+  W_SORT     TYPE LINE OF SLIS_T_SORTINFO_ALV,
+  W_FIELDCAT TYPE LINE OF SLIS_T_FIELDCAT_ALV.
+
+DATA:
+  IT_CABN    TYPE STANDARD TABLE OF CABN,
+  IT_MARA    TYPE STANDARD TABLE OF MARA,
+  IT_MLVSV   TYPE STANDARD TABLE OF MLVSV,
+  IT_MAKT    TYPE STANDARD TABLE OF MAKT,
+  IT_MLAN    TYPE STANDARD TABLE OF MLAN,
+  IT_MARC_L  TYPE STANDARD TABLE OF MARC,
+  IT_MARC    TYPE STANDARD TABLE OF TY_MARC_L,
+  IT_MARD    TYPE STANDARD TABLE OF MARD,
+  IT_MBEW    TYPE STANDARD TABLE OF MBEW,
+  IT_MAEX    TYPE STANDARD TABLE OF MAEX,
+  IT_MVKE    TYPE STANDARD TABLE OF MVKE,
+  IT_AUSP    TYPE STANDARD TABLE OF AUSP,
+  IT_CAWNT   TYPE STANDARD TABLE OF CAWNT,
+  IT_MAT_UP  TYPE STANDARD TABLE OF TY_MAT_UP,
+  IT_MLGN    TYPE STANDARD TABLE OF MLGN,
+  IT_MLGT    TYPE STANDARD TABLE OF MLGT,
+  IT_WH_DATA TYPE STANDARD TABLE OF TY_WH_DATA,
+  IT_T001W   TYPE STANDARD TABLE OF TY_T001W,
+  IT_ITAB    TYPE STANDARD TABLE OF TY_ITAB,
+  IT_MATNR   TYPE STANDARD TABLE OF TY_MATNR,
+  IT_LINES   TYPE STANDARD TABLE OF TLINE,
+  T_SORT     TYPE SLIS_T_SORTINFO_ALV,
+  T_FIELDCAT TYPE SLIS_T_FIELDCAT_ALV.
+
+DATA:
+  V_INDX1      LIKE SY-TABIX,
+  V_INDX2      LIKE SY-TABIX,
+  LGORT_STR    TYPE CHAR40,
+  MARC_LINE    TYPE I,
+  MAKT_LINE    TYPE I,
+  MVKE_LINE    TYPE I,
+  WH_DATA_LINE TYPE I,
+  L_DATE       TYPE CHAR8,
+  L_DATE1      TYPE P,
+  L_DATE2      TYPE CHAR8,
+  YEAR         TYPE CHAR4,
+  MONTH        TYPE CHAR2,
+  DATE         TYPE CHAR2,
+  THEAD        TYPE THEAD,
+  STR          TYPE STRING,
+  BFE          TYPE STRING,
+  AFE          TYPE STRING,
+  G_REPID      LIKE SY-REPID.
+
+CONSTANTS:
+  C_X(1)        TYPE C VALUE 'X',
+  C_I(1)        TYPE C VALUE 'I',
+  C_E(1)        TYPE C VALUE 'E',
+  C_E1(2)       TYPE C VALUE 'E+',
+  C_EQ(2)       TYPE C VALUE 'EQ',
+  C_IC          TYPE MAEX-GEGRU VALUE 'IC',
+  C_ITC         TYPE MAEX-EMBGR VALUE 'ITC',
+  C_TDOBJECT    TYPE THEAD-TDOBJECT VALUE 'MATERIAL',
+  C_TDIDGRUN    TYPE THEAD-TDID VALUE 'GRUN',
+  C_TDIDPRUE    TYPE THEAD-TDID VALUE 'PRUE',
+  C_CERTNUM(20) TYPE C VALUE 'CCC-CERT-NUMBER',
+  C_CERTVF(20)  TYPE C VALUE 'CCC-CERT-VALID-FROM',
+  C_CERTTO(20)  TYPE C VALUE 'CCC-CERT-VALID-TO',
+  C_CERTSTA(20) TYPE C VALUE 'CCC-CERT-STATUS',
+  C_LPPER(20)   TYPE C VALUE 'CCC-LP-PERMISSION',
+  C_LPVF(20)    TYPE C VALUE 'CCC-LP-VALID-FROM',
+  C_LPTO(20)    TYPE C VALUE 'CCC-LP-VALID-TO'.
+
+RANGES:
+  R_ATNAM FOR CABN-ATNAM.
+
+DEFINE MC_FIELDCAT.
+  CLEAR W_FIELDCAT.
+  W_FIELDCAT-FIELDNAME = &1.
+  W_FIELDCAT-SELTEXT_L = &2.
+  W_FIELDCAT-DDICTXT   = 'L'.
+  APPEND W_FIELDCAT TO T_FIELDCAT.
+END-OF-DEFINITION.
+
+SELECTION-SCREEN BEGIN OF BLOCK BB01 WITH FRAME TITLE TEXT-W01.
+SELECT-OPTIONS: S_MTART FOR MARA-MTART,
+                S_MATNR FOR MARA-MATNR,
+                S_PRDHA FOR MARA-PRDHA,
+                S_WERKS FOR MARC-WERKS,
+                S_VKORG FOR MVKE-VKORG,
+                S_VTWEG FOR MVKE-VTWEG DEFAULT '10',
+                S_ERNAM FOR MARA-ERNAM,
+                S_ERSDA FOR MARA-ERSDA,
+                S_STAWN FOR MARC-STAWN,
+                S_SPRAS FOR MAKT-SPRAS DEFAULT 'EN' OBLIGATORY,
+                S_ATWRT FOR AUSP-ATWRT.
+SELECTION-SCREEN END OF BLOCK BB01.
+
+START-OF-SELECTION.
+  PERFORM: F1100_RETRIEVE_MAT_DATA,
+           F1200_RETRIEVE_SALES_DATA,
+           F1300_RETRIEVE_WH_DATA,
+           F1400_RETRIEVE_CHAR_DATA,
+           F2000_MAIN_PROCESSING.
+
+END-OF-SELECTION.
+  PERFORM F3000_FIELD_CATLOG.
+  PERFORM F4000_ALV_DISPLAY.
+
+*&---------------------------------------------------------------------*
+*&      Form  F1100_RETRIEVE_MAT_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F1100_RETRIEVE_MAT_DATA.
+* General Material Data
+  SELECT * FROM MARA INTO TABLE IT_MARA
+   WHERE MATNR IN S_MATNR
+     AND ERSDA IN S_ERSDA
+     AND ERNAM IN S_ERNAM
+     AND MTART IN S_MTART
+     AND PRDHA IN S_PRDHA.
+
+  IF IT_MARA[] IS NOT INITIAL.
+* PLANT material DATA
+    SELECT * FROM MARC INTO TABLE IT_MARC_L
+       FOR ALL ENTRIES IN IT_MARA
+     WHERE MATNR EQ IT_MARA-MATNR
+       AND WERKS IN S_WERKS
+       AND STAWN IN S_STAWN.
+    IF SY-SUBRC EQ 0.
+* Storage location data
+      SELECT * FROM MARD INTO TABLE IT_MARD
+         FOR ALL ENTRIES IN IT_MARC_L
+       WHERE MATNR EQ IT_MARC_L-MATNR
+         AND WERKS EQ IT_MARC_L-WERKS.
+* Material text
+      SELECT * FROM MAKT INTO TABLE IT_MAKT
+         FOR ALL ENTRIES IN IT_MARC_L
+       WHERE MATNR EQ IT_MARC_L-MATNR
+         AND SPRAS IN S_SPRAS.
+* PLANT information
+      SELECT WERKS LAND1 FROM T001W INTO TABLE IT_T001W
+         FOR ALL ENTRIES IN IT_MARC_L
+       WHERE WERKS EQ IT_MARC_L-WERKS.
+* Tax Classification
+      SELECT * FROM MLAN INTO TABLE IT_MLAN
+         FOR ALL ENTRIES IN IT_MARC_L
+       WHERE MATNR  EQ IT_MARC_L-MATNR.
+      LOOP AT IT_MLAN INTO WA_MLAN.
+        V_INDX1 = SY-TABIX.
+        READ TABLE IT_T001W INTO WA_T001W WITH KEY LAND1 = WA_MLAN-ALAND.
+        IF SY-SUBRC NE 0.
+          DELETE IT_MLAN INDEX V_INDX1.
+        ENDIF.
+        CLEAR: V_INDX1,
+               WA_T001W,
+               WA_MLAN.
+      ENDLOOP.
+* Valuation data
+      SELECT * FROM MBEW INTO TABLE IT_MBEW
+         FOR ALL ENTRIES IN IT_MARC_L
+       WHERE MATNR EQ IT_MARC_L-MATNR
+         AND BWKEY EQ IT_MARC_L-WERKS.
+* Legal Control
+      SELECT * FROM MAEX INTO TABLE IT_MAEX
+         FOR ALL ENTRIES IN IT_MARC_L
+       WHERE MATNR = IT_MARC_L-MATNR
+         AND GEGRU = C_IC
+         AND EMBGR = C_ITC.
+      LOOP AT IT_MAEX INTO WA_MAEX.
+        V_INDX1 = SY-TABIX.
+        READ TABLE IT_T001W INTO WA_T001W WITH KEY LAND1 = WA_MAEX-ALAND.
+        IF SY-SUBRC NE 0.
+          DELETE IT_MAEX INDEX V_INDX1.
+        ENDIF.
+        CLEAR: WA_MAEX,
+               V_INDX1,
+               WA_T001W.
+      ENDLOOP.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " F1100_RETRIEVE_MAT_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  F1200_RETRIEVE_SALES_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F1200_RETRIEVE_SALES_DATA.
+  IF IT_MARC_L[] IS NOT INITIAL.
+* Sales Data for Material
+    SELECT * FROM MVKE INTO TABLE IT_MVKE
+       FOR ALL ENTRIES IN IT_MARC_L
+     WHERE MATNR EQ IT_MARC_L-MATNR
+       AND VKORG IN S_VKORG
+       AND VTWEG IN S_VTWEG.
+  ENDIF.
+ENDFORM.                    " F1200_RETRIEVE_SALES_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  F1300_RETRIEVE_WH_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F1300_RETRIEVE_WH_DATA.
+  IF IT_MARC_L[] IS NOT INITIAL.
+    SELECT * FROM MLGN INTO TABLE IT_MLGN
+       FOR ALL ENTRIES IN IT_MARC_L
+     WHERE MATNR EQ IT_MARC_L-MATNR.
+    IF IT_MLGN[] IS NOT INITIAL.
+      SELECT * FROM MLGT INTO TABLE IT_MLGT
+         FOR ALL ENTRIES IN IT_MLGN
+       WHERE MATNR EQ IT_MLGN-MATNR
+         AND LGNUM EQ IT_MLGN-LGNUM.
+    ENDIF.
+    LOOP AT IT_MLGN INTO WA_MLGN.
+      CLEAR WA_WH_DATA.
+      MOVE-CORRESPONDING WA_MLGN TO WA_WH_DATA.
+      READ TABLE IT_MLGT INTO WA_MLGT
+        WITH KEY MATNR = WA_MLGN-MATNR
+                 LGNUM = WA_MLGN-LGNUM.
+      IF SY-SUBRC EQ 0.
+        MOVE: WA_MLGT-LGTYP TO WA_WH_DATA-LGTYP,
+              WA_MLGT-LGPLA TO WA_WH_DATA-LGPLA.
+      ENDIF.
+      APPEND WA_WH_DATA TO IT_WH_DATA.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.                    " F1300_RETRIEVE_WH_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  F1400_RETRIEVE_CHAR_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F1400_RETRIEVE_CHAR_DATA.
+  IF IT_MARC_L[] IS NOT INITIAL.
+    " Characteristic
+    R_ATNAM-SIGN = C_I.
+    R_ATNAM-OPTION = C_EQ.
+    R_ATNAM-LOW = C_CERTNUM.
+    APPEND R_ATNAM.
+    R_ATNAM-LOW = C_CERTVF.
+    APPEND R_ATNAM.
+    R_ATNAM-LOW = C_CERTTO.
+    APPEND R_ATNAM.
+    R_ATNAM-LOW = C_CERTSTA.
+    APPEND R_ATNAM.
+    R_ATNAM-LOW = C_LPPER.
+    APPEND R_ATNAM.
+    R_ATNAM-LOW = C_LPVF.
+    APPEND R_ATNAM.
+    R_ATNAM-LOW = C_LPTO.
+    APPEND R_ATNAM.
+    SELECT * FROM CABN INTO TABLE IT_CABN
+     WHERE ATNAM IN R_ATNAM.
+
+    " Characteristic Values
+    REFRESH IT_MATNR[].
+    LOOP AT IT_MARC_L INTO WA_MARC_L.
+      MOVE-CORRESPONDING WA_MARC_L TO WA_MATNR.
+      APPEND WA_MATNR TO IT_MATNR.
+    ENDLOOP.
+    SELECT * FROM AUSP INTO TABLE IT_AUSP
+       FOR ALL ENTRIES IN IT_MATNR
+     WHERE OBJEK EQ IT_MATNR-MATNR.
+    LOOP AT IT_AUSP INTO WA_AUSP.
+      V_INDX1 = SY-TABIX.
+      READ TABLE IT_CABN INTO WA_CABN WITH KEY ATINN = WA_AUSP-ATINN.
+      IF SY-SUBRC NE 0.
+        DELETE IT_AUSP INDEX V_INDX1.
+      ENDIF.
+      CLEAR: WA_CABN,
+             V_INDX1,
+             WA_AUSP.
+    ENDLOOP.
+    IF IT_AUSP[] IS NOT INITIAL.
+      SELECT * FROM CAWNT INTO TABLE IT_CAWNT
+         FOR ALL ENTRIES IN IT_AUSP
+       WHERE ATINN EQ IT_AUSP-ATINN.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " F1400_RETRIEVE_CHAR_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  F2000_MAIN_PROCESSING
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F2000_MAIN_PROCESSING.
+  LOOP AT IT_MARC_L INTO WA_MARC_L.
+    LOOP AT IT_MAKT INTO WA_MAKT
+      WHERE MATNR EQ WA_MARC_L-MATNR.
+      CLEAR WA_MARC.
+      MOVE-CORRESPONDING WA_MARC_L  TO WA_MARC.
+      MOVE WA_MAKT-SPRAS TO WA_MARC-LANGU.
+      APPEND WA_MARC TO IT_MARC.
+    ENDLOOP.
+  ENDLOOP.
+
+  LOOP AT IT_MARC INTO WA_MARC.
+    CLEAR WA_MAT_UP.
+    " move marc data
+    MOVE-CORRESPONDING WA_MARC TO WA_MAT_UP.
+    " if value initial, make it empty
+    PERFORM F2100_CLEAR_VALUES USING WA_MARC
+                            CHANGING WA_MAT_UP.
+    IF WA_MARC-LANGU IS NOT INITIAL.
+      MOVE WA_MARC-LANGU  TO WA_MAT_UP-SPRAS.
+    ENDIF.
+    " move mara data
+    READ TABLE IT_MARA INTO WA_MARA WITH KEY MATNR = WA_MARC-MATNR.
+    IF SY-SUBRC EQ 0.
+      MOVE-CORRESPONDING WA_MARA TO WA_MAT_UP.
+      IF WA_MARA-MSTDV IS INITIAL.
+        CLEAR WA_MAT_UP-MSTDV.
+      ELSE.
+        CLEAR L_DATE.
+        YEAR  = WA_MARA-MSTDV+0(4).
+        MONTH = WA_MARA-MSTDV+4(2).
+        DATE  = WA_MARA-MSTDV+6(2).
+        CONCATENATE DATE MONTH YEAR INTO L_DATE.
+        WA_MAT_UP-MSTDV = L_DATE.
+      ENDIF.
+    ENDIF.
+
+    READ TABLE IT_T001W INTO WA_T001W WITH KEY WERKS = WA_MARC-WERKS TRANSPORTING LAND1.
+    IF SY-SUBRC EQ 0.
+      " move mlan data
+      READ TABLE IT_MLAN INTO WA_MLAN WITH KEY MATNR = WA_MARC-MATNR
+                                               ALAND = WA_T001W-LAND1.
+      IF SY-SUBRC EQ 0.
+        MOVE: WA_MLAN-TAXM1 TO WA_MAT_UP-TAXIM_S,
+              WA_MLAN-TAXIM TO WA_MAT_UP-TAXIM_P.
+      ENDIF.
+      " move maex data
+      READ TABLE IT_MAEX INTO WA_MAEX WITH KEY MATNR = WA_MARC-MATNR
+                                               ALAND = WA_T001W-LAND1.
+      IF SY-SUBRC EQ 0.
+        MOVE-CORRESPONDING WA_MAEX  TO WA_MAT_UP.
+      ENDIF.
+    ENDIF.
+    " move mbew data
+    READ TABLE IT_MBEW INTO WA_MBEW WITH KEY MATNR = WA_MARC-MATNR
+                                             BWKEY = WA_MARC-WERKS.
+    IF SY-SUBRC EQ 0.
+      MOVE-CORRESPONDING WA_MBEW  TO WA_MAT_UP.
+    ENDIF.
+    " move makt data
+    READ TABLE IT_MAKT INTO WA_MAKT WITH KEY MATNR = WA_MARC-MATNR
+                                             SPRAS = WA_MARC-LANGU.
+    IF SY-SUBRC EQ 0.
+      MOVE-CORRESPONDING WA_MAKT  TO WA_MAT_UP.
+    ENDIF.
+    " move mard data, only the stroage location string
+    CLEAR LGORT_STR.
+    LOOP AT IT_MARD
+      INTO WA_MARD WHERE MATNR EQ WA_MARC-MATNR
+                     AND WERKS EQ WA_MARC-WERKS.
+      IF LGORT_STR IS INITIAL.
+        LGORT_STR = WA_MARD-LGORT.
+      ELSE.
+        CONCATENATE LGORT_STR WA_MARD-LGORT
+               INTO LGORT_STR SEPARATED BY '/'.
+      ENDIF.
+    ENDLOOP.
+    MOVE LGORT_STR TO WA_MAT_UP-LGORT_X.
+    " move mvke
+    READ TABLE IT_MVKE INTO WA_MVKE WITH KEY MATNR = WA_MARC-MATNR.
+    IF SY-SUBRC EQ 0.
+      V_INDX2 = SY-TABIX.
+      MOVE-CORRESPONDING WA_MVKE TO WA_MAT_UP.
+      IF WA_MVKE-VMSTD IS INITIAL.
+        CLEAR WA_MAT_UP-VMSTD.
+      ELSE.
+        CLEAR L_DATE.
+        YEAR  = WA_MVKE-VMSTD+0(4).
+        MONTH = WA_MVKE-VMSTD+4(2).
+        DATE  = WA_MVKE-VMSTD+6(2).
+        CONCATENATE DATE MONTH YEAR INTO L_DATE.
+        WA_MAT_UP-VMSTD = L_DATE.
+      ENDIF.
+      DELETE IT_MVKE INDEX V_INDX2.
+    ENDIF.
+    " move warehouse data
+    READ TABLE IT_WH_DATA INTO WA_WH_DATA WITH KEY MATNR = WA_MARC-MATNR.
+    IF SY-SUBRC EQ 0.
+      V_INDX2 = SY-TABIX.
+      MOVE-CORRESPONDING WA_WH_DATA TO WA_MAT_UP.
+      PERFORM F2300_CLEAR_VALUE USING WA_WH_DATA
+                             CHANGING WA_MAT_UP.
+      DELETE IT_WH_DATA INDEX V_INDX2.
+    ENDIF.
+*" BAISC text
+    PERFORM F2200_READ_TEXT.
+    " to read charactorical
+    PERFORM F2500_READ_CHAR USING WA_MARC-MATNR.
+    " to read model
+    PERFORM F2600_READ_MODEL.
+    CONDENSE : WA_MAT_UP-BRGEW,
+               WA_MAT_UP-NTGEW,
+               WA_MAT_UP-BSTMI,
+               WA_MAT_UP-BSTMA,
+               WA_MAT_UP-BSTFE,
+               WA_MAT_UP-EISBE,
+               WA_MAT_UP-PLIFZ,
+               WA_MAT_UP-WEBAZ,
+               WA_MAT_UP-LGRAD,
+               WA_MAT_UP-WZEIT,
+               WA_MAT_UP-LHMG1,
+               WA_MAT_UP-LHMG2,
+               WA_MAT_UP-LHMG3,
+               WA_MAT_UP-STPRS,
+               WA_MAT_UP-LOSGR,
+               WA_MAT_UP-VERPR,
+               WA_MAT_UP-BSTRF.
+    APPEND WA_MAT_UP TO IT_MAT_UP.
+  ENDLOOP.
+
+  LOOP AT IT_MVKE
+    INTO WA_MVKE.
+    CLEAR WA_MAT_UP.
+    READ TABLE IT_MAT_UP INTO WA_MAT_UP WITH KEY MATNR = WA_MVKE-MATNR.
+    " mvke
+    MOVE-CORRESPONDING WA_MVKE  TO WA_MAT_UP.
+    IF WA_MVKE-VMSTD IS INITIAL.
+      CLEAR WA_MAT_UP-VMSTD.
+    ELSE.
+      CLEAR L_DATE.
+      YEAR  = WA_MVKE-VMSTD+0(4).
+      MONTH = WA_MVKE-VMSTD+4(2).
+      DATE  = WA_MVKE-VMSTD+6(2).
+      CONCATENATE DATE MONTH YEAR INTO L_DATE.
+      WA_MAT_UP-VMSTD = L_DATE.
+    ENDIF.
+    " mlgn
+    READ TABLE IT_WH_DATA INTO WA_WH_DATA WITH KEY MATNR = WA_MVKE-MATNR.
+    IF SY-SUBRC EQ 0.
+      V_INDX2 = SY-TABIX.
+      MOVE-CORRESPONDING WA_WH_DATA TO WA_MAT_UP.
+      PERFORM F2300_CLEAR_VALUE USING WA_WH_DATA
+                             CHANGING WA_MAT_UP.
+      DELETE IT_WH_DATA INDEX V_INDX2.
+    ENDIF.
+
+    CONDENSE : WA_MAT_UP-BRGEW,
+               WA_MAT_UP-NTGEW,
+               WA_MAT_UP-BSTMI,
+               WA_MAT_UP-BSTMA,
+               WA_MAT_UP-BSTFE,
+               WA_MAT_UP-EISBE,
+               WA_MAT_UP-PLIFZ,
+               WA_MAT_UP-WEBAZ,
+               WA_MAT_UP-LGRAD,
+               WA_MAT_UP-WZEIT,
+               WA_MAT_UP-LHMG1,
+               WA_MAT_UP-LHMG2,
+               WA_MAT_UP-LHMG3,
+               WA_MAT_UP-STPRS,
+               WA_MAT_UP-LOSGR,
+               WA_MAT_UP-VERPR,
+               WA_MAT_UP-BSTRF.
+    APPEND WA_MAT_UP TO IT_MAT_UP.
+  ENDLOOP.
+  LOOP AT IT_WH_DATA
+    INTO WA_WH_DATA.
+    CLEAR WA_MAT_UP.
+    READ TABLE IT_MAT_UP INTO WA_MAT_UP WITH KEY MATNR = WA_WH_DATA-MATNR.
+    IF SY-SUBRC EQ 0.
+    ENDIF.
+    MOVE-CORRESPONDING WA_WH_DATA   TO WA_MAT_UP.
+    CONDENSE : WA_MAT_UP-BRGEW,
+               WA_MAT_UP-NTGEW,
+               WA_MAT_UP-BSTMI,
+               WA_MAT_UP-BSTMA,
+               WA_MAT_UP-BSTFE,
+               WA_MAT_UP-EISBE,
+               WA_MAT_UP-PLIFZ,
+               WA_MAT_UP-WEBAZ,
+               WA_MAT_UP-LGRAD,
+               WA_MAT_UP-WZEIT,
+               WA_MAT_UP-LHMG1,
+               WA_MAT_UP-LHMG2,
+               WA_MAT_UP-LHMG3,
+               WA_MAT_UP-STPRS,
+               WA_MAT_UP-LOSGR,
+               WA_MAT_UP-VERPR,
+               WA_MAT_UP-BSTRF.
+    APPEND WA_MAT_UP TO IT_MAT_UP.
+  ENDLOOP.
+*  SORT it_mat_up BY matnr.
+  DELETE IT_MAT_UP WHERE CCC_CERT_STAT NOT IN S_ATWRT.
+  IF IT_MAT_UP[] IS INITIAL.
+    MESSAGE S070(ZMM) WITH TEXT-E01 DISPLAY LIKE C_E.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+  LOOP AT IT_MAT_UP
+    INTO WA_MAT_UP.
+    V_INDX1 = SY-TABIX.
+    CALL FUNCTION 'CONVERSION_EXIT_ISOLA_OUTPUT'
+      EXPORTING
+        INPUT  = WA_MAT_UP-SPRAS
+      IMPORTING
+        OUTPUT = WA_MAT_UP-SPRAS.
+    CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+      EXPORTING
+        INPUT  = WA_MAT_UP-MATNR
+      IMPORTING
+        OUTPUT = WA_MAT_UP-MATNR.
+    IF WA_MAT_UP-MEINS IS NOT INITIAL.
+      CALL FUNCTION 'CONVERSION_EXIT_CUNIT_OUTPUT'
+        EXPORTING
+          INPUT          = WA_MAT_UP-MEINS
+          LANGUAGE       = SY-LANGU
+        IMPORTING
+          OUTPUT         = WA_MAT_UP-MEINS
+        EXCEPTIONS
+          UNIT_NOT_FOUND = 1
+          OTHERS         = 2.
+    ENDIF.
+    MODIFY IT_MAT_UP INDEX V_INDX1 FROM WA_MAT_UP TRANSPORTING MATNR SPRAS MEINS.
+  ENDLOOP.
+ENDFORM.                    " F2000_MAIN_PROCESSING
+
+*&---------------------------------------------------------------------*
+*&      Form  F2100_CLEAR_VALUES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F2100_CLEAR_VALUES USING WA_MARC  TYPE TY_MARC_L
+                        CHANGING WA_MAT_UP TYPE TY_MAT_UP.
+  IF WA_MARC-DISLS IS INITIAL.
+    CLEAR WA_MAT_UP-DISLS.
+  ENDIF.
+  IF WA_MARC-BSTMI IS INITIAL.
+    CLEAR WA_MAT_UP-BSTMI.
+  ENDIF.
+  IF WA_MARC-BSTMA IS INITIAL.
+    CLEAR WA_MAT_UP-BSTMA.
+  ENDIF.
+  IF WA_MARC-BSTFE IS INITIAL.
+    CLEAR WA_MAT_UP-BSTFE.
+  ENDIF.
+  IF WA_MARC-BSTRF IS INITIAL.
+    CLEAR WA_MAT_UP-BSTRF.
+  ENDIF.
+  IF WA_MARC-EISBE IS INITIAL.
+    CLEAR WA_MAT_UP-EISBE.
+  ENDIF.
+  IF WA_MARC-LGRAD IS INITIAL.
+    CLEAR WA_MAT_UP-LGRAD.
+  ENDIF.
+  IF WA_MARC-VINT1 IS INITIAL.
+    CLEAR WA_MAT_UP-VINT1.
+  ENDIF.
+  IF WA_MARC-VINT2 IS INITIAL.
+    CLEAR WA_MAT_UP-VINT2.
+  ENDIF.
+ENDFORM.                    " F2100_CLEAR_VALUES
+
+*&---------------------------------------------------------------------*
+*&      Form  F2200_READ_TEXT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0837   text
+*      -->P_0838   text
+*----------------------------------------------------------------------*
+FORM F2200_READ_TEXT.
+  CLEAR : THEAD,
+          STR,
+          WA_LINE.
+  REFRESH IT_LINES[].
+  THEAD-TDNAME = WA_MARC-MATNR.
+  THEAD-TDSPRAS = WA_MARC-LANGU.
+  THEAD-TDOBJECT = C_TDOBJECT.
+  THEAD-TDID = C_TDIDGRUN.
+  CALL FUNCTION 'READ_TEXT'
+    EXPORTING
+      CLIENT                  = SY-MANDT
+      ID                      = THEAD-TDID
+      LANGUAGE                = THEAD-TDSPRAS
+      NAME                    = THEAD-TDNAME
+      OBJECT                  = THEAD-TDOBJECT
+    TABLES
+      LINES                   = IT_LINES
+    EXCEPTIONS
+      ID                      = 1
+      LANGUAGE                = 2
+      NAME                    = 3
+      NOT_FOUND               = 4
+      OBJECT                  = 5
+      REFERENCE_CHECK         = 6
+      WRONG_ACCESS_TO_ARCHIVE = 7
+      OTHERS                  = 8.
+  LOOP AT IT_LINES
+    INTO WA_LINE.
+    IF STR IS INITIAL.
+      MOVE WA_LINE-TDLINE TO STR.
+    ELSE.
+      CONCATENATE STR WA_LINE-TDLINE
+            INTO STR SEPARATED BY SPACE.
+    ENDIF.
+  ENDLOOP.
+  WA_MAT_UP-SKTEXT = STR.
+
+  CLEAR : THEAD,
+          STR,
+          WA_LINE.
+  REFRESH IT_LINES[].
+  THEAD-TDNAME = WA_MARC-MATNR.
+  THEAD-TDSPRAS = WA_MARC-LANGU.
+  THEAD-TDOBJECT = C_TDOBJECT.
+  THEAD-TDID = C_TDIDPRUE.
+  CALL FUNCTION 'READ_TEXT'
+    EXPORTING
+      CLIENT                  = SY-MANDT
+      ID                      = THEAD-TDID
+      LANGUAGE                = THEAD-TDSPRAS
+      NAME                    = THEAD-TDNAME
+      OBJECT                  = THEAD-TDOBJECT
+    TABLES
+      LINES                   = IT_LINES
+    EXCEPTIONS
+      ID                      = 1
+      LANGUAGE                = 2
+      NAME                    = 3
+      NOT_FOUND               = 4
+      OBJECT                  = 5
+      REFERENCE_CHECK         = 6
+      WRONG_ACCESS_TO_ARCHIVE = 7
+      OTHERS                  = 8.
+  LOOP AT IT_LINES INTO WA_LINE.
+    IF STR IS INITIAL.
+      MOVE WA_LINE-TDLINE TO STR.
+    ELSE.
+      CONCATENATE STR WA_LINE-TDLINE
+            INTO STR SEPARATED BY SPACE.
+    ENDIF.
+  ENDLOOP.
+  WA_MAT_UP-TDLINE = STR.
+ENDFORM.                    " F2200_READ_TEXT
+
+*&---------------------------------------------------------------------*
+*&      Form  F2300_CLEAR_VALUE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_WA_WH_DATA  text
+*      <--P_WA_MAT_UP  text
+*----------------------------------------------------------------------*
+FORM F2300_CLEAR_VALUE  USING    WA_WH_DATA TYPE TY_WH_DATA
+                        CHANGING WA_MAT_UP TYPE TY_MAT_UP.
+  IF WA_WH_DATA-LHMG1 IS INITIAL.
+    CLEAR WA_MAT_UP-LHMG1.
+  ENDIF.
+  IF WA_WH_DATA-LHMG2 IS INITIAL.
+    CLEAR WA_MAT_UP-LHMG2.
+  ENDIF.
+  IF WA_WH_DATA-LHMG3 IS INITIAL.
+    CLEAR WA_MAT_UP-LHMG3.
+  ENDIF.
+ENDFORM.                    " F2300_CLEAR_VALUE
+
+*&---------------------------------------------------------------------*
+*&      Form  F2500_READ_CHAR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F2500_READ_CHAR USING US_MATNR.
+  LOOP AT IT_AUSP
+    INTO WA_AUSP WHERE OBJEK = US_MATNR.
+    READ TABLE IT_CABN INTO WA_CABN WITH KEY ATINN = WA_AUSP-ATINN.
+    CASE WA_CABN-ATNAM.
+      WHEN C_CERTNUM.
+        WA_MAT_UP-CCC_CERT_NUM = WA_AUSP-ATWRT.
+      WHEN C_CERTVF.
+        CLEAR : STR, L_DATE1.
+        STR = WA_AUSP-ATFLV.
+        SPLIT STR AT C_E1 INTO BFE AFE.
+        L_DATE1 = BFE * ( 10 ** AFE ).
+        L_DATE2 = L_DATE1.
+        IF L_DATE2 IS NOT INITIAL.
+          CLEAR: YEAR,
+                 MONTH,
+                 DATE.
+          YEAR = L_DATE2+0(4).
+          MONTH = L_DATE2+4(2).
+          DATE  = L_DATE2+6(2).
+          CLEAR: L_DATE2.
+          CONCATENATE DATE MONTH YEAR INTO L_DATE2.
+        ENDIF.
+        WA_MAT_UP-CCC_CERT_VF =  L_DATE2.
+        CONDENSE WA_MAT_UP-CCC_CERT_VF.
+      WHEN C_CERTTO.
+        CLEAR : STR,
+                L_DATE1.
+        STR = WA_AUSP-ATFLV.
+        SPLIT STR AT C_E1 INTO BFE AFE.
+        L_DATE1 = BFE * ( 10 ** AFE ).
+        CLEAR: L_DATE2.
+        L_DATE2 = L_DATE1.
+        IF L_DATE2 IS NOT INITIAL.
+          CLEAR: YEAR,
+                 MONTH,
+                 DATE.
+          YEAR = L_DATE2+0(4).
+          MONTH = L_DATE2+4(2).
+          DATE  = L_DATE2+6(2).
+          CLEAR: L_DATE2.
+          CONCATENATE DATE MONTH YEAR INTO L_DATE2.
+        ENDIF.
+        WA_MAT_UP-CCC_CERT_VT =  L_DATE2.
+        CONDENSE WA_MAT_UP-CCC_CERT_VT.
+      WHEN C_CERTSTA.
+        WA_MAT_UP-CCC_CERT_STAT = WA_AUSP-ATWRT.
+        READ TABLE IT_CAWNT INTO WA_CAWNT WITH KEY ATINN = WA_AUSP-ATINN
+                                                   ATZHL = WA_AUSP-ATWRT
+                                                   SPRAS = SY-LANGU
+                                                   ADZHL = WA_AUSP-ADZHL.
+        IF SY-SUBRC EQ 0.
+          WA_MAT_UP-STATUS_DES = WA_CAWNT-ATWTB.
+        ENDIF.
+
+      WHEN C_LPPER.
+        WA_MAT_UP-CCC_LP_NUM = WA_AUSP-ATWRT.
+      WHEN C_LPVF.
+        CLEAR : STR, L_DATE1.
+        STR = WA_AUSP-ATFLV.
+        SPLIT STR AT C_E1 INTO BFE AFE.
+        L_DATE1 = BFE * ( 10 ** AFE ).
+        CLEAR: L_DATE2.
+        L_DATE2 = L_DATE1.
+        IF L_DATE2 IS NOT INITIAL.
+          CLEAR: YEAR,
+                 MONTH,
+                 DATE.
+          YEAR = L_DATE2+0(4).
+          MONTH = L_DATE2+4(2).
+          DATE  = L_DATE2+6(2).
+          CLEAR: L_DATE2.
+          CONCATENATE DATE MONTH YEAR INTO L_DATE2.
+        ENDIF.
+        WA_MAT_UP-CCC_LP_VF = L_DATE2.
+        CONDENSE WA_MAT_UP-CCC_LP_VF.
+      WHEN C_LPTO.
+        CLEAR : STR,
+                L_DATE1.
+        STR = WA_AUSP-ATFLV.
+        SPLIT STR AT C_E1 INTO BFE AFE.
+        L_DATE1 = BFE * ( 10 ** AFE ).
+        CLEAR: L_DATE2.
+        L_DATE2 = L_DATE1.
+        IF L_DATE2 IS NOT INITIAL.
+          CLEAR: YEAR,
+                 MONTH,
+                 DATE.
+          YEAR = L_DATE2+0(4).
+          MONTH = L_DATE2+4(2).
+          DATE  = L_DATE2+6(2).
+          CLEAR: L_DATE2.
+          CONCATENATE DATE MONTH YEAR INTO L_DATE2.
+        ENDIF.
+        WA_MAT_UP-CCC_LP_VT = L_DATE2.
+        CONDENSE WA_MAT_UP-CCC_LP_VT.
+      WHEN OTHERS.
+    ENDCASE.
+    CLEAR : STR, WA_AUSP.
+  ENDLOOP.
+ENDFORM.                    " F2500_READ_CHAR
+
+*&---------------------------------------------------------------------*
+*&      Form  F2600_READ_MODEL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F2600_READ_MODEL.
+  CLEAR WMPOP.
+  CALL FUNCTION 'MPOP_SINGLE_READ'
+    EXPORTING
+      MATNR      = WA_MAT_UP-MATNR
+      WERKS      = WA_MAT_UP-WERKS
+    IMPORTING
+      WMPOP      = WMPOP
+    EXCEPTIONS
+      NOT_FOUND  = 1
+      WRONG_CALL = 2
+      OTHERS     = 3.
+  WA_MAT_UP-PRMOD = WMPOP-PRMOD. " Forecast model
+  WA_MAT_UP-KZINI = WMPOP-KZINI. " Initialization indicator
+  WA_MAT_UP-MODAW = WMPOP-MODAW.  "Model Selection Indicator
+  WA_MAT_UP-HERKL = WA_MARC-HERKL.
+ENDFORM.                    " F2600_READ_MODEL
+
+*&---------------------------------------------------------------------*
+*&      Form  F3000_FIELD_CATLOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F3000_FIELD_CATLOG.
+  MC_FIELDCAT:
+    'MATNR'	TEXT-001,
+    'MBRSH'	TEXT-002,
+    'WERKS'	TEXT-003,
+    'VKORG'	TEXT-004,
+    'VTWEG'	TEXT-005,
+    'SPART'	TEXT-006,
+    'MTART'	TEXT-007,
+    'MAKTX'	TEXT-008,
+    'SPRAS'	TEXT-009,
+    'LGORT_X'	TEXT-010,
+    'MEINS'	TEXT-011,
+    'SKTEXT'  TEXT-012,
+    'MATKL'	TEXT-013,
+    'BISMT'	TEXT-014,
+    'LABOR'	TEXT-015,
+    'PRDHA'	TEXT-016,
+    'MSTAE'	TEXT-017,
+    'MTPOS_MARA'  TEXT-018,
+    'BEGRU'	TEXT-019,
+    'BRGEW'	TEXT-020,
+    'GEWEI'	TEXT-021,
+    'NTGEW'	TEXT-022,
+    'EAN11'	TEXT-023,
+    'ZEINR'	TEXT-024,
+    'ZEIVR'	TEXT-025,
+    'ZEIFO'	TEXT-026,
+    'CLASS'	TEXT-027,
+    'KLART'	TEXT-028,
+    'MSTAV'	TEXT-029,
+    'MSTDV'	TEXT-030,
+    'VMSTA'	TEXT-031,
+    'VMSTD'	TEXT-032,
+    'DWERK'	TEXT-033,
+    'TAXIM_S'	TEXT-034,
+    'VERSG'	TEXT-035,
+    'KONDM'	TEXT-036,
+    'BONUS'	TEXT-037,
+    'KTGRM'	TEXT-038,
+    'MTPOS'	TEXT-039,
+    'MVGR1'	TEXT-040,
+    'MTVFP'	TEXT-041,
+    'TRAGR'	TEXT-042,
+    'LADGR'	TEXT-043,
+    'PRCTR'	TEXT-044,
+    'STAWN'	TEXT-045,
+    'MTVER'	TEXT-046,
+    'HERKL'	TEXT-047,
+    'GEGRU'	TEXT-048,
+    'ALNUM'	TEXT-049,
+    'EMBGR'	TEXT-050,
+    'EKGRP'	TEXT-051,
+    'MMSTA'	TEXT-052,
+    'TAXIM_P'	TEXT-053,
+    'KAUTB'	TEXT-054,
+    'EKWSL'	TEXT-055,
+    'KORDB'	TEXT-056,
+    'INSMK'	TEXT-057,
+    'KZKRI'	TEXT-058,
+    'DISGR'	TEXT-059,
+    'MAABC'	TEXT-060,
+    'MMSTA'	TEXT-061,
+    'DISMM'	TEXT-062,
+    'DISPO'	TEXT-063,
+    'DISLS'	TEXT-064,
+    'BSTMI'	TEXT-065,
+    'BSTMA'	TEXT-066,
+    'BSTFE'	TEXT-067,
+    'BSTRF'	TEXT-068,
+    'BESKZ'	TEXT-069,
+    'SOBSL'	TEXT-070,
+    'LGPRO'	TEXT-071,
+    'RGEKZ'	TEXT-072,
+    'LGFSB'	TEXT-073,
+    'DZEIT'	TEXT-074,
+    'PLIFZ'	TEXT-075,
+    'WEBAZ'	TEXT-076,
+    'FHORI'	TEXT-077,
+    'EISBE'	TEXT-078,
+    'LGRAD'	TEXT-079,
+    'RWPRO'	TEXT-080,
+    'PERKZ'	TEXT-081,
+    'STRGR'	TEXT-082,
+    'VRMOD'	TEXT-083,
+    'VINT1'	TEXT-084,
+    'VINT2'	TEXT-085,
+    'MISKZ'	TEXT-086,
+    'MTVFP'	TEXT-087,
+    'WZEIT'	TEXT-088,
+    'SBDKZ'	TEXT-089,
+    'PRMOD'	TEXT-090,
+    'KZINI'	TEXT-091,
+    'MODAW'	TEXT-092,
+    'FEVOR'	TEXT-093,
+    'SFCPF'	TEXT-094,
+    'SERNP'	TEXT-095,
+    'SERLV'	TEXT-096,
+    'LGPRO'	TEXT-097,
+    'INSMK'	TEXT-098,
+    'KZKRI'	TEXT-099,
+    'LGNUM'	TEXT-100,
+    'EPRIO'	TEXT-101,
+    'LGTYP'	TEXT-102,
+    'LTKZA'	TEXT-103,
+    'LTKZE'	TEXT-104,
+    'LGBKZ'	TEXT-105,
+    'LGPLA'	TEXT-106,
+    'LHMG1'	TEXT-107,
+    'LETY1'	TEXT-108,
+    'BKLAS'	TEXT-109,
+    'VPRSV'	TEXT-110,
+    'PEINH'	TEXT-111,
+    'STPRS'	TEXT-112,
+    'XLIFO'	TEXT-113,
+    'NCOST'	TEXT-114,
+    'EKALR'	TEXT-115,
+    'HKMAT'	TEXT-116,
+    'HRKFT'	TEXT-117,
+    'KOSGR'	TEXT-118,
+    'AWSLS'	TEXT-119,
+    'LOSGR'	TEXT-120,
+    'TDLINE'  TEXT-121,
+    'CCC_CERT_NUM'  TEXT-122,
+    'CCC_LP_NUM'  TEXT-123,
+    'CCC_CERT_VF'	TEXT-124,
+    'CCC_CERT_VT'	TEXT-125,
+    'STATUS_DES'  TEXT-126,
+    'CCC_LP_VF'	TEXT-127,
+    'CCC_LP_VT'	TEXT-128.
+  W_LAY-COLWIDTH_OPTIMIZE = C_X.
+  CLEAR W_SORT.
+  REFRESH T_SORT[].
+  W_SORT-SPOS = 1.
+  W_SORT-FIELDNAME = 'MATNR'.
+  W_SORT-UP = C_X.
+  APPEND W_SORT TO T_SORT.
+ENDFORM.                    " F3000_FIELD_CATLOG
+
+*&---------------------------------------------------------------------*
+*&      Form  F4000_ALV_DISPLAY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F4000_ALV_DISPLAY.
+  MOVE SY-REPID TO G_REPID.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      I_BYPASSING_BUFFER       = C_X
+      I_BUFFER_ACTIVE          = SPACE
+      I_CALLBACK_PROGRAM       = G_REPID
+      I_CALLBACK_PF_STATUS_SET = 'F4100_PF_STATUS_SET'
+      I_CALLBACK_USER_COMMAND  = 'F4200_USER_COMMAND'
+      IS_LAYOUT                = W_LAY
+      IT_FIELDCAT              = T_FIELDCAT
+      IT_SORT                  = T_SORT
+    TABLES
+      T_OUTTAB                 = IT_MAT_UP.
+ENDFORM.                    " F4000_ALV_DISPLAY
+
+*&---------------------------------------------------------------------*
+*&      Form  f4100_pf_status_set
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->RT_EXTAB   text
+*----------------------------------------------------------------------*
+FORM F4100_PF_STATUS_SET USING US_EXTAB TYPE SLIS_T_EXTAB.
+  SET PF-STATUS 'Z_STATUS'.
+ENDFORM.                    "f4100_pf_status_set
+
+*&---------------------------------------------------------------------*
+*&      Form  F4200_USER_COMMAND
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->US_UCOMM     text
+*      -->US_SELFIELD  text
+*----------------------------------------------------------------------*
+FORM F4200_USER_COMMAND USING US_UCOMM LIKE SY-UCOMM
+                              US_SELFIELD TYPE SLIS_SELFIELD.
+  CASE US_UCOMM.
+    WHEN '&F03'.
+      LEAVE TO SCREEN 0.
+    WHEN '&F15'
+      OR '&F12'.
+      LEAVE PROGRAM.
+    WHEN '&DLD'.
+      PERFORM F4300_DOWNLOAD.
+    WHEN OTHERS.
+  ENDCASE.
+ENDFORM.                    "F4200_USER_COMMAND
+
+*&---------------------------------------------------------------------*
+*&      Form  F4300_DOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F4300_DOWNLOAD.
+  DATA: FILENAME  TYPE STRING,
+        PATH      TYPE STRING,
+        FULLPATH  TYPE STRING,
+        ACTION    TYPE I.
+  TYPES: BEGIN OF TY_DOWNLOAD,
+    STR(30000)  TYPE C,
+    END OF TY_DOWNLOAD.
+  DATA: WA_DOWNLOAD   TYPE TY_DOWNLOAD,
+        IT_DOWNLOAD   TYPE STANDARD TABLE OF TY_DOWNLOAD.
+  FIELD-SYMBOLS: <FS_FIELD> TYPE ANY.
+
+  CALL METHOD CL_GUI_FRONTEND_SERVICES=>FILE_SAVE_DIALOG
+    EXPORTING
+      WINDOW_TITLE         = 'Save'
+      PROMPT_ON_OVERWRITE  = C_X
+    CHANGING
+      FILENAME             = FILENAME
+      PATH                 = PATH
+      FULLPATH             = FULLPATH
+      USER_ACTION          = ACTION
+    EXCEPTIONS
+      CNTL_ERROR           = 1
+      ERROR_NO_GUI         = 2
+      NOT_SUPPORTED_BY_GUI = 3
+      OTHERS               = 4.
+  IF ACTION EQ CL_GUI_FRONTEND_SERVICES=>ACTION_OK.
+    CLEAR WA_DOWNLOAD.
+    LOOP AT T_FIELDCAT
+      INTO W_FIELDCAT.
+      IF WA_DOWNLOAD-STR IS INITIAL.
+        WA_DOWNLOAD-STR = W_FIELDCAT-SELTEXT_L.
+      ELSE.
+        CONCATENATE WA_DOWNLOAD-STR
+                    W_FIELDCAT-SELTEXT_L
+               INTO WA_DOWNLOAD-STR
+               SEPARATED BY CL_ABAP_CHAR_UTILITIES=>HORIZONTAL_TAB.
+      ENDIF.
+    ENDLOOP.
+    APPEND WA_DOWNLOAD TO IT_DOWNLOAD.
+    LOOP AT IT_MAT_UP
+      INTO WA_MAT_UP.
+      CLEAR WA_DOWNLOAD.
+      LOOP AT T_FIELDCAT
+        INTO W_FIELDCAT.
+        ASSIGN COMPONENT W_FIELDCAT-FIELDNAME OF STRUCTURE WA_MAT_UP TO <FS_FIELD>.
+        IF SY-SUBRC EQ 0.
+          IF WA_DOWNLOAD-STR IS INITIAL.
+            WA_DOWNLOAD-STR = <FS_FIELD>.
+          ELSE.
+            CONCATENATE WA_DOWNLOAD-STR
+                        <FS_FIELD>
+                   INTO WA_DOWNLOAD-STR
+                   SEPARATED BY CL_ABAP_CHAR_UTILITIES=>HORIZONTAL_TAB.
+          ENDIF.
+        ELSE.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      APPEND WA_DOWNLOAD TO IT_DOWNLOAD.
+    ENDLOOP.
+    CALL METHOD CL_GUI_FRONTEND_SERVICES=>GUI_DOWNLOAD
+      EXPORTING
+        FILENAME                = FULLPATH
+        FILETYPE                = 'ASC'
+        CODEPAGE                = '4103'
+        WRITE_BOM               = C_X
+      CHANGING
+        DATA_TAB                = IT_DOWNLOAD
+      EXCEPTIONS
+        FILE_WRITE_ERROR        = 1
+        NO_BATCH                = 2
+        GUI_REFUSE_FILETRANSFER = 3
+        INVALID_TYPE            = 4
+        NO_AUTHORITY            = 5
+        UNKNOWN_ERROR           = 6
+        HEADER_NOT_ALLOWED      = 7
+        SEPARATOR_NOT_ALLOWED   = 8
+        FILESIZE_NOT_ALLOWED    = 9
+        HEADER_TOO_LONG         = 10
+        DP_ERROR_CREATE         = 11
+        DP_ERROR_SEND           = 12
+        DP_ERROR_WRITE          = 13
+        UNKNOWN_DP_ERROR        = 14
+        ACCESS_DENIED           = 15
+        DP_OUT_OF_MEMORY        = 16
+        DISK_FULL               = 17
+        DP_TIMEOUT              = 18
+        FILE_NOT_FOUND          = 19
+        DATAPROVIDER_EXCEPTION  = 20
+        CONTROL_FLUSH_ERROR     = 21
+        NOT_SUPPORTED_BY_GUI    = 22
+        ERROR_NO_GUI            = 23
+        OTHERS                  = 24.
+  ENDIF.
+ENDFORM.                    " F4300_DOWNLOAD
+

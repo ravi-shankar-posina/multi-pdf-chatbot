@@ -1,0 +1,10 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_MISSING_INBD_DELY_SEL
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+SELECT-OPTIONS: s_bsart FOR gv_bsart DEFAULT 'ZB',
+                s_aedat FOR gv_aedat,
+                s_ekorg FOR gv_ekorg DEFAULT 'USP1',
+                s_werks FOR gv_werks.
+SELECTION-SCREEN END OF BLOCK b1.
+

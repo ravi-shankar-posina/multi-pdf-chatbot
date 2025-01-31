@@ -1,0 +1,18 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_SA_MNTSPK_SS
+*&---------------------------------------------------------------------*
+************************************************************************
+*SELECTION-SCREEN
+************************************************************************
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-031.
+PARAMETERS gp_plant TYPE t001w-werks OBLIGATORY.
+SELECT-OPTIONS: gs_matnr FOR gw_matnr,
+                gs_ekgrp FOR gw_ekgrp,
+                gs_dispo FOR gw_dispo,
+                gs_sobsl FOR gw_sobsl OBLIGATORY.
+SELECT-OPTIONS: gs_mstae FOR gw_mstae,
+                gs_mmsta FOR gw_mmsta.
+
+PARAMETERS gp_mail TYPE ad_smtpadr.
+SELECTION-SCREEN END OF BLOCK b1.
+

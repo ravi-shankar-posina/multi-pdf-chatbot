@@ -1,0 +1,1441 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZRMM_PI_SUMMARY_REPORT_BUILF01.
+*----------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name             : ZRMM_PI_SUMMARY_REPORT_BUILF01
+* Created by       : Anil Kumar
+* Transport Request: DE3K9A0M72
+* RICEF Object No  : RICEF2684
+* Description      : PI Summary report and Phantom explosion programs.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*========================================================================================
+*** Change History                                                                  ***
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*****************************************************************************************
+*  DATE      |  TR NO.    |  CR No.    | Changed by  |  DESCRIPTION OF CHANG
+*****************************************************************************************
+*09/21/2023  | DE3K9A0MYF | SCM-2684   | USANBOD11   | PI - Summary / Detail changes
+****************************************************************************************
+*****************************************************************************************
+*10/09/2023  | DE3K9A0N91 | SCM-2684   | USANBOD11   | PI - Summary / Detail changes
+****************************************************************************************
+*11/15/2023  |  DE3K9A0NN9|SCM-2684    | USANBOD11  |Physical_inventory Changes
+****************************************************************************************
+*02/06/2024   | RICEF-2684|SCM-2684    | USANBOD11 | Phantom Explosion requirement  *
+*09/05/2024  | DE3K9A0QXS | SCM-2684   | USANBOD11   | card lock-Get from PICT_1 table
+******************************************************************************************
+* CHANGED BY  | DATE        | TR #       |CR No(INCUM | DESCRIPTION OF CHANG
+*****************************************************************************************
+* CHTAMUR     | 09/09/2024  | DE3K9A0T02 | CHG2078268 | PI tool issue fixes and improvements   *
+*----------------------------------------------------------------------*
+* CHTAMUR     | 08/Nov/2024 | DE3K9A0U0J | 87274 | PICT Minor issue fixes
+*----------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+
+  REFRESH : it_picc ,  it_date , it_pict .
+  SELECT piyear werks version FROM ztmm_picc_log INTO TABLE it_picc
+    WHERE piyear IN s_piyear AND
+          werks IN s_werks AND
+          version IN s_ver.
+
+  IF sy-subrc = 0.
+    SORT it_picc BY piyear werks version.
+  ENDIF.
+
+  IF it_picc IS NOT INITIAL.
+    SELECT piyear werks pidate FROM ztmm_pi_date INTO TABLE it_date
+      FOR ALL ENTRIES IN it_picc
+      WHERE piyear = it_picc-piyear AND
+            werks = it_picc-werks   AND
+            version = it_picc-version  .
+    IF sy-subrc = 0.
+      SORT it_date BY piyear werks.                .
+    ENDIF.
+  ENDIF.
+
+
+  IF it_date[] IS NOT INITIAL .
+    SELECT *                                       "#EC "#EC CI_NOFIRST
+*     FROM ZTMM_PICT INTO TABLE IT_PICT        " DE3K9A0QXS        USANBOD11
+      FROM ztmm_pict_1 INTO TABLE it_pict      " DE3K9A0QXS        USANBOD11
+     FOR ALL ENTRIES IN it_date
+     WHERE gjahr = it_date-piyear AND
+           werks = it_date-werks   AND
+           entdate = it_date-pidate AND
+           xloek = space AND
+           bom_explode = space.  " BOC  USANBOD11 06/02/2024
+    IF sy-subrc = 0.
+      SORT it_pict BY werks gjahr matnr lgort sobkz bstar vbeln posnr lifnr pspnr.                .
+    ENDIF.
+
+  ENDIF.
+*** boc DE3K9A0NN9 SCM-2684  USABNOD11  Material not counted logic
+  SELECT iblnr,                                         "#EC CI_NOFIRST
+   gjahr,
+   werks,
+   version
+  FROM ztmm_pidoc
+  INTO TABLE @DATA(gt_ztmm_pidoc)
+  WHERE gjahr IN @s_piyear " @ztmm_picc_log-piyear
+  AND werks IN @s_werks  "= @ztmm_picc_log-werks
+  AND version IN @s_ver . "= @ztmm_picc_log-version.
+  IF sy-subrc EQ 0.
+    SORT gt_ztmm_pidoc BY iblnr gjahr werks.
+  ENDIF.
+
+  IF gt_ztmm_pidoc[] IS NOT INITIAL.
+    SELECT iblnr
+           gjahr
+           zeili
+           matnr
+           werks
+           lgort
+           charg
+           sobkz
+           bstar
+           kdauf
+           kdpos
+           lifnr
+           buchm
+           dmbtr
+           ps_psp_pnr
+           wrtzl
+           wrtbm
+           buchw
+*           KDAUF
+*           KDPOS
+           FROM iseg
+          INTO TABLE gt_iseg
+      FOR ALL ENTRIES IN gt_ztmm_pidoc
+          WHERE iblnr = gt_ztmm_pidoc-iblnr
+            AND gjahr = gt_ztmm_pidoc-gjahr
+            AND werks = gt_ztmm_pidoc-werks.
+    IF sy-subrc EQ 0.
+      SORT gt_iseg BY matnr.
+    ENDIF.
+  ENDIF.
+
+  IF gt_iseg[] IS NOT INITIAL.
+*      project stock
+    SELECT      matnr werks lgort charg sobkz
+                prlab
+                prins
+                prspe
+                FROM mspr
+                INTO TABLE gi_mspr
+                FOR ALL ENTRIES IN gt_iseg
+                WHERE matnr = gt_iseg-matnr
+                AND   werks = gt_iseg-werks
+                AND   lgort = gt_iseg-lgort
+                AND   charg = gt_iseg-charg
+                AND   sobkz = gt_iseg-sobkz
+                AND   pspnr = gt_iseg-ps_psp_pnr.
+    IF sy-subrc  = 0.
+      SORT gi_mspr BY matnr werks lgort charg sobkz .
+    ENDIF.
+
+    SELECT        matnr,
+                  bwkey,
+                  bwtar,
+                  sobkz,
+                  pspnr,
+                  lbkum,
+                  stprs,
+                  peinh,
+                  vprsv, " Anil
+                  verpr  " Anil
+      FROM qbew INTO TABLE @DATA(lt_qbew)
+      FOR ALL ENTRIES IN @gt_iseg
+      WHERE matnr EQ @gt_iseg-matnr AND
+            bwkey EQ @gt_iseg-werks AND
+            sobkz EQ @gt_iseg-sobkz AND
+            pspnr EQ @gt_iseg-ps_psp_pnr AND
+            sobkz  = 'Q'.
+    IF sy-subrc  = 0 .
+      SORT lt_qbew BY matnr bwkey bwtar sobkz pspnr.
+    ENDIF.
+*        Sales stock
+    SELECT       matnr werks lgort charg sobkz
+                  kalab
+                  kains
+                  kaspe
+                  FROM mska
+                  INTO TABLE gi_mska
+                FOR ALL ENTRIES IN gt_iseg
+                WHERE matnr = gt_iseg-matnr
+                AND   werks = gt_iseg-werks
+                AND   lgort = gt_iseg-lgort
+                AND   charg = gt_iseg-charg
+                AND   sobkz = gt_iseg-sobkz
+                AND   vbeln = gt_iseg-kdauf
+                AND   posnr = gt_iseg-kdpos.
+    IF sy-subrc  = 0.
+      SORT gi_mska BY matnr werks lgort charg sobkz .
+    ENDIF.
+
+    SELECT        matnr,
+                  bwkey,
+                  bwtar,
+                  sobkz,
+                  vbeln,
+                  posnr,
+                  lbkum,
+                  stprs,
+                  peinh,
+                  vprsv, " Anil
+                  verpr  " Anil
+           FROM ebew INTO TABLE @DATA(lt_ebew)
+           FOR ALL ENTRIES IN @gt_iseg
+           WHERE matnr EQ @gt_iseg-matnr AND
+           bwkey EQ @gt_iseg-werks AND
+           sobkz EQ @gt_iseg-sobkz AND
+            vbeln EQ @gt_iseg-kdauf AND
+            posnr EQ @gt_iseg-kdpos AND
+            sobkz  = 'E'.
+    IF sy-subrc  = 0 .
+      SORT lt_ebew BY matnr bwkey bwtar sobkz vbeln posnr.
+    ENDIF.
+
+** VENDOR
+    SELECT    *
+                 FROM  mssl
+                 INTO  TABLE gi_mssl
+              FOR ALL ENTRIES IN gt_iseg
+              WHERE matnr = gt_iseg-matnr
+              AND   werks = gt_iseg-werks
+              AND   sobkz = gt_iseg-sobkz
+              AND   lifnr = gt_iseg-lifnr.
+    IF sy-subrc  = 0.
+      SORT gi_mssl BY matnr werks sobkz lifnr .
+    ENDIF.
+**  Consingment
+    SELECT  matnr,
+                  bwkey,
+                  bwtar,
+                  sobkz,
+                  lifnr,
+                  lbkum,
+                  stprs,
+                  peinh,
+                  vprsv, " Anil
+                  verpr  " Anil
+      FROM obew INTO TABLE @DATA(lt_obew)
+      FOR ALL ENTRIES IN @gt_iseg
+   WHERE matnr EQ @gt_iseg-matnr AND
+   bwkey EQ @gt_iseg-werks AND
+   sobkz EQ @gt_iseg-sobkz AND
+   lifnr = @gt_iseg-lifnr AND
+               sobkz  = 'K'.
+
+    IF sy-subrc  = 0 .
+      SORT lt_obew BY matnr bwkey bwtar sobkz lifnr.
+    ENDIF.
+
+*          normal stock
+    SELECT        matnr werks lgort labst insme speme
+                  FROM mard INTO TABLE gi_mard
+            FOR ALL ENTRIES IN gt_iseg
+            WHERE matnr = gt_iseg-matnr
+            AND   werks = gt_iseg-werks
+            AND   lgort = gt_iseg-lgort.
+    IF sy-subrc  = 0.
+      SORT gi_mard BY matnr werks lgort .
+    ENDIF.
+    SELECT       matnr,
+                  bwkey,
+                  bklas,
+                  stprs,
+                  peinh,
+                  vprsv, " Anil
+                  verpr  " Anil
+      FROM mbew INTO TABLE @DATA(lt_mbew)
+        FOR ALL ENTRIES IN @gt_iseg
+     WHERE matnr EQ @gt_iseg-matnr AND
+     bwkey EQ @gt_iseg-werks  .
+
+  ENDIF.
+  it_pict1[] = it_pict[].
+  DELETE ADJACENT DUPLICATES FROM gt_iseg COMPARING matnr.
+  DELETE ADJACENT DUPLICATES FROM it_pict1 COMPARING matnr.
+  REFRESH : gt_iseg_mnc .
+  LOOP AT gt_iseg INTO ls_iseg .
+    IF ls_iseg-buchm IS INITIAL.
+      DATA(lv_tbx) = sy-tabix .
+      CASE ls_iseg-sobkz.
+        WHEN 'Q'.
+          CLEAR gw_labst .
+          READ TABLE gi_mspr WITH KEY matnr = ls_iseg-matnr
+                                      werks = ls_iseg-werks
+                                      lgort = ls_iseg-lgort
+                                      charg = ls_iseg-charg
+                                      sobkz = ls_iseg-sobkz.
+*                                      PSPNR = LS_ISEG-PS_PSP_PNR.
+          IF sy-subrc  = 0 .
+            IF ls_iseg-bstar = '1'.
+              gw_labst = gi_mspr-prlab.
+            ELSEIF ls_iseg-bstar = '2'.
+              gw_labst = gi_mspr-prins.
+            ELSEIF ls_iseg-bstar = '4'.
+              gw_labst = gi_mspr-prspe.
+            ENDIF.
+          ENDIF .
+
+          READ TABLE lt_qbew INTO DATA(ls_qbew) WITH KEY matnr = ls_iseg-matnr
+                                      bwkey = ls_iseg-werks
+                                      sobkz = ls_iseg-sobkz
+                                      pspnr = ls_iseg-ps_psp_pnr.
+          IF sy-subrc EQ 0.
+            IF ls_qbew-vprsv = 'S'.
+              ls_qbew-stprs = ls_qbew-stprs .
+            ELSEIF ls_qbew-vprsv = 'V'.
+              ls_qbew-stprs = ls_qbew-verpr .
+            ENDIF.
+
+            IF ls_qbew-peinh GT 1.
+              ls_qbew-stprs = ls_qbew-stprs / ls_qbew-peinh.
+            ENDIF.
+            ls_iseg-buchw = gw_labst  * ls_qbew-stprs.  " gi_table-bkqty
+            ls_iseg-buchm = gw_labst .
+
+            MODIFY gt_iseg FROM ls_iseg INDEX lv_tbx TRANSPORTING buchm buchw .
+
+            MOVE-CORRESPONDING  ls_iseg TO ls_iseg_mnc .
+            ls_iseg_mnc-flag_mnc  = 'X' .
+            ls_iseg_mnc-flag_cal  = 'X' .
+            APPEND ls_iseg_mnc TO gt_iseg_mnc .
+
+          ENDIF.
+
+        WHEN 'E' .
+          CLEAR gw_labst .
+          READ TABLE gi_mska WITH KEY matnr = ls_iseg-matnr
+                                      werks = ls_iseg-werks
+                                      lgort = ls_iseg-lgort
+                                      charg = ls_iseg-charg
+                                      sobkz = ls_iseg-sobkz.
+          IF sy-subrc  = 0 .
+            IF ls_iseg-bstar = '1'.
+              gw_labst = gi_mska-kalab.
+            ELSEIF ls_iseg-bstar = '2'.
+              gw_labst = gi_mska-kains.
+            ELSEIF ls_iseg-bstar = '4'.
+              gw_labst = gi_mska-kaspe.
+            ENDIF.
+          ENDIF.
+
+          READ TABLE lt_ebew INTO DATA(ls_ebew) WITH KEY matnr = ls_iseg-matnr
+                                      bwkey = ls_iseg-werks
+                                      sobkz = ls_iseg-sobkz
+                                      vbeln = ls_iseg-kdauf
+                                      posnr  = ls_iseg-kdpos.
+          IF sy-subrc EQ 0.
+            IF ls_ebew-vprsv = 'S'.
+              ls_ebew-stprs = ls_ebew-stprs .
+            ELSEIF ls_ebew-vprsv = 'V'.
+              ls_ebew-stprs = ls_ebew-verpr .
+            ENDIF.
+            IF ls_ebew-peinh GT 1.
+              ls_ebew-stprs = ls_ebew-stprs / ls_ebew-peinh.
+            ENDIF.
+
+            ls_iseg-buchw  = gw_labst * ls_ebew-stprs.  " gi_table-bkqty
+            ls_iseg-buchm  = gw_labst .
+
+            MODIFY gt_iseg FROM ls_iseg INDEX lv_tbx TRANSPORTING buchm buchw.
+
+            MOVE-CORRESPONDING  ls_iseg TO ls_iseg_mnc .
+            ls_iseg_mnc-flag_mnc  = 'X' .
+            ls_iseg_mnc-flag_cal  = 'X' .
+            APPEND ls_iseg_mnc TO gt_iseg_mnc .
+
+          ENDIF.
+
+        WHEN 'K' .
+          READ TABLE lt_obew INTO DATA(ls_obew) WITH KEY matnr = ls_iseg-matnr
+                                    bwkey = ls_iseg-werks
+*                                    LGORT = LS_ISEG-LGORT
+*                                    CHARG = LS_ISEG-CHARG
+                                    sobkz = ls_iseg-sobkz
+                                    lifnr = ls_iseg-lifnr.
+          IF sy-subrc EQ 0.
+            IF ls_obew-vprsv = 'S'.
+              ls_obew-stprs = ls_obew-stprs .
+            ELSEIF ls_obew-vprsv = 'V'.
+              ls_obew-stprs = ls_obew-verpr .
+            ENDIF.
+            IF ls_obew-peinh GT 1.
+              ls_obew-stprs = ls_obew-stprs / ls_obew-peinh.
+            ENDIF.
+
+            ls_iseg-buchw = gw_labst * ls_obew-stprs.  " gi_table-bkqty
+            ls_iseg-buchm = gw_labst  .
+
+            MODIFY gt_iseg FROM ls_iseg INDEX lv_tbx TRANSPORTING buchm buchw.
+
+            MOVE-CORRESPONDING  ls_iseg TO ls_iseg_mnc .
+            ls_iseg_mnc-flag_mnc  = 'X' .
+            ls_iseg_mnc-flag_cal  = 'X' .
+            APPEND ls_iseg_mnc TO gt_iseg_mnc .
+
+          ENDIF.
+        WHEN OTHERS .
+          READ TABLE gi_mard WITH KEY matnr = ls_iseg-matnr
+                                    werks = ls_iseg-werks
+                                    lgort = ls_iseg-lgort.
+          IF sy-subrc = 0.
+            IF ls_iseg-bstar = '1'.
+              gw_labst = gi_mard-labst.
+            ELSEIF ls_iseg-bstar = '2'.
+              gw_labst = gi_mard-insme.
+            ELSEIF ls_iseg-bstar = '4'.
+              gw_labst = gi_mard-speme.
+            ENDIF.
+          ENDIF.
+
+          READ TABLE lt_mbew INTO DATA(ls_mbew) WITH KEY matnr = ls_iseg-matnr
+                                      bwkey = ls_iseg-werks .
+*                                    LGORT = LS_ISEG-LGORT
+          IF sy-subrc EQ 0.
+
+            IF ls_mbew-vprsv = 'S'.
+              ls_mbew-stprs = ls_mbew-stprs .
+            ELSEIF ls_mbew-vprsv = 'V'.
+              ls_mbew-stprs = ls_mbew-verpr .
+            ENDIF.
+*** Unit of Cost, Total value of Book quantity and Total value of Entered count
+            IF ls_mbew-peinh GT 1.
+              ls_mbew-stprs = ls_mbew-stprs / ls_mbew-peinh.
+            ENDIF.
+
+            ls_iseg-buchw = gw_labst * ls_mbew-stprs.  " gi_table-bkqty
+            ls_iseg-buchm = gw_labst .
+
+
+            MODIFY gt_iseg FROM ls_iseg INDEX lv_tbx TRANSPORTING buchm buchw.
+
+            MOVE-CORRESPONDING  ls_iseg TO ls_iseg_mnc .
+            ls_iseg_mnc-flag_mnc  = 'X' .
+            ls_iseg_mnc-flag_cal  = 'X' .
+            APPEND ls_iseg_mnc TO gt_iseg_mnc .
+
+          ENDIF.
+      ENDCASE.
+    ELSE.
+      MOVE-CORRESPONDING  ls_iseg TO ls_iseg_mnc .
+      ls_iseg_mnc-flag_mnc  = 'X' . " Material not counted
+      ls_iseg_mnc-flag_cal  = '' .  " material not counted calculation
+      APPEND ls_iseg_mnc TO gt_iseg_mnc .
+    ENDIF .
+  ENDLOOP .
+
+  LOOP AT gt_iseg_mnc INTO DATA(gs_iseg).
+    ON CHANGE OF gs_iseg-matnr.
+      READ TABLE it_pict1 INTO DATA(gs_ztmm_pict1) WITH KEY matnr = gs_iseg-matnr.
+      IF sy-subrc EQ 0.
+        DELETE it_pict1 WHERE matnr = gs_iseg-matnr.
+      ELSE.
+*        APPEND GS_ISEG TO GT_NO_MAT_COUNT.
+        MOVE-CORRESPONDING gs_iseg TO wa_pict_mnc.
+        wa_pict_mnc-vbeln = gs_iseg-kdauf .
+        wa_pict_mnc-posnr = gs_iseg-kdpos .
+        wa_pict_mnc-pspnr = gs_iseg-ps_psp_pnr .
+        wa_pict_mnc-bkqty = gs_iseg-buchm .
+*        WA_PICT_MNC-VBKQTY = GS_ISEG-WRTBM .
+        wa_pict_mnc-vbkqty = gs_iseg-buchw .
+        wa_pict_mnc-ecount = gs_iseg-wrtzl .
+
+        wa_pict_mnc-flag_mnc = gs_iseg-flag_mnc. "'X' .
+        wa_pict_mnc-flag_cal = gs_iseg-flag_cal. "'X' .
+        APPEND wa_pict_mnc TO it_pict_mnc.
+      ENDIF.
+    ENDON.
+    CLEAR : gs_iseg.
+  ENDLOOP.
+
+  SORT it_pict     BY werks gjahr matnr lgort sobkz bstar vbeln posnr lifnr pspnr.
+  SORT it_pict_mnc BY werks gjahr matnr lgort sobkz bstar vbeln posnr lifnr pspnr.
+*** eoc  DE3K9A0NN9 SCM-2684/2665  USABNOD11  Material not counted logicmaterial not counted logic
+  REFRESH : gt_iseg_mnc , gt_iseg  , it_pict1.
+ENDFORM.
+
+*
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_data .
+  DATA : lv_tbx  TYPE sy-tabix,
+         lv_tbx1 TYPE sy-tabix.
+  DATA : lv_flg TYPE c .
+  DATA : lv_cnt  TYPE i,
+         lv_cnt1 TYPE i.
+  DATA : lv_bkqty TYPE zpict7 .
+
+  REFRESH : it_final_tmp , it_final .
+  LOOP AT it_pict INTO wa_pict.
+    lv_cnt = lv_cnt + 1 .
+
+    CLEAR : wa_final-bkqty , wa_final-vbkqty .
+    wa_final-werks  = wa_pict-werks .
+    wa_final-gjahr  = wa_pict-gjahr .
+    wa_final-lgort  = wa_pict-lgort .
+* Start of Change for DE3K9A0U0J by CHTAMUR
+    wa_final-prctr  = wa_pict-prctr .
+    wa_final-pcdesc  = wa_pict-pcdesc .
+* End of Change for DE3K9A0U0J by CHTAMUR
+    wa_final-matnr  = wa_pict-matnr .
+    wa_final-sobkz  = wa_pict-sobkz .
+    wa_final-bstar  = wa_pict-bstar .
+    wa_final-pspnr  = wa_pict-pspnr .
+    wa_final-vbeln  = wa_pict-vbeln .
+    wa_final-posnr  = wa_pict-posnr .
+    wa_final-lifnr  = wa_pict-lifnr .
+    wa_final-alqty  = wa_pict-alqty .
+    wa_final-bsqty  = wa_pict-bsqty .
+*    WA_FINAL-BKQTY   = WA_PICT-BKQTY .
+*    WA_FINAL-VBKQTY   = WA_PICT-VBKQTY .
+    wa_final-ecount = wa_pict-ecount.
+    wa_final-dif_qty = wa_pict-bsqty - wa_pict-bkqty .
+    wa_final-dif_val = wa_pict-ecount - wa_pict-vbkqty .
+    wa_final-iblnr  = wa_pict-iblnr .
+    wa_final-zeili  = wa_pict-zeili .
+*    WA_FINAL-STPRS  = WA_PICT-STPRS.
+    CLEAR : wa_final-bk_flag .
+    COLLECT wa_final INTO it_final.
+
+    DATA(lv_lines) = REDUCE i( INIT x = 0 FOR wa_fnl1 IN it_final NEXT x = x + 1 ).
+
+    READ TABLE it_final INTO wa_final1 INDEX lv_lines.
+    IF sy-subrc  = 0 .
+      lv_tbx = sy-tabix.
+      IF lv_lines1 <> lv_lines  .
+        CLEAR wa_final-bk_flag .
+        wa_final-bkqty  = wa_pict-bkqty .
+        wa_final-vbkqty = wa_pict-vbkqty .
+        wa_final-stprs  = wa_pict-stprs.
+        MODIFY it_final FROM wa_final INDEX lv_tbx TRANSPORTING bkqty vbkqty stprs.
+      ELSE.
+        IF sy-tabix NE 1.
+*          IF wa_final-bkqty NE  lv_bkqty .
+          IF wa_pict-bkqty NE  lv_bkqty .
+            wa_final-bk_flag = 'X'.
+            APPEND   wa_final TO it_final_tmp .
+          ENDIF.
+        ENDIF.
+        wa_final-stprs  = wa_pict-stprs.
+        CLEAR : wa_final1.
+        READ TABLE it_final INTO wa_final1 INDEX lv_lines.
+        IF sy-subrc = 0.
+          wa_final-dif_qty = wa_final1-bsqty - wa_pict-bkqty .
+          wa_final-dif_val = wa_final1-ecount - wa_pict-vbkqty .
+        ENDIF.
+        MODIFY it_final FROM wa_final INDEX lv_tbx TRANSPORTING  stprs dif_qty dif_val.
+
+      ENDIF .
+    ENDIF.
+    lv_bkqty = wa_pict-bkqty . "wa_final-bkqty.
+    lv_lines1  =   lv_lines .
+
+  ENDLOOP.
+
+  LOOP AT it_final_tmp INTO wa_final_tmp.
+
+    LOOP AT it_final INTO wa_final WHERE sel   =  wa_final_tmp-sel   AND
+                                         werks =  wa_final_tmp-werks AND
+                                         gjahr =  wa_final_tmp-gjahr AND
+                                         lgort =  wa_final_tmp-lgort AND
+                                         matnr =  wa_final_tmp-matnr AND
+                                         sobkz =  wa_final_tmp-sobkz AND
+                                         bstar =  wa_final_tmp-bstar AND
+                                         pspnr =  wa_final_tmp-pspnr AND
+                                         vbeln =  wa_final_tmp-vbeln AND
+                                         posnr =  wa_final_tmp-posnr AND
+                                         lifnr  = wa_final_tmp-lifnr
+                   .
+      wa_final-bk_flag = 'X' .
+      MODIFY it_final FROM wa_final TRANSPORTING  bk_flag .
+    ENDLOOP.
+
+  ENDLOOP.
+*** boc DE3K9A0NN9 SCM-2684  USANBOD11  Material not counted logic
+  LOOP AT it_pict_mnc INTO wa_pict_mnc.
+    lv_cnt = lv_cnt + 1 .
+
+    CLEAR : wa_final-bkqty , wa_final-vbkqty .
+    wa_final-werks  = wa_pict_mnc-werks .
+    wa_final-gjahr  = wa_pict_mnc-gjahr .
+    wa_final-lgort  = wa_pict_mnc-lgort .
+    wa_final-matnr  = wa_pict_mnc-matnr .
+    wa_final-sobkz  = wa_pict_mnc-sobkz .
+    wa_final-bstar  = wa_pict_mnc-bstar .
+    wa_final-pspnr  = wa_pict_mnc-pspnr .
+    wa_final-vbeln  = wa_pict_mnc-vbeln .
+    wa_final-posnr  = wa_pict_mnc-posnr .
+    wa_final-lifnr  = wa_pict_mnc-lifnr .
+    wa_final-alqty  = wa_pict_mnc-alqty .
+    wa_final-bsqty  = wa_pict_mnc-bsqty .
+    wa_final-ecount = wa_pict_mnc-ecount.
+    wa_final-dif_qty = wa_pict_mnc-bsqty - wa_pict_mnc-bkqty .
+    wa_final-dif_val = wa_pict_mnc-ecount - wa_pict_mnc-vbkqty .
+    wa_final-iblnr  = wa_pict_mnc-iblnr .
+    wa_final-zeili  = wa_pict_mnc-zeili .
+    wa_final-flag_mnc  = wa_pict_mnc-flag_mnc .
+    wa_final-flag_cal  = wa_pict_mnc-flag_cal.
+
+    CLEAR : wa_final-bk_flag .
+    COLLECT wa_final INTO it_final.
+
+    DATA(lv_lines2) = REDUCE i( INIT x = 0 FOR wa_fnl1 IN it_final NEXT x = x + 1 ).
+
+    READ TABLE it_final INTO wa_final1 INDEX lv_lines2.
+    IF sy-subrc  = 0 .
+      lv_tbx = sy-tabix.
+      IF lv_lines1 <> lv_lines2  .
+        CLEAR wa_final-bk_flag .
+        wa_final-bkqty  = wa_pict_mnc-bkqty .
+        wa_final-vbkqty = wa_pict_mnc-vbkqty .
+        wa_final-stprs  = wa_pict_mnc-stprs.
+        MODIFY it_final FROM wa_final INDEX lv_tbx TRANSPORTING bkqty vbkqty stprs.
+      ELSE.
+        IF sy-tabix NE 1.
+          IF wa_pict-bkqty NE  lv_bkqty .
+            wa_final-bk_flag = 'X'.
+            APPEND   wa_final TO it_final_tmp .
+          ENDIF.
+        ENDIF.
+        wa_final-stprs  = wa_pict_mnc-stprs.
+        CLEAR : wa_final1.
+        READ TABLE it_final INTO wa_final1 INDEX lv_lines2.
+        IF sy-subrc = 0.
+          wa_final-dif_qty = wa_final1-bsqty - wa_pict_mnc-bkqty .
+          wa_final-dif_val = wa_final1-ecount - wa_pict_mnc-vbkqty .
+        ENDIF.
+        MODIFY it_final FROM wa_final INDEX lv_tbx TRANSPORTING  stprs dif_qty dif_val.
+
+      ENDIF .
+    ENDIF.
+    lv_bkqty = wa_pict_mnc-bkqty . "wa_final-bkqty.
+    lv_lines1  =   lv_lines2 .
+
+  ENDLOOP.
+*** eoc DE3K9A0NN9 SCM-2684  USANBOD11  Material not counted logic
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_fcat .
+  DATA: lw_fcat  TYPE slis_fieldcat_alv.
+  DATA: lv_count TYPE sy-index.
+
+  gw_layo-box_fieldname  = 'SEL'.                           "#EC NOTEXT
+  gw_layo-box_tabname    = 'IT_FINAL'.                      "#EC NOTEXT
+  gw_layo-zebra          = 'X'.
+
+  CLEAR: lw_fcat, lv_count.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'IBLNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'PI Doc'.                           "#EC NOTEXT
+  lw_fcat-outputlen   = 10.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ZEILI'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Line No'.                          "#EC NOTEXT
+  lw_fcat-outputlen   = 3.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'WERKS'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'PLANT'.                            "#EC NOTEXT
+  lw_fcat-outputlen   = 4.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'GJAHR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'PIYEAR'.                           "#EC NOTEXT
+  lw_fcat-outputlen   = 4.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'LGORT'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'S.Loc'.                            "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+* Start of Change for DE3K9A0U0J by CHTAMUR
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'PRCTR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Profit Center'.                    "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'PCDESC'.                           "#EC NOTEXT
+  lw_fcat-seltext_m   = 'PC Description'.                  "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+* End of Change for DE3K9A0U0J by CHTAMUR
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'MATNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'MATERIAL'.                         "#EC NOTEXT
+  lw_fcat-outputlen   = 18.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'SOBKZ'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Spl.stock'.                        "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BSTAR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Stk.typ'.                          "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'PSPNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'WBS_Element'.                      "#EC NOTEXT
+  lw_fcat-ref_fieldname = 'PSPNR'.                          "#EC NOTEXT
+  lw_fcat-ref_tabname = 'PRPS'.                             "#EC NOTEXT
+  lw_fcat-outputlen   = 18.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'VBELN'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Sal.doc'.                          "#EC NOTEXT
+  lw_fcat-outputlen   = 10.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'POSNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Sal.Item'.                         "#EC NOTEXT
+  lw_fcat-outputlen   = 6.                               "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'LIFNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Vendor'.                           "#EC NOTEXT
+  lw_fcat-outputlen   = 10.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ALQTY'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Qty in Unit'.                      "#EC NOTEXT
+  lw_fcat-outputlen   = 16.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-no_out =  'X' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BSQTY'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Counted Qty'.                      "#EC NOTEXT
+  lw_fcat-outputlen   = 15.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BK_FLAG'.                          "#EC NOTEXT
+  lw_fcat-seltext_m   = 'BK Qty Flag'.                      "#EC NOTEXT
+  lw_fcat-outputlen   = 10.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+*  LW_FCAT-DECIMALS_OUT = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BKQTY'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Book Qty'.                         "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'STPRS'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Unit Cost'.                        "#EC NOTEXT
+  lw_fcat-outputlen   = 15.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ECOUNT'.                           "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Counted Value'.                    "#EC NOTEXT
+  lw_fcat-outputlen   = 16.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'VBKQTY'.                           "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Book Value '.                      "#EC NOTEXT
+  lw_fcat-outputlen   = 16.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'DIF_QTY'.                          "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Dif Qty'.                          "#EC NOTEXT
+  lw_fcat-outputlen   = 16.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'DIF_val'.                          "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Dif Value'.                        "#EC NOTEXT
+  lw_fcat-outputlen   = 16.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+*** boc DE3K9A0NN9 SCM-2684  USANBOD11  Material not counted logic
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'FLAG_MNC'.                         "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Mat.Not Counted Entry'.            "#EC NOTEXT
+  lw_fcat-outputlen   = 27.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'FLAG_CAL'.                         "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Mat.Not Cnt calculated'.           "#EC NOTEXT
+  lw_fcat-outputlen   = 33.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+*** eoc DE3K9A0NN9 SCM-2684  USANBOD11  Material not counted logic
+ENDFORM.
+
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_alv .
+
+  IF it_final[]  IS INITIAL.
+    MESSAGE s398(00) WITH TEXT-014 .
+  ELSE.
+
+    SET TITLEBAR 'TITLE002'.                         " +++ DE3K9A0T02 -> CHTAMUR
+
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+        i_callback_program       = sy-repid
+*       i_callback_top_of_page   = 'TOP_OF_PAGE1'    " --- DE3K9A0T02 -> CHTAMUR
+        i_callback_pf_status_set = 'ZALV_PFSTATUS' "#EC NOTEXT
+        i_callback_user_command  = 'ZUSER_COM_ALV' "#EC NOTEXT
+        is_layout                = gw_layo
+        it_fieldcat              = gt_fcat
+        i_save                   = 'X'
+      TABLES
+        t_outtab                 = it_final
+      EXCEPTIONS
+        program_error            = 1
+        OTHERS                   = 2.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+         WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+**----------------------------------------------------------------------*
+*&      Form  ZALV_PFSTATUS
+**----------------------------------------------------------------------*
+FORM zalv_pfstatus USING rt_extab TYPE slis_t_extab.
+  DATA: lv_slis_extab TYPE slis_extab.
+
+  IF lv_flg_fcat = 'X' .
+    CLEAR: lv_slis_extab.
+    lv_slis_extab-fcode = '&DTL'.
+    APPEND lv_slis_extab TO rt_extab.
+  ENDIF.
+
+  SET PF-STATUS 'ZALV_PFSTATUS' EXCLUDING rt_extab.
+ENDFORM.                    "ZVARIANT
+
+*&---------------------------------------------------------------------*
+*&      Form  ZUSER_COM_ALV
+*&---------------------------------------------------------------------*
+FORM zuser_com_alv USING r_ucomm     TYPE sy-ucomm
+                         rs_selfield TYPE slis_selfield.
+
+  IF r_ucomm = '&DTL'.
+
+    IF line_exists( it_final[ sel = 'X' ] ).        " +++ DE3K9A0T02 -> CHTAMUR
+      lv_flg_fcat = 'X' .
+      PERFORM get_details.
+      rs_selfield-refresh = 'X'.
+    ELSE.
+      MESSAGE TEXT-005 TYPE 'S' DISPLAY LIKE 'E'.   " +++ DE3K9A0T02 -> CHTAMUR
+    ENDIF.
+  ENDIF.
+
+  CLEAR lv_flg_fcat .
+ENDFORM.                    "ZUSER_COM_ALV
+*&---------------------------------------------------------------------*
+*&      Form  GET_DETAILS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_details .
+  REFRESH : it_pict_dtl .
+  LOOP AT it_final INTO wa_final WHERE sel   EQ 'X' .
+    LOOP AT it_pict INTO wa_pict WHERE werks = wa_final-werks "#EC "#EC CI_NESTED
+                                 AND   gjahr = wa_final-gjahr
+                                 AND   lgort = wa_final-lgort
+                                 AND   matnr = wa_final-matnr
+                                 AND   sobkz = wa_final-sobkz
+                                 AND   bstar = wa_final-bstar
+                                 AND   pspnr = wa_final-pspnr
+                                 AND   vbeln = wa_final-vbeln
+                                 AND   posnr = wa_final-posnr
+                                 AND   lifnr = wa_final-lifnr .
+
+      MOVE-CORRESPONDING wa_pict TO wa_pict_dtl.
+      APPEND wa_pict_dtl TO it_pict_dtl.
+    ENDLOOP .
+  ENDLOOP.
+
+  PERFORM build_fcat_dtl .
+  PERFORM display_alv_dtl .
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FCAT_DTL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_fcat_dtl .
+
+  DATA: lw_fcat  TYPE slis_fieldcat_alv.
+  DATA: lv_count TYPE sy-index.
+
+  REFRESH : gt_fcat.
+  CLEAR : lw_fcat  , gw_layo , lv_count .
+  gw_layo-box_tabname    = 'IT_PICT_DTL'.
+  gw_layo-zebra          = 'X'.
+
+  CLEAR: lw_fcat, lv_count.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'IBLNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'PI Doc'.                           "#EC NOTEXT
+  lw_fcat-outputlen   = 10.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ZEILI'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Line No'.                          "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ZUSER'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'User Name'.                        "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'WERKS'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'PLANT'.                            "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'GJAHR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'PIYEAR'.                           "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'GIDAT'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Plnd date Inv cnt'.                "#EC NOTEXT
+  lw_fcat-outputlen   = 15.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'INCCD'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Inv Card'.                         "#EC NOTEXT
+  lw_fcat-outputlen   = 10.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'LGORT'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'S.Loc'.                            "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+* Start of Change for DE3K9A0U0J by CHTAMUR
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'PRCTR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Profit Center'.                    "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'PCDESC'.                           "#EC NOTEXT
+  lw_fcat-seltext_m   = 'PC Ddescription'.                  "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+* End of Change for DE3K9A0U0J by CHTAMUR
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'MATNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'MATERIAL'.                         "#EC NOTEXT
+  lw_fcat-outputlen   = 18.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'SOBKZ'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Spl.stock'.                        "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BSTAR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Stk.typ'.                          "#EC NOTEXT
+  lw_fcat-outputlen   = 6.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'PSPNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'WBS_Element'.                      "#EC NOTEXT
+  lw_fcat-ref_fieldname = 'PSPNR'.                          "#EC NOTEXT
+  lw_fcat-ref_tabname = 'PRPS'.                             "#EC NOTEXT
+  lw_fcat-outputlen   = 18.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'VBELN'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Sal.doc'.                          "#EC NOTEXT
+  lw_fcat-outputlen   = 10.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'POSNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Sal.Item'.                         "#EC NOTEXT
+  lw_fcat-outputlen   = 6.                               "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'LIFNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Vendor'.                           "#EC NOTEXT
+  lw_fcat-outputlen   = 10.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ZTEXT'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Text'.                             "#EC NOTEXT
+  lw_fcat-outputlen   = 40.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ADCOM'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Aud Comments'.                     "#EC NOTEXT
+  lw_fcat-outputlen   = 40.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ALQTY'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'QTY in Unit'.                      "#EC NOTEXT
+  lw_fcat-outputlen   = 16.                              "#EC NUMBER_OK
+  lw_fcat-no_out =  'X' .
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BSQTY'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Counted Qty'.                      "#EC NOTEXT
+  lw_fcat-outputlen   = 15.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BSUOM'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'B.UoM '.                           "#EC NOTEXT
+  lw_fcat-outputlen   = 6.                               "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'CHARG'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Batch Number '.                    "#EC NOTEXT
+  lw_fcat-outputlen   = 10.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'DUMPS'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Phantom item indicator '.          "#EC NOTEXT
+  lw_fcat-outputlen   = 15.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'AUFNR'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Order Number '.                    "#EC NOTEXT
+  lw_fcat-outputlen   = 10.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ENTDATE'.                          "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Entered Date '.                    "#EC NOTEXT
+  lw_fcat-outputlen   = 15.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BKLAS'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Val. Class'.                       "#EC NOTEXT
+  lw_fcat-outputlen   = 10.
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'SPLSTKIND'.                        "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Spl stock ind'.                    "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-outputlen   = 10.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'LINE'.                             "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Prod.status'.                      "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-outputlen   = 10.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'WIP'.                              "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Prod. Order WIP status'.           "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-outputlen   = 15.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'SHPSPLST'.                         "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Ship Special Status'.              "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-outputlen   = 15.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BOM_EXPLODE'.                      "#EC NOTEXT
+  lw_fcat-seltext_m   = 'BOM Exploded'.                     "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-outputlen   = 15.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'SCHGT'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Ind bulk material'.                "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-outputlen   = 15.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'SBDKZ'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Dependent requirements ind.'.      "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-outputlen   = 15.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'BKQTY'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Book Qty'.                         "#EC NOTEXT
+  lw_fcat-col_pos     = lv_count.
+  lw_fcat-outputlen   = 16.
+  lw_fcat-decimals_out = '2' .
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'VBKQTY'.                           "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Book Value '.                      "#EC NOTEXT
+  lw_fcat-outputlen   = 16.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'ECOUNT'.                           "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Counted Value'.                    "#EC NOTEXT
+  lw_fcat-outputlen   = 16.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'STPRS'.                            "#EC NOTEXT
+  lw_fcat-seltext_m   = 'Unit Cost'.                        "#EC NOTEXT
+  lw_fcat-outputlen   = 15.                              "#EC NUMBER_OK
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV_DTL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_alv_dtl .
+
+  SET TITLEBAR 'TITLE001'.                         " +++ DE3K9A0T02 -> CHTAMUR
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program       = sy-repid
+*     i_callback_top_of_page   = 'TOP_OF_PAGE2'   " --- DE3K9A0T02 -> CHTAMUR
+      i_callback_pf_status_set = 'ZALV_PFSTATUS'
+      is_layout                = gw_layo
+      it_fieldcat              = gt_fcat  "gt_fieldcat
+      i_save                   = 'X'
+    TABLES
+      t_outtab                 = it_pict_dtl
+    EXCEPTIONS
+      program_error            = 1
+      OTHERS                   = 2.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+       WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+  SET TITLEBAR 'TITLE002'.                         " +++ DE3K9A0T02 -> CHTAMUR
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  F_VALIDATE_WERKS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_validate_werks .
+
+* Local data declaration
+  DATA lv_werks TYPE t001w-werks.
+
+  SELECT SINGLE werks
+           FROM t001w
+           INTO lv_werks
+          WHERE werks IN s_werks.
+  IF sy-subrc NE 0.
+* Error message
+    MESSAGE i086(zsd) WITH TEXT-003 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+ENDFORM.
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+
+**-------------------------------------------------------------------*
+** Form  TOP-OF-PAGE1                                                *
+**-------------------------------------------------------------------*
+** ALV Report Header                                                 *
+**-------------------------------------------------------------------*
+*FORM top_of_page1.
+**ALV Header declarations
+*  DATA: t_header  TYPE slis_t_listheader,
+*        wa_header TYPE slis_listheader.
+*
+** Title
+*  wa_header-typ  = 'H'.
+*  wa_header-info = TEXT-012 .
+*  APPEND wa_header TO t_header.
+*  CLEAR wa_header.
+*
+*  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+*    EXPORTING
+*      it_list_commentary = t_header.
+*ENDFORM.                    "top-of-page
+*
+**-------------------------------------------------------------------*
+** Form  TOP-OF-PAGE                                                 *
+**-------------------------------------------------------------------*
+** ALV Report Header                                                 *
+**-------------------------------------------------------------------*
+*FORM top_of_page2.
+**ALV Header declarations
+*  DATA: t_header  TYPE slis_t_listheader,
+*        wa_header TYPE slis_listheader.
+*  REFRESH : t_header  .
+** Title
+*  wa_header-typ  = 'H'.
+*  wa_header-info = TEXT-013.
+*  APPEND wa_header TO t_header.
+*  CLEAR wa_header.
+*
+*  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+*    EXPORTING
+*      it_list_commentary = t_header.
+*ENDFORM.                    "top-of-page
+
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+*&---------------------------------------------------------------------*
+*&      Form  FIELD_NAME
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_TEXT_001  text
+*----------------------------------------------------------------------*
+FORM field_name  USING   lw_text1 lw_text2 lw_text3 lw_text4.
+*&---------------------------------------------------------------------*
+*&      Form  FIELD_NAME
+*&---------------------------------------------------------------------*
+
+  gi_fieldcat-seltext_m   = lw_text1 .                      "#EC NOTEXT
+  gi_fieldcat-outputlen   = lw_text2.
+  gi_fieldcat-no_out =  lw_text3 .
+  gi_fieldcat-decimals_out = lw_text4 .
+
+ENDFORM.
+

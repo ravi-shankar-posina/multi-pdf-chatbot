@@ -1,0 +1,327 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZNMM_AUTO_PIR_SL_RDC_FORMS2.
+*----------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+*****************************************************************************************
+* 29/03/2023 | DE3K9A0JQY |RITM5161643 | USPRJOS     | 1. Added logic to update Breaker
+*                                                         code to Vender Material No in PIR
+*****************************************************************************************
+*&---------------------------------------------------------------------*
+*&      Form  GET_MATERIAL_DATA
+*&---------------------------------------------------------------------*
+FORM get_material_data .
+
+  LOOP AT s_matnr ASSIGNING FIELD-SYMBOL(<ls_matnr>).
+    IF <ls_matnr>-low CA '*'.
+      <ls_matnr>-option = 'CP'.
+    ENDIF.
+  ENDLOOP.
+*" Get Material details from MARA & MARC tables
+  SELECT matnr
+         bismt
+         meins
+         bstme
+         prdha
+*         venmatgrp
+    FROM mara
+    INTO TABLE gt_mara
+   WHERE matnr IN s_matnr
+     AND laeda IN s_cdate                 "Date of Last Change
+     AND prdha IN s_prdha.
+  IF sy-subrc = 0.
+    SORT gt_mara BY matnr.
+    PERFORM validate_input.
+
+    SELECT matnr
+           werks
+           ekgrp
+      FROM marc
+      INTO TABLE gt_marc
+       FOR ALL ENTRIES IN gt_mara
+     WHERE matnr = gt_mara-matnr
+       AND werks IN s_werks
+       AND ekgrp IN s_ekgrp.
+    IF sy-subrc NE 0.
+      CLEAR: gt_marc.
+    ELSE.
+      SORT gt_marc BY matnr werks.
+    ENDIF.
+
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM validate_input .
+
+  DATA : ls_ztuhcd1_rdc TYPE ztuhcd1,
+         lv_message     TYPE string.
+
+
+  READ TABLE gt_ztuhcd1_rdc TRANSPORTING NO FIELDS WITH KEY name   = 'ZRMM_AUTO_PIR_SL_RDC'
+                                                            zkey   = 'MRDC'
+                                                            field  = 'WERKS'
+                                                            low    = s_werks-low.
+  IF sy-subrc NE 0.
+    MESSAGE TEXT-e01 TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+  READ TABLE gt_ztuhcd1_rdc INTO ls_ztuhcd1_rdc    WITH KEY name   = 'ZRMM_AUTO_PIR_SL_RDC'
+                                                            zkey   = 'MRDC'
+                                                            field  = 'MATNR'.
+  IF sy-subrc EQ 0.
+    LOOP AT gt_mara ASSIGNING FIELD-SYMBOL(<ls_mara>).
+      IF <ls_mara>-matnr+0(4) NE ls_ztuhcd1_rdc-low.
+        <ls_mara>-del_flag = abap_true.
+      ENDIF.
+    ENDLOOP.
+
+    DELETE gt_mara WHERE del_flag = abap_true.
+    IF gt_mara IS INITIAL.
+      CONCATENATE TEXT-e02 ls_ztuhcd1_rdc-low TEXT-e03 INTO lv_message SEPARATED BY space.
+      MESSAGE lv_message TYPE 'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  SEND_MAIL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM send_mail  USING  p_desc.
+
+  DATA: l_seq(10),
+        l_format              TYPE  so_obj_tp VALUE 'XLS',
+        l_attdescription      TYPE  so_obj_nam,
+        l_attfilename         TYPE  so_obj_des VALUE 'filename',
+        l_sender_address      LIKE  soextreci1-receiver,
+        l_sender_address_type LIKE  soextreci1-adr_typ,
+        l_firstname           LIKE adrp-name_first,
+        l_lastname            LIKE adrp-name_last,
+        l_name(75).
+
+
+  DATA : lt_message       TYPE STANDARD TABLE OF solisti1,      "Int Table for Mail Message
+         lt_attach        TYPE STANDARD TABLE OF solisti1,      "Int Table for Mail Attach
+         lt_packing_list  TYPE STANDARD TABLE OF sopcklsti1,    "Int Table for Mail Packing
+         lt_contents      TYPE STANDARD TABLE OF solisti1,      "Int Table for Mail Contents
+         lt_receivers     TYPE STANDARD TABLE OF somlreci1,     "Int Table for Mail Receiver
+         lt_attachment    TYPE STANDARD TABLE OF solisti1,      "Int Table for Attachment
+         lt_object_header TYPE STANDARD TABLE OF solisti1,
+         lt_att_err       TYPE STANDARD TABLE OF solisti1.
+
+  DATA : ls_message       TYPE solisti1,                        "Workarea for Mail Message
+         ls_attach        TYPE solisti1,                        "Workarea for Mail Attach
+         ls_packing_list  TYPE sopcklsti1,                      "Workarea for Mail packing
+         ls_contents      TYPE solisti1,                        "Workarea for Mail Contents
+         ls_receivers     TYPE somlreci1,                       "Workarea for Mail Receivers
+         ls_attachment    TYPE solisti1,                        "Workarea for Mail Attachment
+         ls_object_header TYPE solisti1.                        "Workarea for Mail Header
+
+  DATA: lv_cnt        TYPE i,              "Record Count
+        lv_sent_all   TYPE c,              "Flag for Mail sending
+        ls_doc_data   LIKE sodocchgi1,     "Mail Document Data
+        lv_error      TYPE sy-subrc,       "Mail Errors
+        lv_reciever   TYPE sy-subrc,       "Mail Receiver
+        lr_dctyp      TYPE RANGE OF bkpf-blart,
+        ls_dctyp      LIKE LINE OF lr_dctyp,
+        lv_email_date TYPE string.
+
+  CONSTANTS: lc_x          TYPE c          VALUE 'X',                         "Constant value for X
+             lc_rec_type   TYPE so_escape  VALUE 'U',                         "Record Type for Email
+             lc_com_type   TYPE so_snd_art VALUE 'INT',                       "Communication Type of Email
+             lc_doc_type   TYPE so_obj_tp  VALUE 'RAW',                       "Document Type of Email
+             lc_obj_name   TYPE so_obj_nam VALUE 'SAPRPT',                    "Object Name for Email Purpose
+             lc_sensitivty TYPE so_obj_sns VALUE 'F',
+             lc_e(2)       TYPE c          VALUE '_E'.
+
+
+  CONCATENATE sy-datum+4(2) sy-datum+6(2) sy-datum+0(4) INTO lv_email_date SEPARATED BY '/'.
+  REFRESH lt_message.
+
+  CLEAR ls_message.
+  ls_message-line = TEXT-m01.
+  APPEND ls_message TO lt_message.
+
+  CLEAR ls_message.
+  CONCATENATE TEXT-m02 lv_email_date INTO ls_message-line SEPARATED BY space.
+  APPEND ls_message TO lt_message.
+
+  CLEAR ls_message.
+  ls_message-line = TEXT-m03.
+  APPEND ls_message TO lt_message.
+
+  CLEAR ls_message.
+  ls_message-line = TEXT-m04.
+  APPEND ls_message TO lt_message.
+
+  LOOP AT gt_result INTO gi_result.
+    CONCATENATE gi_result-matnr gi_result-werks gi_result-lifnr gi_result-msg1
+           INTO ls_attach-line.
+    APPEND ls_attach TO lt_attach.
+    CLEAR: ls_attach.
+  ENDLOOP.
+* Fill the document data.
+  ls_doc_data-doc_size = 1.
+
+* Fill the document data and get size of attachment
+  CLEAR ls_doc_data.
+  READ TABLE lt_attach INTO ls_attach INDEX lv_cnt.
+  ls_doc_data-doc_size =
+     ( lv_cnt - 1 ) * 255 + strlen( ls_attach ).
+  ls_doc_data-obj_langu  = sy-langu.
+  ls_doc_data-obj_name   = lc_obj_name.
+*  ls_doc_data-obj_descr  = p_desc.
+  CONCATENATE TEXT-m00 lv_email_date INTO ls_doc_data-obj_descr SEPARATED BY space.
+  ls_doc_data-sensitivty = lc_sensitivty.
+
+  REFRESH lt_attachment.
+  lt_attachment[] = lt_attach[].
+
+* Describe the body of the message
+  CLEAR ls_packing_list.
+  REFRESH lt_packing_list.
+  ls_packing_list-transf_bin = space.
+  ls_packing_list-head_start = 1.
+  ls_packing_list-head_num = 0.
+  ls_packing_list-body_start = 1.
+  DESCRIBE TABLE lt_message LINES ls_packing_list-body_num.
+  ls_packing_list-doc_type = lc_doc_type.
+  APPEND ls_packing_list TO lt_packing_list.
+  CLEAR ls_packing_list.
+
+* Create attachment notification
+  ls_packing_list-transf_bin = lc_x.
+  ls_packing_list-head_start = 1.
+  ls_packing_list-head_num   = 1.
+  ls_packing_list-body_start = 1.
+
+  DESCRIBE TABLE lt_attachment LINES ls_packing_list-body_num.
+  ls_packing_list-doc_type   =  l_format.
+  ls_packing_list-obj_descr  =  l_attdescription.
+  ls_packing_list-obj_name   =  TEXT-024.
+  ls_packing_list-doc_size   =  ls_packing_list-body_num * 255.
+  APPEND ls_packing_list TO lt_packing_list.
+
+
+* Add the recipients email address
+  CLEAR ls_receivers.
+  REFRESH lt_receivers.
+  LOOP AT s_email.
+    ls_receivers-receiver     = s_email-low.
+    ls_receivers-rec_type     = lc_rec_type.
+    ls_receivers-com_type     = lc_com_type.
+    ls_receivers-notif_del    = lc_x.
+    ls_receivers-notif_ndel   = lc_x.
+    APPEND ls_receivers TO lt_receivers.
+    CLEAR ls_receivers.
+  ENDLOOP.
+
+
+  CALL FUNCTION 'SO_DOCUMENT_SEND_API1'
+    EXPORTING
+      document_data              = ls_doc_data
+      put_in_outbox              = abap_true
+      sender_address             = l_sender_address
+      sender_address_type        = l_sender_address_type
+      commit_work                = abap_true
+    IMPORTING
+      sent_to_all                = lv_sent_all
+    TABLES
+      packing_list               = lt_packing_list
+      contents_bin               = lt_attachment
+      contents_txt               = lt_message
+      receivers                  = lt_receivers
+    EXCEPTIONS
+      too_many_receivers         = 1
+      document_not_sent          = 2
+      document_type_not_exist    = 3
+      operation_no_authorization = 4
+      parameter_error            = 5
+      x_error                    = 6
+      enqueue_error              = 7
+      OTHERS                     = 8.
+  IF sy-subrc = 0.
+
+  ENDIF.
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  FORMAT_MAIL_TABLE
+*&---------------------------------------------------------------------*
+FORM format_mail_table .
+  DATA: l_tabix   TYPE sy-tabix,
+        ls_result TYPE ty_result.
+
+  LOOP AT gt_result  INTO ls_result.
+    l_tabix = sy-tabix.
+
+
+    CONCATENATE ls_result-matnr
+                ls_result-werks
+                ls_result-lifnr
+                ls_result-msg1
+*                ls_result-msg2
+*                ls_result-msg3
+           INTO ls_attach SEPARATED BY gc_htab.
+    IF l_tabix > 1.
+      CONCATENATE gc_cret ls_attach INTO ls_attach.
+    ENDIF.
+    APPEND ls_attach TO lt_attach.
+    CLEAR: ls_attach.
+  ENDLOOP.
+
+ENDFORM.                    " FORMAT_MAIL_TABLE
+*&---------------------------------------------------------------------*
+*&      Form  GET_BREAKER_DETAILS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_breaker_details .
+
+  DATA : lt_marc TYPE marc_tt,
+         ls_marc TYPE marc.
+
+  LOOP AT gt_mat_temp INTO gi_mat_temp.
+    ls_marc-matnr = gi_mat_temp-matnr.
+    ls_marc-werks = gi_mat_temp-werks.
+    APPEND ls_marc TO lt_marc.
+    CLEAR: ls_marc.
+  ENDLOOP.
+
+  CALL FUNCTION 'ZMM_GET_BREAKER'
+    EXPORTING
+      it_marc    = lt_marc
+    IMPORTING
+      et_breaker = gt_breaker.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  READ_BREAKER_DETAILS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM read_breaker_details USING    iv_matnr TYPE matnr
+                                   iv_werks TYPE werks_d
+                          CHANGING cv_breaker TYPE idnrk.
+
+  CLEAR cv_breaker.
+  READ TABLE gt_breaker INTO gs_breaker WITH KEY matnr = iv_matnr
+                                                 werks = iv_werks BINARY SEARCH.
+  IF sy-subrc = 0.
+    cv_breaker = gs_breaker-breaker.
+  ENDIF.
+
+ENDFORM.
+

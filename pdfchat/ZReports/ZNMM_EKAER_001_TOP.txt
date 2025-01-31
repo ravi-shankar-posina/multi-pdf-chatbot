@@ -1,0 +1,158 @@
+*&---------------------------------------------------------------------*
+*& Include ZNMM_EKAER_001_TOP                                Module Pool      ZRMM_EKAER_001
+*&
+*&---------------------------------------------------------------------*
+
+PROGRAM  zrmm_ekaer_001.
+
+TABLES:
+  likp, vbuk,vttk, ztmm_trkid.
+
+TYPES:
+BEGIN OF gty_vbfa,
+  vbelv TYPE vbeln,
+  posnv TYPE posnr_von,
+  vbtyp_v TYPE vbtyp,
+  vbeln TYPE vbeln,
+  posnn TYPE posnr_von,
+  vbtyp_n TYPE vbtyp,
+END OF gty_vbfa.
+
+TYPES:
+BEGIN OF gty_input,
+*Data from DB
+  vbeln TYPE vbeln,
+  posnr TYPE posnr,
+  erdat TYPE erdat,
+  wadat_ist TYPE wadat_ist,
+  vstel TYPE vstel,
+  vkoiv TYPE vkoiv,
+  vtwiv TYPE vtwiv,
+  route TYPE route,
+  kunnr_to TYPE kunnr,
+  kunnr_ship TYPE kunag,
+  matnr TYPE matnr,
+  arktx TYPE arktx,
+  werks TYPE werks_d,
+  lgort TYPE lgort_d,
+  lfimg TYPE lfimg,
+  vrkme TYPE vrkme,
+  vgbel TYPE vgbel,
+  vgpos TYPE vgpos,
+  vbtyv TYPE vbtyp,
+
+*Calculated fields
+  netpr TYPE netpr,
+  waers TYPE waers,
+  ukurs TYPE ukurs_curr,
+  to_delete,
+END OF gty_input.
+
+TYPES:
+BEGIN OF gty_kna1,
+  kunnr TYPE kunnr,
+  stcd1 TYPE stcd1,
+  stceg TYPE stceg,
+  name1 TYPE name1_gp,
+  name2 TYPE name2_gp,
+  land1 TYPE land1,
+  pstlz TYPE pstlz,
+  ort01 TYPE ort01,
+  stras TYPE stras,
+  regio TYPE regio,
+END OF gty_kna1.
+
+TYPES:
+BEGIN OF gty_marc,
+  werks TYPE werks_d,
+  matnr TYPE matnr,
+  stawn TYPE stawn,
+END OF gty_marc.
+
+TYPES:
+BEGIN OF gty_mara,
+  matnr TYPE matnr,
+  brgew TYPE brgew,
+  gewei TYPE gewei,
+END OF gty_mara.
+
+TYPES:
+BEGIN OF gty_vekp,
+  tknum TYPE tknum,
+  vbeln TYPE vbeln,
+  posnr TYPE posnr,
+  exidv TYPE exidv,
+
+  zcolliid TYPE zcolliid,
+  zexidv2 TYPE zexidv2,
+  ztrukid TYPE ztrukid,
+END OF gty_vekp.
+
+TYPES:
+BEGIN OF gty_vbap,
+  vbeln TYPE vbeln,
+  posnr TYPE posnr,
+  netpr TYPE netpr,
+  waerk TYPE waerk,
+END OF gty_vbap,
+
+BEGIN OF gty_ekpo,
+  ebeln TYPE ebeln,
+  ebelp TYPE ebelp,
+  netpr TYPE netpr,
+  waers TYPE waers,
+END OF gty_ekpo.
+
+*Constants
+CONSTANTS:
+  co_package TYPE i VALUE 1000.
+
+*Data objects
+DATA:
+  gt_tcurr TYPE SORTED TABLE OF tcurr WITH NON-UNIQUE KEY kurst fcurr tcurr gdatu,
+  gt_vbap TYPE HASHED TABLE OF gty_vbap WITH UNIQUE KEY vbeln posnr,
+  gt_ekpo TYPE HASHED TABLE OF gty_ekpo WITH UNIQUE KEY ebeln ebelp.
+
+DATA:
+  gt_vekp TYPE SORTED TABLE OF gty_vekp WITH NON-UNIQUE KEY tknum,
+  gt_mara TYPE HASHED TABLE OF gty_mara WITH UNIQUE KEY matnr,
+  gt_vbfa TYPE SORTED TABLE OF gty_vbfa WITH NON-UNIQUE KEY vbelv posnv vbtyp_v,
+  gt_marc TYPE HASHED TABLE OF gty_marc WITH UNIQUE KEY werks matnr,
+  gt_kna1 TYPE HASHED TABLE OF gty_kna1 WITH UNIQUE KEY kunnr.
+
+DATA:
+  gc_cursor TYPE cursor,
+  gt_input TYPE TABLE OF gty_input,
+  gt_output TYPE TABLE OF zsmm_ekaer_001.
+
+DATA:
+  ok_code TYPE sy-ucomm,
+  gso_tknum TYPE RANGE OF tknum.
+
+DATA:
+  go_docking TYPE REF TO cl_gui_docking_container,
+  go_alv TYPE REF TO cl_gui_alv_grid.
+
+DATA:
+  gt_fieldcatalog TYPE lvc_t_fcat,
+  gs_layout TYPE lvc_s_layo,
+  gs_variant TYPE disvariant.
+
+*Selection screen for input data
+SELECTION-SCREEN BEGIN OF BLOCK bl1 WITH FRAME TITLE text-t01.
+SELECT-OPTIONS:
+  s_erdat FOR likp-erdat,
+  s_wadat FOR likp-wadat_ist,
+  s_vstel FOR likp-vstel,
+  s_vkoiv FOR likp-vkoiv,
+  s_vtwiv FOR likp-vtwiv,
+  s_route FOR likp-route,
+  s_kunnr FOR likp-kunnr,
+  s_kunag FOR likp-kunag,
+  s_wbstk FOR vbuk-wbstk,
+  s_vbeln FOR likp-vbeln,
+  s_tknum FOR vttk-tknum,
+  s_truk FOR ztmm_trkid-ztrukid.
+SELECTION-SCREEN END OF BLOCK bl1.
+*Tracking table: ztmm_trkcol
+

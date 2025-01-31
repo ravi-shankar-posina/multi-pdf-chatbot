@@ -1,0 +1,813 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PAYROLL_PROCESS_FORMS
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+***INCLUDE ZRMM_PAYROLL_PROCESS_FORMS .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  F_VALIDATE_ERSDA
+*&---------------------------------------------------------------------*
+FORM f_validate_ersda .
+*Validating SELECT single ersda FROM afru INTO gt_afru_val_ds
+  SELECT SINGLE ersda FROM afru INTO gw_afru_val_ds-ersda
+                  WHERE ersda IN gs_ersda.
+  IF sy-subrc <> 0.
+    MESSAGE e091 WITH gs_ersda."text-034.
+  ENDIF.
+
+ENDFORM.                    " F_VALIDATE_ERSDA
+*&---------------------------------------------------------------------*
+*&      Form  F_VALIDATE_WERKS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_validate_werks .
+  SELECT werks " Plant
+         FROM t001w
+         INTO TABLE gt_t001w_ds
+         WHERE werks IN gs_werks.
+  IF sy-subrc NE 0.
+    MESSAGE e092 WITH gs_werks."text-033.
+  ENDIF.
+ENDFORM.                    " F_VALIDATE_WERKS
+
+
+*&---------------------------------------------------------------------*
+*&      Form  F_COMBINE1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_combine1.
+*Start of modifications by Durga CHG0479115 DE3K943364
+  gt_afvv_ds1[] = gt_afvv_ds[].
+*End of modifications by Durga CHG0479115 DE3K943364
+  LOOP AT gt_afru_ds INTO gw_afru_ds.
+
+    gw_tabix = sy-tabix.
+
+    gw_output1_ds-aufnr = gw_afru_ds-aufnr. " order number
+    gw_output1_ds-ersda = gw_afru_ds-ersda. " Confirmation date
+    gw_output1_ds-iedz  = gw_afru_ds-iedz. "Confirmation time
+
+    READ TABLE gt_afko_ds INTO gw_afko_ds WITH KEY aufnr = gw_afru_ds-aufnr
+                                                BINARY SEARCH.
+
+    IF NOT gw_afko_ds-dispo IS INITIAL.
+      gw_output1_ds-dispo = gw_afko_ds-dispo. " MRP controller
+    ENDIF.
+
+    READ TABLE gt_marc_ds INTO gw_marc_ds WITH KEY matnr = gw_afko_ds-plnbez
+                                                     werks =  gw_afru_ds-werks
+                                                     BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gw_output1_ds-zlclid = gw_marc_ds-zlclid. " Local code
+    ENDIF.
+*Material number
+    READ TABLE gt_afpo_ds INTO gw_afpo_ds WITH KEY aufnr = gw_afru_ds-aufnr
+                                                     BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gw_output1_ds-plnbez = gw_afpo_ds-matnr. " Material
+    ENDIF.
+
+    READ TABLE gt_afvc_ds INTO gw_afvc_ds WITH KEY aufpl = gw_afru_ds-aufpl
+                                                   vornr = gw_afru_ds-vornr
+                                                   BINARY SEARCH.
+    IF NOT gw_afvc_ds-ltxa1 IS INITIAL.
+      gw_output1_ds-ltxa1 = gw_afvc_ds-ltxa1. " Operation text
+    ENDIF.
+
+    gw_output1_ds-vornr = gw_afru_ds-vornr. " Operation number
+
+    READ TABLE gt_crhd_ds INTO gw_crhd_ds WITH KEY objid = gw_afvc_ds-arbid
+                                                    BINARY SEARCH.
+
+    IF NOT gw_crhd_ds-arbpl IS INITIAL.
+      gw_output1_ds-arbpl = gw_crhd_ds-arbpl. " Work center
+    ENDIF.
+*Start of modifications by Durga CHG0479115 DE3K943364
+*    gw_output1_ds-lmnga = gw_afru_ds-lmnga " Good quantity
+    gw_output1_ds-lmnga = gw_afru_ds-lmnga + '0.000'. " Good quantity
+*    gw_output1_ds-xmnga = gw_afru_ds-xmnga" Scarp quantity
+    gw_output1_ds-xmnga = gw_afru_ds-xmnga + '0.000'. " Scarp quantity
+*End of modifications by Durga CHG0479115 DE3K943364
+    gw_output1_ds-smeng = gw_afru_ds-lmnga +  gw_afru_ds-xmnga. " Total quantity
+
+    gw_output1_ds-pernr = gw_afru_ds-pernr. " Personnel number
+
+*Start of modifications by Durga CHG0479115 DE3K943364
+    IF gw_afvc_ds-rueck NE gw_afru_ds-rueck.
+      CLEAR gw_ism01_ds1.
+      LOOP AT gt_afvv_ds1 INTO gw_afvv_ds1 WHERE aufpl = gw_afru_ds-aufpl.
+        IF gw_check NE 'X'.
+          CLEAR gw_ism03_ds1.
+        ENDIF.
+
+        gw_ism01_ds1 = gw_ism01_ds1 + gw_afvv_ds1-vgw01.
+*  gw_ism03_ds1 = gw_ism03_ds1 + gw_afvv_ds1-vgw03.  " code commented by 502287934 for incident no INC4848952 DE3K951367 on 09.10.2014
+        w_temp =  ( gw_afvv_ds1-vgw03 / gw_afvv_ds1-bmsch ).
+        w_temp1 = w_temp1 + w_temp.
+        gw_ism03_ds1 = w_temp1.   " code added by 502287934 for incident no INC4848952 DE3K951367 on 09.10.2014
+        gw_afru_ds-ile01 = gw_afvv_ds1-vge01.
+        gw_afru_ds-ile03 = gw_afvv_ds1-vge03.
+        gw_check = 'X'.
+        CLEAR w_temp.
+      ENDLOOP.
+      IF gw_check = 'X'.
+        DELETE gt_afvv_ds1 WHERE aufpl = gw_afru_ds-aufpl.
+        gw_afru_ds-ism01 = gw_ism01_ds1.
+        gw_afru_ds-ism03 = gw_ism03_ds1.
+        CLEAR gw_check.
+      ELSE.
+        CLEAR gw_afru_ds-ism01.
+        READ TABLE gt_afvv_ds INTO gw_afvv_ds WITH KEY aufpl = gw_afru_ds-aufpl.
+        IF sy-subrc = 0.
+          gw_afru_ds-ile01 = gw_afvv_ds1-vge01.
+          gw_afru_ds-ile03 = gw_afvv_ds1-vge03.
+          gw_afru_ds-ism03 = gw_ism03_ds1.
+        ELSE.
+          CLEAR gw_ism03_ds1.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+*End of modifications by Durga CHG0479115 DE3K943364
+
+*CHG0479115 DE3K922799 Modification starts by vivekkumar 28/03/2014
+*Setup time min to hour
+    IF gw_afru_ds-ile01 = 'MIN'. "Quantity
+      gw_output1_ds-ile01 = gc_hr_ds." 'H'
+
+      gw_afru_ds-ism01 =  gw_ism01_ds + ( gw_afru_ds-ism01 / 60 ) ."+ gw_hr_ds.
+      gw_output1_ds-ism01 = gw_afru_ds-ism01. " Setup time
+
+    ELSEIF gw_afru_ds-ile01 = 'H'. "Quantity
+      gw_output1_ds-ile01 = gw_afru_ds-ile01.
+
+      gw_output1_ds-ism01 = gw_afru_ds-ism01. " Setup time
+
+    ELSEIF gw_afru_ds-ile01 = 'STD'.
+      gw_output1_ds-ile01 = gw_afru_ds-ile01."gc1_HR_ds
+      gw_output1_ds-ism01 = gw_afru_ds-ism01. " Setup time
+    ENDIF.
+*Labor time min to hour
+    IF gw_afru_ds-ile03 = 'MIN'. "Quantity
+      gw_output1_ds-ile03 = gc_hr_ds." 'H'
+
+      gw_afru_ds-ism03 =  gw_ism03_ds + ( gw_afru_ds-ism03 / 60 ) ."+ gw_hr_ds.
+      gw_output1_ds-ism03 = gw_afru_ds-ism03. " labor time
+
+    ELSEIF gw_afru_ds-ile03 = 'H'. "Quantity
+      gw_output1_ds-ile03 = gw_afru_ds-ile03.
+*Start of modifications by Durga CHG0479115 DE3K943364
+
+      IF gw_afvc_ds-rueck NE gw_afru_ds-rueck.
+*  Begin of code changes by 502283763 for INC4848952 CHG0845630 DE3K948040
+*      gw_output1_ds-ism03 = ( gw_afru_ds-ism03 * gw_output1_ds-lmnga ) / 1000. " Commented by 502283763 INC4848952 CHG0845630
+        gw_output1_ds-ism03 = ( gw_afru_ds-ism03 * gw_output1_ds-lmnga ).  " By 502283763 INC4848952 CHG0845630
+*  End of code changes by 502283763 for INC4848952 CHG0845630 DE3K948040
+      ELSE.
+        gw_output1_ds-ism03 = gw_afru_ds-ism03.
+      ENDIF.
+*End of modifications by Durga CHG0479115 DE3K943364
+    ELSEIF gw_afru_ds-ile03 = 'STD'. "Quantity
+      gw_output1_ds-ile03 = gw_afru_ds-ile03. " gc1_HR_ds.
+      gw_output1_ds-ism03 = gw_afru_ds-ism03. " labor time 'H'
+*Begin of CR#CHG2435524   by 502683007 on Jan-19-2017
+    ELSEIF gw_afru_ds-ile03 = 'SMI'. "MILES
+      CLEAR gi_ztuhcd1_ds.
+      READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name = sy-repid
+                                                          zkey  = gc_key
+                                                          field = gc_field BINARY SEARCH.
+      gw_output1_ds-ile03 =  gc_hr_ds.
+      gw_output1_ds-ism03 =  gw_afru_ds-ism03  * gi_ztuhcd1_ds-low .  "CR#CHG2435524   by 502683007 on Feb-09-2017
+*End of CR#CHG2435524   by 502683007 on Jan-19-2017
+    ENDIF.
+*CHG0479115 DE3K922799 Modification ends by vivekkumar 28/03/2014
+    gw_output1_ds-pltxa1 = gw_afru_ds-ltxa1. " Confirmation text
+    gw_output1_ds-grund = gw_afru_ds-grund. " Reason 502347739 DE3K954624  INC5350239 on 12.11.2014
+**Begin of changes done by USSACHI4 17/08/2021 DE3K9A098A CHG0179586
+    IF gw_afru_ds-ismnw IS NOT INITIAL.
+      gw_output1_ds-ism03 = gw_afru_ds-ismnw.
+    ENDIF.
+**End of changes done by USSACHI4 17/08/2021 DE3K9A098A CHG0179586
+    APPEND gw_output1_ds TO gt_output1_ds.
+    CLEAR : gw_output1_ds,gw_afru_ds,gw_crhd_ds,gw_afvc_ds,
+           gw_afko_ds,gw_afru_ds,gw_aufk_ds,gw_afpo_ds,gw_marc_ds, w_temp1.
+  ENDLOOP.
+
+  IF rx_2 = 'X'.
+
+    IF NOT gt_output1_ds IS INITIAL.
+      SELECT matnr maktx
+             INTO TABLE gt_makt_ds
+             FROM makt
+             FOR ALL ENTRIES IN gt_output1_ds
+             WHERE matnr EQ gt_output1_ds-plnbez
+             AND   spras EQ sy-langu.
+
+      SELECT matnr matkl
+             INTO TABLE gt_mara_ds
+             FROM mara
+             FOR ALL ENTRIES IN gt_output1_ds
+             WHERE matnr EQ gt_output1_ds-plnbez.
+    ENDIF.
+  ENDIF.
+
+  LOOP AT gt_output1_ds ASSIGNING <fs_output1_ds>.
+    READ TABLE gt_marc_ds INTO gw_marc_ds WITH KEY matnr = <fs_output1_ds>-plnbez
+                                                 BINARY SEARCH.
+    IF sy-subrc = 0.
+      gw_output-zlclid = gw_marc_ds-zlclid.
+    ENDIF.
+
+    MODIFY gt_output1_ds FROM <fs_output1_ds> TRANSPORTING zlclid.
+
+    CLEAR gw_output1_ds.
+  ENDLOOP.
+
+  IF rx_1 EQ 'X'.   "WHen option 1
+
+    LOOP AT gt_output1_ds INTO gw_output1_ds.
+
+*CHG0479115 DE3K939125 Modification ends by vivekkumar 10/06/2014
+      p_date = gw_output1_ds-ersda.
+      gv_year = p_date+0(4).
+      gv_month = p_date+4(2).
+      gv_date = p_date+6(2).
+      DATA gv_final TYPE char10.
+
+      CONCATENATE gv_year '.' gv_month '.' gv_date INTO gv_final.
+
+      gw_outputex_ds-ersda  = gv_final.
+      lv_time = gw_output1_ds-iedz.
+
+      gv_hour = lv_time+0(2).
+      gv_mins = lv_time+2(2).
+      gv_sec  = lv_time+4(2).
+
+      CONCATENATE gv_hour ':' gv_mins ':' gv_sec INTO gv_final_time.
+
+      gw_outputex_ds-iedz =  gv_final_time.
+*CHG0479115 DE3K939125 Modification ends by vivekkumar 10/06/2014
+
+*DE3K939125 Modofication ends by vivekkumar 09/06/2014
+      gw_outputex_ds-dispo  = gw_output1_ds-dispo.
+      gw_outputex_ds-zlclid = gw_output1_ds-zlclid.
+      gw_outputex_ds-plnbez = gw_output1_ds-plnbez.
+      gw_outputex_ds-aufnr  = gw_output1_ds-aufnr.
+      gw_outputex_ds-ltxa1  = gw_output1_ds-ltxa1.
+      gw_outputex_ds-vornr  = gw_output1_ds-vornr.
+      gw_outputex_ds-arbpl  = gw_output1_ds-arbpl.
+      gw_outputex_ds-lmnga  = gw_output1_ds-lmnga.
+      gw_outputex_ds-xmnga  = gw_output1_ds-xmnga.
+      gw_outputex_ds-smeng  = gw_output1_ds-smeng.
+      gw_outputex_ds-pernr  = gw_output1_ds-pernr.
+*CHG0479115 DE3K922799 Modification starts by vivekkumar 28/03/2014
+      IF gw_output1_ds-ile01 = 'MIN'. "Quantity
+        gw_outputex_ds-ile01 = gc_hr_ds." 'H'
+        gw_output1_ds-ism01 =  gw_ism01_ds + ( gw_output1_ds-ism01 / 60 ) ."+ gw_hr_ds.
+        gw_outputex_ds-ism01 = gw_output1_ds-ism01. " Setup time
+      ELSEIF gw_output1_ds-ile01 = 'H'. "Quantity
+        gw_outputex_ds-ile01 = gw_output1_ds-ile01.
+        gw_outputex_ds-ism01 = gw_output1_ds-ism01. " Setup time
+      ELSEIF gw_output1_ds-ile01 = 'STD'.
+        gw_outputex_ds-ile01 = gc1_std_ds."gw_output1_ds-ile01."gc1_HR_ds
+        gw_outputex_ds-ism01 = gw_output1_ds-ism01. " Setup time
+      ENDIF.
+******ism03
+      IF gw_output1_ds-ile03 = 'MIN'. "Quantity
+        gw_outputex_ds-ile03 = gc_hr_ds." 'H'
+        gw_output1_ds-ism03 =  gw_ism03_ds + ( gw_output1_ds-ism03 / 60 ) ."+ gw_hr_ds.
+        gw_outputex_ds-ism03 = gw_output1_ds-ism03. " labor time
+      ELSEIF gw_output1_ds-ile03 = 'H'. "Quantity
+        gw_outputex_ds-ile03 = gw_output1_ds-ile03.
+        gw_outputex_ds-ism03 = gw_output1_ds-ism03. " labor time 'H'
+      ELSEIF gw_output1_ds-ile03 = 'STD'. "Quantity
+        gw_outputex_ds-ile03 =  gc1_std_ds."gw_output1_ds-ile03. " gc1_HR_ds.
+        gw_outputex_ds-ism03 = gw_output1_ds-ism03. " labor time 'H'
+      ENDIF.
+*CHG0479115 DE3K939125 Modification ends by vivekkumar 10/06/2014
+      gw_outputex_ds-pltxa1 = gw_output1_ds-pltxa1.
+      gw_outputex_ds-grund = gw_output1_ds-grund. " Reason 502347739  DE3K954624  INC5350239 on 12.11.2014
+      APPEND gw_outputex_ds TO gt_outputex_ds.
+      CLEAR : gw_output1_ds, gw_outputex_ds.
+    ENDLOOP.
+  ELSE.
+    LOOP AT gt_output1_ds INTO gw_output1_ds.
+*CHG0479115 DE3K939125 Modification starts by vivekkumar 10/06/2014
+      p_date = gw_output1_ds-ersda.
+      gv_year = p_date+0(4).
+      gv_month = p_date+4(2).
+      gv_date = p_date+6(2).
+
+      CONCATENATE gv_year '.' gv_month '.' gv_date INTO gv_final.
+      gw_outputex_1_ds-ersda  = gv_final.
+
+      lv_time = gw_output1_ds-iedz.
+      gv_hour = lv_time+0(2).
+      gv_mins = lv_time+2(2).
+      gv_sec  = lv_time+4(2).
+
+      CONCATENATE gv_hour ':' gv_mins ':' gv_sec INTO gv_final_time.
+      gw_outputex_1_ds-iedz =  gv_final_time.
+
+*CHG0479115 DE3K939125 Modification ends by vivekkumar 10/06/2014
+      gw_outputex_1_ds-dispo  = gw_output1_ds-dispo.
+      gw_outputex_1_ds-zlclid = gw_output1_ds-zlclid.
+      gw_outputex_1_ds-plnbez = gw_output1_ds-plnbez.
+      gw_outputex_1_ds-aufnr   = gw_output1_ds-aufnr.
+      gw_outputex_1_ds-ltxa1  = gw_output1_ds-ltxa1.
+      gw_outputex_1_ds-vornr  = gw_output1_ds-vornr.
+      gw_outputex_1_ds-arbpl  = gw_output1_ds-arbpl.
+      gw_outputex_1_ds-lmnga  = gw_output1_ds-lmnga.
+      gw_outputex_1_ds-xmnga  = gw_output1_ds-xmnga.
+      gw_outputex_1_ds-smeng  = gw_output1_ds-smeng.
+* *CHG0479115 DE3K922799 Modification starts by vivekkumar 28/03/2014
+      IF gw_output1_ds-ile01 = 'MIN'. "Quantity
+        gw_outputex_1_ds-ile01 = gc_hr_ds." 'H'
+        gw_output1_ds-ism01 =  gw_ism01_ds + ( gw_output1_ds-ism01 / 60 ) ."+ gw_hr_ds.
+        gw_outputex_1_ds-ism01 = gw_output1_ds-ism01. " Setup time
+      ELSEIF gw_output1_ds-ile01 = 'H'. "Quantity
+        gw_outputex_1_ds-ile01 = gw_output1_ds-ile01.
+        gw_outputex_1_ds-ism01 = gw_output1_ds-ism01. " Setup time
+      ELSEIF gw_output1_ds-ile01 = 'STD'.
+        gw_outputex_1_ds-ile01 = gc1_std_ds."gw_output1_ds-ile01."gc1_HR_ds
+        gw_outputex_1_ds-ism01 = gw_output1_ds-ism01. " Setup time
+      ENDIF.
+      IF gw_output1_ds-ile03 = 'MIN'. "Quantity
+        gw_outputex_1_ds-ile03 = gc_hr_ds." 'H'
+
+        gw_output1_ds-ism03 =  gw_ism03_ds + ( gw_output1_ds-ism03 / 60 ) ."+ gw_hr_ds.
+        gw_outputex_1_ds-ism03 = gw_output1_ds-ism03. " labor time
+
+      ELSEIF gw_output1_ds-ile03 = 'H'. "Quantity
+        gw_outputex_1_ds-ile03 = gw_output1_ds-ile03.
+
+        gw_outputex_1_ds-ism03 = gw_output1_ds-ism03. " labor time 'H'
+      ELSEIF gw_output1_ds-ile03 = 'STD'. "Quantity
+        gw_outputex_1_ds-ile03 =  gc1_std_ds."gw_output1_ds-ile03. " gc1_HR_ds.
+        gw_outputex_1_ds-ism03 = gw_output1_ds-ism03. " labor time 'H'
+      ENDIF.
+*CHG0479115 DE3K922799 Modification ends by vivekkumar 28/03/2014
+      gw_outputex_1_ds-pltxa1 = gw_output1_ds-pltxa1.
+      gw_outputex_1_ds-grund = gw_output1_ds-grund. "502347739 DE3K954624  INC5350239 on 12.11.2014
+
+      gw_outputex_1_ds-pernr  = gw_output1_ds-pernr.
+*Material
+      CLEAR gw_makt_ds.
+      READ TABLE gt_makt_ds INTO gw_makt_ds WITH KEY
+                             matnr = gw_output1_ds-plnbez
+                             BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gw_outputex_1_ds-maktx = gw_makt_ds-maktx.
+      ENDIF.
+*Material group
+      CLEAR gw_mara_ds.
+      READ TABLE gt_mara_ds INTO gw_mara_ds WITH KEY
+                             matnr = gw_output1_ds-plnbez
+                             BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gw_outputex_1_ds-matkl = gw_mara_ds-matkl.
+      ENDIF.
+*move data from output table to excel .
+      APPEND gw_outputex_1_ds TO gt_outputex_1_ds.
+      CLEAR : gw_output1_ds,gw_outputex_1_ds.
+    ENDLOOP.
+
+  ENDIF.
+ENDFORM.                    " F_COMBINE1
+*&---------------------------------------------------------------------*
+*&      Form  F_WRITE1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_write1 .
+  PERFORM f_title1.
+  LOOP AT gt_output1_ds INTO gw_output1_ds.
+    WRITE : /1 sy-vline,
+              2(18) gw_output1_ds-ersda USING EDIT MASK '____.__.__',    "addded  "1 confirmation date
+              20 sy-vline,
+              21(8) gw_output1_ds-iedz USING EDIT MASK '__:__:__:' ,"2
+              29 sy-vline,
+              30(14) gw_output1_ds-dispo,                        "3
+              44 sy-vline,
+              45(39) gw_output1_ds-zlclid,                       "4
+              85 sy-vline,
+*  Begin of code start by 502283763 for INC4848952 CHG0845630 DE3K948040
+
+              86(18) gw_output1_ds-plnbez,                       "5
+              105 sy-vline,
+              106(12) gw_output1_ds-aufnr,"USING EDIT MASK ,                       "6
+              119 sy-vline,
+              120(40) gw_output1_ds-ltxa1,                      "7
+              161 sy-vline,
+              162(16) gw_output1_ds-vornr,                       "7
+              179 sy-vline,
+              180(18) gw_output1_ds-arbpl,
+              199 sy-vline,
+              200(13) gw_output1_ds-lmnga NO-GROUPING UNIT 'lmnga',                      "9
+              214 sy-vline,
+              215(17) gw_output1_ds-xmnga NO-GROUPING UNIT 'xmnga',                      "10
+              233 sy-vline,
+              234(14) gw_output1_ds-smeng NO-GROUPING UNIT 'smnga',                      "11
+              249 sy-vline,
+              250(16) gw_output1_ds-pernr,
+              267 sy-vline,
+              268(18) gw_output1_ds-ism01 NO-GROUPING UNIT 'ism01',
+              287 sy-vline,
+              288(15) gw_output1_ds-ile01,
+              304 sy-vline,
+              305(14) gw_output1_ds-ism03 NO-GROUPING UNIT 'ism03',
+              320 sy-vline,
+              321(15) gw_output1_ds-ile03,
+              337 sy-vline,
+              338(40) gw_output1_ds-pltxa1,
+              379 sy-vline,
+              380(6) gw_output1_ds-grund, "502347739 DE3K954624  INC5350239 on 12.11.2014
+              387 sy-vline.
+*  End of code changes by 502283763 for INC4848952 CHG0845630 DE3K948040
+*  Begin of code commneted by 502283763 for INC4848952 CHG0845630 DE3K948040
+*              86(08) gw_output1_ds-plnbez,                       "5
+*              95 sy-vline,
+*              96(12) gw_output1_ds-aufnr,"USING EDIT MASK ,                       "6
+*              109 sy-vline,
+*              110(40) gw_output1_ds-ltxa1,                      "7
+*              151 sy-vline,
+*              152(16) gw_output1_ds-vornr,                       "7
+*              169 sy-vline,
+*              170(18) gw_output1_ds-arbpl,
+*              189 sy-vline,
+*              190(13) gw_output1_ds-lmnga NO-GROUPING UNIT 'lmnga',                      "9
+*              214 sy-vline,
+*              215(17) gw_output1_ds-xmnga NO-GROUPING UNIT 'xmnga',                      "10
+*              233 sy-vline,
+*              234(14) gw_output1_ds-smeng NO-GROUPING UNIT 'smnga',                      "11
+*              249 sy-vline,
+*              250(16) gw_output1_ds-pernr,
+*              267 sy-vline,
+*              268(18) gw_output1_ds-ism01 NO-GROUPING UNIT 'ism01',
+*              287 sy-vline,
+*              288(15) gw_output1_ds-ile01,
+*              304 sy-vline,
+*              305(14) gw_output1_ds-ism03 NO-GROUPING UNIT 'ism03',
+*              320 sy-vline,
+*              321(15) gw_output1_ds-ile03,
+*              337 sy-vline,
+*              338(40) gw_output1_ds-pltxa1,
+*              379 sy-vline.
+*  End of code commneted by 502283763 for INC4848952 CHG0845630 DE3K948040
+    CLEAR gw_output.
+  ENDLOOP.
+
+  WRITE : /1(387) sy-uline.
+
+ENDFORM.                    " F_WRITE1
+*&---------------------------------------------------------------------*
+*&      Form  F_TITLE1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_title1 .
+  WRITE : /1(387) sy-uline.
+  WRITE : /1 sy-vline,
+            2(18) text-004,"Conformation Date
+            20 sy-vline,
+            21(8) text-005,"Time
+            29 sy-vline,
+            30(14) text-006,"MRP controller
+            44 sy-vline,
+            45(39) text-007,"Local code
+            85 sy-vline,
+* Begin of changes by 502283763 for INC4848952 CHG0845630 DE3K948040
+            86(18) text-008,"MAterial
+            105 sy-vline,
+            106(12) text-009,"Order Number
+            119 sy-vline,
+            120(40) text-010,"Operation Description
+            161 sy-vline,
+            162(16) text-011,"Operation number
+            179 sy-vline,
+            180(18) text-012,"Work Center
+            199 sy-vline,
+            200(13) text-013,"Good Quantity
+* End of changes by 502283763 for INC4848952 CHG0845630 DE3K948040
+*  Begin of code commented by 502283763 for INC4848952 CHG0845630 DE3K948040
+*            86(08) text-008,"MAterial
+*            95 sy-vline,
+*            96(12) text-009,"Order Number
+*            109 sy-vline,
+*            110(40) text-010,"Operation Description
+*            151 sy-vline,
+*            152(16) text-011,"Operation number
+*            169 sy-vline,
+*            170(18) text-012,"Work Center
+*            189 sy-vline,
+*            190(13) text-013,"Good Quantity
+*  End of code commented by 502283763 for INC4848952 CHG0845630 DE3K948040
+            214 sy-vline,
+            215(17) text-014,"Scrap Qnty
+            233 sy-vline,
+            234(14) text-015,"Total Qnty
+            249 sy-vline,
+            250(16) text-021,"Commented by vivek 15/04/2014 text-023,"personnel number
+            267 sy-vline,
+            268(18) text-016,"Rout.Setup
+            287 sy-vline,
+            288(15) text-017,"Uom
+            304 sy-vline,
+            305(14) text-018,"Rout.Labor
+            320 sy-vline,
+            321(15) text-019,"Uom
+            337 sy-vline,
+            338(40) text-020,"Confirmatin Text
+            379 sy-vline,
+            380(6) text-035, "Reason 502347739  DE3K954624  INC5350239 on 12.11.2014
+            387 sy-vline.
+  WRITE : /1(387) sy-uline.
+ENDFORM.                    " F_TITLE1
+
+*&---------------------------------------------------------------------*
+*&      Form  F_DOWNLOAD1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_download1 .
+  gw_outputt_ds-ersda   = text-004."Confn.Date
+  gw_outputt_ds-iedz    = text-005."Confirmation Time
+  gw_outputt_ds-dispo   = text-006."MRP "NR"MRP controller
+  gw_outputt_ds-zlclid  = text-007."Local code
+  gw_outputt_ds-plnbez  = text-008."Material
+  gw_outputt_ds-aufnr   = text-009."Order number
+  gw_outputt_ds-ltxa1   = text-010."Operation descrption
+  gw_outputt_ds-vornr   = text-011."Operation number
+  gw_outputt_ds-arbpl   = text-012."Work center
+  gw_outputt_ds-lmnga   = text-013."Good quantity
+  gw_outputt_ds-xmnga   = text-014."Scarp quantity
+  gw_outputt_ds-smeng   = text-015."Total quantity
+  gw_outputt_ds-ism01   = text-016."Rout setup
+  gw_outputt_ds-ile01   = text-017."UOM
+  gw_outputt_ds-ism03   = text-018."Rout labor
+  gw_outputt_ds-ile03   = text-019."UOM
+  gw_outputt_ds-pltxa1   = text-020."Confirmation text
+  gw_outputt_ds-pernr   = text-021."personnel number
+  gw_outputt_ds-grund   = text-035."Reason 502347739 DE3K954624  INC5350239 on 12.11.2014
+
+  APPEND gw_outputt_ds TO gt_outputt_ds.
+
+  DATA  lv_file TYPE string.
+  lv_file = p_exfile. " p_file
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename              = lv_file
+      filetype              = 'ASC'
+      write_field_separator = 'X'
+    TABLES
+      data_tab              = gt_outputt_ds.
+
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename              = lv_file
+      filetype              = 'ASC'
+      write_field_separator = 'X'
+      append                = 'X'
+    TABLES
+      data_tab              = gt_outputex_ds.
+
+ENDFORM.                    " F_DOWNLOAD1
+*&---------------------------------------------------------------------*
+*&      Form  F_DOWNLOAD_RX2_NEW
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_download_rx2_new .
+  gw_outputt_1_ds-ersda   = text-004."Confn.Date
+  gw_outputt_1_ds-iedz    = text-005."Confirmation Time
+  gw_outputt_1_ds-dispo   = text-006."MRP controller
+  gw_outputt_1_ds-zlclid   = text-007."Local code
+  gw_outputt_1_ds-plnbez  = text-008."Material
+  gw_outputt_1_ds-maktx  = text-031.  "Material description
+  gw_outputt_1_ds-matkl  = text-032.  "PSI Code
+  gw_outputt_1_ds-aufnr   = text-009."Order number
+  gw_outputt_1_ds-ltxa1   = text-010."Operation descrption
+  gw_outputt_1_ds-vornr   = text-011."Operation number
+  gw_outputt_1_ds-arbpl   = text-012. " Work center
+  gw_outputt_1_ds-lmnga   = text-013. " Good quantity
+  gw_outputt_1_ds-xmnga   = text-014. " Scarp quantity
+  gw_outputt_1_ds-smeng   = text-015. " Total quantity
+  gw_outputt_1_ds-ism01   = text-016. " Rout setup
+  gw_outputt_1_ds-ile01   = text-017. " UOM
+  gw_outputt_1_ds-ism03   = text-018. " Rout labor
+  gw_outputt_1_ds-ile03   = text-019. " UOM
+  gw_outputt_1_ds-pltxa1   = text-020. " COnfirmation text
+  gw_outputt_1_ds-pernr   = text-021. " Personnel number
+  gw_outputt_1_ds-grund   = text-035."Reason 502347739 DE3K954624  INC5350239 on 12.11.2014
+
+  APPEND gw_outputt_1_ds TO gt_outputt_1_ds.
+
+  DATA  lv_file TYPE string.
+  lv_file = p_exfile. " p_file
+
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename              = lv_file
+      filetype              = 'ASC'
+      write_field_separator = 'X'
+    TABLES
+      data_tab              = gt_outputt_1_ds. " text
+
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename              = lv_file
+      filetype              = 'ASC'
+      write_field_separator = 'X'
+      append                = 'X'
+    TABLES
+      data_tab              = gt_outputex_1_ds. " data
+
+ENDFORM.                    " F_DOWNLOAD_RX2_NEW
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_AUFK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_get_aufk .
+*Get the order number(AUFNR) based on T001w-plant value
+  SELECT aufnr " Order number
+          FROM aufk
+          INTO TABLE gt_aufk_ds
+          FOR ALL ENTRIES IN gt_t001w_ds
+          WHERE werks EQ gt_t001w_ds-werks" test gw_werks-werks.
+                 AND autyp = '10'. " order category
+
+ENDFORM.                    " F_GET_AUFK
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_AFKO
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_get_afko .
+*Get data from table AFKO based on order number(AUFK-AUFNR)
+  SELECT aufnr " Order number
+           plnbez " Materila number
+           dispo "MRP controller
+           aufpl "Routing number of operations in the order
+           rueck
+           zaehl
+           FROM afko
+           INTO TABLE gt_afko_ds
+           FOR ALL ENTRIES IN gt_aufk_ds
+           WHERE aufnr EQ gt_aufk_ds-aufnr.
+ENDFORM.                    " F_GET_AFKO
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_AFRU
+*&---------------------------------------------------------------------*
+*       text
+FORM f_get_afru .
+*Get data from table AFRU based on AFKO-AUFPL.
+  SELECT aufnr " Order number
+         ersda " Confirmation date
+         iedz  " Confirmed time for 'Execution finish'
+         aufpl " Routing number of operations in the order
+         rueck
+         rmzhl
+         ltxa1
+         ile01 " uom1
+         ile03 "uom2
+         lmnga "gquan
+         xmnga " scar quan
+         pernr " perno
+         smeng " toa quan
+         ism01 " routi
+         ism03 " rou labor
+         ismnw "  **Changes done by USSACHI4 17/08/2021 DE3K9A098A CHG0179586
+         vornr " operation number
+         werks " Plant
+         grund " 502347739 DE3K954624  INC5350239 on 12.11.2014
+         FROM afru
+         INTO TABLE gt_afru_ds
+         WHERE ersda IN gs_ersda
+         AND   werks IN gs_werks.
+*         or    RUECK IN gs_rueck.     " CODE CHANGED BY 502287934 INC4848952 DE3K951367 on 09.10.2014
+
+ENDFORM.                    " F_GET_AFRU
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_AFVC
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_get_afvc .
+*Get the data from table AFVC based on AFKO_AUFPL
+  SELECT aufpl
+            vornr " Operation/Activity Number
+            arbid " Object ID of the resource
+            ltxa1 " Operation short text
+            rueck " Completion confirmation number for the operation
+            FROM afvc
+            INTO TABLE gt_afvc_ds
+            FOR ALL ENTRIES IN gt_afru_ds
+            WHERE aufpl = gt_afru_ds-aufpl
+*           or    vornr = gt_afru_ds-vornr. " changes by 502287934 INC4848952 DE3K951367 on 09.10.2014
+            AND vornr = gt_afru_ds-vornr.   " changes reverted back by 502287934 INC4848952 DE3K951367 on 27.10.2014
+ENDFORM.                    " F_GET_AFVC
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_AFPO
+*&---------------------------------------------------------------------*
+FORM f_get_afpo .
+*Get that AFPO data based on AFRU VALUE
+  SELECT aufnr matnr FROM afpo INTO TABLE
+                      gt_afpo_ds
+                      FOR ALL ENTRIES IN gt_afru_ds
+                      WHERE aufnr = gt_afru_ds-aufnr.
+ENDFORM.                    " F_GET_AFPO
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_MARC
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_get_marc .
+  SELECT matnr
+           werks
+           zlclid
+           INTO TABLE gt_marc_ds
+           FROM marc
+           FOR ALL ENTRIES IN gt_afko_ds
+           WHERE matnr EQ gt_afko_ds-plnbez.
+ENDFORM.                    " F_GET_MARC
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_CRHD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_get_crhd .
+*Get data from table CRHD based on AFVC-ARBID.
+  SELECT objid                                          "#EC CI_NOFIRST
+         arbpl
+         FROM crhd
+         INTO TABLE gt_crhd_ds
+         FOR ALL ENTRIES IN gt_afvc_ds
+         WHERE objid EQ gt_afvc_ds-arbid.
+ENDFORM.                    " F_GET_CRHD
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_FILENAME
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_get_filename .
+
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+      field_name    = 'P_EXFILE'
+    IMPORTING
+      file_name     = p_exfile.
+ENDFORM.                    " F_GET_FILENAME
+
+*Start of modifications by Durga CHG0479115 DE3K943364
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_AFVV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_get_afvv .
+  SELECT                                                "#EC CI_NOFIRST
+        aufpl
+        aplzl  "Added by Vijay Kumar N CHG1937301 DE3K970478 18/03/2016
+        vge01
+        vgw01
+        vge03
+        vgw03
+        bmsch  " Changes done by 502287934 for incident INC4848952 DE3K951367 on 09.10.2014
+        FROM afvv
+        INTO TABLE gt_afvv_ds
+        FOR ALL ENTRIES IN gt_afru_ds
+        WHERE aufpl = gt_afru_ds-aufpl.
+ENDFORM.                    " F_GET_AFVV
+*End of modifications by Durga CHG0479115 DE3K943364
+*&---------------------------------------------------------------------*
+*&      Form  GET_HARDCODE_ENTRIES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_hardcode_entries .
+  gi_ztuhcd1_ds-name = gc_name.
+  APPEND gi_ztuhcd1_ds TO gt_ztuhcd1_ds.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1_ds
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+    SORT gt_ztuhcd1_ds BY name zkey field.
+  ENDIF.
+ENDFORM.                    " GET_HARDCODE_ENTRIES
+

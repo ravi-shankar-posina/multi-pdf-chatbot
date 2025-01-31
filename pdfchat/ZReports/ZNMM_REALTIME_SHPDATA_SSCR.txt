@@ -1,0 +1,41 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_REALTIME_SHPDATA_SSCR
+*&---------------------------------------------------------------------*
+*-----------------------------------------------------------------------
+* Selection-Screen
+*-----------------------------------------------------------------------
+SELECTION-SCREEN BEGIN OF BLOCK t1 WITH FRAME TITLE text-001.
+SELECT-OPTIONS : gs_werks  FOR gi_werks_ds OBLIGATORY ,
+                 gs_udate  FOR gi_wadat_i_ds, "Changed by 502287934  CHG1407193  DE3K964959
+                 gs_wadat  FOR gi_wadat_i_ds,
+                 gs_lifsk  FOR gi_lifsk_ds,
+                 gs_kunnr  FOR gi_kunnr_ds,
+                 gs_vdatu  FOR gi_vdatu_ds,
+* Start of changes 502287934  CHG1407193   DE3K964959
+                 gs_vbeln  FOR gi_vbeln_ds,
+                 gs_dispo  FOR gi_dispo_ds,
+                 gs_pgidt  FOR gi_wadat_ds.
+* End of changes 502287934  CHG1407193    DE3K964959
+SELECTION-SCREEN END OF BLOCK t1.
+*Begin of changes done by vijay Kumar N CHG1507718 DE3K966627  06/10/2015
+SELECTION-SCREEN BEGIN OF BLOCK t2 WITH FRAME TITLE text-b25.
+SELECTION-SCREEN: BEGIN OF LINE.
+PARAMETERS: p_mod1 RADIOBUTTON GROUP r03.  "ALV
+SELECTION-SCREEN: COMMENT 3(10) text-b26.
+SELECTION-SCREEN: END   OF LINE.
+SELECTION-SCREEN: BEGIN OF LINE.
+PARAMETERS: p_mod4 RADIOBUTTON GROUP r03.  "FTP Server
+SELECTION-SCREEN: COMMENT 3(10) text-b30 .
+*PARAMETERS: p_host(64) TYPE c LOWER CASE VISIBLE LENGTH 15.
+*SELECTION-SCREEN: COMMENT 33(5) text-b31 FOR FIELD p_user.
+*PARAMETERS: p_user(30) TYPE c LOWER CASE VISIBLE LENGTH 5.
+*SELECTION-SCREEN: COMMENT 46(5) text-b32 FOR FIELD p_pass.
+*PARAMETERS: p_pass(30) TYPE c LOWER CASE VISIBLE LENGTH 7.
+*SELECTION-SCREEN: END   OF LINE.
+*SELECTION-SCREEN: BEGIN OF LINE.
+*SELECTION-SCREEN: COMMENT 3(10) text-b33 FOR FIELD p_ftpf.
+*PARAMETERS: p_ftpf LIKE rlgrap-filename.
+SELECTION-SCREEN: END   OF LINE.
+SELECTION-SCREEN END OF BLOCK t2.
+*End of changes done by vijay Kumar N CHG1507718 DE3K966627  06/10/2015
+

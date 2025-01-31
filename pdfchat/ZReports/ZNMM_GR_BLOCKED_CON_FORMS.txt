@@ -1,0 +1,495 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_OUTBOUND_PROCESSING_FORMS
+*&---------------------------------------------------------------------*
+*
+FORM validate_vendor_num.
+* Validate VENDOR NUMBER against table ekko.
+  IF NOT s_vnum[] IS INITIAL.
+    SELECT SINGLE lifnr FROM ekko
+           INTO gi_ekko_ds-lifnr
+           WHERE lifnr IN s_vnum.
+    IF sy-subrc IS NOT INITIAL.
+      MESSAGE i070(zmm) WITH text-025   .    "Invalid vendor number.Pls chk your entry
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "validate_VENDOR_NUM
+
+*&---------------------------------------------------------------------*
+*&      Form  validate_mat_num
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM validate_mat_num.
+* Validate Material Number against table ekko.
+  IF NOT s_mat[] IS INITIAL.
+    SELECT SINGLE matnr FROM ekpo
+           INTO gi_ekpo_ds-matnr
+           WHERE matnr IN s_mat.
+    IF sy-subrc IS NOT INITIAL.
+      MESSAGE i070(zmm) WITH text-026   .   "Invalid material number
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "validate_mat_num
+
+*&---------------------------------------------------------------------*
+*&      Form  validate_purnum
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM validate_purnum.
+* Validate Purchase Order  Number against table ekko.
+  IF NOT s_purnum[] IS INITIAL.
+    SELECT SINGLE ebeln FROM ekko
+           INTO gi_ekko_ds-ebeln
+           WHERE ebeln IN s_purnum.
+    IF sy-subrc IS NOT INITIAL.
+      MESSAGE i070(zmm) WITH text-027  .    "Invalid purchase order number
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "validate_purnum
+
+*&---------------------------------------------------------------------*
+*&      Form  validate_poline
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM validate_poline.
+  IF NOT s_poline[] IS INITIAL.
+    SELECT SINGLE ebelp FROM ekpo
+           INTO gi_ekpo_ds-ebelp
+           WHERE ebelp IN s_poline.
+    IF sy-subrc IS NOT INITIAL.
+      MESSAGE i070(zmm) WITH text-028  .    "Invalid poline item
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "validate_poline
+
+
+"Select the vendor details from LFA1 for given selection
+*&---------------------------------------------------------------------*
+*&      Form  get_data
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_data.
+**Select Vendor details for the given selection criteria
+  SELECT   name1
+           lifnr
+           FROM lfa1
+           INTO TABLE gt_lfa1_ds
+           WHERE lifnr IN s_vnum.
+  IF sy-subrc IS INITIAL.
+    SORT gt_lfa1_ds BY lifnr name1.
+  ENDIF.
+**Select PO from EKKO for the enteries from LFA1
+  IF NOT gt_lfa1_ds IS INITIAL.
+    SELECT ebeln
+*Start of change by Santosh DE3K977394 06/03/2017
+           aedat
+*end of change by Santosh DE3K977394 06/03/2017
+           lifnr
+          FROM ekko
+          INTO TABLE gt_ekko_ds
+          FOR ALL ENTRIES IN gt_lfa1_ds
+          WHERE  ebeln IN s_purnum
+*Start of change by Santosh DE3K977394 06/03/2017
+             AND aedat IN s_aedat
+             AND lifnr = gt_lfa1_ds-lifnr.
+*End of change by Santosh DE3K977394 06/03/2017
+    IF sy-subrc = 0.
+      SORT gt_ekko_ds BY ebeln.
+    ENDIF.
+  ENDIF.
+**Select material and PO Line item deatils for the enteries from EKKO
+  IF NOT gt_ekko_ds IS INITIAL.
+    SELECT ebeln
+           ebelp
+           matnr
+           werks
+           lgort
+           bwtar
+           FROM ekpo
+          INTO TABLE gt_ekpo_ds
+          FOR ALL ENTRIES IN gt_ekko_ds
+          WHERE ebeln = gt_ekko_ds-ebeln
+            AND ebelp IN s_poline
+            AND matnr IN s_mat
+            AND werks IN s_plant.
+    IF sy-subrc IS INITIAL.
+      SORT gt_ekpo_ds BY matnr ebeln.
+    ELSE.
+      MESSAGE e070(zmm) WITH text-031.
+    ENDIF.
+  ENDIF.
+
+
+**Select material details from MAKT for the enteries from EKPO
+  IF NOT gt_ekpo_ds IS INITIAL.
+    SELECT maktx
+           matnr
+           FROM makt
+           INTO TABLE gt_makt_ds
+           FOR ALL ENTRIES IN gt_ekpo_ds
+           WHERE matnr = gt_ekpo_ds-matnr
+             AND spras = sy-langu.
+    IF sy-subrc IS INITIAL.
+      SORT gt_makt_ds BY matnr.
+    ENDIF.
+  ENDIF.
+**Select Purchasing document information
+**for the enteries in ekpo
+**** CHG0479115 Start of changes DE3K923798  by 502277866 19.04.2014
+  LOOP AT gt_ztuhcd1 INTO gi_ztuhcd1.
+    IF gi_ztuhcd1-name EQ gc_prgname_nm AND gi_ztuhcd1-zkey EQ gc_key AND gi_ztuhcd1-field EQ gc_bwart.
+      gi_bwart-sign = gc_sign_tx.
+      gi_bwart-option = gc_option_tx.
+      gi_bwart-low = gi_ztuhcd1-low.
+      APPEND gi_bwart TO gr_bwart.
+      CLEAR : gi_bwart.
+    ENDIF.
+  ENDLOOP.
+  IF NOT gt_ekpo_ds IS  INITIAL.
+    SELECT ebeln
+           ebelp
+*Start of change by Santosh DE3K977157 20/02/2017
+           gjahr
+*End of change by Santosh DE3K977157 20/02/2017
+           belnr
+           buzei "" added on 03.08.2015 for CHG1371882 DE3K965104 by 502277866
+           menge
+           bpwes
+           bwart
+           matnr
+           werks
+           FROM ekbe
+           INTO TABLE gt_ekbe_ds
+       FOR ALL ENTRIES IN gt_ekpo_ds
+       WHERE ebeln EQ gt_ekpo_ds-ebeln
+        AND  ebelp EQ gt_ekpo_ds-ebelp
+        AND bwart IN gr_bwart
+        AND  bwtar EQ gt_ekpo_ds-bwtar
+        AND matnr EQ gt_ekpo_ds-matnr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_ekbe_ds BY matnr bwart.
+      SORT gt_ekbe_ds BY ebeln ebelp.
+    ENDIF.
+
+*Start of change by Santosh DE3K977157 20/02/2017
+    IF gt_ekbe_ds[] IS NOT INITIAL.
+      REFRESH:gt_mkpf[].
+*Fetching data from the Header: Material Document
+      SELECT mblnr
+             mjahr
+             bktxt
+      FROM mkpf
+      INTO TABLE gt_mkpf
+      FOR ALL ENTRIES IN gt_ekbe_ds
+      WHERE mblnr EQ gt_ekbe_ds-belnr
+      AND   mjahr EQ gt_ekbe_ds-gjahr.
+
+      IF sy-subrc EQ 0.
+        SORT gt_mkpf BY mblnr mjahr.
+      ENDIF.
+    ENDIF.
+*End of change by Santosh DE3K977157 20/02/2017
+  ENDIF.
+  REFRESH : gt_grstock.
+  LOOP AT gt_ekbe_ds INTO gi_ekbe_ds.
+    gi_grstock-ebeln = gi_ekbe_ds-ebeln.
+    gi_grstock-ebelp = gi_ekbe_ds-ebelp.
+    gi_grstock-matnr = gi_ekbe_ds-matnr.
+****    start of changes for  28.06.2014 CHG0479115 DE3K940883 502277866
+    IF gi_ekbe_ds-bwart EQ gc_104 OR gi_ekbe_ds-bwart EQ gc_105.
+      IF gi_ekbe_ds-bpwes GT 0.
+        gi_ekbe_ds-bpwes = gi_ekbe_ds-bpwes * -1.
+      ENDIF.
+    ENDIF.
+    IF gi_ekbe_ds-bwart EQ gc_103 OR gi_ekbe_ds-bwart EQ gc_106.
+      IF gi_ekbe_ds-bpwes LT 0.
+        gi_ekbe_ds-bpwes = gi_ekbe_ds-bpwes * -1.
+      ENDIF.
+    ENDIF.
+****    end of changes for  28.06.2014 CHG0479115 DE3K940883 502277866
+    gi_grstock-bpwes = gi_ekbe_ds-bpwes.
+    APPEND gi_grstock TO gt_grstock.
+    CLEAR : gi_grstock.
+  ENDLOOP.
+  SORT gt_grstock BY ebeln ebelp.
+  REFRESH :  gt_grstock1.
+  LOOP AT gt_grstock INTO gi_grstock.
+    COLLECT gi_grstock INTO gt_grstock1.
+  ENDLOOP.
+**Select storsge locetion data for material
+**for enteries in ekbe.
+  IF NOT gt_ekpo_ds IS INITIAL.
+    SELECT matnr
+           werks
+           lgort
+           kspem FROM mard INTO TABLE gt_mard
+                           FOR ALL ENTRIES IN gt_ekpo_ds
+                             WHERE matnr EQ gt_ekpo_ds-matnr
+                               AND lgort EQ gt_ekpo_ds-lgort.
+    IF sy-subrc EQ 0.
+      SORT gt_mard BY matnr.
+    ENDIF.
+  ENDIF.
+***** CHG0479115 end of changes DE3K923798  by 502277866 19.04.2014
+  IF NOT gt_ekpo_ds IS INITIAL.
+    SELECT matnr
+           werks
+           lgort
+           kspem
+           speme
+      FROM mvrd
+      INTO TABLE gt_mvrd_ds
+      FOR ALL ENTRIES IN gt_ekpo_ds
+      WHERE matnr = gt_ekpo_ds-matnr
+        AND werks IN s_plant.
+    IF sy-subrc IS INITIAL.
+      SORT gt_mvrd_ds BY matnr.
+    ENDIF.
+  ENDIF.
+**Select material data for enteries in ekpo.
+
+  IF NOT gt_ekpo_ds IS INITIAL.
+    SELECT matnr
+           bwkey
+           bwtar
+           salk3
+           stprs
+           peinh FROM mbew
+          INTO TABLE gt_mbew_ds
+          FOR ALL ENTRIES IN gt_ekpo_ds
+         WHERE matnr = gt_ekpo_ds-matnr
+           AND bwkey IN s_plant
+         AND bwtar  = gt_ekpo_ds-bwtar.
+    IF sy-subrc IS INITIAL.
+      SORT gt_mbew_ds BY matnr salk3 stprs.
+    ENDIF.
+  ENDIF.
+  "fetching data into finat workarea
+  LOOP AT gt_ekpo_ds INTO gi_ekpo_ds.
+
+    CLEAR: gi_ekko_ds,gi_lfa1_ds, gi_makt_ds,gi_ekbe_ds,gi_mvrd_ds,gi_mbew_ds.
+
+    READ TABLE gt_ekko_ds INTO gi_ekko_ds WITH KEY ebeln = gi_ekpo_ds-ebeln BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+
+      gi_final_ds-ebeln = gi_ekko_ds-ebeln.
+      gi_final_ds-lifnr = gi_ekko_ds-lifnr.
+*Start of change by Santosh DE3K977394 06/03/2017
+      gi_final_ds-aedat = gi_ekko_ds-aedat.
+*end of change by Santosh DE3K977394 06/03/2017
+    ENDIF.
+
+    READ TABLE gt_lfa1_ds INTO gi_lfa1_ds WITH KEY lifnr = gi_ekko_ds-lifnr BINARY SEARCH.
+
+    IF sy-subrc IS INITIAL.
+      gi_final_ds-name1 = gi_lfa1_ds-name1.
+    ENDIF.
+
+    READ TABLE gt_makt_ds INTO gi_makt_ds WITH KEY matnr = gi_ekpo_ds-matnr BINARY SEARCH.
+
+    IF sy-subrc IS INITIAL.
+      gi_final_ds-maktx = gi_makt_ds-maktx.
+    ENDIF.
+
+    READ TABLE gt_ekbe_ds INTO gi_ekbe_ds WITH KEY matnr = gi_ekpo_ds-matnr BINARY SEARCH.
+
+    IF sy-subrc IS INITIAL.
+      gi_final_ds-bwart = gi_ekbe_ds-bwart.
+    ENDIF.
+*Start of change by Santosh DE3K977157 20/02/2017
+*Reading the internal to get the material document number
+    CLEAR:gi_ekbe_ds.
+    READ TABLE gt_ekbe_ds INTO gi_ekbe_ds WITH KEY
+                          ebeln = gi_ekpo_ds-ebeln
+                          ebelp = gi_ekpo_ds-ebelp BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+      gi_final_ds-belnr     = gi_ekbe_ds-belnr.
+*Reading the internal table gt_mkpf to get the material document text
+      CLEAR:gi_mkpf.
+      READ TABLE gt_mkpf INTO gi_mkpf WITH KEY
+                         mblnr = gi_ekbe_ds-belnr
+                         mjahr = gi_ekbe_ds-gjahr BINARY SEARCH.
+
+      IF sy-subrc EQ 0.
+        gi_final_ds-bktxt  = gi_mkpf-bktxt.
+      ENDIF.
+    ENDIF.
+*End of change by Santosh DE3K977157 20/02/2017
+*  **** CHG0479115 Start of changes DE3K923798  by 502277866 19.04.2014
+    READ TABLE gt_grstock1 INTO gi_grstock WITH KEY ebeln = gi_ekpo_ds-ebeln
+                                                   ebelp = gi_ekpo_ds-ebelp
+                                                   matnr = gi_ekpo_ds-matnr.
+    IF sy-subrc EQ 0.
+      gi_final_ds-wespb = gi_grstock-bpwes.
+    ENDIF.
+****CHG0479115 end of changes DE3K923798  by 502277866 19.04.2014
+    READ TABLE gt_mvrd_ds INTO gi_mvrd_ds WITH KEY matnr = gi_ekpo_ds-matnr BINARY SEARCH.
+    gi_final_ds-speme = gi_mvrd_ds-speme.
+*  **** CHG0479115 Start of changes DE3K923798  by 502277866 19.04.2014
+    READ TABLE gt_mard INTO gi_mard WITH KEY matnr = gi_ekpo_ds-matnr
+                                             lgort = gi_ekpo_ds-lgort.
+    IF sy-subrc EQ 0.
+      gi_final_ds-kspem = gi_mard-kspem.
+    ENDIF.
+****CHG0479115 end of changes DE3K923798  by 502277866 19.04.2014
+    READ TABLE gt_mbew_ds INTO gi_mbew_ds WITH KEY matnr = gi_ekpo_ds-matnr
+                                                   bwkey = gi_ekpo_ds-werks
+                                                   bwtar = gi_ekpo_ds-bwtar.
+
+    IF sy-subrc IS INITIAL.
+      IF NOT gi_mbew_ds-peinh EQ 0.
+
+        gi_final_ds-stprs = ( gi_mbew_ds-stprs / gi_mbew_ds-peinh ) . " standard cost of item
+      ENDIF.
+      gi_final_ds-salk3 = ( gi_final_ds-wespb * gi_final_ds-stprs ).
+    ENDIF.
+
+    gi_final_ds-ebelp = gi_ekpo_ds-ebelp.
+    gi_final_ds-matnr = gi_ekpo_ds-matnr.
+    gi_final_ds-werks = gi_ekpo_ds-werks.
+****CHG0479115 start of changes DE3K923798  by 502277866 19.04.2014
+    IF NOT gi_final_ds-matnr IS INITIAL.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+        EXPORTING
+          input  = gi_final_ds-matnr
+        IMPORTING
+          output = gi_final_ds-matnr.
+
+
+****CHG0479115 end of changes DE3K923798  by 502277866 19.04.2014
+      "populating final internal table
+      IF p_c1 NE 'X'.
+        IF gi_final_ds-wespb IS NOT INITIAL OR gi_final_ds-kspem IS NOT INITIAL.
+
+          APPEND gi_final_ds TO gt_final_ds.
+        ENDIF.
+      ELSE.
+        APPEND gi_final_ds TO gt_final_ds.
+      ENDIF.
+    ENDIF.
+    CLEAR: gi_final_ds.
+
+  ENDLOOP.
+ENDFORM.                    "GET_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  build_fieldcatalog
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+"Building fieldcatalog
+*&---------------------------------------------------------------------*
+*&      Form  build_fieldcatalog
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM build_fieldcatalog .
+
+  CONSTANTS: c_tabname(30) TYPE c VALUE 'GT_FINAL_DS'.
+
+  PERFORM  popu_fcatf USING:
+      '1'     c_tabname   'LIFNR'                text-b01   '20' ,
+      '2'     c_tabname   'NAME1'                text-b02   '20'  ,
+      '3'     c_tabname   'EBELN'                text-b03   '15'  ,
+      '4'     c_tabname   'EBELP'                text-b04   '15' ,
+      '5'     c_tabname   'WERKS'                text-b13   '15' ,
+      '6'     c_tabname   'MATNR'                text-b05   '16' ,
+      '7'     c_tabname   'MAKTX'                text-b06   '40',
+      '8'     c_tabname   'WESPB'                text-b09   '10'  ,
+      '9'    c_tabname   'KSPEM'                text-b10   '10' ,
+      '10'    c_tabname   'STPRS'                text-b11   '10' ,
+*Start of change by Santosh DE3K977157 20/02/2017
+*      '11'    c_tabname   'SALK3'                text-b12   '10' .
+      '11'    c_tabname   'SALK3'                text-b12   '10' ,
+      '12'    c_tabname   'BELNR'                text-b14   '20' ,
+      '13'    c_tabname   'BKTXT'                text-b15   '20' ,
+*End of change by Santosh DE3K977157 20/02/2017
+*Start of change by Santosh DE3K977394 06/03/2017
+      '14'    c_tabname   'AEDAT'                text-b16   '20' .
+*end of change by Santosh DE3K977394 06/03/2017
+
+
+ENDFORM.                    "build_fieldcatalog
+
+*&---------------------------------------------------------------------*
+*&      Form  display_output
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+"Displaying output
+*&---------------------------------------------------------------------*
+*&      Form  display_output
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM display_output .
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer = 'X'
+      i_buffer_active    = space
+      i_save             = 'A'
+      i_callback_program = sy-repid
+      it_fieldcat        = gt_fldcat_ds
+    TABLES
+      t_outtab           = gt_final_ds.
+
+
+
+ENDFORM.                  " DISPLAY_OUTPUT
+
+*&---------------------------------------------------------------------*
+*&      Form  popu_fcatf
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->FP_COL_POS       text
+*      -->FP_TABNAME       text
+*      -->FP_FIELDNAME     text
+*      -->FP_REPTEXT_DDIC  text
+*      -->FP_OUTPUTLEN     text
+*----------------------------------------------------------------------*
+FORM popu_fcatf  USING   fp_col_pos       TYPE sycucol
+                         fp_tabname       TYPE slis_tabname
+                         fp_fieldname     TYPE slis_fieldname
+                         fp_reptext_ddic  TYPE reptext
+                         fp_outputlen     TYPE outputlen.
+
+  DATA: l_fld_ds TYPE slis_fieldcat_alv.
+  l_fld_ds-col_pos       = fp_col_pos.
+  l_fld_ds-tabname       = fp_tabname.
+  l_fld_ds-fieldname     = fp_fieldname.
+  l_fld_ds-reptext_ddic  = fp_reptext_ddic.
+  l_fld_ds-outputlen     = fp_outputlen.
+
+  APPEND l_fld_ds TO gt_fldcat_ds.
+  CLEAR l_fld_ds.
+
+ENDFORM.                    "popu_fcatf
+*&---------------------------------------------------------------------*
+*&      Form  HARCOCRE_ENTRIES
+*&---------------------------------------------------------------------*
+*  Retriving Hardcore entries for movement types
+*----------------------------------------------------------------------*
+FORM harcocre_entries .
+  CLEAR:   gi_ztuhcd1.
+  REFRESH: gt_ztuhcd1.
+  gi_ztuhcd1-name = gc_prgname_nm.
+  APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+  CLEAR gi_ztuhcd1.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc IS INITIAL .
+    SORT  gt_ztuhcd1 BY name zkey field.
+
+  ENDIF.
+ENDFORM.                    " HARCOCRE_ENTRIES
+

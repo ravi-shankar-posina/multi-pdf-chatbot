@@ -1,0 +1,84 @@
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name             : Report ZRMM_FEDEX
+* Created by       : Sumit Srivastava , 502237354
+* Transport Request: DE3K947340
+* Change request No: CHG0479283 - MM2
+* RICEF Object No  : RICEF723
+* Transaction code : ZMM723
+* Description      : This reportis going to extract Fedex Inbound Delivery
+*                    details for all handling Unit with mesage level success
+*                    and highest counter.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE               | CR No.     |TR         |CHANGED BY |   DESCRIPTION OF CHANGE
+* 08-SEP-2014        |CHG0479283  |DE3K947340 |502237354  |   Initial Development
+*************************************************************************
+* 25-SEP-2014        |CHG0479283  |DE3K949454 |502237354  |   Text element changes
+*************************************************************************
+* 25-SEP-2014        |CHG0479283  |DE3K949567 |502237354  |   Condition added
+*************************************************************************
+* 25-SEP-2014        |CHG0479283  |DE3K949585 |502237354  |   Logic for select quer change
+*************************************************************************
+* 26-SEP-2014        |CHG0479283  |DE3K949630 |502237354  |   Field value changes
+*************************************************************************
+* 30-SEP-2014        |CHG0479283  |DE3K949795 |502237354  |   Field addition and F$ help
+*************************************************************************
+* 06-OCT-2014        |CHG0479283  | DE3K950852 |502237354  |   Attribute changes
+*************************************************************************
+
+REPORT  zrmm_fedex  LINE-SIZE 255
+                    LINE-COUNT 58
+                    NO STANDARD PAGE HEADING
+                    MESSAGE-ID zmm..
+
+INCLUDE zimm_fedex_top.
+
+SELECTION-SCREEN  BEGIN OF BLOCK b1 WITH FRAME TITLE text-000.
+
+SELECT-OPTIONS : gs_werks FOR gw_werks,
+                 gs_trnm  FOR gw_exidv2,
+                 gs_mtrnm FOR gw_mexidv2,
+                 gs_hunt  FOR gw_exidv,
+                 gs_cust  FOR gw_custid,
+                 gs_styp  FOR gw_styp,
+                 gs_date  FOR gw_date,
+                 gs_msgl  FOR gw_msgl.
+
+SELECTION-SCREEN END OF BLOCK b1.
+
+INCLUDE zimm_fedex_f01.
+
+* Subroutine to get Search help for Message level value..
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_msgl-low.
+  PERFORM f4_msgl.
+
+* Subroutine to get Search help for Message level value.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_msgl-high.
+  PERFORM f4_msgl.
+
+* Subroutine to get Search help for servtype value..
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_styp-low.
+  PERFORM f4_styp.
+
+* Subroutine to get Search help for servi type value.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_styp-high.
+  PERFORM f4_styp.
+
+AT SELECTION-SCREEN.
+
+PERFORM selectionscreen_validation.
+
+START-OF-SELECTION.
+
+PERFORM get_data.
+
+PERFORM popu_fcat.
+***Subroutine call preparing field catalog
+PERFORM fieldcatalog.
+***Subroutine call preparing final output
+PERFORM display_alv.
+

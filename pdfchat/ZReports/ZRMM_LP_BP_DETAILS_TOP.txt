@@ -1,0 +1,80 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_LP_BP_DETAILS_TOP
+*&---------------------------------------------------------------------*
+
+
+TYPE-POOLS slis.
+
+TABLES : ekko.
+
+TYPES:
+BEGIN OF ty_ekko,
+  ebeln TYPE ebeln,
+  aedat TYPE erdat,
+END OF ty_ekko,
+
+BEGIN OF ty_ekpo,
+  ebeln TYPE ebeln,
+  ebelp TYPE ebelp,
+  knttp TYPE knttp,
+END OF ty_ekpo,
+
+ BEGIN OF ty_ekkn,
+   ebeln TYPE ebeln,
+   nplnr TYPE nplnr,
+END OF ty_ekkn,
+
+BEGIN OF ty_afpo,
+  aufnr TYPE aufnr,
+  projn TYPE ps_psp_ele,
+  END OF ty_afpo,
+
+BEGIN OF ty_prps,
+  pspnr TYPE ps_posnr,
+  END OF ty_prps,
+
+BEGIN OF ty_vbap,
+  vbeln TYPE vbeln_va,
+  ps_psp_pnr TYPE ps_psp_pnr,
+END OF ty_vbap,
+
+BEGIN OF ty_vbak,
+   vbeln TYPE vbeln_va,
+   bstnk TYPE bstnk,
+   kunnr TYPE kunnr,
+END OF ty_vbak,
+
+BEGIN OF ty_final,
+   ebeln TYPE ebeln ,
+   vbeln TYPE vbeln_va,
+   kunnr TYPE kunnr,
+   bstnk TYPE bstnk,
+   vbeln2 TYPE vbeln_va,
+   kunnr2 TYPE kunnr,
+END OF ty_final.
+
+DATA: gt_ekko TYPE STANDARD TABLE OF ty_ekko,
+      gi_ekko TYPE ty_ekko,
+      gt_ekpo TYPE STANDARD TABLE OF ty_ekpo,
+      gi_ekpo TYPE ty_ekpo,
+      gt_ekkn TYPE STANDARD TABLE OF ty_ekkn,
+      gi_ekkn TYPE ty_ekkn,
+      gt_ekkn2 TYPE STANDARD TABLE OF ty_ekkn,
+      gi_ekkn2 TYPE ty_ekkn,
+      gt_vbap TYPE STANDARD TABLE OF ty_vbap,
+      gi_vbap TYPE ty_vbap,
+      gt_vbak TYPE STANDARD TABLE OF ty_vbak,
+      gi_vbak TYPE ty_vbak,
+      gt_afpo TYPE STANDARD TABLE OF ty_afpo,
+      gi_afpo TYPE ty_afpo,
+      gt_prps TYPE STANDARD TABLE OF ty_prps,
+      gi_prps TYPE ty_prps,
+      gt_final TYPE STANDARD TABLE OF ty_final,
+      gi_final TYPE ty_final,
+      gw_layout TYPE slis_layout_alv,
+      gi_fcat  TYPE slis_fieldcat_alv ,
+      gt_fcat  TYPE slis_t_fieldcat_alv ,
+      gv_pos TYPE i.
+
+CONSTANTS gc_final TYPE char10 VALUE 'GT_FINAL' .
+

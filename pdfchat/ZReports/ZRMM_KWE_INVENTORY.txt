@@ -1,0 +1,44 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_KWE_INVENTORY
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  zrmm_kwe_inventory.
+TABLES: mard,
+        mkpf.
+TYPE-POOLS: slis.
+INCLUDE zrmm_kwe_inventory_top.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-b01.
+PARAMETERS: p_werks       LIKE t001w-werks OBLIGATORY.
+SELECT-OPTIONS: s_matnr   FOR mard-matnr,
+                s_lgort   FOR mard-lgort,
+                s_budat   FOR mkpf-budat OBLIGATORY NO-EXTENSION.
+PARAMETERS: p_file        TYPE string OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b1.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file .
+  PERFORM f1000_file_select CHANGING p_file.
+AT SELECTION-SCREEN ON p_file.
+  PERFORM f1200_file_existing_check using p_file.
+START-OF-SELECTION.
+  PERFORM f1100_data_check.
+*Begin of defect
+  PERFORM f2300_kwe_inventory.      " get KWE inventory from the uploading file
+*End of defect
+  PERFORM f2000_material_selection. " get plant material
+  PERFORM f2100_material_history.    " get history(Last month) stock of normal, project and sales
+  PERFORM f2200_material_doc_selection. " Get material documents
+*Begin of defect
+*  PERFORM f2300_kwe_inventory.      " get KWE inventory from the uploading file
+*End of defect
+  PERFORM f2400_werks_desc.
+  PERFORM f3000_main_processing.
+  PERFORM f4000_fieldcat_build.     "ALV FIELDCAT
+
+END-OF-SELECTION.
+  perform f4100_alv_display.
+  INCLUDE zrmm_kwe_inventory_f01.
+

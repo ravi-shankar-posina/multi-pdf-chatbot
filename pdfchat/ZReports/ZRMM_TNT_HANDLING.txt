@@ -1,0 +1,110 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_TNT_HANDLING
+*&
+*&---------------------------------------------------------------------*
+*** Created by            : Sumit Srivastava
+*** Creation Date         : 27/04/2014
+*** Transport Request #   : DE3K924796
+*** RICEF Object No #     : RICEF1022
+*** Transaction Code      : ZMM_TRUCK_T11
+*** Description           : Interactive Report to provide Handling Unit details
+***                         First Screen will give Collies Details
+***                         Second Screen will have Handling Unit related to Truck
+***                         Third Screen will have Truck details
+***                         Followed by Shipment and Material Details
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE               | CR No.          |TR          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 27-April-2014      | CHG0479115      |DE3K924796  |502237354  | Initial Development
+*************************************************************************
+* 09-May-2014       | CHG0479115       | DE3K936014  |502237354  | Match Code Objects have been
+*                                                                 added on Selection Screen
+***********************************************************************************************
+* 12-May-2014       | CHG0479115       | DE3K936439  |502237354  | Direct Shipment Flag added
+***********************************************************************************************
+* 14-May-2014       | CHG0479115       | DE3K936671  |502237354  | Inbound Delivery added on Selection
+*                                                                  Screen
+***********************************************************************************************
+***********************************************************************************************
+* 17-Jul-2015       | CHG1346875       | DE3K964343  |502259099  | Code fixed for Wrong "Date of Arrival"
+*                                                                  information in this report
+***********************************************************************************************
+
+REPORT  zrmm_tnt_handling
+        MESSAGE-ID zmm
+        LINE-SIZE 225
+        NO STANDARD PAGE HEADING.
+
+INCLUDE znmm_tnt_handling_top.
+
+* Subroutine to get Search help for Inbound Delivery Number low laue against table ZTMM_COLLI.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_vhilm-low.
+  PERFORM f4_inbdel.
+* Subroutine to get Search help for Inbound Delivery Number high laue against table ZTMM_COLLI.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_vhilm-high.
+  PERFORM f4_inbdel.
+* Subroutine to get Search help for User low value against table ZTMM_COLLI.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gp_huser.
+  PERFORM f4_huser.
+* Subroutine to get Search help for User low value against table ZTMM_TRKID.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gp_tuser.
+  PERFORM f4_tuser.
+* Subroutine to get Search help for Internal Handling Unit Number low laue against table ZTMM_COLLI.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_colit-low.
+  PERFORM f4_colit.
+* Subroutine to get Search help for Internal Handling Unit Number high value against table ZTMM_COLLI.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_colit-high.
+  PERFORM f4_colit.
+* Subroutine to get Search help for Box Type low laue against table ZTMM_COLLI.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_vhart-low.
+  PERFORM f4_vhart.
+
+AT SELECTION-SCREEN.
+  IF  gs_exidv IS INITIAL AND
+      gs_tknum IS INITIAL AND
+      gs_crdat IS INITIAL AND
+      gs_trkid IS INITIAL .
+    IF gs_suply IS INITIAL AND
+       ( gs_ebeln IS NOT INITIAL
+      OR gs_bedat IS NOT INITIAL
+      OR gs_matnr IS NOT INITIAL
+      OR gs_plant IS NOT INITIAL ).
+      MESSAGE e083(zmm) WITH text-m11.
+    ELSEIF gs_suply IS NOT INITIAL.
+      IF gs_ebeln IS INITIAL AND gs_bedat IS INITIAL.
+        MESSAGE e083(zmm) WITH text-m12.
+      ENDIF.
+    ENDIF.
+    IF ( gs_suply IS INITIAL AND gs_ebeln IS INITIAL AND gs_bedat IS INITIAL AND gs_matnr IS INITIAL
+      AND gs_plant IS INITIAL ).
+      MESSAGE e083(zmm) WITH text-m13.
+    ENDIF.
+  ENDIF.
+** Subroutine to validate shipping unit against table ZTMM_COLLI.
+  PERFORM validate_colliid.
+** Subroutine to validate Truck number against table ZTRKID.
+  PERFORM validate_ztruckid.
+** Subroutine to validate Hub against table ZHUB
+  PERFORM validate_hub.
+** Subroutine to check plant against table t001w and ekpo.
+  PERFORM validate_plant.
+** Subroutine to validate PO number against table ekko.
+  PERFORM validate_po.
+** Subroutine to Validate Material against table ekpo.
+  PERFORM validate_material.
+
+
+*----------------------------------------------------------------------
+* Start-of-selection
+*----------------------------------------------------------------------
+START-OF-SELECTION.
+* Subroutine to populate ranges
+  PERFORM populate_ranges.
+* Subroutine to retrieve colli data
+  PERFORM populate_colli_details.
+
+  INCLUDE znmm_tnt_handling_form.
+

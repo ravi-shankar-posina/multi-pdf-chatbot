@@ -1,0 +1,179 @@
+*&------------------------------------------------------------------*
+*&  Include           ZNSD_ITRADE_PO_ANALYZER_TOP
+*&------------------------------------------------------------------*
+*&------------------------------------------------------------------*
+
+*Type pools declaration
+TYPE-POOLS: slis.
+
+* Tables declaration
+TABLES: ekko , lfa1 , nast , vbak, kna1, cmfp, t100, sscrfields,
+        edidc, vbuk, zfi_itrade_po, t161n.
+
+INCLUDE icons.
+
+* Internal table declaration
+DATA: BEGIN OF gt_po OCCURS 0,
+        type_doc(2),
+        icon                LIKE icon-id,
+        ebeln               LIKE nast-objky,
+        bstyp               LIKE ekko-bstyp,
+        bsart               LIKE ekko-bsart,
+        bedat               LIKE ekko-bedat,
+        ernam               LIKE ekko-ernam,
+        datvr               LIKE nast-datvr,
+        uhrvr               LIKE nast-uhrvr,
+        bukrs               LIKE ekko-bukrs,
+        ekorg               LIKE ekko-ekorg,
+        lifnr               LIKE lfa1-lifnr,
+        kschl               LIKE nast-kschl,
+        frgke               LIKE ekko-frgke,
+        message(75),
+        msgv1               LIKE cmfp-msgv1,
+        idoc_stat           LIKE edidc-status,
+        idoc_stat_group(80),
+        idoc_stat_descr     LIKE teds2-descrp,
+        pushback(3),
+      END OF gt_po.
+
+DATA: gi_po LIKE LINE OF gt_po.
+
+DATA: BEGIN OF gt_xls OCCURS 0 ,
+        type_doc(2),
+        status(10),
+        ebeln               TYPE na_objkey,
+        bstyp               TYPE ebstyp,
+        bsart               TYPE esart,
+        bedat(10),
+        ernam               TYPE ernam,
+        datvr               TYPE na_datvr,
+        uhrvr               TYPE na_uhrvr,
+        bukrs               TYPE bukrs,
+        ekorg               TYPE ekorg,
+        lifnr               TYPE lifnr,
+        kschl               TYPE sna_kschl,
+        frgke               TYPE frgke,
+        message(75),
+        msgv1               TYPE symsgv,
+        idoc_stat           TYPE edi_status,
+        idoc_stat_group(10),
+        idoc_stat_descr     TYPE edi_text60,
+        pushback(3),
+      END OF gt_xls.
+
+DATA : BEGIN OF gt_heading OCCURS 0,
+         text(25),
+       END OF gt_heading.
+
+DATA: BEGIN OF gt_ekko1 OCCURS 0 ,
+        box,
+        type_doc(2),
+        icon        TYPE icon_d,
+        ebeln       TYPE na_objkey,
+        bstyp       TYPE ebstyp,
+        bsart       TYPE esart,
+        bedat       TYPE bedat,
+        ernam       TYPE ernam,
+        datvr       TYPE na_datvr,
+        uhrvr       TYPE na_uhrvr,
+        bukrs       TYPE bukrs,
+        ekorg       TYPE ekorg,
+        lifnr       TYPE lifnr,
+        kschl       TYPE sna_kschl,
+        frgke       TYPE frgke,
+        msgv1       TYPE symsgv,
+        message(75),
+        pushback(3),
+      END OF gt_ekko1.
+
+DATA:  gi_ekko LIKE LINE OF gt_ekko1.
+
+DATA: BEGIN OF gt_nast OCCURS 0 ,
+        kappl  TYPE sna_kappl,
+        objky  TYPE na_objkey,
+        vstat  TYPE na_vstat,
+        kschl  TYPE sna_kschl,
+        spras  TYPE na_spras,
+        parnr  TYPE na_parnr,
+        parvw  TYPE sna_parvw,
+        cmfpnr TYPE na_cmf_nr,
+        erdat  TYPE na_erdat,
+        eruhr  TYPE na_eruhr,
+        datvr  TYPE na_datvr,
+        uhrvr  TYPE na_uhrvr,
+        msgv1  TYPE symsgv,
+      END OF gt_nast.
+
+TYPES: BEGIN OF ty_cmfp_temp,
+        msgv1  TYPE edi_docnum,
+      END OF ty_cmfp_temp,
+
+      BEGIN OF ty_teds2,
+        status TYPE edi_stctrl,
+        descrp TYPE edi_text60,
+        docnum TYPE edi_docnum,
+      END OF ty_teds2,
+
+      BEGIN OF ty_ekko_temp,
+        ebeln  TYPE ebeln,
+      END OF ty_ekko_temp.
+
+DATA: gi_nast LIKE LINE OF gt_nast,
+      gt_push   TYPE STANDARD TABLE OF zfi_itrade_po,
+      gi_push   TYPE zfi_itrade_po,
+      gt_cmfp   TYPE STANDARD TABLE OF cmfp,
+      gi_cmfp   TYPE cmfp,
+      gt_cmfp_temp TYPE STANDARD TABLE OF ty_cmfp_temp,
+      gi_cmfp_temp TYPE ty_cmfp_temp,
+      gt_ekko_temp TYPE STANDARD TABLE OF ty_ekko_temp,
+      gw_ekko_temp TYPE ty_ekko_temp,
+      gt_teds2  TYPE STANDARD TABLE OF ty_teds2,
+      gi_teds2  TYPE ty_teds2,
+      gt_t100   TYPE STANDARD TABLE OF t100,
+      gi_t100   TYPE t100.
+
+DATA: BEGIN OF gt_stacust OCCURS 0,
+        status TYPE edi_stctrl,
+        statva TYPE edi_statva,
+      END OF gt_stacust.
+
+DATA: BEGIN OF gt_stalight OCCURS 0,
+        statva   TYPE edi_statva,
+        stalight TYPE edi_slight,
+      END OF gt_stalight.
+
+DATA: gi_stacust LIKE LINE OF gt_stacust,
+      gi_stalight LIKE LINE OF gt_stalight.
+
+FIELD-SYMBOLS: <xnast> TYPE ANY TABLE,
+               <nast>  TYPE vnast.
+
+*************ALV GRID***************
+DATA: it_fieldcat TYPE lvc_t_fcat,
+      wa_fieldcat TYPE lvc_s_fcat,
+      r_grid      TYPE REF TO cl_gui_alv_grid,
+      r_container TYPE REF TO cl_gui_custom_container.
+
+DATA: l_it_fieldcat TYPE slis_t_fieldcat_alv,
+      l_wa_fieldcat TYPE slis_fieldcat_alv,
+      gt_rows       TYPE lvc_t_row,
+      gi_row        TYPE lvc_s_row,
+      selected_row  LIKE LINE OF gt_po.
+
+RANGES: r_objky FOR nast-objky,
+        r_kschl FOR nast-kschl,
+        r_kappl FOR nast-kappl.
+
+DATA: repid LIKE sy-repid VALUE sy-repid,
+      ls_layout TYPE lvc_s_layo,
+      ok_code LIKE sy-ucomm,
+*Begin of changes by 503146489 CR-GECHG0657413  DE3K994936 27/11/2019
+      gw_stat TYPE zdpostat,
+      gv_stat TYPE elikz,
+*End of changes by 503146489 CR-GECHG0657413  DE3K994936 27/11/2019
+      gw_push TYPE zdpush.
+
+DATA: fieldcat    TYPE slis_t_fieldcat_alv WITH HEADER LINE.
+
+CONSTANTS: c_oda(2) VALUE 'PO'.
+

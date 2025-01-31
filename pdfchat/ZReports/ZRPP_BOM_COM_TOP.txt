@@ -1,0 +1,156 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRPP_BOM_COM_TOP
+*&---------------------------------------------------------------------*
+
+REPORT zrpp_bom_com.
+*&---------------------------------------------------------------------*
+* Name                          : ZRPP_BOM_COM
+* Tcode                         : ZBOM_COM
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 22 Feb 2023
+* Transport Request #           : DE3K9A0I78
+* RICEF Object No #             : RICEF2614
+* Description                   : Report to display info record details
+*                                 along with price of components
+*----------------------------------------------------------------------*
+
+TABLES:mara,mard,stzu,lfa1,marc,eina,eine,tcspr.
+
+TYPES:BEGIN OF ty_mast,
+        matnr TYPE mast-matnr,
+        werks TYPE mast-werks,
+        stlan TYPE mast-stlan,
+        stlnr TYPE mast-stlnr,
+      END OF ty_mast,
+      BEGIN OF ty_stpo,
+        stlty TYPE stpo-stlty,
+        stlnr TYPE stpo-stlnr,
+        postp TYPE stpo-postp,
+        menge TYPE stpo-menge,
+      END OF ty_stpo,
+      BEGIN OF ty_eord,
+        matnr TYPE eord-matnr,
+        werks TYPE eord-werks,
+        lifnr TYPE eord-lifnr,
+        flifn TYPE eord-flifn,
+      END OF ty_eord,
+      BEGIN OF ty_eina,
+        infnr TYPE eina-infnr,
+        matnr TYPE eina-matnr,
+        lifnr TYPE eina-lifnr,
+      END OF ty_eina,
+      BEGIN OF ty_eine,
+        infnr TYPE eine-infnr,
+        werks TYPE eine-werks,
+        netpr TYPE eine-netpr,
+        peinh TYPE eine-peinh,
+      END OF ty_eine,
+      BEGIN OF ty_final,
+        stlnr      TYPE stpo-stlnr,
+        matnr      TYPE matnr,
+        stufe      TYPE stufe,
+        fg_matnr   TYPE matnr,
+        maktx      TYPE maktx,
+        werks      TYPE werks_d,
+        idnrk      TYPE idnrk,
+        menge      TYPE kmpmg,
+        infnr      TYPE infnr,
+        uom        TYPE meins,
+        sloc       TYPE lgort,
+        price      TYPE netpr,
+        net_price  TYPE netpr,
+        price_unit TYPE peinh,
+        mat_type   TYPE mtart,
+        mat_group  TYPE matkl,
+        postp      TYPE postp,
+        sum        TYPE netpr,
+        netpr      TYPE netpr,
+        peinh      TYPE peinh,
+        lifnr      TYPE lifnr,
+
+      END OF ty_final,
+      BEGIN OF ty_makt,
+        matnr TYPE makt-matnr,
+        maktx TYPE makt-maktx,
+      END OF ty_makt,
+      BEGIN OF ty_sum,
+        fg_matnr TYPE matnr,
+        price    TYPE netpr,
+      END OF ty_sum.
+
+
+DATA: gt_mast      TYPE TABLE OF ty_mast,
+      gs_mast      TYPE ty_mast,
+      gt_stpo      TYPE TABLE OF ty_stpo,
+      gs_stpo      TYPE ty_stpo,
+      gt_eord      TYPE TABLE OF ty_eord,
+      gs_eord      TYPE ty_eord,
+      gt_eina      TYPE TABLE OF ty_eina,
+      gs_eina      TYPE ty_eina,
+      gt_eine      TYPE TABLE OF ty_eine,
+      gs_eine      TYPE ty_eine,
+      gt_makt      TYPE TABLE OF ty_makt,
+      gs_makt      TYPE ty_makt,
+      gs_final     TYPE ty_final,
+      gs_final1    TYPE ty_final,
+      gw_final     TYPE ty_final,
+      gt_final     TYPE TABLE OF ty_final,
+      gt_final_mat TYPE TABLE OF ty_final,
+      it_fcat      TYPE slis_t_fieldcat_alv,
+      wa_fcat      TYPE slis_fieldcat_alv.
+
+
+DATA: BEGIN OF gi_stbwa.
+        INCLUDE STRUCTURE stpox.
+      DATA: END OF gi_stbwa.
+
+DATA: BEGIN OF gi_matcat.
+        INCLUDE STRUCTURE cscmat.
+      DATA: END OF gi_matcat,
+      gt_matcat LIKE TABLE OF gi_matcat.
+DATA: BEGIN OF gi_stb.
+        INCLUDE STRUCTURE stpox.
+      DATA: END OF gi_stb,
+      gt_stb LIKE TABLE OF gi_stb.
+DATA: BEGIN OF gi_selpool.
+        INCLUDE STRUCTURE cstmat.
+      DATA: END OF gi_selpool,
+      gt_selpool LIKE TABLE OF gi_selpool.
+
+DATA:
+  pm_altvo(1)  TYPE c,
+  pm_ausch(1)  TYPE c,
+  pm_bagrp     TYPE matnr,
+  pm_beikz(1)  TYPE c,
+  pm_bessl(1)  TYPE c,
+  pm_brems(1)  TYPE c,
+  pm_emeng     TYPE bmeng,
+  pm_erskz(1)  TYPE c,
+  pm_erssl(1)  TYPE c,
+  mem_mngmt(1) TYPE c,
+  pm_postp(1)  TYPE c,
+  pm_sanko     TYPE sanko,
+  pm_sanfe     TYPE sanfe,
+  pm_sanka     TYPE sanka,
+  pm_sanin     TYPE sanin,
+  pm_sanvs     TYPE sanvs,
+  pm_rvrel     TYPE rvrel,
+  pm_schgt     TYPE schgt,
+  pm_stkkz     TYPE stkkz,
+  pm_stlal     TYPE stlal,
+  pm_stlan     TYPE stlan,
+  dstst_flg    TYPE xfeld,
+  pm_ehndl(1)  TYPE c VALUE '1',
+  lc_value     TYPE c VALUE 0,
+  gt_sum       TYPE TABLE OF ty_sum,
+  gs_sum       TYPE ty_sum.
+
+
+SELECTION-SCREEN:BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-000.
+SELECT-OPTIONS: s_matnr FOR gs_mast-matnr,
+                s_vendor FOR lfa1-lifnr,
+                s_werks FOR marc-werks NO-EXTENSION NO INTERVALS,
+                s_bomus FOR stzu-stlan NO-EXTENSION NO INTERVALS.
+
+SELECTION-SCREEN:END OF BLOCK b1.
+

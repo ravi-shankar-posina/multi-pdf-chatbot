@@ -1,0 +1,252 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_LP_BP_DETAILS_F01
+*&---------------------------------------------------------------------*
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_EKKO_EKPO_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_data.
+*  SELECT Header data from EKKO
+  SELECT ebeln
+         aedat
+         FROM ekko
+         INTO TABLE gt_ekko
+         WHERE ebeln IN s_ebeln
+         AND   aedat IN s_aedat.
+  IF sy-subrc = 0 .
+    SORT gt_ekko BY ebeln.
+*  SELECT Item data from EKPO
+    SELECT  ebeln
+            ebelp
+            knttp
+           INTO TABLE gt_ekpo
+           FROM ekpo
+           FOR ALL ENTRIES IN gt_ekko
+           WHERE  ebeln = gt_ekko-ebeln
+           AND    knttp = 'N' .
+    IF sy-subrc = 0  .
+      SORT gt_ekpo BY ebeln ebelp .
+      PERFORM get_ekkn_data.
+    ENDIF .
+  ENDIF .
+ENDFORM .                    "GET_EKKO_EKPO_DATA
+*&---------------------------------------------------------------------*
+*&      Form  GET_EKKN_NPLNR_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_ekkn_data .
+*Select Network Numbers for the PO Numbers
+  IF gt_ekpo IS NOT INITIAL .
+    SELECT ebeln
+           nplnr
+           FROM ekkn
+           INTO TABLE gt_ekkn
+           FOR ALL ENTRIES IN gt_ekpo
+           WHERE ebeln = gt_ekpo-ebeln.
+    IF sy-subrc = 0.
+      SORT gt_ekkn BY ebeln nplnr .
+      PERFORM get_afpo_data .
+    ENDIF.
+  ENDIF .
+ENDFORM.                    " GET_EKKN_NPLNR_DATA
+*&---------------------------------------------------------------------*
+*&      Form  GET_AFPO_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_afpo_data .
+*Select WBS element for the above Network Numbers
+  IF gt_ekkn IS NOT INITIAL .
+    SELECT aufnr
+          projn
+         FROM afpo
+         INTO TABLE gt_afpo
+        FOR ALL ENTRIES IN gt_ekkn
+       WHERE aufnr = gt_ekkn-nplnr.
+    IF sy-subrc = 0.
+      SORT gt_afpo BY aufnr projn .
+      PERFORM get_vbap_data .
+    ENDIF.
+  ENDIF .
+ENDFORM.                    " GET_AFPO_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_VBAP_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_vbap_data .
+  IF gt_afpo IS NOT INITIAL .
+    SELECT vbeln ps_psp_pnr
+          FROM vbap
+          INTO TABLE gt_vbap
+           FOR ALL ENTRIES IN gt_afpo
+          WHERE ps_psp_pnr = gt_afpo-projn.
+    IF sy-subrc = 0.
+      SORT gt_vbap BY vbeln ps_psp_pnr .
+      PERFORM get_vbak_data .
+    ENDIF.
+  ENDIF .
+ENDFORM.                    " GET_VBAP_DATA
+*&---------------------------------------------------------------------*
+*&      Form  GET_VBAK_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_vbak_data .
+*Select Again PO numbers against these Sales Orders
+  IF gt_vbap IS NOT INITIAL .
+    SELECT vbeln
+           bstnk
+           kunnr
+           INTO TABLE gt_vbak
+           FROM vbak
+           FOR ALL ENTRIES IN gt_vbap
+           WHERE vbeln = gt_vbap-vbeln.
+    IF sy-subrc = 0.
+* In case if Purchase order number is found then repeat the process
+* Based on PO get the po and NPLNR from EKKN table as a step 1
+      SELECT ebeln
+            nplnr
+            FROM ekkn
+            INTO TABLE gt_ekkn2
+             FOR ALL ENTRIES IN  gt_vbak
+            WHERE ebeln = gt_vbak-bstnk+0(10).
+      IF sy-subrc = 0.
+        SORT gt_ekkn2 BY ebeln nplnr .
+        LOOP AT gt_vbak INTO gi_vbak.
+          gi_final-vbeln = gi_vbak-vbeln  .
+          gi_final-bstnk = gi_vbak-bstnk  .
+          gi_final-kunnr = gi_vbak-kunnr  .
+*Read the WBS from VBAP
+          READ TABLE gt_vbap INTO gi_vbap WITH KEY vbeln =  gi_vbak-vbeln  BINARY SEARCH.
+          IF sy-subrc  = 0.
+*Read Network no  from AFPO
+            CLEAR gi_afpo.
+            READ TABLE gt_afpo INTO gi_afpo WITH KEY projn =  gi_vbap-ps_psp_pnr  BINARY SEARCH.
+            IF sy-subrc = 0  .
+*Read PO from EKKN
+              CLEAR gi_ekkn.
+              READ TABLE gt_ekkn INTO gi_ekkn WITH KEY nplnr =  gi_afpo-aufnr  BINARY SEARCH.
+              IF sy-subrc = 0  .
+                gi_final-ebeln = gi_ekkn-ebeln .
+                APPEND gi_final TO gt_final .
+              ENDIF .
+            ENDIF .
+          ENDIF .
+        ENDLOOP.
+        gt_ekkn[] = gt_ekkn2[] .
+        SORT gt_ekkn BY ebeln nplnr.
+        PERFORM get_afpo_data.
+
+      ELSE.
+        SORT gt_final BY bstnk .                                      "GECHG0286963 BY 502683007
+        LOOP AT gt_vbak INTO gi_vbak.
+*Read the WBS from VBAP
+          READ TABLE gt_vbap INTO gi_vbap WITH KEY vbeln =  gi_vbak-vbeln  BINARY SEARCH.
+          IF sy-subrc = 0  .
+*Read Network no  from AFPO
+            CLEAR gi_afpo.
+            READ TABLE gt_afpo INTO gi_afpo WITH KEY projn =  gi_vbap-ps_psp_pnr  BINARY SEARCH.
+            IF sy-subrc = 0  .
+*Read PO from EKKN
+              CLEAR gi_ekkn.
+              READ TABLE gt_ekkn INTO gi_ekkn WITH KEY nplnr =  gi_afpo-aufnr  BINARY SEARCH.
+              IF sy-subrc = 0  .
+                CLEAR gi_final.
+                READ TABLE gt_final INTO gi_final WITH KEY bstnk =  gi_ekkn-ebeln  BINARY SEARCH.
+                IF sy-subrc = 0      .
+                  gi_final-vbeln2 = gi_vbak-vbeln  .
+                  gi_final-kunnr2 = gi_vbak-kunnr  .
+                  MODIFY gt_final FROM gi_final INDEX sy-tabix TRANSPORTING vbeln2 kunnr2.
+                ENDIF .
+              ENDIF .
+            ENDIF .
+          ENDIF .
+        ENDLOOP.
+      ENDIF.
+    ENDIF.
+  ENDIF .
+  SORT gt_final BY ebeln vbeln kunnr.                                   "GECHG0286963 BY 502683007
+ENDFORM.                    " GET_VBAK_DATA
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_fcat .
+
+  PERFORM create_fcat2 USING : 'EBELN'    text-001 ,
+                               'VBELN'    text-002  ,
+                               'KUNNR'    text-003  ,
+                               'BSTNK'    text-004  ,
+                               'VBELN2'   text-005  ,
+                               'KUNNR2'   text-006  .
+ENDFORM.                    " CREATE_FCAT
+*&---------------------------------------------------------------------*
+*&      Form  DISP_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM disp_alv .
+  gw_layout-colwidth_optimize = 'X' .
+  gw_layout-zebra = 'X' .
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      is_layout     = gw_layout
+      it_fieldcat   = gt_fcat
+    TABLES
+      t_outtab      = gt_final
+    EXCEPTIONS
+      program_error = 1.
+
+  IF sy-subrc <> 0.
+*    Implement suitable error message
+  ENDIF.
+
+
+
+ENDFORM.                    " DISP_ALV
+
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->F_POS      text
+*      -->F_FNAME    text
+*      -->F_TABNAME  text
+*      -->F_TEXT     text
+*----------------------------------------------------------------------*
+FORM create_fcat2 USING f_fname
+                       f_text .
+  gv_pos = gv_pos + 1 .
+  gi_fcat-col_pos = gv_pos .
+  gi_fcat-fieldname = f_fname.
+  gi_fcat-tabname = gc_final.
+  gi_fcat-seltext_m = f_text.
+  APPEND gi_fcat TO gt_fcat.
+
+ENDFORM   .                 "CREATE_FCAT
+

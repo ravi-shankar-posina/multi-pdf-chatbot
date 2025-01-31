@@ -1,0 +1,73 @@
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name             : ZPMM_STO_MAIL
+* Created by       : Jyothi Dhulipudi (502631807)
+* Transport Request: DE3K973017
+* CR No            : CHG2216498
+* RICEF Object No  : RICEF1746
+* Transaction code : VL02N
+* Description      : Need Shipment and STO Detials Emailed to Receiving
+*                    Plant when delivery is PGI'ed
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*=======================================================================
+*** Change History                                                   ***
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+************************************************************************
+* DATE       | CR No.     | CHANGED BY  | DESCRIPTION OF CHANG
+************************************************************************
+* 11-Nov-16  | CHG2216498 |  502631807  | Fix the deliveries combined issue
+* 03-Nov-16  | CHG2216498 |  502631807  | Additional validation is on receiving plant,
+*                                       | maintained DL for each receiving plant to get
+*                                       | triggar mail and modified the mail body too
+
+* 31-Jan-17  | CHG2527291 |  502683007  | Added supplying & receiving plant details in the mail body
+*                                         new validations on receiving plant
+* 10-Apr-17  | CHG2527291 |  502683007  | Added New receiving plant details in the mail body
+* 08-May-17  | CHG2527291 |  502199780  | Adjusted the logic so that it
+*                                         is in tune with the removal of
+*                                         hardcode entries for ord. type
+*                                         and source plant. Added logic
+*                                         for mail-id's maintained in
+*                                         hardcode table.
+************************************************************************
+REPORT  zrmm_sto_mail.
+
+*Declaration of data
+INCLUDE znmm_outboundmail_top.
+*Devivery note declaration
+INCLUDE rvadtabl.
+*Definition of forms
+INCLUDE znmm_outboundmail_forms.
+
+*&---------------------------------------------------------------------*
+*&      Form  entry
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->RETURN_CODE  text
+*      -->US_SCREEN    text
+*----------------------------------------------------------------------*
+FORM entry USING return_code us_screen.
+  CLEAR gw_retcode.
+  PERFORM processing  USING  us_screen.
+  IF gw_retcode IS NOT INITIAL.
+    return_code = 1.
+  ELSE.
+    return_code = 0.
+  ENDIF.
+ENDFORM.                    "entry
+*&---------------------------------------------------------------------*
+*&      Form  PROCESSING
+*&---------------------------------------------------------------------*
+FORM processing  USING    proc_screen.
+  PERFORM validation CHANGING gw_retval.
+  IF gw_retval EQ gc_x.
+    PERFORM prepare_mail_content.
+*Begin of change 502631807 on 20/02/2017
+  ELSE.
+    LEAVE PROGRAM.
+*End of change 502631807 on 20/02/2017
+  ENDIF.
+ENDFORM.                    " PROCESSING
+

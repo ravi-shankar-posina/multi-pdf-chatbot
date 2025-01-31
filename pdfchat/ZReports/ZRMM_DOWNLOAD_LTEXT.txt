@@ -1,0 +1,76 @@
+REPORT  zrmm_download_ltext MESSAGE-ID zmm LINE-SIZE 100 LINE-COUNT 60.
+***************************************************************************
+*** Created by            :  Hanumantha Rao(502283763)
+*** Creation Date         :  21/10/2015
+*** Transport Request     :  DE3K967050
+****Transaction Code      : ZMM1615
+*** RICEF Object No       : 1615
+*** RITM No               : RITM4991596
+* Report Name             :  ZRMM_DOWNLOAD_LTEXT
+* Description             : This program is copied  from 4.7(ZMM3C111  General Long Text Extract) to ECC.
+*                           This program extracts long text into a flat file.
+* Output Default          : /usr/sap/tmp/text.txt
+* RICEF ID                : 1615
+* Report Name             : ZRMM_DOWNLOAD_LTEXT
+* Change log #            : CHG1637971
+************************************************************************
+*                    Change Log:
+************************************************************************
+* MOD LOG:
+* CHG-ID     DATE          AUTHOR          DESCRIPTION .
+
+*************************************************************************
+* CHG1637971 18/01/2016   Vijay Kumar N    1. Commented clear statement to print
+*                                          Name, Text ID, Application Object
+*                                          and Language Key in each and every line
+*                                          2. Changed fieldcat position to display
+*                                          headings in local pc option
+*                                          3. Added logic to get information message
+*                                          when file overwrites.
+
+* CHG0207844  03/06/2022  Satish Kumar K    Added Plant on selection screen
+*                                            Added the Logic Get the Text only for Selection Screen Plant
+* CHG0207844  06/06/2022 DE3K9A0DUS  Satish Kumar K    Added Additional field VORNR (Operation/Activity Number)
+*                                                       to Final Out PutFetch Logic and Field Cat Log Logic
+* CHG0207844  08/06/2022 DE3K9A0DXA  Satish Kumar K    Make the Plant As optional and if Plant is empty it wont exceute
+*                                                       ROUTING logic
+*&----------------------------------------------------------------------*
+*&  TOP INCLUDE PROGRAMS
+*&----------------------------------------------------------------------*
+INCLUDE znmm_download_ltext_top.
+***********************************************************************
+*SELECTION-SCREEN DECLARATION                                         *
+***********************************************************************
+*Selection screen
+INCLUDE znmm_download_ltext_selscr.
+
+***********************************************************************
+*START-OF-SELECTION                                                   *
+***********************************************************************
+START-OF-SELECTION.
+
+*Log program information to job writer
+  PERFORM log_program_info.
+
+* get data
+  PERFORM processing_block.
+
+* Building fieldcat
+  PERFORM frm_built_cat.      "Added by Vijay Kumar N DE3K968996 CHG1637971 20/01/2016
+
+* output options
+  IF p_mod1 = 'X'.            " ALV
+    PERFORM display_alv.
+  ELSEIF p_mod2 = 'X'.        " PC Download
+    PERFORM f_excel_download.
+  ELSEIF p_mod3 = 'X'.        " Application server
+    PERFORM open_files.
+  ENDIF.
+
+***********************************************************************
+*END-OF-SELECTION                                                     *
+***********************************************************************
+END-OF-SELECTION.
+
+  INCLUDE znmm_download_ltext_displayf01.
+

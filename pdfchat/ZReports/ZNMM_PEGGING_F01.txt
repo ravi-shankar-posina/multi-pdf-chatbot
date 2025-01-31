@@ -1,0 +1,1054 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PEGGING_F01
+*&------------------------------------------------------------------*
+
+FORM get_data.
+
+*// Local variable declarations
+  DATA: lw_num   TYPE qsollwertc,
+        lw_float TYPE cha_class_data-sollwert.
+
+*// Fetch data from Production order header and line item table (View : CAUFV)
+  SELECT  aufnr auart autyp refnr ktext
+          bukrs werks objnr rsnum gamng
+          plnbez stlbez kdauf kdpos dispo
+          gltrp  gstrp  gltrs gstrs ftrmi
+          ftrmi  aprio  aufpl bedid
+          FROM  caufv
+          INTO TABLE gt_caufv
+          WHERE   autyp IN r_autyp
+          AND     werks  IN  s_plant
+          AND     auart IN s_ortype
+          AND     dispo  IN  s_mrp.
+  IF sy-subrc IS INITIAL.
+    SORT gt_caufv BY aufnr werks gstrs.
+  ENDIF.
+*** Start of changes for DE3K958725 CHG1048395  by 502277866  on 09.02.2015
+  IF NOT gt_caufv IS INITIAL.
+
+    SELECT werks
+           dispo
+           dsnam FROM t024d INTO TABLE gt_mrp
+                            FOR ALL ENTRIES IN gt_caufv
+                            WHERE werks EQ gt_caufv-werks
+                              AND dispo EQ gt_caufv-dispo.
+    IF sy-subrc EQ 0.
+      SORT gt_mrp BY werks dispo.
+    ENDIF.
+
+  ENDIF.
+*** end of changes for DE3K958725 CHG1048395  by 502277866  on 09.02.2015
+*// Fetch data from 'Table for Selection Conditions per SELID' table.
+  SELECT selid
+          zaehl
+          stsma
+          stats
+          incex
+          verkz
+          activ
+          inact
+          neact
+          FROM tj49
+          INTO TABLE gt_tj49
+          WHERE selid IN s_profl.
+
+*// Filter Production orders
+  IF gt_tj49[] IS NOT INITIAL.
+    PERFORM filter_open_prod_orders CHANGING gt_caufv.
+  ENDIF.
+
+
+  IF gt_caufv[] IS NOT INITIAL.
+**Get the required data from AFPO
+    SELECT aufnr
+           posnr
+           psmng
+           wemng
+           kdauf
+           kdpos
+           matnr
+           dwerk
+           FROM afpo
+           INTO TABLE gt_afpo
+           FOR ALL ENTRIES IN gt_caufv
+           WHERE aufnr = gt_caufv-aufnr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_afpo BY aufnr.
+    ENDIF.
+
+    IF gt_afpo[] IS NOT INITIAL.
+*// Fetch data from 'Material/Plant' table
+      SELECT matnr
+       werks
+       eisbe
+       zzsrcl
+       zlclid
+       INTO TABLE gt_marc
+       FROM marc
+       FOR ALL ENTRIES IN gt_afpo
+       WHERE matnr = gt_afpo-matnr
+       AND werks = gt_afpo-dwerk.
+      IF sy-subrc IS INITIAL.
+        SORT gt_marc BY matnr werks.
+      ENDIF.
+****** Start of comments for DE3K958725 CHG1048395  by 502277866  on 09.02.2015
+*// Fetch data from 'Header Data for MRP Document' table
+*      SELECT matnr
+*             plwrk
+*             berw1
+*             FROM mdkp
+*             INTO TABLE gt_mdkp
+*             FOR ALL ENTRIES IN  gt_afpo
+*             WHERE matnr = gt_afpo-matnr
+*             AND  plwrk = gt_afpo-dwerk.
+*      IF sy-subrc IS INITIAL.
+*        SORT gt_mdkp BY matnr plwrk.
+*      ENDIF.
+****End of coments for DE3K958725 CHG1048395  by 502277866  on 09.02.2015
+*// Fetch Material Description data from 'MAKT' table
+      SELECT matnr
+             maktx
+             INTO TABLE gt_makt
+             FROM makt
+             FOR ALL ENTRIES IN gt_afpo
+             WHERE matnr = gt_afpo-matnr.
+      IF sy-subrc IS INITIAL.
+        SORT gt_makt BY matnr.
+      ENDIF.
+    ENDIF. "GT_AFPO
+
+*// Fetch data from 'Operation within an order' table
+    SELECT aufpl
+           arbid
+           rueck
+           aplzl
+           FROM afvc
+           INTO TABLE gt_afvc
+           FOR ALL ENTRIES IN gt_caufv
+           WHERE aufpl = gt_caufv-aufpl.
+    IF gt_afvc[] IS NOT INITIAL.
+*// Fetch data from 'Work Center Header' table
+      SELECT objty
+             objid
+             arbpl
+             kapid
+             FROM crhd
+             INTO TABLE gt_crhd
+             FOR ALL ENTRIES IN gt_afvc
+             WHERE objid = gt_afvc-arbid.
+      IF gt_crhd[] IS NOT INITIAL.
+*// Fetch data from 'Capacity Header Segment' table
+        SELECT kapid
+               aznor
+               begzt
+               endzt
+               ngrad
+               pause
+               FROM kako
+               INTO TABLE gt_kako
+               FOR ALL ENTRIES IN gt_crhd
+               WHERE kapid = gt_crhd-kapid
+               AND   kapter =  gc_x.
+        IF sy-subrc IS INITIAL.
+          SORT gt_kako BY kapid.
+        ENDIF.
+      ENDIF. "GT_CRHD
+
+*// Fetch data from 'Order Confirmations' table
+      SELECT rueck
+             lmnga
+             FROM afru
+             INTO TABLE gt_afru
+             FOR ALL ENTRIES IN gt_afvc
+             WHERE rueck = gt_afvc-rueck.
+      IF sy-subrc IS INITIAL.
+        SORT gt_afru BY rueck.
+      ENDIF.
+    ENDIF. "GT_AFVC
+
+    SELECT objnr
+           stat
+           inact
+           FROM jest INTO TABLE gt_jest
+           FOR ALL ENTRIES IN gt_caufv
+           WHERE objnr = gt_caufv-objnr
+             AND inact = ' '.
+    IF gt_jest[] IS NOT INITIAL.
+      SELECT istat
+             spras
+             txt04
+       FROM tj02t
+       INTO TABLE gt_tj02t
+       FOR ALL ENTRIES IN gt_jest
+       WHERE istat = gt_jest-stat
+         AND spras = gc_en.
+    ENDIF. " GT_JEST
+
+
+*// Fetch data from 'Capacity Requirements Records' table
+    SELECT bedid bedzl arbid
+           kapid kbearest
+      FROM kbed INTO TABLE gt_kbed
+      FOR ALL ENTRIES IN gt_caufv
+      WHERE bedid = gt_caufv-bedid.
+    IF sy-subrc IS INITIAL.
+      SORT gt_kbed BY bedid bedzl kapid.
+
+*// Loop 'Capacity Requirements Records' table and convert
+*// Floating point values to character values and prepare
+*// new internal table with converted values.
+
+      LOOP AT gt_kbed INTO gi_kbed.
+        gi_kbed1-bedid = gi_kbed-bedid.
+        lw_float = gi_kbed-kbearest.
+
+*// Function module to convert ' Floating point value --> Character'
+        CALL FUNCTION 'QSS0_FLTP_TO_CHAR_CONVERSION'
+          EXPORTING
+            i_number_of_digits = 3
+            i_fltp_value       = lw_float
+          IMPORTING
+            e_char_field       = lw_num.
+
+*// Above Function module will return value with comma but while calculating the values
+*// Comma will not accept, due to this comma is replacing with pullstop in variable 'LW_NUM'
+        REPLACE ALL OCCURRENCES OF ',' IN lw_num WITH '.'.
+
+        gi_kbed1-bedzl = gi_kbed-bedzl.
+        gi_kbed1-arbid = gi_kbed-arbid.
+        gi_kbed1-num =   lw_num.
+*// Append GT_KBED1.
+        APPEND  gi_kbed1 TO  gt_kbed1.
+
+*// Clear local variables
+        CLEAR :  gi_kbed1,lw_num,lw_float,gi_kbed.
+      ENDLOOP.
+
+*// Sort GT_KBED1 table
+      SORT gt_kbed1 BY bedid bedzl.
+
+    ENDIF. "GT_KBED
+  ENDIF." GT_CAUFV
+
+ENDFORM.                    "GET_DATA
+
+
+*&---------------------------------------------------------------------*
+*&      Form  prod_order
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->GI_MDKP_DS-MATNR  text
+*      -->GI_MDKP_DS-WERKS  text
+*      -->GI_MDTB_DS-DELKZ  text
+*      -->GI_MDTB_DS-DEL12  text
+*----------------------------------------------------------------------*
+FORM prod_order USING v_matnr TYPE any
+                      v_werks TYPE any
+                      v_delkz TYPE any
+                      v_del12 TYPE any.
+
+
+  "populating final internal table by calling function module
+  CALL FUNCTION 'MD_PEGGING_NODIALOG'
+    EXPORTING
+*     EDELET                = 0000
+      edelkz                = v_delkz
+      edelnr                = v_del12
+      edelps                = 000001
+*     EPLSCN                = 000
+      ematnr                = v_matnr
+      ewerks                = v_werks
+*     EPLWRK                = ' '
+*     EPLAAB                = ' '
+*     EPLANR                = ' '
+*     EBERID                = ' '
+*     EDAT00                = 00000000
+    TABLES
+*     EMDPSX                =
+      imdrqx                = gt_final_ds
+    EXCEPTIONS
+      error                 = 1
+      no_requirements_found = 2
+      order_not_found       = 3
+      OTHERS                = 4.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+             WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                    "prod_order
+
+
+*--------------------------------------------------------------------*
+*&      Form  FILTER_OPEN_PROD_ORDERS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM filter_open_prod_orders CHANGING lt_caufv TYPE gt_caufv1.
+
+*// Declare Local internal tables and Local variables
+  DATA: lt_status  TYPE TABLE OF  jstat,
+        lv_flag    TYPE           c,
+        ls_caufv   TYPE           ty_caufv .
+
+
+  LOOP AT lt_caufv INTO ls_caufv.
+
+*// Check Status
+    CALL FUNCTION 'STATUS_READ'
+      EXPORTING
+        client           = sy-mandt
+        objnr            = ls_caufv-objnr
+      TABLES
+        status           = lt_status
+      EXCEPTIONS
+        object_not_found = 1
+        OTHERS           = 2.
+    IF sy-subrc <> 0.
+      CLEAR:lt_status.
+    ENDIF.
+
+    SORT lt_status BY stat inact.
+****start of chnages for CHG0990782  DE3K957355by 502277866
+** Need to implement for A and E
+    LOOP AT gt_tj49 INTO gi_tj49.
+*      IF bool = 'A' AND include = 'E' AND ACTIVE = 'X'
+      IF  ( gi_tj49-verkz = gc_a AND gi_tj49-incex = gc_e
+                                AND gi_tj49-activ = gc_x ).
+        READ TABLE lt_status TRANSPORTING NO FIELDS WITH KEY
+                             stat = gi_tj49-stats
+                             inact = '' BINARY SEARCH.
+        IF sy-subrc = 0."But if you find delete it.
+          DELETE lt_caufv WHERE aufnr = ls_caufv-aufnr.
+          EXIT.
+        ENDIF.
+      ELSEIF ( gi_tj49-verkz = gc_a AND gi_tj49-incex = gc_e
+                                   AND gi_tj49-activ = '').
+        READ TABLE lt_status TRANSPORTING NO FIELDS WITH KEY
+                     stat = gi_tj49-stats
+                     inact = gc_x BINARY SEARCH.
+        IF sy-subrc = 0."But if you find delete it.
+          DELETE lt_caufv WHERE aufnr = ls_caufv-aufnr.
+          EXIT.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+
+    "If there any with O
+    READ TABLE gt_tj49 INTO gi_tj49 WITH KEY verkz = gc_o.
+    IF sy-subrc = 0.
+      LOOP AT gt_tj49 INTO gi_tj49 WHERE  verkz = gc_o.
+        LOOP AT lt_status  TRANSPORTING NO FIELDS WHERE stat = gi_tj49-stats.
+          lv_flag = gc_x.
+        ENDLOOP.
+      ENDLOOP.
+
+      IF lv_flag NE gc_x.
+        DELETE lt_caufv WHERE aufnr = ls_caufv-aufnr.
+        EXIT.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+**** end of chnages for CHG0990782  DE3K957355by 502277866
+ENDFORM.                    " FILTER_OPEN_PROD_ORDERS
+*&---------------------------------------------------------------------*
+*&      Form  PREPARE_FINAL_TABLE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM prepare_final_table .
+
+*// Data Declarations for Local Variables
+  DATA: lw_matnr TYPE matnr,
+        lw_werks TYPE werks_d,
+        lw_delkz TYPE delkz,
+        lw_del12 TYPE del12,
+        lw_stime TYPE p DECIMALS 2,"kapbegzt,
+        lw_etime  TYPE p DECIMALS 2,"kapendzt,
+        lw_btime  TYPE p DECIMALS 2,"kappause,
+*        lw_aplzl TYPE co_aplzl,
+        lw_capacity_h TYPE p DECIMALS 2,
+        lw_available_capacity_h TYPE p DECIMALS 2,
+        lw_flag TYPE c,
+        lw_flag1 TYPE c,
+        lw_num TYPE qsollwertc,
+        lw_num1 TYPE char16,
+        lw_num2 TYPE qsollwertc,
+        lw_lastreq TYPE qsollwertc,
+        lw_acapacity TYPE qsollwertc,
+        lw_psmng TYPE co_psmng,
+        lw_wemng TYPE co_wemng,
+        lw_time TYPE p DECIMALS 2.
+  DATA : lw_count TYPE i,
+         lw_aplzl TYPE i,
+         lw_count1 TYPE i,
+        lw_cn1 TYPE i VALUE 0,
+        lw_cn2 TYPE i VALUE 0.
+  DATA : lw_index12 TYPE sy-index.""changes for CHG0990782 DE3K957735  on 31.12.2014by 502277866
+  DELETE gt_jest WHERE stat CP 'E*'.
+***Start of changes on 24/07/2014  CHG0479115 by 502277866 for DE3K943440
+*****Adding counter values to gt_afvc
+  SORT gt_afvc BY aufpl arbid aplzl. " added on 25/07/2014  CHG0479115 by 502277866 for DE3K943636
+  CLEAR : lw_count1.
+
+  LOOP AT gt_afvc INTO gi_afvc.
+    lw_count1 = lw_count1 + 1.
+    gi_afvc-count =  lw_count1.
+
+    MODIFY gt_afvc FROM gi_afvc TRANSPORTING count.
+
+    CLEAR : gi_afvc.
+  ENDLOOP.
+**** end of changes on24/07/2014  CHG0479115 by 502277866 for DE3K943440
+
+  lw_index12 = 0.""changes for CHG0990782 DE3K957735  on 31.12.2014by 502277866
+  LOOP AT gt_caufv INTO gi_caufv.
+
+    gw_index = gw_index + 1.
+
+*// Read data from 'Order item'
+    READ TABLE gt_afpo INTO gi_afpo WITH KEY aufnr = gi_caufv-aufnr BINARY SEARCH.
+
+*// Populate local variables with table entries
+    lw_matnr = gi_afpo-matnr.
+    lw_delkz = gc_delkz.
+    lw_werks = gi_caufv-werks.
+    lw_del12 = gi_caufv-aufnr.
+    lw_psmng = gi_afpo-psmng.
+    lw_wemng = gi_afpo-wemng.
+    REFRESH : gt_final_ds.
+    CLEAR : gi_afpo.
+
+*// Call Subroutine to fetch Pegging data from FM 'MD_PEGGING_NODIALOG'
+    PERFORM prod_order USING lw_matnr
+                             lw_werks
+                             lw_delkz
+                             lw_del12.
+
+    SORT gt_final_ds BY werks delkz.
+****** Start of changes for DE3K958725 CHG1048395  by 502277866  on 09.02.2015
+    DELETE gt_final_ds WHERE matnr NE lw_matnr.
+    IF NOT gt_final_ds IS INITIAL.
+      SELECT matnr
+           plwrk
+           berw1
+           FROM mdkp
+           INTO TABLE gt_mdkp
+           FOR ALL ENTRIES IN  gt_final_ds
+           WHERE matnr = gt_final_ds-matnr
+           AND  plwrk = gt_final_ds-werks.
+      IF sy-subrc IS INITIAL.
+        SORT gt_mdkp BY matnr plwrk.
+      ENDIF.
+    ENDIF.
+***** End of changes  for DE3K958725 CHG1048395  by 502277866  on 09.02.2015
+
+    CLEAR : lw_aplzl.
+*// Here Loop with in the loop is required to solve the requirement.
+    LOOP AT gt_afvc INTO gi_afvc WHERE aufpl = gi_caufv-aufpl.
+      lw_aplzl = sy-tabix + 1. "added for *24/07/2014    |CHG0479115       | 502277866            | DE3K943440
+*// Production Order
+      gi_record-production_order = gi_caufv-aufnr.
+*// Plant
+      gi_record-production_plant =  gi_caufv-werks.
+*** Reading mrp and mrp name
+      READ TABLE gt_mrp INTO gi_mrp WITH KEY werks = gi_caufv-werks
+                                             dispo = gi_caufv-dispo BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gi_record-mrp_controller_code = gi_mrp-dispo.
+        gi_record-mrp_controller_name = gi_mrp-dsnam.
+      ENDIF.
+*// Read Production order status from 'JEST' table
+      READ TABLE gt_jest INTO gi_jest WITH KEY objnr = gi_caufv-objnr.
+      IF sy-subrc IS INITIAL.
+*// Read 'System status texts' table
+        READ TABLE gt_tj02t INTO gi_tj02t WITH KEY istat = gi_jest-stat.
+        IF sy-subrc IS INITIAL.
+          gi_record-status = gi_tj02t-txt04.
+        ENDIF.
+      ENDIF.
+
+*// Production Order Priority
+      gi_record-production_order_priority = gi_caufv-aprio.
+
+*// Scheduled Start Date
+      CONCATENATE gi_caufv-gstrs+6(2)
+                  gc_slash gi_caufv-gstrs+4(2)
+                  gc_slash gi_caufv-gstrs+0(4)
+             INTO gi_record-scheduled_start_date.
+
+
+*//  Here LOOP with in the LOOP is required to solve the requirement.
+*//  Read data from table 'Work Center Header'
+
+      CLEAR : lw_cn1 , lw_cn2.
+      LOOP AT gt_crhd INTO gi_crhd WHERE objid = gi_afvc-arbid.
+        lw_cn1 = lw_cn1 + 1.
+        READ TABLE gt_kako INTO gi_kako WITH KEY kapid = gi_crhd-kapid BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+
+          lw_stime = gi_kako-begzt / 3600. "Start Time
+          lw_etime = gi_kako-endzt / 3600. "End time
+          lw_btime = gi_kako-pause / 3600. "Break time
+
+*// Calculate Capacity value
+**** CHG0479115 Start of changes on 26/05/2014 by 502277866 for DE3K937742
+          lw_time = ( ( lw_etime - lw_stime ) - lw_btime ).
+
+          IF lw_time LE 0. " added for 18/07/2014    |CHG0479115       | 502277866            | DE3K943233 INC4535170
+            lw_time = lw_time + 24.
+            lw_capacity_h = ( ( lw_time * gi_kako-ngrad ) / 100 ) * gi_kako-aznor.
+          ELSE.
+            lw_capacity_h = ( ( lw_time * gi_kako-ngrad ) / 100 ) * gi_kako-aznor.
+          ENDIF.
+**** CHG0479115 end of changes on 26/05/2014 by 502277866 for DE3K937742
+        ELSE.
+          lw_cn2 = lw_cn2 + 1.
+        ENDIF.
+      ENDLOOP. " END loop for GT_CRHD
+****start of changes on  24/07/2014  CHG0479115 by 502277866 for DE3K943440
+      IF lw_cn2 EQ lw_cn1.
+        CONTINUE.
+      ENDIF.
+****end of changes on 24/07/2014  CHG0479115 by 502277866 for DE3K943440
+*//  Populate work center
+      gi_record-work_center =  gi_crhd-arbpl.
+
+*// Read data fromm table 'Order Confirmations'.
+      READ TABLE gt_afru INTO gi_afru WITH KEY rueck = gi_afvc-rueck BINARY SEARCH.
+
+**// Calculate 'Production Order Open QTY'
+****CHG0479115 start of changes by 502277866 for DE3K936123 08.05.2014
+*      gi_record-prod_order_open_qty =  gi_caufv-gamng - gi_afru-lmnga.
+      gi_record-prod_order_open_qty =  lw_psmng - lw_wemng.
+****CHG0479115 end of changes by 502277866 for DE3K936123 08.05.2014
+*// Read data from 'Order item'
+      READ TABLE gt_afpo INTO gi_afpo WITH KEY aufnr = gi_caufv-aufnr BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+*// Populate Material
+        gi_record-material  = gi_afpo-matnr.
+        IF NOT gi_record-material IS INITIAL.
+          CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+            EXPORTING
+              input  = gi_record-material
+            IMPORTING
+              output = gi_record-material.
+
+
+        ENDIF.
+*// Read data from Material Description
+        READ TABLE gt_makt INTO gi_makt WITH KEY matnr = gi_afpo-matnr BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+*// Populate Material Description
+          gi_record-material_description = gi_makt-maktx.
+        ENDIF.
+
+        LOOP AT gt_final_ds INTO gi_final_ds WHERE delkz IN r_mrp.
+*          lw_index12 =  lw_index12 + 1.""changes for CHG0990782 DE3K957735  on 31.12.2014by 502277866
+          gw_index1 = sy-tabix + 1.
+
+          IF lw_flag1 = gc_x.
+            CLEAR : lw_flag1.
+          ENDIF.
+
+*// Product Priority subroutine
+          PERFORM product_priority.
+
+*// Prepare final table
+          PERFORM prepare_ftable.
+
+          READ TABLE gt_final_ds  INTO gi_final_ds1 INDEX gw_index1.
+          IF gi_final_ds1-werks NE gi_final_ds-werks AND sy-subrc IS INITIAL.
+            lw_index12 =  lw_index12 + 1.""changes for CHG0990782 DE3K957793  on 02.01.2015 by 502277866
+*// MARC Fields
+*            PERFORM marc_fields.
+            PERFORM marc_fields1. " Added on  24/03/2015 for CHG1135336 DE3K960654   by 502277866
+*// Append GT_RECORD
+*
+            INSERT gi_record INTO gt_record INDEX lw_index12."changes for CHG0990782 DE3K957735  on 31.12.2014by 502277866
+
+            lw_flag1 = gc_x.
+
+*// Clear workarea's
+* endif.
+
+            CLEAR : gi_record-pegged_element_plant_id,
+                    gi_record-past_due_sales_order,
+                    gi_record-days_of_coverage,
+                    gi_record-pegged_safety_stock,
+                    gi_record-pegged_forecast,
+                    gi_record-production_priority,
+                    gi_record-demand_spike.
+
+          ENDIF.
+
+*// Clear Work areas and variables
+          CLEAR : gw_index1,gi_final_ds,gw_pstyv.
+        ENDLOOP.
+*      ELSE.
+
+      ENDIF.
+
+*// CHeck the flags.
+      IF lw_flag1 NE gc_x AND lw_flag NE gc_x.
+*// MARC Fields
+        PERFORM marc_fields.
+*        IF LW_INDEX12 EQ 0.
+        lw_index12 = lw_index12 + 1.
+*          ELSE.
+*
+*          ENDIF.
+        INSERT gi_record INTO gt_record INDEX lw_index12."changes for CHG0990782 DE3K957735  on 31.12.2014by 502277866
+
+        CLEAR gi_record.
+      ENDIF.
+
+      CLEAR lw_flag1.
+
+      IF gt_record[] IS NOT INITIAL.
+*        SORT gt_record BY production_order production_plant."comment of chnages for CHG0990782  DE3K957355by 502277866
+        READ TABLE gt_record INTO gi_record WITH KEY production_order = gi_caufv-aufnr
+                                                     production_plant = gi_caufv-werks
+                                                     work_center = gi_crhd-arbpl.
+        IF sy-subrc IS INITIAL.
+          gw_index2 = sy-tabix.
+
+*          lw_aplzl = gi_afvc-aplzl + 1.
+
+*// Read data from 'Capacity Requirements Records' table.
+          READ TABLE gt_kbed1 INTO gi_kbed1 WITH KEY bedid = gi_caufv-bedid bedzl = gi_afvc-aplzl.
+
+*// Check the next record value is existing for the 'Object ID of the resource' (Means same counter number for more than one record)
+*//(Work center). If record eixsts then do sum for ields 'Available capacith_H', 'Capacity requirement' and
+*// populate production order in one record.
+*// If next record 'Object ID of the resource' is defferent (Counter number is different for more than one record)
+*// Then dont do sum for the fields 'Available capacith_H', 'Capacity requirement' apopulate individual records.
+
+          READ TABLE gt_afvc INTO gi_afvc1 WITH KEY aufpl = gi_afvc-aufpl count = lw_aplzl."chnaged by 24/07/2014  CHG0479115 by 502277866 for DE3K943440
+          IF sy-subrc IS INITIAL AND gi_afvc1-arbid EQ gi_afvc-arbid.
+*// Availability capacity_H
+            lw_available_capacity_h = lw_available_capacity_h + lw_capacity_h.
+*// Capacity Requirement
+            lw_num = lw_num + gi_kbed1-num.
+*// Flag Set
+            lw_flag =  gc_x.
+          ELSEIF sy-subrc IS INITIAL AND gi_afvc1-arbid NE gi_afvc-arbid.
+            gi_record-capacity_requirement =  gi_kbed1-num.
+*// Availability capacity_H
+            lw_available_capacity_h = lw_available_capacity_h + lw_capacity_h.
+            gi_record-available_capacity_h = lw_available_capacity_h.
+*// Capacity Load & Available capacity
+            PERFORM capacity_load USING lw_lastreq lw_acapacity.
+*// Clear Local variables
+            CLEAR lw_flag.
+          ELSE.
+            IF lw_flag = gc_x.
+*// Availability capacity_H
+              gi_record-available_capacity_h  =  lw_capacity_h.
+*// Capacity Requirement
+              lw_num2 = lw_num + gi_kbed1-num.
+              lw_num1 = lw_num2.
+              CONDENSE lw_num1.
+
+              IF lw_num1+0(3) = '0.0'.
+                gi_record-capacity_requirement = '0.0'.
+              ELSE.
+                gi_record-capacity_requirement = lw_num1.
+              ENDIF.
+            ELSE.
+*// Availability capacity_H
+              gi_record-available_capacity_h  = lw_capacity_h.
+*// Capacity Requirement
+              lw_num1 = gi_kbed1-num.
+              CONDENSE lw_num1.
+
+              IF lw_num1+0(3) = '0.0'.
+                gi_record-capacity_requirement = '0.0'.
+              ELSE.
+                gi_record-capacity_requirement = lw_num1.
+              ENDIF.
+
+            ENDIF.
+*// Capacity Load & Available capacity
+            PERFORM capacity_load USING lw_lastreq lw_acapacity.
+          ENDIF.
+*          IF gi_record-available_capacity LT 0.
+          IF gi_record-available_capacity CA '-'. "CHG0479115 Start of changes on 04/06/2014 by 502277866 for DE3K938737
+
+            gi_record-available_capacity = 0.
+          ENDIF.
+*// Modify the table with GI_RECORD data.
+          MODIFY gt_record FROM gi_record INDEX gw_index2.
+
+*// Clear Local variables
+          CLEAR : lw_available_capacity_h,lw_capacity_h,gi_record,gw_index2,lw_flag1.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+*// Clear Local variables
+    CLEAR : lw_flag,lw_flag1.
+  ENDLOOP.
+*****  start of changes on 28.01.2015
+*  sort gt_record by production_order.
+
+  DELETE ADJACENT DUPLICATES FROM gt_record.
+
+
+
+*** Start of changes for 23/06/2014 CHG0479115 502277866 DE3K940314
+  IF p_regio IS NOT INITIAL.
+    TRANSLATE p_regio TO UPPER CASE.
+  ENDIF.
+  LOOP AT gt_record INTO gi_record.
+    lw_count = lw_count + 1.
+    gi_record-row_count = lw_count.
+    gi_record-region = p_regio.
+    gi_record-last_run_indicator = p_last.
+    MODIFY gt_record FROM gi_record.
+    CLEAR : gi_record.
+  ENDLOOP.
+*** end of changes for 23/06/2014 CHG0479115 502277866 DE3K940314
+  IF gt_record IS INITIAL.
+    CLEAR : gi_record.
+    gi_record-last_run_indicator = p_last.
+    APPEND gi_record TO gt_record.
+  ENDIF.
+ENDFORM.                    " PREPARE_FINAL_TABLE
+*&---------------------------------------------------------------------*
+*&      Form  SEND_DATA_TO_PROXY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM send_data_to_proxy .
+
+*// Pass final internal table data to Proxy structure
+
+**********************************  code added by 502287934 *********************************************
+*// Local variable declarations
+  DATA: v_plant(4)  TYPE c,
+        v_filename(30)  TYPE c.
+
+  v_plant = s_plant-low.
+  CONCATENATE 'FF_BW_SCM_PEG_RPT_' v_plant '.DAT'INTO v_filename.
+
+************************************* code ended by 502287934 *********************************************
+
+  gi_output-mt_pegging-record = gt_record.
+  gi_output-mt_pegging-file_name = v_filename.                " 502287934
+
+  TRY.
+*// Create proxy (Constructor)
+      CREATE OBJECT prxy.
+
+*// Call proxy method (Sending final data to PI Through Proxy)
+      CALL METHOD prxy->si_pegging_out_async
+        EXPORTING
+          output = gi_output.
+
+*// Commit the changes at data base level.
+      COMMIT WORK.
+
+*// Catch Exception
+    CATCH cx_ai_system_fault.
+*// Create object for error handling
+      CREATE OBJECT gw_fault.
+      WRITE :/ gw_fault->errortext.
+  ENDTRY.
+
+ENDFORM.                    " SEND_DATA_TO_PROXY
+*&---------------------------------------------------------------------*
+*&      Form  CAPACITY_REQUIREMENT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM capacity_load USING p_lastreq   TYPE qsollwertc
+                         p_acapacity TYPE qsollwertc.
+
+*// Delcare Local Variables
+  DATA : lw_quant TYPE qsollwertc,
+         lw_cload TYPE char18,
+          lw_capacity_h1 TYPE p DECIMALS 2,
+          lw_capacity_h2 TYPE p DECIMALS 2.
+
+  IF gw_index = 1.
+*// Available Capacity
+    gi_record-available_capacity = gi_record-available_capacity_h - gi_record-capacity_requirement.
+    p_acapacity = gi_record-available_capacity .
+    REPLACE ALL OCCURRENCES OF ',' IN p_acapacity WITH '.'.
+  ELSE.
+    lw_quant  = p_acapacity - p_lastreq.
+    IF lw_quant < 0.
+      lw_quant = 0.
+*// Available Capacity
+      gi_record-available_capacity = lw_quant.
+      CONDENSE gi_record-available_capacity.
+    ELSE.
+*// Available Capacity
+      gi_record-available_capacity = lw_quant.
+    ENDIF.
+  ENDIF.
+
+
+*// Capacity Load
+  IF gw_index = 1.
+    REPLACE ALL OCCURRENCES OF ',' IN gi_record-capacity_requirement WITH '.'.
+
+*// Capacity Load
+    lw_capacity_h2 = gi_record-available_capacity_h.
+    IF lw_capacity_h2 = '0.00'. ""CHG0479115 Added by 502277866 for DE3K936123 08/05/2014
+    ELSE.
+      lw_cload = (  gi_record-capacity_requirement / gi_record-available_capacity_h ) * 100.
+      CONDENSE lw_cload.
+    ENDIF.
+    gi_record-capacity_load = lw_cload+0(5).
+
+    IF gi_kbed1-num+0(3) = '0.0'.
+    ELSE.
+      p_lastreq = gi_kbed1-num.
+      REPLACE ALL OCCURRENCES OF ',' IN p_lastreq WITH '.'.
+    ENDIF.
+  ELSE.
+    IF gi_record-capacity_requirement IS NOT INITIAL.
+
+      IF gi_record-capacity_requirement = '0.0'.
+      ELSE.
+        REPLACE ALL OCCURRENCES OF ',' IN gi_record-capacity_requirement WITH '.'.
+        p_lastreq = p_lastreq + gi_record-capacity_requirement.
+*// Capacity Load
+        lw_capacity_h1 = gi_record-available_capacity_h.
+        IF lw_capacity_h1 = '0.00'. "CHG0479115 Added by 502277866 for DE3K926029 06/05/2014
+        ELSE.
+          lw_cload = ( p_lastreq / gi_record-available_capacity_h ) * 100.
+          CONDENSE lw_cload.
+        ENDIF.
+        gi_record-capacity_load = lw_cload+0(5).
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+*// Check if capacity load > 1000 then display '999.0'
+  IF  gi_record-capacity_load > 1000.
+    gi_record-capacity_load = '999.0'.
+  ENDIF.
+
+  IF gi_record-capacity_load IS INITIAL.
+    gi_record-capacity_load = '0'.
+  ENDIF.
+
+*// Check if available_capacity is negative value
+*// then populate available capacity  equals to 0.
+  IF gi_record-available_capacity < 0.
+    gi_record-available_capacity = 0.
+  ENDIF.
+
+*// Condense capacity load value
+  CONDENSE gi_record-capacity_load.
+
+*// Clear local variables
+  CLEAR : lw_quant,lw_cload.
+ENDFORM.                    " CAPACITY_REQUIREMENT
+*&---------------------------------------------------------------------*
+*&      Form  HARD_CODE_VALUES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM hard_code_values .
+*// Fetch data from hard code table
+  CLEAR gi_ztuhcd1.
+  REFRESH gt_ztuhcd1.
+
+*// Pass program name to hard code table
+  MOVE sy-repid TO gi_ztuhcd1-name.
+  APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+
+*// Call function module to retrieve hard code table values
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+
+  CASE  sy-subrc.
+    WHEN 1.
+      MESSAGE e024 WITH 'No Data Found'(012).
+    WHEN 2.
+      MESSAGE e024 WITH 'No Entries Found'(013).
+  ENDCASE.
+
+
+  IF gt_ztuhcd1[] IS NOT INITIAL.
+    r_mrp-sign = gc_i.
+    r_mrp-option = gc_eq.
+*// Preparing MRP ELEMENT range table
+    LOOP AT  gt_ztuhcd1 INTO gi_ztuhcd1 WHERE field = gc_mrp.
+      r_mrp-low = gi_ztuhcd1-low.
+      APPEND r_mrp.
+      CLEAR : gi_ztuhcd1.
+    ENDLOOP.
+
+    r_autyp-sign = gc_i.
+    r_autyp-option = gc_eq.
+*// Preparing Order category range table
+    LOOP AT  gt_ztuhcd1 INTO gi_ztuhcd1 WHERE field = gc_autyp.
+      r_autyp-low = gi_ztuhcd1-low.
+      APPEND r_autyp.
+      CLEAR : gi_ztuhcd1.
+    ENDLOOP.
+  ENDIF.
+
+ENDFORM.                    " HARD_CODE_VALUES
+*&---------------------------------------------------------------------*
+*&      Form  PRODUCT_PRIORITY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM product_priority .
+  CLEAR : gi_final_ds1.
+  READ TABLE  gt_final_ds  INTO gi_final_ds1 WITH KEY delkz = gc_ur.
+  IF ( sy-subrc IS INITIAL  AND gi_final_ds1-dat00 < sy-datum ) AND gi_final_ds-dat00 < sy-datum.
+*// Priority 1
+    gi_record-production_priority = gc_one.
+  ELSE.
+*// Priority 2
+    READ TABLE gt_mdkp INTO gi_mdkp WITH KEY matnr = gi_afpo-matnr plwrk = gi_caufv-werks." BINARY SEARCH.
+    IF sy-subrc IS INITIAL AND gi_mdkp-berw1 < 14.
+      gi_record-production_priority = gc_two.
+*// Check if priority 3 is not initial
+    ELSEIF gi_record-production_priority IS NOT INITIAL.
+      CLEAR : gi_final_ds.
+      READ TABLE  gt_final_ds  INTO gi_final_ds WITH KEY delkz = gc_sh.
+      IF sy-subrc IS INITIAL.
+*// Priority 4
+        gi_record-production_priority = gc_four.
+      ELSE.
+        CLEAR : gi_final_ds.
+        READ TABLE  gt_final_ds  INTO gi_final_ds WITH KEY delkz = gc_pr.
+        IF sy-subrc IS INITIAL.
+          CLEAR gi_marc.
+          READ TABLE gt_marc INTO gi_marc WITH KEY matnr = gi_final_ds-matnr werks = gi_final_ds-werks BINARY SEARCH.
+          IF sy-subrc IS INITIAL AND gi_marc-eisbe > 0.
+*// Priority 5
+            gi_record-production_priority = gc_five.
+          ELSEIF sy-subrc IS INITIAL AND gi_marc-eisbe = 0.
+*// Priority 6
+            gi_record-production_priority = gc_six.
+          ENDIF. " GT_MARC (Priority 5 or 6)
+        ENDIF.
+      ENDIF. " Priority 4
+    ENDIF. " Priority 2
+  ENDIF. " Priority 1
+ENDFORM.                    " PRODUCT_PRIORITY
+*&---------------------------------------------------------------------*
+*&      Form  MARC_FIELDS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM marc_fields .
+*// Read data from 'Plant Data for Material'
+  SELECT SINGLE zlclid zzsrcl FROM marc INTO (gi_marc-zlclid,gi_marc-zzsrcl) WHERE matnr = gi_afpo-matnr AND werks = gi_caufv-werks.
+  IF sy-subrc IS INITIAL.
+*// Populate Local ID ('Local material number')
+    gi_record-local_id = gi_marc-zlclid.
+*//  Populate Service class
+    gi_record-service_class = gi_marc-zzsrcl.
+  ENDIF.
+ENDFORM.                    " MARC_FIELDS
+*&---------------------------------------------------------------------*
+*&      Form  PREPARE_FTABLE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM prepare_ftable.
+
+*// Pegged Element ID
+  gi_record-pegged_element_plant_id = gi_final_ds-werks.
+
+*// Past due sales order
+  IF gi_final_ds-delkz = gc_vc OR gi_final_ds-delkz = gc_ur.
+    IF gi_final_ds-dat00 < sy-datum.
+      gi_record-past_due_sales_order = gi_record-past_due_sales_order + gi_final_ds-inputquan . "mng01" Added on  24/03/2015 for CHG1135336 DE3K960654   by 502277866
+    ELSEIF gi_final_ds-dat00 >= sy-datum.
+*// Due Sales Order
+      gi_record-due_sales_order = gi_record-due_sales_order + gi_final_ds-INPUTQUAN ."mng01" Added on  24/03/2015 for CHG1135336 DE3K960654   by 502277866
+    ENDIF.
+  ENDIF.
+
+*// Days of coverage
+  READ TABLE gt_mdkp INTO gi_mdkp WITH KEY matnr = gi_afpo-matnr plwrk = gi_final_ds-werks BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    IF gi_mdkp-berw1 < 0.
+      gi_mdkp-berw1 = gi_mdkp-berw1 * -1.
+      gi_record-days_of_coverage = gi_mdkp-berw1.
+      CONCATENATE '-'(003)  gi_record-days_of_coverage INTO  gi_record-days_of_coverage.
+    ELSE.
+      gi_record-days_of_coverage = gi_mdkp-berw1.
+    ENDIF.
+  ENDIF.
+
+*// Pegged Safety stock
+  IF ( gi_final_ds-delkz = gc_sh OR gi_final_ds-delkz = gc_1s ).
+    gi_record-pegged_safety_stock =   gi_record-pegged_safety_stock + gi_final_ds-INPUTQUAN ."mng01" Added on  24/03/2015 for CHG1135336 DE3K960654   by 502277866 .
+  ENDIF.
+
+
+*// Pegged forecast
+  IF ( gi_final_ds-delkz = gc_pr OR gi_final_ds-delkz = gc_PP )." Added for CHG1135336 DE3K960739 on 24.04.2015 by 502277866
+    gi_record-pegged_forecast =   gi_record-pegged_forecast + gi_final_ds-INPUTQUAN ."mng01" Added on  24/03/2015 for CHG1135336 DE3K960654   by 502277866 .
+  ENDIF.
+
+*// Production Priority
+*// Priority 3
+  IF gi_final_ds-delkz = gc_vc.
+    SELECT SINGLE pstyv FROM vbap INTO gw_pstyv WHERE vbeln = gi_final_ds-delnr AND posnr = gi_final_ds-delps.
+    IF sy-subrc IS INITIAL AND ( gw_pstyv = gc_zspk OR gw_pstyv = gc_zsk1  ).
+      gi_record-production_priority = gc_three.
+      gi_record-demand_spike = gc_x.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " PREPARE_FTABLE
+*&---------------------------------------------------------------------*
+*&      Form  MARC_FIELDS1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+form MARC_FIELDS1 .
+   SELECT SINGLE zlclid zzsrcl FROM marc INTO (gi_marc-zlclid,gi_marc-zzsrcl) WHERE matnr = gi_afpo-matnr AND werks = gi_final_ds-werks.
+  IF sy-subrc IS INITIAL.
+*// Populate Local ID ('Local material number')
+    gi_record-local_id = gi_marc-zlclid.
+*//  Populate Service class
+    gi_record-service_class = gi_marc-zzsrcl.
+  ENDIF.
+
+endform.                    " MARC_FIELDS1
+

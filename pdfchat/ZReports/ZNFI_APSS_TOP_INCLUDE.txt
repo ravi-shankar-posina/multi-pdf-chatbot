@@ -1,0 +1,76 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNFI_APSS_TOP_INCLUDE
+*&---------------------------------------------------------------------*
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE       | CR No.       |CHANGED BY |DESCRIPTION OF CHANGE
+* 12/09/2014   CHG0479283    502304796  |Field Catalog Outputlength inclusion
+*                                       |Transport Request : FE3K900671
+*************************************************************************
+
+************************************************************************
+* T Y P E S   D E C L A R A T I O N
+************************************************************************
+TYPES :  BEGIN OF type_email,
+          person_resp TYPE aufuser2,
+          email_id    TYPE ad_smtpadr,
+         END OF type_email.
+
+************************************************************************
+* W O R K   A R E A    D E C L A R A T I O N
+************************************************************************
+DATA :  gi_zsubal    TYPE zsubal,
+        gi_email     TYPE type_email,
+        gi_balhead   TYPE bal_s_log,
+        gi_fieldcat  TYPE slis_fieldcat_alv,
+        gi_layout    TYPE slis_layout_alv,
+        gi_ccodes    TYPE ztfi_apss_ccodes,
+        gi_msg       TYPE solisti1,
+        gi_receivers TYPE somlreci1,
+        gi_dt        TYPE ztfi_apss_dt.
+************************************************************************
+* I N T E R N A L   T A B L E   D E C L A R A T I O N
+************************************************************************
+DATA : gt_email        TYPE TABLE OF type_email,
+       gt_ccodes       TYPE TABLE OF ztfi_apss_ccodes,
+       gt_zsubal       TYPE TABLE OF zsubal,
+       gt_fieldcat     TYPE slis_t_fieldcat_alv,
+       gt_msg_body     TYPE STANDARD TABLE OF solisti1,
+       gt_receivers    TYPE TABLE OF somlreci1 .
+
+************************************************************************
+* D A T A   D E C L A R A T I O N
+************************************************************************
+DATA:   gw_seqno         TYPE i VALUE 1,
+        gw_result(100)   TYPE c,
+        gw_date          TYPE sy-datum,
+        gw_time          TYPE sy-uzeit,
+        gw_date_from     TYPE sy-datum,
+        gw_date_to       TYPE sy-datum,
+        gw_df            TYPE char40,
+        gw_time_from     TYPE sy-uzeit,
+        gw_sys_exception TYPE REF TO cx_ai_system_fault,
+        gw_app_exception TYPE REF TO cx_ai_application_fault.
+************************************************************************
+* C O N S T A N T S
+************************************************************************
+CONSTANTS : gc_htm(3)  TYPE c VALUE 'HTM',
+            gc_obj(5)  TYPE c VALUE 'ZAPSS',
+            gc_9999(4) TYPE c VALUE '9999',
+            gc_asc(3)  TYPE c VALUE 'ASC',
+            gc_n       TYPE c VALUE 'N',
+            gc_s       TYPE c VALUE 'S',
+            gc_x       TYPE c VALUE 'X',
+            gc_u       TYPE c VALUE 'U',
+            gc_y       TYPE c VALUE 'Y',
+            gc_e       TYPE c VALUE 'E',
+            gc_i1      TYPE c VALUE 'I',
+            gc_sor(2)  TYPE c VALUE '70' ,
+            gc_i(2)    TYPE c VALUE 'I%',
+            gc_bt(2)   TYPE c VALUE 'BT',
+            gc_en(2)   TYPE c VALUE 'EN',
+            gc_eq(2)   TYPE c VALUE 'EQ',
+            gc_fclen(4) TYPE c VALUE '1000',
+            gc_l       TYPE c VALUE 'L'.
+************************************************************************

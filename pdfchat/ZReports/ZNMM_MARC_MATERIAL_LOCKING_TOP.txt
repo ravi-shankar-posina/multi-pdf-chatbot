@@ -1,0 +1,36 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_MARC_MATERIAL_LOCKING_TOP
+*&---------------------------------------------------------------------*
+
+TYPES: BEGIN OF ty_mara,
+        matnr TYPE matnr,
+        matfi TYPE matfi,
+        zzaltmn TYPE zaltmn,
+       END OF ty_mara,
+       BEGIN OF ty_email,
+        matnr       TYPE matnr,
+        text        TYPE bapi_msg,
+       END OF ty_email.
+
+DATA: gtmm_marc_mat_al TYPE STANDARD TABLE OF ztmm_marc_mat_al,
+      gt_status_a      TYPE STANDARD TABLE OF ztmm_marc_mat_al,
+      gt_amn_mismatch  TYPE STANDARD TABLE OF ztmm_marc_mat_al,
+      gt_lock_failed   TYPE STANDARD TABLE OF ztmm_marc_mat_al,
+      gt_al            TYPE STANDARD TABLE OF ztmm_marc_mat_al,
+      gimm_marc_mat_al TYPE ztmm_marc_mat_al,
+      gt_mat           TYPE STANDARD TABLE OF ztmm_marc_mat_al,
+      gw_email         TYPE adr6-smtp_addr,
+      gt_mara          TYPE STANDARD TABLE OF ty_mara,
+      gi_mara          TYPE ty_mara,
+      gi_locked        TYPE i,
+      gi_lock_fail     TYPE i,
+      gi_amn_mismatch  TYPE i,
+      gi_amn_corrected TYPE i,
+      gt_email         TYPE STANDARD TABLE OF ty_email,
+      gi_email         TYPE ty_email,
+      gt_fldcat        TYPE STANDARD TABLE OF  lvc_s_fcat.
+
+FIELD-SYMBOLS: <gfs_al> TYPE ztmm_marc_mat_al.
+
+CONSTANTS: gc_m TYPE zmarc_mat_status VALUE 'M'.
+

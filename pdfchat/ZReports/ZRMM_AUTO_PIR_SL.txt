@@ -1,0 +1,107 @@
+*&---------------------------------------------------------------------*
+
+*=======================================================================
+*= Copyright © 2013 GE IS                                              =
+*= ALL RIGHTS RESERVED                                                 =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : zrmm_auto_pir_sl
+* Created by        : Sekhar Perala, 502277866
+* Transport Request : DE3K991991
+* RICEF Object No   : RICEF1974
+* Transaction code  : ZMM016
+* Change request No : GECHG0488738
+* Description       : This program will craete automatically PIR and SL for
+*                      PR's which are recieved from selection screen.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 28-May-2019        | GECHG0488738     |502277866 | Initial Development
+* 03-Jun-2019        | GECHG0488738     |502277866 | Added logic for formating error in ME11 bdc for NETPR
+* 04-Jun-2019        | GECHG0488738     |502277866 | Added logic for custom message for me11 and me01 BDC
+* 17-Jun-2019        | GECHG0488738     |502277866 | Added logic to restict for single plant in selection screen
+*                                                   and corrected the text message
+* 09-Jul-2019        | GECHG0532576     |502277866 | Added logic for EMAX option
+* 17-Jul-2019        | GECHG0532576     |502277866 | Modified  logic for  BOM Price calucclation for EMAX option
+* 19-Jul-2019        | GECHG0532576     |502277866 | Modified  logic for   retriving PB00 price  for EMAX option
+* 09-SEP-2019        | GECHG0588463     |502277866 | Added logic to update the material price
+* 12-SEP-2019        | GECHG0588463     |502277866 | modifed logic to pick correct tcode for bdc processing.
+* 16-SEP-2019        | GECHG0588463     |502277866 | modified logic for displaying correct message.
+* 10-OCT-2019        | GECHG0626527     |503119365 | Generation 4 logic implementation
+* 22-OCT-2019        | GECHG0626527     |503119365 | Fix issues for PIR/SL/MP - Status messages
+* 25-OCT-2019        | GECHG0626527     |503119365 | Fix issues for confirmation control key
+* 20-NOV-2019        | GECHG0626527     |503119365 | Currency conversion for net price
+* 04-Dec-2019        | GECHG0626527     |503119365 | Error message for unit conversions
+* 24-Feb-2020        | GECHG0717071     |503167886 | Update existing PIRs with recalculated price
+* 22-Apr-2020        | GECHG0791168     |503167886 | calculate the net PIR price for multilevel BOM.
+* 14-May-2020        | GECHG0812367     |503167886 | Incorporating additional product line 'Elevator switch' .
+*-----------------------------------------------------------------------------------------
+* DATE               | TR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*-----------------------------------------------------------------------------------------
+* 06-Dec-2019        |  DE3K995123      |503119365 | Additional logic for account assignment category 'M'
+* 04-Mar-2020        |  DE3K996267      |503167886 | Additional logic to fetch the SL details based on fixed vendor.
+* 22-Apr-2020        |  DE3K996954      |503167886 | logic to calculate the net PIR price for multilevel BOM.
+* 14-May-2020        |  DE3K997766      |503167886 | Incorporating additional product line 'Elevator switch' .
+* 20-Oct-2020        |  DE3K999829      |503167886 | Logic to Change the Material-plant specific status from 'IN' to 'BLANK'.
+* 02-Nov-2020        |  DE3K9A01D5      |503167886 | Logic to incorporate Date in updating the Status field.
+* 16-Nov-2020        |  DE3K9A01V4      |503167886 | Additional Logic to incorporate Date in updating the Status field.
+* 17-Dec-2020        |  DE3K9A02XK      |9X10070665| Changes in MR21 for multiple tabs after Material Ledger
+* 07-Apr-2021        |   DE3K9A03CB     |502319303| Changes in Emax UOM update
+* 15-Apr-2021        |  CHG0171620 DE3K9A062G   |502319303| Changes for adding entelliguard product hierachy
+* 18-Nov-2021        |  DE3K9A0AFD      |503119365 | Bug fixes
+* 23-Nov-2021        |  DE3K9A0AN9      |503119365 | Bug fixes
+* 23-Nov-2021        |  DE3K9A0AOY      |503119365 | Bug fixes
+* 08-Feb-2021        |  JE3K904608      |503119365 | Pic Sales order price instead of PNTP condition
+* 18-Mar-2022        |  JE3K905830      |503119365 | Fixed vendor for material instaed of template material
+* 30-Sep-2022        |  DE3K9A0G75      |USVERAY   | Added logic to remove
+* 21-NOV-2023        |  DE3K9A0NSH      |USPRSAH   | Added logic to create pir and sl on mulitple vendor
+*                    |                  |          | Added logic to , bifurcate records with error and convert to excel and send via email
+* Leading zeros from the material number.CHG2005584
+*-----------------------------------------------------------------------------------------
+REPORT  zrmm_auto_pir_sl.
+
+INCLUDE znmm_auto_pir_sl_top.
+
+INCLUDE znmm_auto_pir_sl_screen.
+
+INCLUDE znmm_auto_pir_sl_forms.
+
+INCLUDE znmm_auto_pir_sl_forms_mvpir.   "subroutines for multiple vendor pir logic          "USPRSAH END FOR RITM6080718
+
+
+START-OF-SELECTION.
+
+  PERFORM get_harcode_values.
+
+  PERFORM  get_pr_data.
+"check plant to use mulitple vendor pir logic , if not found in hardcoding table use existing logic on single vendor.
+                                                          "USPRSAH BEGIN FOR RITM6080718
+    READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY zkey  = 'MPIR'
+                                                         low = s_werks-low.
+  IF sy-subrc EQ 0 and gp_r2 is not INITIAL.
+
+  PERFORM template_data_mvpir.         "template data for multiple vendor
+
+  PERFORM  final_data_mvpir.            "final data for multiple vendor
+
+  PERFORM bcd_me11_me01_mvpir.          " bdc for for multiple vendor
+  else.                                                                                 "USPRSAH END FOR RITM6080718
+
+  PERFORM template_data.
+
+  PERFORM  final_data.
+
+  PERFORM bcd_me11_me01.
+endif.                                                                                                       "USPRSAH FOR RITM6080718
+
+  PERFORM send_error_to_email.    "Filter out records with any error in status,send those over email.        "USPRSAH FOR RITM6256388
+
+  PERFORM dispaly_data.
+

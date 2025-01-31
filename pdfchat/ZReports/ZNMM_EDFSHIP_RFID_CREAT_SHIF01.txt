@@ -1,0 +1,614 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZTMM_EDFSHIP_RFID_CREAT_SHIF01
+*&---------------------------------------------------------------------*
+*** Created by            : Abhishek Khandelwal (502412886)
+***                         Shashiprabha Shetty (502565482)
+*** Creation Date         : 18/07/2016
+*** Transport Request #   : DE3K973169
+*** RICEF Object No #     : RICEF1752
+*** Change request No     : CHG2219524
+*** Transaction code      : ZMM733N
+*** Description           : The program has screen interface for creating
+*                           Shipment which could be opened through RFID Scanner PDA.
+*                           The program has 5 screens for scanning delivery, Packaging
+*                           Material, 2D barcode SSCC Label, display scanned data,
+*                           display create shipment log. The program calls
+*                           BAPI_CREATE_SHIPMENT to create Shipment and store
+*                           the label data to table ZTMM_EDF_LABEL and
+*                           update existing tables ZTMM_EDFSHIP, ZTMM_EDFLABEL.
+*                           This program is called through tcode ZMM733N which is called
+*                           through ITS service and hence can be opened
+*                           on RFID Scanner PDA through generated url.
+*****************************************************************************************
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_SHIPMENT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_shipment .
+
+
+  SORT it_zlabel_scan BY zhu.
+
+*Assiging transportation planning point from Packaging material screen
+  wa_headerdata-trans_plan_pt = g_trp_point.
+*Assigning Shipment type 'GEIS Standard shipmt'
+  wa_headerdata-shipment_type = c_0001.
+
+  SORT it_zlabel_scan BY zhu zvbeln zposnr zmatnr.
+
+  CLEAR: g_packqty, g_last, it_zlabel_scan1.
+
+*Consolidating the records of a same HU, Delivery, item, material in a single
+*record and appending to another internal table it_zlabel_scan1.
+  LOOP AT it_zlabel_scan INTO wa_zlabel_scan.
+    g_newtabix = sy-tabix.
+    g_newtabix = g_newtabix + 1.
+
+    g_packqty = g_packqty + wa_zlabel_scan-zmenge.
+
+    READ TABLE it_zlabel_scan
+    INTO wa_zlabel_scan1 INDEX g_newtabix.
+    IF sy-subrc IS INITIAL.
+
+      IF wa_zlabel_scan-zhu    NE wa_zlabel_scan1-zhu
+      OR wa_zlabel_scan-zmatnr NE wa_zlabel_scan1-zmatnr
+      OR wa_zlabel_scan-zvbeln NE wa_zlabel_scan1-zvbeln
+      OR wa_zlabel_scan-zposnr NE wa_zlabel_scan1-zposnr.
+        wa_zlabel_scan-zmenge = g_packqty.
+*If the next record in internal table has difference
+        APPEND wa_zlabel_scan TO it_zlabel_scan1.
+        CLEAR: g_packqty.
+      ENDIF.
+    ENDIF.
+
+    AT LAST.
+      g_last = c_x.
+    ENDAT.
+
+    IF g_last = c_x.
+      wa_zlabel_scan-zmenge = g_packqty.
+      APPEND wa_zlabel_scan TO it_zlabel_scan1.
+      CLEAR: g_packqty.
+    ENDIF.
+
+  ENDLOOP.
+
+*Filling internal tables for Shipment creation BAPI
+  CLEAR: g_pallet, g_vbeln.
+  LOOP AT it_zlabel_scan1 INTO wa_zlabel_scan.
+*Whenever Delivery of record changes, appending delivery record
+    IF g_vbeln NE wa_zlabel_scan-zvbeln.
+      CLEAR: wa_itemdata.
+      wa_itemdata-delivery = wa_zlabel_scan-zvbeln.
+      APPEND wa_itemdata TO it_itemdata.
+    ENDIF.
+
+*Whenever the Pallet/hu changes, filling header entry for HU
+    IF g_pallet NE wa_zlabel_scan-zhu.
+      CLEAR: g_hdl_unit_exid, g_val.
+      g_val = wa_zlabel_scan-zhu.
+      g_hdl_unit_exid = g_val.
+      CONCATENATE c_$ g_hdl_unit_exid INTO g_hdl_unit_exid.
+
+      CLEAR: wa_hdunheader.
+      wa_hdunheader-hdl_unit_exid = g_hdl_unit_exid. "Handling unit
+      wa_hdunheader-ship_mat      = wa_zlabel_scan-zvhilm."Packaging Material
+      APPEND wa_hdunheader TO it_hdunheader.
+    ENDIF.
+
+*Filling item entry for HU
+    CLEAR: wa_hdunitem.
+    wa_hdunitem-deliv_numb = wa_zlabel_scan-zvbeln.
+    wa_hdunitem-deliv_item = wa_zlabel_scan-zposnr.
+    wa_hdunitem-material   = wa_zlabel_scan-zmatnr.
+    wa_hdunitem-pack_qty   = wa_zlabel_scan-zmenge.    "Pack Qty
+    wa_hdunitem-hdl_unit_exid_into = g_hdl_unit_exid."Handling unit
+    APPEND wa_hdunitem TO it_hdunitem.
+
+    g_pallet = wa_zlabel_scan-zhu.
+    g_vbeln  = wa_zlabel_scan-zvbeln.
+  ENDLOOP.
+
+
+  CLEAR: it_return.
+  CALL FUNCTION 'BAPI_SHIPMENT_CREATE'
+    EXPORTING
+      headerdata           = wa_headerdata
+* IMPORTING
+*   TRANSPORT            =
+*   SHIPMENTGUID         =
+    TABLES
+*   HEADERDEADLINE       =
+     itemdata             = it_itemdata
+*   STAGEDATA            =
+*   STAGEDEADLINE        =
+*   ITEMONSTAGE          =
+*   ADDRESS              =
+     hdunheader           = it_hdunheader
+     hdunitem             = it_hdunitem
+      return               = it_return
+            .
+
+  CLEAR: wa_return.
+  READ TABLE it_return INTO wa_return
+  WITH KEY type = c_s id = c_vw number = c_488.
+  IF sy-subrc IS INITIAL.
+    PERFORM commit_work.
+
+
+    CONDENSE wa_return-message_v1 .
+    MOVE wa_return-message_v1 TO g_tknum.
+
+*Filling Shipment created number in the internal table of scanned data
+    LOOP AT it_zlabel_scan INTO wa_zlabel_scan.
+      wa_zlabel_scan-ztknum = g_tknum.
+      MODIFY it_zlabel_scan FROM wa_zlabel_scan
+      INDEX sy-tabix TRANSPORTING ztknum .
+    ENDLOOP.
+
+*Inserting Scanned data of shipment to Ztable ztmm_edf_label
+    MODIFY ztmm_edf_label FROM TABLE it_zlabel_scan .
+    IF sy-subrc IS INITIAL.
+      PERFORM commit_work.
+    ENDIF.
+
+    SORT it_zlabel_scan1 BY zvbeln.
+    DELETE ADJACENT DUPLICATES FROM it_zlabel_scan1 COMPARING zvbeln.
+
+    IF it_zlabel_scan1[] IS NOT INITIAL.
+      CLEAR: it_vttp1[].
+      SELECT tknum vbeln FROM vttp INTO TABLE it_vttp1
+            FOR ALL ENTRIES IN it_zlabel_scan1
+            WHERE tknum = g_tknum
+              AND vbeln = it_zlabel_scan1-zvbeln.
+      CHECK sy-subrc EQ 0.
+    ENDIF.
+    SORT it_vttp1 BY vbeln.
+
+* adding shiippment no to it_ship intaranal table to store values in ztmm_edfship table
+    CLEAR: it_ship[].
+    LOOP AT it_vttp1 INTO wa_vttp1.
+      MOVE: wa_vttp1-tknum TO wa_ship-shipment.
+      APPEND wa_ship TO it_ship.
+    ENDLOOP.
+    CLEAR : wa_vttp1,wa_ship.
+
+
+* retrive internal handling number from vekp table for
+*all values in it_ship internal table
+    IF NOT it_ship IS INITIAL.
+      CLEAR: it_vekp[].
+      SELECT venum exidv FROM vekp
+                   INTO TABLE it_vekp
+                   FOR ALL ENTRIES IN it_ship
+      WHERE vpobj = '04' AND vpobjkey = it_ship-shipment.
+      CHECK sy-subrc EQ 0.
+      SORT it_vekp BY venum.
+    ENDIF.
+
+*retriving item values from vepo for all values in it_vekp.
+    IF NOT it_vekp IS INITIAL.
+      CLEAR: it_vepo[].
+      SELECT venum vepos vbeln posnr
+        FROM vepo
+        INTO TABLE it_vepo
+        FOR ALL ENTRIES IN it_vekp
+        WHERE venum = it_vekp-venum.
+      IF sy-subrc EQ 0.
+        SORT it_vepo BY venum ASCENDING.
+      ENDIF.
+    ENDIF.
+
+*retriving values from lips for all values in it_zlabel_scan1 internal table
+    IF NOT it_zlabel_scan1 IS INITIAL.
+      CLEAR: it_lips2[].
+      SELECT vbeln posnr
+        FROM lips
+        INTO TABLE it_lips2
+        FOR ALL ENTRIES IN it_zlabel_scan1
+        WHERE vbeln = it_zlabel_scan1-zvbeln.
+      IF sy-subrc EQ 0.
+        SORT it_lips2 BY vbeln posnr.
+      ENDIF.
+    ENDIF.
+
+*Assigning the HU number to the vepo records
+    SORT it_vepo BY venum vepos.
+    CLEAR: g_hucal, g_venum.
+    LOOP AT it_vepo INTO wa_vepo.
+      IF wa_vepo-venum NE g_venum.
+        g_hucal = g_hucal + 1.
+      ENDIF.
+      wa_vepo-hu = g_hucal.
+      MODIFY it_vepo FROM wa_vepo INDEX sy-tabix TRANSPORTING hu.
+      g_venum = wa_vepo-venum.
+    ENDLOOP.
+
+*Assigning the HU number to the scanned data records
+    SORT it_zlabel_scan BY zhu.
+    CLEAR: g_hucal, g_venum.
+    LOOP AT it_zlabel_scan INTO wa_zlabel_scan.
+
+      MOVE wa_zlabel_scan TO wa_zlabel_scan2.
+      IF g_venum NE wa_zlabel_scan-zhu.
+        g_hucal = g_hucal + 1.
+      ENDIF.
+      wa_zlabel_scan2-hu = g_hucal.
+      APPEND wa_zlabel_scan2 TO it_zlabel_scan2.
+      g_venum = wa_zlabel_scan-zhu.
+    ENDLOOP.
+
+*Sorting for parallel cursor use
+    SORT it_zlabel_scan2 BY hu zvbeln zposnr.
+
+    CLEAR: g_venum, g_tabix.
+    SORT it_vepo BY vbeln venum vepos.
+    CLEAR: g_hln, g_lpi, g_del, g_ship_unit, it_edfship[], wa_zedfship.
+    LOOP AT it_vepo INTO wa_vepo.
+      IF wa_vepo-vbeln <> g_vbeln1.
+        g_hln = 1.
+        g_del = c_x.
+      ELSE.
+        CLEAR g_del.
+      ENDIF.
+      CLEAR g_vbeln1.
+      g_vbeln1 = wa_vepo-vbeln.
+
+      CLEAR: wa_vttp1.
+      READ TABLE it_vttp1 INTO wa_vttp1
+      WITH KEY vbeln = wa_vepo-vbeln BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        CLEAR: wa_lips2.
+        READ TABLE it_lips2 INTO wa_lips2
+         WITH KEY vbeln = wa_vepo-vbeln
+                  posnr = wa_vepo-posnr BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          CLEAR: wa_zlabel_scan2.
+          READ TABLE it_zlabel_scan2 INTO wa_zlabel_scan2
+          WITH KEY hu     = wa_vepo-hu
+                   zvbeln = wa_vepo-vbeln
+                   zposnr = wa_vepo-posnr BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            g_tabix = sy-tabix.
+            CLEAR: wa_zlabel_scan2.
+            LOOP AT it_zlabel_scan2 INTO wa_zlabel_scan2 FROM g_tabix.
+              IF    wa_zlabel_scan2-hu     = wa_vepo-hu    AND
+                    wa_zlabel_scan2-zvbeln = wa_vepo-vbeln AND
+                    wa_zlabel_scan2-zposnr = wa_vepo-posnr.
+
+                CLEAR: g_from_sno, g_to_sno.
+                PERFORM serial_no_check USING wa_zlabel_scan2
+                                        CHANGING g_from_sno g_to_sno.
+
+*****   retriving information to fill it_edfship internal table.
+                wa_zedfship-mandt      = sy-mandt.
+                wa_zedfship-matnr      = wa_zlabel_scan2-zmatnr.
+                wa_zedfship-zserialfrm = g_from_sno.
+                wa_zedfship-zserialto  = g_to_sno.
+                wa_zedfship-zsscc = wa_zlabel_scan2-zsscc.
+                wa_zedfship-vbeln = wa_zlabel_scan2-zvbeln.
+                wa_zedfship-posnr = wa_zlabel_scan2-zposnr.
+                wa_zedfship-tknum = wa_vttp1-tknum.
+                CONDENSE wa_zlabel_scan2-zmenge.
+                SHIFT wa_zlabel_scan2-zmenge LEFT DELETING LEADING space.
+                SHIFT wa_zlabel_scan2-zmenge LEFT DELETING LEADING '0'.
+                wa_zedfship-menge = wa_zlabel_scan2-zmenge."gs_del-menge.
+                wa_zedfship-venum = wa_vepo-venum.
+                wa_zedfship-ship_time  =  sy-uzeit.
+                wa_zedfship-ship_date  = sy-datum.
+                IF g_ship_unit NE wa_vepo-venum.
+                  g_hln = g_hln + 1.
+                  g_lpi = g_hln.
+                  g_hln = g_hln + 1.
+                  wa_zedfship-hlevel = g_hln.
+                  wa_zedfship-psgnum = g_lpi.
+                ELSE.
+                  IF g_del IS INITIAL.
+                    g_hln = g_hln + 1.
+                    wa_zedfship-hlevel = g_hln.
+                    wa_zedfship-psgnum = g_lpi.
+                  ELSE.
+                    g_hln = g_hln + 1.
+                    g_lpi = g_hln.
+                    g_hln = g_hln + 1.
+                    wa_zedfship-hlevel = g_hln.
+                    wa_zedfship-psgnum = g_lpi.
+                  ENDIF.
+                ENDIF.
+                g_ship_unit = wa_vepo-venum.
+                APPEND wa_zedfship TO it_edfship.
+                CLEAR g_del.
+              ELSE.
+                EXIT.
+              ENDIF.
+            ENDLOOP.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+
+    CLEAR : wa_zedfship,wa_vepo,wa_lips2.
+    IF NOT it_edfship[] IS INITIAL.
+***** adding all shippment details to the table ztmm_edfship
+      MODIFY ztmm_edfship FROM TABLE it_edfship.
+      IF sy-subrc IS INITIAL.
+        PERFORM commit_work.
+      ENDIF.
+    ENDIF.
+
+    CLEAR : wa_zedfship.
+    SORT it_edfship BY venum vbeln posnr tknum psgnum hlevel.
+
+    CLEAR: it_edfpallet[].
+    LOOP AT it_vepo INTO wa_vepo.
+      READ TABLE it_edfship INTO wa_zedfship
+                 WITH KEY venum  = wa_vepo-venum
+                          vbeln  = wa_vepo-vbeln
+                          posnr  = wa_vepo-posnr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        CLEAR: wa_zedfpallet.
+        wa_zedfpallet-mandt = sy-mandt.
+        PERFORM compute_sscc_code USING    wa_zedfship-venum
+                                  CHANGING g_sscc.
+        wa_zedfpallet-zsscc      = g_sscc.
+        wa_zedfpallet-vbeln      = wa_zedfship-vbeln.
+        wa_zedfpallet-hlevel     = wa_zedfship-psgnum.
+        wa_zedfpallet-psgnum     = c_000001.
+        wa_zedfpallet-ship_time  =  sy-uzeit.
+        wa_zedfpallet-tknum      =  wa_zedfship-tknum.
+        wa_zedfpallet-ship_date  = sy-datum.
+        APPEND wa_zedfpallet TO it_edfpallet.
+      ENDIF.
+
+    ENDLOOP.
+
+*Inserting records to ztable it_edfpallet.
+    IF NOT it_edfpallet[] IS INITIAL.
+      MODIFY ztmm_edfpallet FROM TABLE it_edfpallet.
+      IF sy-subrc IS INITIAL.
+        PERFORM commit_work.
+      ENDIF.
+    ENDIF.
+
+  ELSE.
+    wa_return-message =
+    'ZTMM_EDF_LABEL, ZTMM_EDFSHIP, ZTMM_EDFPALLET TABLE NOT UPDATED'(051).
+    APPEND wa_return TO it_return.
+  ENDIF.
+
+  CALL SCREEN '9220'.
+
+ENDFORM.                    " CREATE_SHIPMENT
+*&---------------------------------------------------------------------*
+*&      Form  COMPUTE_SSCC_CODE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM compute_sscc_code USING p_wa_zedfship_venum CHANGING p_g_sscc .
+
+  DATA: l_venum     TYPE ztmm_edfship-venum,
+        l_zsscc(30) TYPE c,
+        l_index     TYPE i,
+        l_iter      TYPE i,
+        l_len       TYPE i,
+        l_char(10)  TYPE c,
+        l_temp      TYPE i,
+        l_ctrl      TYPE c,
+        l_sum       TYPE i,
+        lc_sscc(8) VALUE '35603545'.
+
+  IF NOT p_wa_zedfship_venum IS INITIAL.
+    CLEAR: l_venum.
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input  = p_wa_zedfship_venum
+      IMPORTING
+        output = l_venum
+      EXCEPTIONS
+        OTHERS = 1.
+  ENDIF.
+  CLEAR: p_g_sscc, l_sum, l_iter, l_char, l_len, l_ctrl.
+  CONCATENATE lc_sscc l_venum+1 INTO p_g_sscc.
+  CONDENSE p_g_sscc.
+  l_zsscc = p_g_sscc.
+  DO 17 TIMES.
+    CLEAR l_temp.
+    l_temp = l_zsscc+l_iter(1).
+    l_index = sy-index MOD 2.
+    IF l_index = 0.
+      l_sum = l_sum + l_temp.
+    ELSE.
+      l_sum = l_sum + 3 * l_temp.
+    ENDIF.
+    ADD 1 TO l_iter.
+  ENDDO.
+  MOVE l_sum TO l_char.
+  CONDENSE  l_char.
+  l_len = strlen( l_char ).
+  l_len = l_len - 1.
+  l_ctrl = l_char+l_len(1).
+  IF l_ctrl = '0'.
+    l_ctrl = 0.
+  ELSE.
+    l_ctrl = 10 - l_ctrl.
+  ENDIF.
+  CONCATENATE p_g_sscc l_ctrl INTO p_g_sscc.
+  CONDENSE p_g_sscc.
+ENDFORM.                    " COMPUTE_SSCC_CODE
+*&---------------------------------------------------------------------*
+*&      Form  SERIAL_NO_CHECK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_WA_ZLABEL_SCAN  text
+*      <--P_G_FROM_SNO  text
+*      <--P_G_TO_SNO  text
+*----------------------------------------------------------------------*
+FORM serial_no_check  USING    p_wa_zlabel_scan TYPE ty_zlabel_scan2
+                      CHANGING p_g_from_sno TYPE ztmm_edf_sno
+                               p_g_to_sno TYPE ztmm_edf_sno.
+
+  IF p_wa_zlabel_scan-zserialno1 IS NOT INITIAL.
+    p_g_from_sno = p_wa_zlabel_scan-zserialno1.
+  ENDIF.
+
+  IF p_wa_zlabel_scan-zserialno10 IS NOT INITIAL.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno10.
+  ELSEIF p_wa_zlabel_scan-zserialno9 IS NOT INITIAL.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno9.
+  ELSEIF p_wa_zlabel_scan-zserialno8 IS NOT INITIAL.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno8.
+  ELSEIF p_wa_zlabel_scan-zserialno7 IS NOT INITIAL.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno7.
+  ELSEIF p_wa_zlabel_scan-zserialno6 IS NOT INITIAL.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno6.
+  ELSEIF p_wa_zlabel_scan-zserialno5 IS NOT INITIAL.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno5.
+  ELSEIF p_wa_zlabel_scan-zserialno4 IS NOT INITIAL.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno4.
+  ELSEIF p_wa_zlabel_scan-zserialno3 IS NOT INITIAL.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno3.
+  ELSEIF p_wa_zlabel_scan-zserialno2 IS NOT INITIAL.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno2.
+  ELSE.
+    p_g_to_sno = p_wa_zlabel_scan-zserialno1.
+  ENDIF.
+ENDFORM.                    " SERIAL_NO_CHECK
+*&---------------------------------------------------------------------*
+*&      Form  DELETE_SHIPMENT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM delete_shipment .
+
+  DATA: l_tknum1          TYPE tknum,
+        it_zedfship       TYPE TABLE OF ztmm_edfship ,
+        it_zedfpallet     TYPE TABLE OF ztmm_edfpallet,
+        it_ztmm_edf_label TYPE TABLE OF ztmm_edf_label,
+        l_vbeln           TYPE likp-vbeln,
+        l_exist           TYPE char1,
+        l_del             TYPE char1.
+
+  IF g_shipment IS INITIAL.
+    MESSAGE 'Enter Shipment number'(042) TYPE 'S' DISPLAY LIKE 'E'.
+    RETURN.
+  ELSE.
+    CLEAR: l_tknum1.
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input  = g_shipment
+      IMPORTING
+        output = l_tknum1
+      EXCEPTIONS
+        OTHERS = 1.
+    CHECK sy-subrc EQ 0.
+****  validating if shippment has delivery or not
+    CLEAR: l_vbeln.
+    SELECT SINGLE vbeln
+      FROM vttp
+      INTO l_vbeln
+     WHERE tknum = l_tknum1.
+
+    IF sy-subrc EQ 0.
+      MESSAGE 'Shipment exists with delivery so cant be deleted'(044) TYPE 'S'
+      DISPLAY LIKE 'E'.
+      RETURN.
+    ELSE.
+
+      CLEAR: l_exist, l_del.
+      l_del = c_x.
+**** validating if shippment no exist in ztmm_edfship
+      CLEAR: it_zedfship.
+      SELECT *
+        FROM ztmm_edfship
+        INTO TABLE it_zedfship
+       WHERE tknum = l_tknum1.
+      IF sy-subrc IS INITIAL.
+        IF it_zedfship[] IS NOT INITIAL.
+          l_exist = c_x.
+          DELETE ztmm_edfship FROM TABLE it_zedfship.
+          IF sy-subrc IS NOT INITIAL.
+            CLEAR l_del.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+      CLEAR: it_zedfpallet.
+      SELECT * FROM  ztmm_edfpallet
+        INTO TABLE it_zedfpallet
+       WHERE tknum = l_tknum1.
+      IF sy-subrc IS INITIAL.
+        IF it_zedfpallet[] IS NOT INITIAL.
+          l_exist = c_x.
+          DELETE ztmm_edfpallet FROM TABLE it_zedfpallet.
+          IF sy-subrc IS NOT INITIAL.
+            CLEAR l_del.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+      CLEAR: it_ztmm_edf_label.
+      SELECT * FROM ztmm_edf_label INTO TABLE it_ztmm_edf_label
+      WHERE ztknum = l_tknum1.
+      IF sy-subrc IS INITIAL.
+        IF it_ztmm_edf_label[] IS NOT INITIAL.
+          l_exist = c_x.
+          DELETE ztmm_edf_label FROM TABLE it_ztmm_edf_label.
+          IF sy-subrc IS NOT INITIAL.
+            CLEAR l_del.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+      IF l_exist NE c_x.
+        MESSAGE
+        'Shipment does not exist in ZTMM_EDFSHIP/ZTMM_EDFPALLET/ZTMM_EDF_LABEL'(059)
+        TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ELSE.
+        IF l_del = c_x.
+          PERFORM commit_work.
+          CONCATENATE 'Shipment Number'(046) l_tknum1
+          'was successfully deleted'(047) INTO g_message
+          SEPARATED BY space.
+          MESSAGE g_message TYPE 'S'.
+          CLEAR: g_shipment.
+          RETURN.
+        ELSE.
+          CONCATENATE 'Shipment Number'(046) l_tknum1
+          'is not successfully deleted'(048) INTO g_message SEPARATED BY space.
+          MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " DELETE_SHIPMENT
+*&---------------------------------------------------------------------*
+*&      Form  COMMIT_WORK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM commit_work .
+
+  CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+    EXPORTING
+      wait = 'X'.
+* IMPORTING
+*   RETURN        =
+
+ENDFORM.                    " COMMIT_WORK
+

@@ -1,0 +1,80 @@
+*&---------------------------------------------------------------------*
+*& Report
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+* Name             :  ZRMM_PO_TAX_COMP_N_UPD_REPORT                       *
+* Created by       : Mukesh K                          *
+* Transport Request: DE3K940921                                           *
+* CR No            : CHG0479283                                           *
+* RICEF Object No  : RICEF1300                                            *
+* Transaction code : ZMM104                                               *
+*Description       : copied from ZRMM_PO_TAX_COMPARISON_REPORT,
+*                    to compare upadate the tax code on PO line           *
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE       |  TR NO.      | CR No.     |CHANGED BY  |DESCRIPTION OF CHANGE
+*************************************************************************
+
+
+REPORT  zrmm_po_tax_comp_n_upd_report.
+
+** Declaring all the declarations
+*INCLUDE znrmm_po_tax_report_top1.
+INCLUDE ZNMM_PO_TAX_REPORT_TOP.
+*INCLUDE znrmm_po_tax_report_top.
+
+** Getting selection screen display
+*INCLUDE znrmm_po_tax_report_sel1.
+INCLUDE ZNMM_PO_TAX_REPORT_SEL.
+*INCLUDE znrmm_po_tax_report_sel.
+
+AT SELECTION-SCREEN.
+
+  IF s_bedat IS INITIAL AND
+     s_ebeln IS INITIAL AND
+     s_ekorg IS INITIAL AND
+     s_bsart IS INITIAL AND
+     s_lifnr IS INITIAL AND
+     s_matnr IS INITIAL AND
+     s_matkl IS INITIAL AND
+     s_mwskz IS INITIAL AND
+     s_ernam IS INITIAL AND
+     s_ekgrp IS INITIAL.
+    MESSAGE e090(zmm) WITH 'Please enter atleast one selection'(016).
+  ENDIF.
+
+*************************************************************************
+**    S T A R T - O F - S E L E C T I O N                               *
+*************************************************************************
+
+START-OF-SELECTION.
+  gv_repid = sy-repid.
+** Fetch the required records from various tables
+  PERFORM fetch_records.
+
+** Preparing fieldcat to build output display
+  PERFORM fieldcatalog.
+
+** Looping all tables to get the required data
+  PERFORM prepare_data.
+  IF p_tax1 IS NOT INITIAL.
+    PERFORM update_taxcode.
+  ENDIF.
+
+END-OF-SELECTION.
+
+** Displaying final output
+  IF p_tax1 IS NOT INITIAL.
+    PERFORM display_errors.
+  ELSE.
+    PERFORM display_alv.
+  ENDIF.
+*  INCLUDE znrmm_po_tax_report_forms1.
+*  INCLUDE znrmm_po_tax_report_forms.
+  INCLUDE ZNMM_PO_TAX_REPORT_FORMS.
+

@@ -1,0 +1,142 @@
+*==========================================================================================
+*= Copyright ©  2000 GE ENERGY                                                            =
+*= ALL RIGHTS RESERVED                                                                    =
+*==========================================================================================
+*==========================================================================================
+* PROGRAM DOCUMENTATION                                                                   *
+*==========================================================================================
+*Created by             : Chiranjeev chintam                                              *
+*Creation Date          : 11-Mar-2014
+*CR number              : CHG0479115                                                      *
+*Transport Request #    : DE3K919054                                                      *
+*RICEF Object No #      : RICEF1116
+*T-code                 : ZMM953                                                          *
+*Description            : This report will Based on sales order and WBS element as account
+*                         assignment in the production order  by  plant wise and
+*                         MRP Controller and Work centre and Production Order and         *
+*                         Order Status.                                                   *
+*==========================================================================================
+* MODIFICATION LOG
+*---------------------------------------------------------------------------------------
+* Date        |CR number       |Changed By  |Description of change
+********************************************************************************
+* 28/04/2014   CHG0479115     Chiranjeev Chintam  remove the condition for sales order and wbs
+*                                                 element in the AFPO select statement.
+* 06/05/2014   CHG0479115     Chiranjeev Chintam  change the translations for Poland and
+*                                                 code change for material internal conversion.
+* 13/05/2014   CHG0479115     Chiranjeev Chintam  change the translations for Poland.
+* 12/06/2014   CHG0479115     Sumit Srivastava    Commented the code for Unix Download
+* 18/06/2014   CHG0479115     Laxma Reddy K       Date format is changed for three date fields.
+* 09/07/2014   INC4444936     Sreenivasa Pemi     Date format is changed for three date fields.
+* 10/07/2014   INC4460759     Laxma Reddy K       Needed use '[]' Explicitly for some intenal
+*                                                 tables at places wherever required to
+*                                                 differentiate from work areas as declarations
+*                                                 are modified in previous change.
+* 11/07/2014   INC4460759     Laxma Reddy K       For all entries condition related changes
+*                                                 for the second select statement of AFPO.
+* 15/07/2014   RITM2740509    Laxma Reddy K       New requirement: Logic for fetching material
+*                                                 description is changed.
+**************************************************************************************************
+* 22/07/2014   CHG0765866 Thamme Bipinkumar   New requirement: Logic for  MRP controller
+*                                                 description field is not downloaded into excel sheet.
+*********************************************************************************************************
+* 11/11/2014  DE3K954562 INC5327054 502347739  New requirement: Logic for Application Server download on background execution
+*********************************************************************************************************
+*********************************************************************************************************
+* 08/12/2014  DE3K956410 502287934  Program correction done for operation qty for getting the corrct operation qty value when
+*                                              the orders are passed in bulk
+*********************************************************************************************************
+*12/12/2014  CHG0993110  DE3K956910 502347739  RITM3672060 New requirement: Sending Data to SFTP through Proxy
+**********************************************************************************************************
+*29/12/2014  CHG0993110  DE3K957684 502347739  RITM3672060 changed sy-tcode for the proxy send data
+**********************************************************************************************************
+*30/12/2014 CHG0996276 INC5660050 DE3K957692 502347739 Creation date should display for huge data
+**********************************************************************************************************
+*********************************************************************************************************
+*09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060 New requirement: Calling same proxy for multiple times with split count
+**********************************************************************************************************
+*********************************************************************************************************
+*19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060 New requirement: ALV Display Radio Button
+**********************************************************************************************************
+*********************************************************************************************************
+*09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060 comma field as the delimiter for the quantity and price fields
+*                                                          and applied queues for proxy
+**********************************************************************************************************
+* 21-Sep-2015       | CHG1459249      |502209589  | Time stamp incorporated to the proxy file name
+**********************************************************************************************************
+* 17-AUG-2018       | GECHG0267410     |502765654  | Improve performance of report by adding parallel cusror and binary search.
+**********************************************************************************************************
+* 26-Sep-2019       |GECHG0607674     | 502225516 | gui_download fm replaced X with space DE3K993879
+*                                                        GERITM5629368CR#
+**********************************************************************************************************
+REPORT zrmm_capacity
+         NO STANDARD PAGE HEADING
+         LINE-SIZE 255
+         LINE-COUNT 65(0)
+         MESSAGE-ID zmm.
+*&----------------------------------------------------------------------*
+*&  INCLUDE PROGRAMS
+*&----------------------------------------------------------------------*
+INCLUDE znmm_capacity_top.    " All top declaration
+INCLUDE znmm_capacity_selscr. "selection screen design.
+*****Start of Comment By 502237354(Sumit) - 12/06/2014
+*INITIALIZATION.
+*  IF p_unix = 'X'.
+*    "populate  unixfile path from hardcoded enrtries table ztuhcd1
+*    PERFORM getunixpath.
+*  ENDIF.
+*****End of Comment By 502237354(Sumit) - 12/06/2014
+*Begin of changes DE3K954562 INC5327054 502347739 on 18.11.2014
+INITIALIZATION.
+
+  CONCATENATE gc_rep_name sy-sysid gc_rep_name1 gc_fname sy-datum gc_fname1 sy-uzeit gc_fname2 INTO p_fname.
+*End of changes DE3K954562 INC5327054 502347739 on 18.11.2014
+*&----------------------------------------------------------------------*
+*& S T A R T    O F    S E L E C T I O N
+*&----------------------------------------------------------------------*
+START-OF-SELECTION.
+  PERFORM f_get_afpo.
+  IF  gt_afpo[] IS INITIAL.
+    MESSAGE e070(zmm) WITH text-029.
+    EXIT.
+  ENDIF.
+  PERFORM f_get_afko.
+  PERFORM f_get_afvc.
+  PERFORM f_get_afvv.
+  PERFORM f_cal_labour.
+  PERFORM f_get_crhd.
+  PERFORM f_get_soqty.
+  PERFORM f_get_dsnam.
+  PERFORM f_get_kunnr.
+  PERFORM f_get_crtx.
+  PERFORM f_get_mbew.
+  PERFORM f_get_aufk.
+  PERFORM f_get_marc.
+  PERFORM f_get_makt.
+  PERFORM build_field_catalog.          "building the field catalog
+*&----------------------------------------------------------------------*
+*& END O F  S E L E C T I O N
+*&----------------------------------------------------------------------*
+END-OF-SELECTION.
+  PERFORM f_output.
+  IF p_excel EQ 'X'.
+    PERFORM f_excel_download.
+  ELSEIF p_appl EQ 'X'.                " added by 11/11/2014  DE3K954562 INC5327054 502347739
+    PERFORM f_appserver_download.  "added by 11/11/2014  DE3K954562 INC5327054 502347739
+  ENDIF.
+
+*****Start of Comment By 502237354(Sumit) - 12/06/2014
+*  IF p_unix = 'X'.
+*
+*    PERFORM f_move_unix.
+*    PERFORM f_unix_download.          "sending data to unix system.
+*  ENDIF.
+*****End of Comment By 502237354(Sumit) - 12/06/2014
+  IF p_alv EQ gc_flag .                  "added by 19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+    PERFORM display_output.             " Display Alv output
+  ENDIF.                                  "added by 19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+  IF p_ftp EQ gc_flag.                 "added by 19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+    PERFORM proxy_send_data.            " Added by 502347739 DE3K956910 CHG0993110 RITM3672060 on 15.12.2014
+  ENDIF.                                "added by 19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+  INCLUDE znmm_capacity_process.      "All subroutines
+

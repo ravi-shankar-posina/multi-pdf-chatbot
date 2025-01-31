@@ -1,0 +1,385 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PO_CLEAR_CC_FORM
+*&---------------------------------------------------------------------*
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  UPLOAD_FILE
+*&---------------------------------------------------------------------*
+FORM upload_file.
+
+  TYPES: BEGIN OF lty_upld_file,
+          ebeln TYPE ekpo-ebeln,
+          ebelp TYPE ekpo-ebelp,
+         END OF lty_upld_file.
+  DATA: lt_upld_file TYPE TABLE OF lty_upld_file.
+  DATA: lw_upld_file LIKE LINE  OF lt_upld_file.
+  DATA: lv_file      TYPE string.
+
+  lv_file = p_fileup.
+  CALL FUNCTION 'GUI_UPLOAD'
+    EXPORTING
+      filename                = lv_file
+      filetype                = 'ASC'
+    TABLES
+      data_tab                = lt_upld_file
+    EXCEPTIONS
+      file_open_error         = 1
+      file_read_error         = 2
+      no_batch                = 3
+      gui_refuse_filetransfer = 4
+      invalid_type            = 5
+      no_authority            = 6
+      unknown_error           = 7
+      bad_data_format         = 8
+      header_not_allowed      = 9
+      separator_not_allowed   = 10
+      header_too_long         = 11
+      unknown_dp_error        = 12
+      access_denied           = 13
+      dp_out_of_memory        = 14
+      disk_full               = 15
+      dp_timeout              = 16
+      OTHERS                  = 17.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+       WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+  LOOP AT lt_upld_file INTO lw_upld_file.
+    CLEAR gw_output.
+    IF lw_upld_file-ebeln IS INITIAL.
+      gw_output-ebeln   = lw_upld_file-ebeln.
+      gw_output-ebelp   = lw_upld_file-ebelp.
+      gw_output-status  = 'Error'.
+      gw_output-message = 'PO Number cannot be Blank'.
+      APPEND gw_output TO gt_output.
+      CONTINUE.
+    ELSE.
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = lw_upld_file-ebeln
+        IMPORTING
+          output = gw_output-ebeln.
+    ENDIF.
+
+    IF lw_upld_file-ebelp IS INITIAL.
+      gw_output-ebeln   = lw_upld_file-ebeln.
+      gw_output-ebelp   = lw_upld_file-ebelp.
+      gw_output-status  = 'Error'.
+      gw_output-message = 'PO line Number cannot be Blank'.
+      APPEND gw_output TO gt_output.
+      CONTINUE.
+    ELSE.
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = lw_upld_file-ebelp
+        IMPORTING
+          output = gw_output-ebelp.
+    ENDIF.
+    APPEND gw_output TO gt_output.
+  ENDLOOP.
+ENDFORM.                    " UPLOAD_FILE
+
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  CHECK_DATA
+*&---------------------------------------------------------------------*
+FORM check_data .
+  TYPES: BEGIN OF lty_ekpo,
+          ebeln TYPE ekpo-ebeln,
+          ebelp TYPE ekpo-ebelp,
+          loekz TYPE ekpo-loekz,
+          elikz TYPE ekpo-elikz,
+          erekz TYPE ekpo-erekz,
+         END OF lty_ekpo.
+
+  TYPES: BEGIN OF lty_ekbe,
+          ebeln TYPE ekbe-ebeln,
+          ebelp TYPE ekbe-ebelp,
+          zekkn TYPE ekbe-zekkn,
+          vgabe TYPE ekbe-vgabe,
+          gjahr TYPE ekbe-gjahr,
+         END OF lty_ekbe.
+
+  TYPES: BEGIN OF lty_ekkn,
+          ebeln TYPE ekkn-ebeln,
+          ebelp TYPE ekkn-ebelp,
+          zekkn TYPE ekkn-zekkn,
+          kostl TYPE ekkn-kostl,
+         END OF lty_ekkn.
+
+  DATA: lt_ekpo  TYPE TABLE OF lty_ekpo.
+  DATA: lw_ekpo  LIKE LINE  OF lt_ekpo.
+  DATA: lt_ekbe  TYPE TABLE OF lty_ekbe.
+  DATA: lw_ekbe  LIKE LINE  OF lt_ekbe.
+  DATA: lt_ekkn  TYPE TABLE OF lty_ekkn.
+  DATA: lw_ekkn  LIKE LINE  OF lt_ekkn.
+  DATA: lv_index TYPE          sy-tabix.
+
+  DATA: lt_output LIKE TABLE OF gw_output.
+
+  lt_output = gt_output.
+  DELETE lt_output WHERE status EQ 'Error'.
+  DELETE gt_output WHERE status NE 'Error'.
+  SORT lt_output BY ebeln ebelp.
+
+  IF lt_output IS NOT INITIAL.
+    SELECT ebeln ebelp loekz elikz erekz
+      FROM ekpo
+      INTO TABLE lt_ekpo
+       FOR ALL ENTRIES IN lt_output
+     WHERE ebeln = lt_output-ebeln
+       AND ebelp = lt_output-ebelp.
+    IF sy-subrc EQ 0.
+      SELECT ebeln ebelp zekkn vgabe gjahr
+        FROM ekbe
+        INTO TABLE lt_ekbe
+         FOR ALL ENTRIES IN lt_ekpo
+       WHERE ebeln = lt_ekpo-ebeln
+         AND ebelp = lt_ekpo-ebelp.
+      IF sy-subrc NE 0.   ENDIF.
+      SELECT ebeln ebelp zekkn kostl
+        FROM ekkn
+        INTO TABLE lt_ekkn
+         FOR ALL ENTRIES IN lt_ekpo
+       WHERE ebeln = lt_ekpo-ebeln
+         AND ebelp = lt_ekpo-ebelp
+         AND loekz = ' '.
+      IF sy-subrc NE 0.   ENDIF.
+    ENDIF.
+  ENDIF.
+
+  SORT lt_ekpo BY ebeln ebelp.
+  SORT lt_ekbe BY ebeln ebelp zekkn.
+  SORT lt_ekkn BY ebeln ebelp zekkn.
+
+  LOOP AT lt_output INTO gw_output.
+    lv_index = sy-tabix.
+
+    READ TABLE lt_ekpo INTO lw_ekpo WITH KEY ebeln = gw_output-ebeln
+                                             ebelp = gw_output-ebelp
+                                    BINARY SEARCH.
+    IF sy-subrc NE 0.
+      gw_output-status  = 'Error'.
+      gw_output-message = 'Invalid PO Number/Line Item.'.
+      APPEND gw_output TO gt_output.
+      DELETE lt_output INDEX lv_index.
+      CONTINUE.
+    ELSE.
+      IF lw_ekpo-loekz IS NOT INITIAL.
+        gw_output-status  = 'Error'.
+        gw_output-message = 'Line Item is Deleted.'.
+        APPEND gw_output TO gt_output.
+        DELETE lt_output INDEX lv_index.
+        CONTINUE.
+      ELSEIF lw_ekpo-elikz IS NOT INITIAL.
+        gw_output-status  = 'Error'.
+        gw_output-message = 'Line Item is marked as Delivery Completed'.
+        APPEND gw_output TO gt_output.
+        DELETE lt_output INDEX lv_index.
+        CONTINUE.
+      ELSEIF lw_ekpo-erekz IS NOT INITIAL.
+        gw_output-status  = 'Error'.
+        gw_output-message = 'Line Item is Fully Invoiced'.
+        APPEND gw_output TO gt_output.
+        DELETE lt_output INDEX lv_index.
+        CONTINUE.
+      ENDIF.
+
+      READ TABLE lt_ekbe INTO lw_ekbe WITH KEY ebeln = gw_output-ebeln
+                                               ebelp = gw_output-ebelp
+                                      BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gw_output-status  = 'Error'.
+        gw_output-message = 'PO line has GR/IR documents processed'.
+        APPEND gw_output TO gt_output.
+        DELETE lt_output INDEX lv_index.
+        CONTINUE.
+      ENDIF.
+
+      LOOP AT lt_ekkn INTO lw_ekkn WHERE ebeln = gw_output-ebeln
+                                     AND ebelp = gw_output-ebelp
+                                     AND kostl IS NOT INITIAL.
+        gw_output-zekkn = lw_ekkn-zekkn.
+        APPEND gw_output TO gt_output.
+      ENDLOOP.
+      IF sy-subrc NE 0.
+        gw_output-status  = 'Error'.
+        gw_output-message = 'CC not maintained in Acc. Assgn.'.
+        APPEND gw_output TO gt_output.
+        DELETE lt_output INDEX lv_index.
+        CONTINUE.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.                    " CHECK_DATA
+
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  POST_DATA
+*&---------------------------------------------------------------------*
+FORM post_data .
+  DATA: lt_account  TYPE TABLE OF bapimepoaccount.
+  DATA: lt_accountx TYPE TABLE OF bapimepoaccountx.
+  DATA: lw_account  LIKE LINE  OF lt_account.
+  DATA: lw_accountx LIKE LINE  OF lt_accountx.
+  DATA: lt_return   TYPE TABLE OF bapiret2.
+  DATA: lw_return   LIKE LINE  OF lt_return.
+  DATA: lv_index    TYPE          sy-tabix.
+  DATA: lw_msg_log  TYPE          msg_log.
+  DATA: lw_msg_text TYPE          msg_text.
+
+  DATA: lt_output LIKE TABLE OF gw_output.
+
+  SORT gt_output   BY ebeln ebelp zekkn.
+  lt_output = gt_output.
+  DELETE lt_output WHERE status EQ 'Error'.
+  DELETE gt_output WHERE status NE 'Error'.
+
+  SORT lt_output BY ebeln ebelp zekkn.
+  DELETE lt_output WHERE zekkn IS INITIAL.
+  DELETE ADJACENT DUPLICATES FROM lt_output COMPARING ebeln ebelp zekkn.
+
+  LOOP AT lt_output INTO gw_output.
+    lv_index = sy-tabix.
+    AT NEW ebeln.
+      CLEAR: lt_account, lt_accountx.
+    ENDAT.
+    lw_account-po_item    = gw_output-ebelp.
+    lw_account-serial_no  = gw_output-zekkn.
+    CLEAR lw_account-costcenter.
+    APPEND lw_account TO lt_account.
+
+    lw_accountx-po_item    = gw_output-ebelp.
+    lw_accountx-serial_no  = gw_output-zekkn.
+    lw_accountx-costcenter = 'X'.
+    APPEND lw_accountx TO lt_accountx.
+
+    AT END OF ebeln.
+      CALL FUNCTION 'BAPI_PO_CHANGE'
+        EXPORTING
+          purchaseorder = gw_output-ebeln
+          testrun       = pc_test
+        TABLES
+          return        = lt_return
+          poaccount     = lt_account
+          poaccountx    = lt_accountx.
+
+      LOOP AT lt_return INTO lw_return WHERE type = 'E' OR type = 'A'.
+        IF pc_test IS INITIAL.
+          CLEAR: lw_msg_log, lw_msg_text.
+          lw_msg_log-msgid = lw_return-id.
+          lw_msg_log-msgty = lw_return-type.
+          lw_msg_log-msgno = lw_return-number.
+          lw_msg_log-msgv1 = lw_return-message_v1.
+          lw_msg_log-msgv2 = lw_return-message_v2.
+          lw_msg_log-msgv3 = lw_return-message_v3.
+          lw_msg_log-msgv4 = lw_return-message_v4.
+
+          CALL FUNCTION 'MESSAGE_TEXTS_READ'
+            EXPORTING
+              msg_log_imp  = lw_msg_log
+            IMPORTING
+              msg_text_exp = lw_msg_text.
+
+          gw_output-status = 'Error'.
+          gw_output-message = lw_msg_text-msgtx.
+          MODIFY lt_output FROM gw_output TRANSPORTING status message
+                           WHERE ebeln = gw_output-ebeln.
+          IF pc_test IS INITIAL.
+            ROLLBACK WORK.
+          ENDIF.
+        ENDIF.
+      ENDLOOP.
+      IF sy-subrc NE 0 AND pc_test IS INITIAL.
+        COMMIT WORK AND WAIT.
+        IF sy-subrc EQ 0.
+          gw_output-status = 'Success'.
+          MODIFY lt_output FROM gw_output TRANSPORTING status
+                           WHERE ebeln = gw_output-ebeln.
+        ENDIF.
+      ENDIF.
+      CLEAR: lt_return, lt_account, lt_accountx.
+    ENDAT.
+  ENDLOOP.
+
+  APPEND LINES OF lt_output TO gt_output.
+  SORT gt_output BY ebeln ebelp zekkn.
+ENDFORM.                    " POST_DATA
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+FORM display_output .
+  PERFORM build_fcat.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      is_layout     = gw_layo
+      it_fieldcat   = gt_fcat
+    TABLES
+      t_outtab      = gt_output
+    EXCEPTIONS
+      program_error = 1
+      OTHERS        = 2.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgid
+       WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                    " DISPLAY_OUTPUT
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FCAT
+*&---------------------------------------------------------------------*
+FORM build_fcat .
+  DATA: lv_count TYPE sy-tabix.
+
+  CLEAR gt_fcat.
+
+  CLEAR gw_fcat.
+  lv_count = lv_count + 1.
+  gw_fcat-col_pos = lv_count.
+  gw_fcat-fieldname = 'EBELN'.
+  gw_fcat-seltext_m = 'PO Number'.
+  APPEND gw_fcat TO gt_fcat.
+
+  CLEAR gw_fcat.
+  lv_count = lv_count + 1.
+  gw_fcat-col_pos = lv_count.
+  gw_fcat-fieldname = 'EBELP'.
+  gw_fcat-seltext_m = 'PO Item Number'.
+  APPEND gw_fcat TO gt_fcat.
+
+  CLEAR gw_fcat.
+  lv_count = lv_count + 1.
+  gw_fcat-col_pos = lv_count.
+  gw_fcat-fieldname = 'ZEKKN'.
+  gw_fcat-seltext_m = 'Sequence No.'.
+  APPEND gw_fcat TO gt_fcat.
+
+  CLEAR gw_fcat.
+  lv_count = lv_count + 1.
+  gw_fcat-col_pos = lv_count.
+  gw_fcat-fieldname = 'STATUS'.
+  gw_fcat-seltext_m = 'Status'.
+  APPEND gw_fcat TO gt_fcat.
+
+  CLEAR gw_fcat.
+  lv_count = lv_count + 1.
+  gw_fcat-col_pos = lv_count.
+  gw_fcat-fieldname = 'MESSAGE'.
+  gw_fcat-seltext_m = 'Message'.
+  APPEND gw_fcat TO gt_fcat.
+ENDFORM.                    " BUILD_FCAT
+

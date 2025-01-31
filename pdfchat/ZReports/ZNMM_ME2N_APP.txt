@@ -1,0 +1,155 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_ME2N_APP
+*&---------------------------------------------------------------------*
+
+IF gt_final IS NOT INITIAL.
+  DATA gw_title1 TYPE ty_title.
+
+
+  DATA:  gv_ekpo_menge(17),                              "#EC FD_HYPHEN
+         gv_netpr(14),                                   "#EC FD_HYPHEN
+         gv_peinh(6),                                    "#EC FD_HYPHEN
+         gv_eket_menge(17),                              "#EC FD_HYPHEN
+         gv_ameng(17),                                   "#EC FD_HYPHEN
+         gv_wemng(17),                                   "#EC FD_HYPHEN
+         gv_wamng(17),                                   "#EC FD_HYPHEN
+         gv_glmng(17),                                   "#EC FD_HYPHEN
+         gv_ktwrt(18),                                   "#EC FD_HYPHEN
+*Begin of changes done by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+         gv_bpwes(17),
+         gv_rseg_menge(17),
+         gv_mglief(17),
+         gv_mgliefh(17),
+         gv_wtlief(18),
+         gv_wtliefh(18),
+*End of changes done by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+         gv_wemng_head(17).         "Added by Vijay Kumar N CHG2017708 DE3K971665 13.05.2016
+
+*Begin of changes done by Vijay Kumar N CHG2017708 DE3K971407 12/05/2016
+*  CONCATENATE lv_path sy-sysid lv_path1 '_' sy-datum '_' sy-uzeit lv_xls INTO p_file.
+  CONCATENATE lv_path sy-sysid lv_path1 lv_xls INTO p_file.
+  DELETE DATASET p_file.
+*End of changes done by Vijay Kumar N CHG2017708 DE3K971407 12/05/2016
+
+  OPEN DATASET p_file
+            FOR APPENDING
+            IN TEXT MODE ENCODING DEFAULT.
+
+  LOOP AT gt_title INTO gw_title.
+    CONCATENATE gw_title1 gw_title INTO gw_title1 SEPARATED BY cl_abap_char_utilities=>horizontal_tab.
+  ENDLOOP.
+  SHIFT gw_title1.
+  TRANSFER gw_title1 TO p_file.
+
+  LOOP AT gt_final1 INTO gw_final.
+    gv_ekpo_menge = gw_final-ekpo_menge.
+    gv_netpr = gw_final-netpr.
+    gv_peinh = gw_final-peinh.
+    gv_eket_menge = gw_final-eket_menge.
+    gv_ameng = gw_final-ameng.
+    gv_wemng = gw_final-wemng.
+    gv_wamng = gw_final-wamng.
+    gv_glmng = gw_final-glmng.
+    gv_ktwrt = gw_final-ktwrt.
+*Begin of changes done by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+    gv_bpwes = gw_final-bpwes.
+    gv_rseg_menge = gw_final-rseg_menge.
+    gv_mglief = gw_final-mglief.
+    gv_wtlief = gw_final-wtlief.
+    gv_mgliefh = gw_final-mgliefh.
+    gv_wtliefh = gw_final-wtliefh.
+*End of changes done by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+    gv_wemng_head = gw_final-wemng_head.   "Added by Vijay Kumar N CHG2017708 DE3K971665 13.05.2016
+
+    CONCATENATE
+        gw_final-ebeln
+        gw_final-ebelp
+        gw_final-etenr
+        gw_final-bsart
+        gw_final-bstyp
+        gw_final-ekgrp
+        gw_final-emlif
+        gw_final-ematn
+        gw_final-txz01
+        gw_final-matkl
+        gw_final-loekz
+        gw_final-memory
+        gw_final-knttp
+        gw_final-werks
+        gw_final-lgort
+        gw_final-uzeit
+        gw_final-banfn
+        gw_final-bnfpo
+        gw_final-estkz
+        gw_final-ekorg
+        gw_final-pstyp
+        gw_final-bednr
+        gw_final-wepos     "Added by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gw_final-repos     "Added by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gw_final-konnr
+        gw_final-ktpnr
+        gw_final-agdat
+        gw_final-statu
+        gw_final-submi
+        gw_final-bsakz
+        gw_final-infnr
+        gw_final-urzzt
+        gw_final-frggr
+        gw_final-frgsx
+        gw_final-frgke
+        gw_final-elikz     "Added by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gw_final-reslo
+        gw_final-name1     "Added by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gw_final-bprme
+        gw_final-mwskz
+        gw_final-txjcd
+        gw_final-bstae     "Added by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gw_final-exlin
+        gw_final-exsnr
+        gw_final-ehtyp
+        gw_final-prio_urg
+        gw_final-prio_req
+        gw_final-bedat
+        gv_ekpo_menge
+        gw_final-meins
+        gv_netpr
+        gv_bpwes           "Added by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gw_final-waers
+        gv_peinh
+        gv_eket_menge
+        gv_rseg_menge      "Added by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gw_final-eindt
+        gw_final-slfdt
+        gv_ameng
+        gv_wemng
+        gv_wemng_head      "Added by Vijay Kumar N CHG2017708 DE3K971665 13.05.2016
+        gv_wamng
+        gv_glmng
+        gv_mglief          "Added by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gv_wtlief          "Added by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gv_ktwrt
+        gw_final-ps_psp_pnr
+        gw_final-sakto
+        gw_final-vbeln
+        gw_final-vbelp
+        gw_final-nplnr
+        gw_final-aufnr
+*Begin of changes done by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+        gw_final-kostl
+        gv_mgliefh
+        gv_wtliefh
+        gw_final-reswk
+*End of changes done by Vijay Kumar N CHG2017708 DE3K971407 02/05/2016
+
+    INTO lv_str SEPARATED BY cl_abap_char_utilities=>horizontal_tab.
+    TRANSFER lv_str TO p_file.
+    CLEAR: lv_str, gw_final.
+  ENDLOOP.
+  CLOSE DATASET p_file.
+  lv_message = text-001.
+  WRITE:/ lv_message, p_file.
+ELSE.
+  lv_message = text-002.
+  WRITE:/ lv_message, p_file.
+ENDIF.
+

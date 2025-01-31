@@ -1,0 +1,834 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZNMM_MM_KG_FORMS .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+
+  SELECT matnr mtart matkl meins zeinr zeivr labor extwg mstae mstav " Added fields MSTAE MSTAV  by 502683007 | 22-JAN-2018  |GECHG0088976 ".
+    FROM mara
+    INTO TABLE gt_mara
+    WHERE matnr IN s_matnr
+      AND labor IN s_labor.
+  IF gt_mara IS NOT INITIAL.
+    SELECT matnr bwkey vprsv verpr  stprs peinh bklas mlast "Added field VPRSV VERPR MLAST by 502765654 CHG0165181 19.01.2020
+      FROM mbew
+      INTO TABLE gt_mbew
+      FOR ALL ENTRIES IN gt_mara
+      WHERE matnr = gt_mara-matnr
+        AND bwkey IN s_bwkey.
+
+    SELECT matnr werks mmsta maabc kzkri ekgrp dismm " Added field KZKRI  by 502683007 | 22-JAN-2018  |GECHG0088976".
+           dispo plifz webaz disls beskz sobsl minbe
+           eisbe bstmi bstrf sbdkz rgekz dzeit kautb stawn prctr " Added fields PRCTR by 502765654 |23-01-2020 |GECHG0704170. Added field STAWN By 502765654 19.01.2020
+           lgpro abcin strgr lgfsb schgt sfcpf ncost zlclid " Added fields ABCIN STRGR  by 502683007 | 22-JAN-2018  |GECHG0088976 ".
+      FROM marc
+      INTO TABLE gt_marc
+      FOR ALL ENTRIES IN gt_mara
+      WHERE matnr = gt_mara-matnr
+        AND werks IN s_werks
+        AND mmsta IN s_mmsta
+        AND ekgrp IN s_ekgrp
+        AND dispo IN s_dispo
+        AND beskz IN s_beskz
+        AND sobsl IN s_sobsl
+        AND sbdkz IN s_sbdkz
+        AND lgpro IN s_lgpro
+        AND lgfsb IN s_lgfsb
+        AND ncost IN s_ncost
+        AND zlclid IN s_zlclid.
+  ENDIF.
+*Begin of changes 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+*  IF gt_marc IS NOT INITIAL AND s_spras IS NOT INITIAL.
+  SELECT matnr maktx
+    FROM makt
+    INTO TABLE gt_makt
+    FOR ALL ENTRIES IN gt_marc
+    WHERE matnr = gt_marc-matnr
+      AND spras IN s_spras.
+*  ELSEIF gt_marc IS NOT INITIAL AND s_spras IS INITIAL.
+*    SELECT matnr maktx
+*      FROM makt
+*      INTO TABLE gt_makt
+*      FOR ALL ENTRIES IN gt_marc
+*      WHERE matnr = gt_marc-matnr
+*        AND spras = sy-langu.
+*  ENDIF.
+*End of changes 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+* Begin of changes by 22-JAN-2018 | GECHG0085339|502683007.
+  IF gt_marc IS NOT INITIAL .
+    SELECT matnr werks pnum1
+    FROM mapr
+    INTO TABLE gt_mapr
+    FOR ALL ENTRIES IN gt_marc
+    WHERE matnr = gt_marc-matnr
+    AND   werks = gt_marc-werks.
+    IF sy-subrc = 0 .
+      SORT gt_mapr .
+    ENDIF .
+  ENDIF .
+
+  IF gt_mapr IS NOT INITIAL .
+    SELECT pnum1 kzini prmod
+    FROM prop
+    INTO TABLE gt_prop
+    FOR ALL ENTRIES IN gt_mapr
+    WHERE pnum1 =  gt_mapr-pnum1 .
+    IF sy-subrc = 0 .
+      SORT gt_prop.
+    ENDIF .
+  ENDIF .
+* End of changes by 22-JAN-2018   | GECHG0085339|502683007.
+
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_data .
+
+  LOOP AT gt_mara INTO gi_mara.
+    LOOP AT gt_makt INTO gi_makt WHERE matnr = gi_mara-matnr. "added by 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+      LOOP AT gt_mbew INTO gi_mbew WHERE matnr = gi_mara-matnr.
+
+        LOOP AT gt_marc INTO gi_marc WHERE matnr = gi_mara-matnr.
+          gi_output-mtart = gi_mara-mtart.
+          gi_output-matkl = gi_mara-matkl.
+          gi_output-meins = gi_mara-meins.
+          gi_output-meins_1 = gi_mara-meins.
+          gi_output-meins_2 = gi_mara-meins.
+          gi_output-meins_3 = gi_mara-meins.
+          gi_output-meins_4 = gi_mara-meins.
+          gi_output-labor = gi_mara-labor.
+          gi_output-extwg = gi_mara-extwg.
+* Begin of changes by 22-JAN-2018 |GECHG0088976|502683007.
+          gi_output-mstae  = gi_mara-mstae .
+          gi_output-mstav  = gi_mara-mstav .
+* End of changes by 22-JAN-2018   |GECHG0088976|502683007.
+          gi_output-zeinr = gi_mara-zeinr.
+          gi_output-zeivr = gi_mara-zeivr.
+          gi_output-bwkey = gi_mbew-bwkey.
+          gi_output-stprs = gi_mbew-stprs.
+          gi_output-peinh = gi_mbew-peinh.
+          gi_output-bklas = gi_mbew-bklas.
+          CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+            EXPORTING
+              input  = gi_marc-matnr
+            IMPORTING
+              output = gi_output-matnr.
+          gi_output-werks = gi_marc-werks.
+          gi_output-zlclid = gi_marc-zlclid.
+          gi_output-mmsta = gi_marc-mmsta.
+          gi_output-maabc = gi_marc-maabc.
+          gi_output-ekgrp = gi_marc-ekgrp.
+          gi_output-dismm = gi_marc-dismm.
+          gi_output-dispo = gi_marc-dispo.
+          gi_output-plifz = gi_marc-plifz.
+          gi_output-webaz = gi_marc-webaz.
+          gi_output-dzeit = gi_marc-dzeit.
+          gi_output-disls = gi_marc-disls.
+          gi_output-beskz = gi_marc-beskz.
+          gi_output-sobsl = gi_marc-sobsl.
+          gi_output-eisbe = gi_marc-eisbe.
+          gi_output-bstmi = gi_marc-bstmi.
+          gi_output-bstrf = gi_marc-bstrf.
+          gi_output-rgekz = gi_marc-rgekz.
+          gi_output-lgpro = gi_marc-lgpro.
+* Begin of changes by 22-JAN-2018 |GECHG0088976|502683007.
+          gi_output-strgr = gi_marc-strgr.
+          gi_output-kzkri = gi_marc-kzkri.
+          gi_output-abcin = gi_marc-abcin.
+* End of changes by 22-JAN-2018   | GECHG0088976|502683007.
+          gi_output-lgfsb = gi_marc-lgfsb.
+          gi_output-schgt = gi_marc-schgt.
+          gi_output-sfcpf = gi_marc-sfcpf.
+          gi_output-sbdkz = gi_marc-sbdkz.
+          gi_output-kautb = gi_marc-kautb.
+          gi_output-minbe = gi_marc-minbe.
+          gi_output-ncost = gi_marc-ncost.
+*        READ TABLE gt_makt INTO gi_makt WITH KEY matnr = gi_marc-matnr. "COMMENTED BY 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+          gi_output-maktx = gi_makt-maktx.
+          gi_output-prctr = gi_marc-prctr. " Added by 502765654 23-01-2020 |GECHG0704170.
+          gi_output-stawn = gi_marc-stawn. " Added by 502765654 19-01-2020 |CHG0165181
+          gi_output-vprsv = gi_mbew-vprsv. " Added by 502765654 19-01-2020 |CHG0165181
+          gi_output-verpr = gi_mbew-verpr. " Added by 502765654 19-01-2020 |CHG0165181
+          gi_output-mlast = gi_mbew-mlast. " Added by 502765654 19-01-2020 |CHG0165181
+
+
+* Begin of changes by 22-JAN-2018 |GECHG0088976|502683007.
+          CLEAR gi_mapr.
+          READ TABLE gt_mapr INTO gi_mapr WITH KEY matnr = gi_marc-matnr
+                                                   werks = gi_marc-werks BINARY SEARCH.
+          IF sy-subrc = 0 .
+            CLEAR gi_prop.
+            READ TABLE gt_prop INTO gi_prop WITH KEY pnum1 = gi_mapr-pnum1 BINARY SEARCH.
+            IF sy-subrc = 0 .
+              gi_output-kzini = gi_prop-kzini.
+              gi_output-prmod = gi_prop-prmod.
+            ENDIF .
+          ENDIF .
+* End of changes by 22-JAN-2018   | GECHG0088976|502683007.
+          APPEND  gi_output TO gt_output.
+        ENDLOOP.                             "ADDED BY 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+      ENDLOOP.
+    ENDLOOP.
+  ENDLOOP.
+ENDFORM.                    " PROCESS_DATA
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fieldcat .
+*  PERFORM  popu_fcatf USING:
+*Begin of changes by 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+*           gc_mtart text-035,
+*           gc_matkl text-036,
+*           gc_meins text-037,
+*           gc_labor text-004 ,
+*           gc_extwg text-057 ,
+*           gc_zeinr text-038,
+*           gc_zeivr text-039,
+*           gc_bwkey text-005 ,
+*           gc_stprs text-040,
+*           gc_peinh text-041,
+*           gc_bklas text-042,
+*           gc_matnr text-006 ,
+*           gc_werks text-007 ,
+*           gc_zlclid text-008 ,
+*           gc_mmsta text-009 ,
+*           gc_maabc text-043,
+*           gc_ekgrp text-010 ,
+*           gc_dismm text-044 ,
+*           gc_dispo text-011 ,
+*           gc_plifz text-045,
+*           gc_webaz text-046,
+*           gc_dzeit text-047,
+*           gc_disls text-048,
+*           gc_beskz text-012 ,
+*           gc_sobsl text-013 ,
+*           gc_eisbe text-049,
+*           gc_bstmi text-050,
+*           gc_bstrf text-051,
+*           gc_rgekz text-052,
+*           gc_lgpro text-014 ,
+*           gc_lgfsb text-015 ,
+*           gc_schgt text-053,
+*           gc_schgt text-058,
+*           gc_sbdkz text-016 ,
+*           gc_kautb text-054,
+*           gc_minbe text-055,
+*           gc_ncost text-017 ,
+*           gc_maktx text-018 .
+  PERFORM  popu_fcatf USING:
+              gc_werks text-007 ,
+              gc_matnr text-006 ,
+              gc_maktx text-018 ,
+              gc_zlclid text-008 ,
+              gc_meins text-037,
+              gc_labor text-004 ,
+              gc_mtart text-035,
+              gc_matkl  text-036,
+              gc_maabc  text-043,
+              gc_ekgrp  text-010,
+              gc_dismm  text-044,
+              gc_dispo  text-011,
+              gc_plifz  text-045,
+              gc_webaz  text-046,
+              gc_dzeit  text-047,
+              gc_disls  text-048,
+              gc_beskz  text-012,
+              gc_sobsl  text-013,
+              gc_eisbe  text-049,
+              gc_meins_1 text-037,
+              gc_bstmi  text-050,
+              gc_meins_2 text-037,
+              gc_bstrf  text-051,
+              gc_meins_3 text-037,
+              gc_rgekz   text-052,
+              gc_lgpro  text-014,
+              gc_lgfsb  text-015,
+              gc_schgt  text-053,
+              gc_sbdkz  text-016,
+              gc_mmsta   text-009,
+              gc_kautb  text-054,
+              gc_minbe  text-055,
+              gc_meins_4 text-037,
+              gc_zeinr  text-038,
+              gc_zeivr  text-039,
+              gc_ncost  text-017,
+              gc_bwkey  text-005,
+              gc_stprs  text-040,
+              gc_waerk  text-066,
+              gc_peinh  text-041,
+              gc_bklas  text-042,
+              gc_sfcpf  text-057,
+              gc_extwg  text-058,
+* Begin of changes by 22-JAN-2018 | GECHG0088976|502683007.
+              gc_mstae  text-067,
+              gc_strgr  text-068,
+              gc_kzkri  text-069,
+              gc_kzini  text-070,
+              gc_prmod  text-071,
+              gc_mstav  text-072,
+              gc_abcin  text-073,
+              gc_prctr  text-074, " Added by 502765654 23-01-2020 |GECHG0704170.
+              gc_stawn  text-075, " Added by 502765654 19-01-2021 |CHG0165181.
+              gc_vprsv  text-076, " Added by 502765654 19-01-2020 |CHG0165181.
+              gc_verpr  text-077, " Added by 502765654 19-01-2020 |CHG0165181.
+              gc_mlast  text-078. " Added by 502765654 19-01-2020 |CHG0165181.
+
+* End of changes by 22-JAN-2018   | GECHG0088976|502683007.
+*End of changes by 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+ENDFORM.                    " FIELDCAT
+*&---------------------------------------------------------------------*
+*&      Form  PROXY_SEND_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM proxy_send_data .
+  DATA :  proxy                        TYPE REF TO zmmco_si_generic_data_out,
+          t_zmmdt_generic_data_row_tab TYPE zmmdt_generic_data_row_tab,
+          w_zmmdt_generic_data_row     TYPE zmmdt_generic_data_row,
+          t_output                     TYPE zmmmt_generic_data,
+          l_exception_msg              TYPE string,
+          l_sys_exc                    TYPE REF TO cx_ai_system_fault,
+          lw_count                     TYPE sy-tabix,
+          lw_fill                      TYPE sy-tfill,
+          lw_count1                    TYPE p,
+          lw_stprs(11), "added by 03-FEB-2015  | CHG0995226 | DE3K958991  | RITM3672113 | 502347739
+*Begin of changes by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+          lw_minbe(17),
+          lw_bstrf(17),
+          lw_eisbe(17),
+          lw_bstmi(17),
+*End of changes by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+          lo_async_messaging TYPE REF TO if_wsprotocol_async_messaging,
+          lw_lenth(8) TYPE n.
+
+  IF gt_output IS NOT INITIAL .
+    DESCRIBE TABLE gt_output LINES lw_fill.
+    LOOP AT gt_title INTO gi_title.
+      CONCATENATE w_zmmdt_generic_data_row-string gi_title INTO w_zmmdt_generic_data_row-string SEPARATED BY  cl_abap_char_utilities=>horizontal_tab.
+    ENDLOOP.
+    SHIFT w_zmmdt_generic_data_row-string.
+    APPEND w_zmmdt_generic_data_row TO t_zmmdt_generic_data_row_tab.
+
+    CLEAR gw_filename.
+    lw_lenth = strlen( p_file ).
+    lw_lenth = lw_lenth - 4.
+    CONCATENATE p_file+0(lw_lenth) '_' sy-datum '.TXT' INTO p_file.
+    "added sy-uzeit on 06-jan-2016 for CHG1691559 by 502277866
+    " sy-uzeit removed on 18-jan-2016 for  CHG1726986 by 502277866
+    t_output-mt_generic_data-file_name = p_file.
+    CONCATENATE text-032 gc_fname1 s_werks-low INTO gw_filename1.
+    t_output-mt_generic_data-identifier = gw_filename1.
+    t_output-mt_generic_data-row       =  t_zmmdt_generic_data_row_tab[].
+
+    IF NOT t_output-mt_generic_data IS INITIAL.
+      TRY.
+          CREATE OBJECT proxy.
+        CATCH cx_ai_system_fault INTO l_sys_exc.
+          l_exception_msg = l_sys_exc->get_text( ).
+      ENDTRY.
+      IF l_exception_msg IS INITIAL.
+        TRY.
+*Begin of changes 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+            lo_async_messaging ?=
+            proxy->get_protocol( if_wsprotocol=>async_messaging ).
+            lo_async_messaging->set_serialization_context('XBTO65').
+*End of changes 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+            CALL METHOD proxy->si_generic_data_out
+              EXPORTING
+                output = t_output.
+
+          CATCH cx_ai_system_fault INTO l_sys_exc.
+            l_exception_msg = l_sys_exc->get_text( ).
+        ENDTRY.
+      ENDIF.
+    ENDIF.
+
+    COMMIT WORK.
+    WAIT UP TO 5 SECONDS."2 SECONDS.
+    CLEAR lw_count.
+    REFRESH t_zmmdt_generic_data_row_tab[].
+*    lw_count = 1.
+    LOOP AT gt_output INTO gi_output.
+      lw_count  = lw_count + 1.
+      gi_final-mtart = gi_output-mtart .
+      gi_final-matkl = gi_output-matkl .
+      gi_final-meins = gi_output-meins .
+      gi_final-meins_1 = gi_output-meins .
+      gi_final-meins_2 = gi_output-meins .
+      gi_final-meins_3 = gi_output-meins .
+      gi_final-meins_4 = gi_output-meins .
+      gi_final-labor = gi_output-labor .
+      gi_final-extwg = gi_output-extwg .
+      gi_final-zeinr = gi_output-zeinr .
+      gi_final-zeivr = gi_output-zeivr .
+      gi_final-bwkey = gi_output-bwkey .
+      WRITE gi_output-stprs TO lw_stprs . "added 03-FEB-2015  | CHG0995226 | DE3K958991  | RITM3672113 | 502347739
+*      gi_final-stprs = gi_output-stprs .  " commented by 03-FEB-2015  | CHG0995226 | DE3K958991  | RITM3672113 | 502347739
+      gi_final-peinh = gi_output-peinh .
+      gi_final-bklas = gi_output-bklas .
+      gi_final-matnr = gi_output-matnr .
+      gi_final-werks = gi_output-werks .
+      gi_final-zlclid = gi_output-zlclid .
+      gi_final-mmsta = gi_output-mmsta .
+      gi_final-maabc = gi_output-maabc .
+      gi_final-ekgrp = gi_output-ekgrp .
+      gi_final-dismm = gi_output-dismm .
+      gi_final-dispo = gi_output-dispo .
+      gi_final-plifz = gi_output-plifz .
+      gi_final-webaz = gi_output-webaz .
+      gi_final-dzeit = gi_output-dzeit .
+      gi_final-disls = gi_output-disls .
+      gi_final-beskz = gi_output-beskz .
+      gi_final-sobsl = gi_output-sobsl .
+*Begin of changes by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+*      gi_final-eisbe = gi_output-eisbe .
+      WRITE gi_output-eisbe TO lw_eisbe .
+      WRITE gi_output-bstmi TO lw_bstmi .
+*      gi_final-bstmi = gi_output-bstmi .
+      WRITE gi_output-bstrf TO lw_bstrf .
+*      gi_final-bstrf = gi_output-bstrf .
+*End of changes by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+      gi_final-rgekz = gi_output-rgekz .
+      gi_final-lgpro = gi_output-lgpro .
+      gi_final-lgfsb = gi_output-lgfsb .
+      gi_final-schgt = gi_output-schgt .
+      gi_final-sfcpf = gi_output-sfcpf .
+      gi_final-sbdkz = gi_output-sbdkz .
+      gi_final-kautb = gi_output-kautb .
+      WRITE gi_output-minbe TO lw_minbe . "added by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+*      gi_final-minbe = gi_output-minbe . "commented by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+      gi_final-ncost = gi_output-ncost .
+      gi_final-maktx = gi_output-maktx .
+* Begin of changes by 22-JAN-2018 | GECHG0088976|502683007.
+      gi_final-mstae  = gi_output-mstae .
+      gi_final-strgr  = gi_output-strgr .
+      gi_final-kzkri  = gi_output-kzkri .
+      gi_final-kzini  = gi_output-kzini .
+      gi_final-prmod  = gi_output-prmod .
+      gi_final-mstav  = gi_output-mstav .
+      gi_final-abcin  = gi_output-abcin .
+      gi_final-prctr  = gi_output-prctr ." Added by 502765654 23-01-2020 |GECHG0704170.
+      gi_final-stawn  = gi_output-stawn ." Added by 502765654 19-01-2021 |CHG0165181.
+      gi_final-vprsv  = gi_output-vprsv ." Added by 502765654 19-01-2021 |CHG0165181.
+      gi_final-verpr  = gi_output-verpr ." Added by 502765654 19-01-2021 |CHG0165181.
+      gi_final-mlast  = gi_output-mlast ." Added by 502765654 19-01-2021 |CHG0165181.
+* End of changes by 22-JAN-2018   |GECHG0088976|502683007.
+      APPEND gi_final TO gt_final.
+**Begin of 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+      CONCATENATE gi_final-werks gi_final-matnr gi_final-maktx gi_final-zlclid gi_final-meins gi_final-labor gi_final-mtart gi_final-matkl
+         gi_final-maabc  gi_final-ekgrp gi_final-dismm  gi_final-dispo gi_final-plifz gi_final-webaz gi_final-dzeit gi_final-disls gi_final-beskz
+         gi_final-sobsl lw_eisbe "gi_final-eisbe "added by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+         gi_final-meins_1  lw_bstmi "gi_final-bstmi "added by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+         gi_final-meins_2 lw_bstrf "gi_final-bstrf "added by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+
+          gi_final-meins_3 gi_final-rgekz gi_final-lgpro
+         gi_final-lgfsb gi_final-schgt gi_final-sbdkz gi_final-mmsta gi_final-kautb lw_minbe "gi_final-minbe "added by 06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739
+          gi_final-meins_4 gi_final-zeinr gi_final-zeivr
+         gi_final-ncost  gi_final-bwkey  lw_stprs "gi_final-stprs "commented by 03-FEB-2015  | CHG0995226 | DE3K958991  | RITM3672113 | 502347739
+         gi_final-waerk gi_final-peinh gi_final-bklas gi_final-sfcpf gi_final-extwg
+*End of 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+* Begin of changes by 22-JAN-2018 | GECHG0088976|502683007.
+         gi_final-mstae gi_final-strgr gi_final-kzkri gi_final-kzini gi_final-prmod gi_final-mstav gi_final-abcin gi_final-prctr " Added by 502765654 23-01-2020 |GECHG0704170.
+          gi_final-stawn  gi_final-vprsv gi_final-verpr gi_final-mlast " Added by 502765654 CHG0165181 19.01.2020
+* End of changes by 22-JAN-2018   | GECHG0088976|502683007.
+*      gi_final-mtart
+*          gi_final-matkl gi_final-meins gi_final-labor gi_final-extwg gi_final-zeinr gi_final-zeivr gi_final-bwkey gi_final-stprs gi_final-peinh gi_final-bklas
+*          gi_final-matnr gi_final-werks gi_final-zlclid gi_final-mmsta gi_final-maabc gi_final-ekgrp gi_final-dismm gi_final-dispo gi_final-plifz
+*          gi_final-webaz gi_final-dzeit gi_final-disls gi_final-beskz gi_final-sobsl gi_final-eisbe gi_final-bstmi gi_final-bstrf gi_final-rgekz
+*          gi_final-lgpro gi_final-lgfsb gi_final-schgt gi_final-sfcpf gi_final-sbdkz gi_final-kautb gi_final-minbe gi_final-ncost gi_final-maktx
+*          gi_final-meins_1 gi_final-meins_2 gi_final-meins_3 gi_final-meins_4
+          INTO w_zmmdt_generic_data_row-string SEPARATED BY  cl_abap_char_utilities=>horizontal_tab.
+      APPEND w_zmmdt_generic_data_row TO t_zmmdt_generic_data_row_tab.
+
+      IF lw_count = p_count.
+        lw_fill =  lw_fill - p_count.
+        CLEAR gw_filename.
+*        CONCATENATE text-032 gc_fname1 sy-datum text-034 INTO gw_filename.
+        t_output-mt_generic_data-file_name = p_file.
+
+        CONCATENATE text-032 gc_fname1 gi_final-werks INTO gw_filename1.
+
+        t_output-mt_generic_data-identifier = gw_filename1.
+        t_output-mt_generic_data-row        =  t_zmmdt_generic_data_row_tab[].
+
+        IF NOT t_output-mt_generic_data IS INITIAL AND t_zmmdt_generic_data_row_tab IS NOT INITIAL.
+          TRY.
+              CREATE OBJECT proxy.
+            CATCH cx_ai_system_fault INTO l_sys_exc.
+              l_exception_msg = l_sys_exc->get_text( ).
+          ENDTRY.
+          IF l_exception_msg IS INITIAL.
+            TRY.
+*Begin of 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+                lo_async_messaging ?=
+                proxy->get_protocol( if_wsprotocol=>async_messaging ).
+                lo_async_messaging->set_serialization_context('XBTO65').
+*End of 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+                CALL METHOD proxy->si_generic_data_out
+                  EXPORTING
+                    output = t_output.
+                WAIT UP TO 6 SECONDS. "Added on 06-jan-2016 for CHG1691559 by 502277866
+              CATCH cx_ai_system_fault INTO l_sys_exc.
+                l_exception_msg = l_sys_exc->get_text( ).
+            ENDTRY.
+          ENDIF.
+        ENDIF.
+
+        COMMIT WORK.
+
+        CLEAR lw_count.
+        REFRESH t_zmmdt_generic_data_row_tab[].
+      ENDIF.
+      IF lw_count = lw_fill.
+        CLEAR gw_filename.
+*        CONCATENATE text-032 gc_fname1 sy-datum text-034 INTO gw_filename.
+        t_output-mt_generic_data-file_name = p_file.
+        CONCATENATE text-032 gc_fname1 gi_final-werks INTO gw_filename1.
+        t_output-mt_generic_data-identifier = gw_filename1.
+        t_output-mt_generic_data-row       =  t_zmmdt_generic_data_row_tab[].
+
+        IF NOT t_output-mt_generic_data IS INITIAL AND t_zmmdt_generic_data_row_tab IS NOT INITIAL.
+          TRY.
+              CREATE OBJECT proxy.
+            CATCH cx_ai_system_fault INTO l_sys_exc.
+              l_exception_msg = l_sys_exc->get_text( ).
+          ENDTRY.
+          IF l_exception_msg IS INITIAL.
+            TRY.
+*Begin of changes 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+                lo_async_messaging ?=
+                proxy->get_protocol( if_wsprotocol=>async_messaging ).
+                lo_async_messaging->set_serialization_context('XBTO65').
+*End of changes 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+                CALL METHOD proxy->si_generic_data_out
+                  EXPORTING
+                    output = t_output.
+                WAIT UP TO 6 SECONDS."Added on 06-jan-2016 for CHG1691559 by 502277866
+              CATCH cx_ai_system_fault INTO l_sys_exc.
+                l_exception_msg = l_sys_exc->get_text( ).
+            ENDTRY.
+          ENDIF.
+        ENDIF.
+        COMMIT WORK.
+
+        CLEAR lw_count.
+        REFRESH t_zmmdt_generic_data_row_tab[].
+      ENDIF.
+      CLEAR w_zmmdt_generic_data_row.
+    ENDLOOP.
+    MESSAGE s000(zcc_c) WITH text-056.
+  ELSE.
+    MESSAGE i000 WITH text-061.
+  ENDIF.
+ENDFORM.                    " PROXY_SEND_DATA
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output .
+  DATA: li_layout_ds TYPE slis_layout_alv.
+
+  li_layout_ds-colwidth_optimize = gc_x.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer = 'X'
+      i_buffer_active    = space
+      i_save             = 'A'
+      i_callback_program = sy-repid
+      is_layout          = li_layout_ds
+      is_variant         = g_display_variant
+      it_fieldcat        = gt_fcat
+    TABLES
+      t_outtab           = gt_output
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+    MESSAGE text-033 TYPE gc_i.
+    LEAVE TO TRANSACTION gc_tcode.
+  ENDIF.
+ENDFORM.                    " DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  GET_DISPLAY_VARIANT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_G_DISPLAY_VARIANT  text
+*----------------------------------------------------------------------*
+FORM get_display_variant  CHANGING display_variant LIKE disvariant.
+  DATA: variant_memory_id1(24).
+  DATA variant TYPE slis_vari.
+  DATA repid TYPE sy-repid.
+  repid = sy-repid.
+  IF NOT display_variant-variant IS INITIAL.
+    CALL FUNCTION 'REUSE_ALV_VARIANT_EXISTENCE'
+      EXPORTING
+        i_save     = 'A'
+      CHANGING
+        cs_variant = display_variant
+      EXCEPTIONS
+        OTHERS     = 1.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+    IF sy-subrc NE 0.
+      CLEAR display_variant.
+      MESSAGE e204(0k).
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " GET_DISPLAY_VARIANT
+*&---------------------------------------------------------------------*
+*&      Form  F4_DISPLAY_VAR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_G_DISPLAY_VARIANT  text
+*----------------------------------------------------------------------*
+FORM f4_display_var  CHANGING p_display_variant LIKE disvariant.
+  DATA: l_display_variant LIKE disvariant.
+  DATA: l_d020s LIKE d020s.
+  DATA: l_dynpread1 TYPE TABLE OF dynpread.
+  DATA: l_dynpread TYPE dynpread.
+
+  IF p_display_variant IS INITIAL.
+    p_display_variant-report = sy-repid.
+  ENDIF.
+
+  CALL FUNCTION 'REUSE_ALV_VARIANT_F4'
+    EXPORTING
+      is_variant    = p_display_variant
+      i_save        = 'A'
+    IMPORTING
+      es_variant    = l_display_variant
+    EXCEPTIONS
+      not_found     = 1
+      program_error = 2
+      OTHERS        = 3.
+  IF sy-subrc = 0 AND NOT l_display_variant IS INITIAL.
+    p_display_variant = l_display_variant.
+    l_d020s-prog = sy-repid.
+    l_d020s-dnum = sy-dynnr.
+
+    l_dynpread-fieldname  = 'VARNAME'.
+    l_dynpread-fieldvalue = l_display_variant-text.
+    APPEND l_dynpread TO l_dynpread1.
+    CALL FUNCTION 'DYNP_VALUES_UPDATE'
+      EXPORTING
+        dyname     = l_d020s-prog
+        dynumb     = l_d020s-dnum
+      TABLES
+        dynpfields = l_dynpread1.
+  ELSE.
+  ENDIF.
+
+ENDFORM.                    " F4_DISPLAY_VAR
+*&---------------------------------------------------------------------*
+*&      Form  POPU_FCATF
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_GC_FIELD1_TX  text
+*      -->P_TEXT_014  text
+*----------------------------------------------------------------------*
+FORM popu_fcatf  USING   lp_fieldname_ds     TYPE slis_fieldname
+                         lp_reptext_ddic_ds  TYPE any .
+
+  gi_fcat-fieldname     = lp_fieldname_ds.
+  gi_fcat-reptext_ddic  = lp_reptext_ddic_ds.
+  gi_title-title        = lp_reptext_ddic_ds.
+
+  IF lp_fieldname_ds = gc_plifz OR lp_fieldname_ds = gc_webaz OR lp_fieldname_ds = gc_dzeit OR lp_fieldname_ds = gc_eisbe OR lp_fieldname_ds = gc_bstmi
+    OR lp_fieldname_ds = gc_bstrf OR lp_fieldname_ds = gc_minbe OR lp_fieldname_ds = gc_stprs OR lp_fieldname_ds = gc_peinh.
+    gi_fcat-do_sum = gc_x.
+  ENDIF.
+  APPEND gi_fcat TO gt_fcat.
+  APPEND gi_title TO gt_title.
+  CLEAR: gi_fcat,gi_title.
+
+ENDFORM.                    " POPU_FCATF
+*Begin of changes by 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+*&---------------------------------------------------------------------*
+*&      Form  F_EXCEL_DOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_excel_download .
+  IF NOT gt_output[] IS INITIAL.
+    gw_filename = p_exfile.
+    CALL FUNCTION 'GUI_DOWNLOAD'
+      EXPORTING
+        filename                = gw_filename
+        filetype                = text-064
+        append                  = gc_x
+      TABLES
+        data_tab                = gt_output
+        fieldnames              = gt_title
+      EXCEPTIONS
+        file_write_error        = 1
+        no_batch                = 2
+        gui_refuse_filetransfer = 3
+        invalid_type            = 4
+        no_authority            = 5
+        unknown_error           = 6
+        header_not_allowed      = 7
+        separator_not_allowed   = 8
+        filesize_not_allowed    = 9
+        header_too_long         = 10
+        dp_error_create         = 11
+        dp_error_send           = 12
+        dp_error_write          = 13
+        unknown_dp_error        = 14
+        access_denied           = 15
+        dp_out_of_memory        = 16
+        disk_full               = 17
+        dp_timeout              = 18
+        file_not_found          = 19
+        dataprovider_exception  = 20
+        control_flush_error     = 21
+        OTHERS                  = 22.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      EXIT.
+    ELSE .
+      MESSAGE i000 WITH  text-065.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " F_EXCEL_DOWNLOAD
+*&---------------------------------------------------------------------*
+*&      Form  F_APPSERVER_DOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_appserver_download .
+  DATA:   lv_message(20),
+          lv_ptext TYPE symsgv,
+          lv_str TYPE string,
+          lv_str1 TYPE string.
+  IF gt_output IS NOT INITIAL.
+
+    CONCATENATE text-006 p_fname
+        INTO lv_ptext.
+    CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+      EXPORTING
+        text = lv_ptext.
+    OPEN DATASET p_fname
+              FOR APPENDING
+              IN TEXT MODE ENCODING DEFAULT.
+    LOOP AT gt_title INTO gi_title.
+      CONCATENATE gi_final gi_title INTO gi_final SEPARATED BY cl_abap_char_utilities=>horizontal_tab.
+    ENDLOOP.
+    SHIFT gi_final .
+    TRANSFER gi_final TO p_fname.
+
+    LOOP AT gt_output INTO gi_output.
+      gi_final-mtart = gi_output-mtart .
+      gi_final-matkl = gi_output-matkl .
+      gi_final-meins = gi_output-meins .
+      gi_final-labor = gi_output-labor .
+      gi_final-extwg = gi_output-extwg .
+      gi_final-zeinr = gi_output-zeinr .
+      gi_final-zeivr = gi_output-zeivr .
+      gi_final-bwkey = gi_output-bwkey .
+      gi_final-stprs = gi_output-stprs .
+      gi_final-peinh = gi_output-peinh .
+      gi_final-bklas = gi_output-bklas .
+      gi_final-matnr = gi_output-matnr .
+      gi_final-werks = gi_output-werks .
+      gi_final-zlclid = gi_output-zlclid .
+      gi_final-mmsta = gi_output-mmsta .
+      gi_final-maabc = gi_output-maabc .
+      gi_final-ekgrp = gi_output-ekgrp .
+      gi_final-dismm = gi_output-dismm .
+      gi_final-dispo = gi_output-dispo .
+      gi_final-plifz = gi_output-plifz .
+      gi_final-webaz = gi_output-webaz .
+      gi_final-dzeit = gi_output-dzeit .
+      gi_final-disls = gi_output-disls .
+      gi_final-beskz = gi_output-beskz .
+      gi_final-sobsl = gi_output-sobsl .
+      gi_final-eisbe = gi_output-eisbe .
+      gi_final-bstmi = gi_output-bstmi .
+      gi_final-bstrf = gi_output-bstrf .
+      gi_final-rgekz = gi_output-rgekz .
+      gi_final-lgpro = gi_output-lgpro .
+      gi_final-lgfsb = gi_output-lgfsb .
+      gi_final-schgt = gi_output-schgt .
+      gi_final-sfcpf = gi_output-sfcpf .
+      gi_final-sbdkz = gi_output-sbdkz .
+      gi_final-kautb = gi_output-kautb .
+      gi_final-minbe = gi_output-minbe .
+      gi_final-ncost = gi_output-ncost .
+      gi_final-maktx = gi_output-maktx .
+* Begin of changes by 22-JAN-2018 | GECHG0088976|502683007.
+      gi_final-mstae  = gi_output-mstae .
+      gi_final-strgr  = gi_output-strgr .
+      gi_final-kzkri  = gi_output-kzkri .
+      gi_final-kzini  = gi_output-kzini .
+      gi_final-prmod  = gi_output-prmod .
+      gi_final-mstav  = gi_output-mstav .
+      gi_final-abcin  = gi_output-abcin .
+      gi_final-prctr  = gi_output-prctr . " Added by 502765654 23-01-2020 |GECHG0704170.
+* End of changes by 22-JAN-2018   | GECHG0088976|502683007.
+      APPEND gi_final TO gt_final.
+**Begin of 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+      CONCATENATE gi_final-werks gi_final-matnr gi_final-maktx gi_final-zlclid gi_final-meins gi_final-labor gi_final-mtart gi_final-matkl
+         gi_final-maabc  gi_final-ekgrp gi_final-dismm  gi_final-dispo gi_final-plifz gi_final-webaz gi_final-dzeit gi_final-disls gi_final-beskz
+         gi_final-sobsl gi_final-eisbe gi_final-meins_1 gi_final-bstmi gi_final-meins_2 gi_final-bstrf gi_final-meins_3 gi_final-rgekz gi_final-lgpro
+         gi_final-lgfsb gi_final-schgt gi_final-sbdkz gi_final-mmsta gi_final-kautb gi_final-minbe gi_final-meins_4 gi_final-zeinr gi_final-zeivr
+         gi_final-ncost  gi_final-bwkey  gi_final-stprs  gi_final-waerk gi_final-peinh gi_final-bklas gi_final-sfcpf gi_final-extwg
+*End of 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+* Begin of changes by 22-JAN-2018 |GECHG0088976|502683007.
+         gi_final-mstae gi_final-strgr gi_final-kzkri gi_final-kzini gi_final-prmod gi_final-mstav gi_final-abcin gi_final-prctr " Added by 502765654 23-01-2020 |GECHG0704170.
+* End of changes by 22-JAN-2018   | GECHG0088976|502683007.
+*      gi_final-mtart
+*          gi_final-matkl gi_final-meins gi_final-labor gi_final-extwg gi_final-zeinr gi_final-zeivr gi_final-bwkey gi_final-stprs gi_final-peinh gi_final-bklas
+*          gi_final-matnr gi_final-werks gi_final-zlclid gi_final-mmsta gi_final-maabc gi_final-ekgrp gi_final-dismm gi_final-dispo gi_final-plifz
+*          gi_final-webaz gi_final-dzeit gi_final-disls gi_final-beskz gi_final-sobsl gi_final-eisbe gi_final-bstmi gi_final-bstrf gi_final-rgekz
+*          gi_final-lgpro gi_final-lgfsb gi_final-schgt gi_final-sfcpf gi_final-sbdkz gi_final-kautb gi_final-minbe gi_final-ncost gi_final-maktx
+          INTO lv_str SEPARATED BY  cl_abap_char_utilities=>horizontal_tab.
+      TRANSFER lv_str TO p_fname.
+      CLEAR: gi_final, lv_str, gi_output.
+    ENDLOOP.
+    CLOSE DATASET p_fname.
+
+    lv_message = text-062.
+    WRITE:/ lv_message, p_fname.
+  ELSE.
+    lv_message = text-063.
+  ENDIF.
+ENDFORM.                    " F_APPSERVER_DOWNLOAD
+*End of changes by 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+

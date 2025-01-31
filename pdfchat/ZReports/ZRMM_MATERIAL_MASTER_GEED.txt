@@ -1,0 +1,880 @@
+*=================================================================
+*= Copyright ©  2000 GE ENERGY  =
+*= ALL RIGHTS RESERVED =
+*=================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              :    ZRMM_MATERIAL_MASTER_GEED
+* Title             :    Material Master GEEDonly Report
+*
+* Program function  :
+*
+* Transaction code  : ZMM937
+*
+* Limitations       : NA
+*
+* Table updates     : NA
+*
+* Authorizations    : NA
+*
+* Selection screen  : 1000
+*
+* RICEF Object No   : RICEF270
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+****************************************************************************************
+* DATE               | CR No.          |CHANGED BY   |DESCRIPTION OF CHANG             *
+****************************************************************************************
+* 26-MAR-2013        | CHG0164872      |502152412    | Initial Program                 *
+* 11-APR-2013        | CHG0164872      |502152412    | Update CCC_EXP_DATE/CCC_LABPER_DATE*
+****************************************************************************************
+
+report  ZRMM_MATERIAL_MASTER_GEED.
+*----------------------------------------------------------------------*
+*----------------------------globe datas&types-------------------------*
+*----------------------------------------------------------------------*
+type-pools: SLIS.
+tables: MARA,MARC,MAKT,AUSP. "just for select-options
+
+types: begin of TY_X_RESULT,
+         MATNR type MARC-MATNR,
+         WERKS type MARC-WERKS,
+         MAKTX_EN type MAKT-MAKTX,
+         MAKTX_ZH type MAKT-MAKTX,
+         NTGEW type MARA-NTGEW,
+         BRGEW type MARA-BRGEW,
+         GEWEI type MARA-GEWEI,
+         GROES type MARA-GROES,
+         PRDHA type MARA-PRDHA,
+         MVGR1 type MVKE-MVGR1,
+         BEZEI type TVM1T-BEZEI,
+         CCC_STATUS type CAWNT-ATWTB,
+         CCC_NO type CAWNT-ATWTB,
+* CHG0164872 Modification Start
+*         CCC_EXP_DATE type CAWNT-ATWTB,
+         CCC_EXP_DATE type SY-DATUM,
+* CHG0164872 Modification End
+         CCC_PRINT_PER type CAWNT-ATWTB,
+* CHG0164872 Modification Start
+*         CCC_LABPER_DATE type CAWNT-ATWTB,
+         CCC_LABPER_DATE type SY-DATUM,
+* CHG0164872 Modification End
+         STAWN type MARC-STAWN,
+         HERKL type MARC-HERKL,
+         STPRS type MBEW-STPRS,
+         PEINH type MBEW-PEINH,
+         MEINS type MARA-MEINS,
+         WAERS type T001-WAERS,
+         LADGR_T type C length 50,
+         MMSTA type MARC-MMSTA,
+       end of TY_X_RESULT,
+       TY_IT_RESULT type table of TY_X_RESULT.
+
+types: begin of TY_X_T001W,
+         WERKS type T001W-WERKS,           "To Plant
+         BWKEY type T001W-BWKEY,           "Valuation Area
+       end of TY_X_T001W,
+       begin of TY_X_T001K,
+         BWKEY type T001K-BWKEY,           "Valuation Area
+         BUKRS type T001K-BUKRS,
+       end of TY_X_T001K,
+       begin of TY_X_T001,
+         BUKRS type T001-BUKRS,
+         WAERS type T001-WAERS,
+       end of TY_X_T001,
+       begin of TY_X_MAKT,
+         MATNR type MAKT-MATNR,
+         SPRAS type MAKT-SPRAS,
+         MAKTX type MAKT-MAKTX,
+       end of TY_X_MAKT,
+       begin of TY_X_MBEW,
+         MATNR type MBEW-MATNR,           "SKU No.
+         BWKEY type MBEW-BWKEY,           "Valuation Area
+         BWTAR type MBEW-BWTAR,           "Valuation Type
+         STPRS type MBEW-STPRS,           "Standard Cost
+         PEINH type MBEW-PEINH,           "Price Unit
+       end of TY_X_MBEW,
+       begin of TY_X_MVKE,
+         MATNR type MVKE-MATNR,
+         VKORG type MVKE-VKORG,
+         VTWEG type MVKE-VTWEG,
+         MVGR1 type MVKE-MVGR1,
+       end of TY_X_MVKE,
+       begin of TY_X_CAWN,
+         ATINN type CAWN-ATINN,
+         ATZHL type CAWN-ATZHL,
+         ADZHL type CAWN-ADZHL,
+         ATWRT type CAWN-ATWRT,
+         ATWTB type CAWNT-ATWTB,
+         LKENZ type CAWNT-LKENZ,
+       end of TY_X_CAWN,
+       TY_T_CAWN type table of TY_X_CAWN.
+
+data: IT_RESULT type table of TY_X_RESULT with header line.
+
+constants: C_KLART_MAT type AUSP-KLART value '001',
+           C_ATINN_CCC_STATUS type C length 30 value 'CCC-CERT-STATUS',
+           C_ATINN_CCC_NO type C length 30 value 'CCC-CERT-NUMBER',
+           C_ATINN_CCC_EXP_DATE type C length 30 value 'CCC-CERT-VALID-TO',
+           C_ATINN_CCC_PRINT_PER type C length 30 value 'CCC-LP-PERMISSION',
+           C_ATINN_CCC_LABPER_DATE type C length 30 value 'CCC-LP-VALID-TO'.
+
+
+*----------------------------------------------------------------------*
+*----------------------------selection-screen--------------------------*
+*----------------------------------------------------------------------*
+selection-screen begin of block B1 with frame title TEXT-B01.
+select-options: S_MATNR for MARA-MATNR,
+                S_WERKS for MARC-WERKS,
+                S_STAWN for MARC-STAWN,           "HS Code
+                S_MAKTX for MAKT-MAKTX,           "Material desc
+                S_ATWRT for AUSP-ATWRT.           "CCC status
+parameters: P_VKORG type MVKE-VKORG obligatory default 'CNS1',
+            P_VTWEG type MVKE-VTWEG obligatory default '10'.
+selection-screen end of block B1.
+
+*----------------------------------------------------------------------*
+*----------------------------load-of-program---------------------------*
+*----------------------------------------------------------------------*
+load-of-program.
+
+*----------------------------------------------------------------------*
+*----------------------------initialization----------------------------*
+*----------------------------------------------------------------------*
+initialization.
+
+*----------------------------------------------------------------------*
+*----------------------------at selection-screen output----------------*
+*----------------------------------------------------------------------*
+at selection-screen on value-request for S_ATWRT-LOW.
+  perform F4_CCC_STATUS using 'S_ATWRT-LOW'.
+
+at selection-screen on value-request for S_ATWRT-HIGH.
+  perform F4_CCC_STATUS using 'S_ATWRT-HIGH'.
+
+at selection-screen output.
+
+*----------------------------------------------------------------------*
+*----------------------------at selection-screen-----------------------*
+*----------------------------------------------------------------------*
+at selection-screen.
+
+*----------------------------------------------------------------------*
+*----------------------------start-of-selection------------------------*
+*----------------------------------------------------------------------*
+start-of-selection.
+  perform F1000_GET_DATA changing IT_RESULT[].
+  if SY-BATCH is initial.
+    perform F2000_ALV_DISPLAY using IT_RESULT[].
+  endif.
+
+
+*----------------------------------------------------------------------*
+*----------------------------end-of-selection--------------------------*
+*----------------------------------------------------------------------*
+end-of-selection.
+
+
+
+*----------------------------------------------------------------------*
+*----------------------------sub-routine-------------------------------*
+*----------------------------------------------------------------------*
+
+*&---------------------------------------------------------------------*
+*&      Form  F4_CCC_STATUS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->S_ATWRT-LOW  text
+*----------------------------------------------------------------------*
+form F4_CCC_STATUS using F_FLDNAME_IN type HELP_INFO-DYNPROFLD.
+  data: LT_CAWN type table of TY_X_CAWN with header line.
+  data: L_ATINN_CCC_STATUS type AUSP-ATINN.
+  data: begin of LX_ATWRT,
+          ATWRT type CAWN-ATWRT,
+          ATWTB type CAWNT-ATWTB,
+        end of LX_ATWRT,
+        LT_ATWRT like table of LX_ATWRT.
+*  DATA: LT_RETURN TYPE TABLE OF DDSHRETVAL.
+  ranges: LR_ATINN for CAWN-ATINN.
+
+  perform CONCERT_ATINN_E2I using C_ATINN_CCC_STATUS changing L_ATINN_CCC_STATUS.
+  LR_ATINN-OPTION = 'EQ'. LR_ATINN-SIGN = 'I'.
+  LR_ATINN-LOW = L_ATINN_CCC_STATUS. append LR_ATINN.
+  perform GET_CAWN_T using LR_ATINN[] changing LT_CAWN[].
+
+  check not LT_CAWN[] is initial.
+
+  loop at LT_CAWN.
+    move-corresponding LT_CAWN to LX_ATWRT.
+    append LX_ATWRT to LT_ATWRT.
+  endloop.
+
+  call function 'F4IF_INT_TABLE_VALUE_REQUEST'
+    exporting
+*     DDIC_STRUCTURE         = ' '
+      RETFIELD               = 'ATWRT'
+*     PVALKEY                = ' '
+      DYNPPROG               = SY-REPID
+      DYNPNR                 = SY-DYNNR
+      DYNPROFIELD            = F_FLDNAME_IN
+*     STEPL                  = 0
+*     WINDOW_TITLE           =
+*     VALUE                  = ' '
+      VALUE_ORG              = 'S'
+*     MULTIPLE_CHOICE        = ' '
+*     DISPLAY                = ' '
+*     CALLBACK_PROGRAM       = ' '
+*     CALLBACK_FORM          = ' '
+*     CALLBACK_METHOD        =
+*     MARK_TAB               =
+*   IMPORTING
+*     USER_RESET             =
+    tables
+      VALUE_TAB              = LT_ATWRT[]
+*     FIELD_TAB              =
+*      RETURN_TAB             = LT_RETURN[]
+*     DYNPFLD_MAPPING        =
+   exceptions
+     PARAMETER_ERROR        = 1
+     NO_VALUES_FOUND        = 2
+     others                 = 3
+            .
+  if SY-SUBRC <> 0.
+* Implement suitable error handling here
+  endif.
+
+endform.                    "F4_CCC_STATUS
+
+*&---------------------------------------------------------------------*
+*&      Form  F1000_GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->F_IT_RESULT_OUT  text
+*----------------------------------------------------------------------*
+form F1000_GET_DATA changing F_IT_RESULT_OUT type TY_IT_RESULT.
+  data: LX_RESULT like line of F_IT_RESULT_OUT.
+  data: LT_T001W type table of TY_X_T001W with header line,
+        LT_T001K type table of TY_X_T001K with header line,
+        LT_T001 type table of TY_X_T001 with header line,
+        LT_MBEW type table of TY_X_MBEW with header line,
+        LT_MVKE type table of TY_X_MVKE with header line,
+        LT_MAKT type table of TY_X_MAKT with header line,
+        LT_CAWN type table of TY_X_CAWN with header line.
+  data: begin of LX_MA,
+           MATNR type MARA-MATNR,
+           MEINS type MARA-MEINS,
+           NTGEW type MARA-NTGEW,
+           BRGEW type MARA-BRGEW,
+           GEWEI type MARA-GEWEI,
+           GROES type MARA-GROES,
+           PRDHA type MARA-PRDHA,
+           WERKS type MARC-WERKS,
+           STAWN type MARC-STAWN,
+           HERKL type MARC-HERKL,
+           MMSTA type MARC-MMSTA,
+           LADGR type MARC-LADGR,
+
+           BWKEY type MBEW-BWKEY,
+           OBJEK type AUSP-OBJEK,
+        end of LX_MA,
+        LT_MA like table of LX_MA.
+  data: LT_MA_SELECT like LT_MA[].
+  data: begin of LX_AUSP,
+          OBJEK type AUSP-OBJEK,
+          ATINN type AUSP-ATINN,
+          ATZHL type AUSP-ATZHL,
+          MAFID type AUSP-MAFID,
+          KLART type AUSP-KLART,
+          ADZHL type AUSP-ADZHL,
+          ATWRT type AUSP-ATWRT,
+* CHG0164872 Modification Start
+          ATFLV type AUSP-ATFLV,
+* CHG0164872 Modification End
+        end of LX_AUSP,
+        LT_AUSP like table of LX_AUSP.
+  data: L_ATINN_CCC_STATUS type AUSP-ATINN,
+        L_ATINN_CCC_NO type AUSP-ATINN,
+        L_ATINN_CCC_EXP_DATE type AUSP-ATINN,
+        L_ATINN_CCC_PRINT_PER type AUSP-ATINN,
+        L_ATINN_CCC_LABPER_DATE type AUSP-ATINN.
+  ranges: LR_ATINN for CAWN-ATINN.
+* CHG0164872 Modification Start
+  data: L_DATE_P type P,
+        L_DATE_C(8) type C.
+* CHG0164872 Modification End
+  refresh F_IT_RESULT_OUT.
+
+
+  perform CONCERT_ATINN_E2I using C_ATINN_CCC_STATUS changing L_ATINN_CCC_STATUS.
+  perform CONCERT_ATINN_E2I using C_ATINN_CCC_NO changing L_ATINN_CCC_NO.
+  perform CONCERT_ATINN_E2I using C_ATINN_CCC_EXP_DATE changing L_ATINN_CCC_EXP_DATE.
+  perform CONCERT_ATINN_E2I using C_ATINN_CCC_PRINT_PER changing L_ATINN_CCC_PRINT_PER.
+  perform CONCERT_ATINN_E2I using C_ATINN_CCC_LABPER_DATE changing L_ATINN_CCC_LABPER_DATE.
+
+  LR_ATINN-OPTION = 'EQ'. LR_ATINN-SIGN = 'I'.
+  LR_ATINN-LOW = L_ATINN_CCC_STATUS. append LR_ATINN.
+  LR_ATINN-LOW = L_ATINN_CCC_NO. append LR_ATINN.
+  LR_ATINN-LOW = L_ATINN_CCC_EXP_DATE. append LR_ATINN.
+  LR_ATINN-LOW = L_ATINN_CCC_PRINT_PER. append LR_ATINN.
+  LR_ATINN-LOW = L_ATINN_CCC_LABPER_DATE. append LR_ATINN.
+
+  if not S_MAKTX[] is initial and not S_ATWRT[] is initial.
+    select MARA~MATNR
+           MARA~MEINS
+           MARA~NTGEW
+           MARA~BRGEW
+           MARA~GEWEI
+           MARA~GROES
+           MARA~PRDHA
+           MARC~WERKS
+           MARC~STAWN
+           MARC~HERKL
+           MARC~MMSTA
+           MARC~LADGR
+      into table LT_MA
+      from MARA
+      inner join MARC
+      on MARA~MATNR = MARC~MATNR
+      where MARA~MATNR in S_MATNR
+        and MARC~WERKS in S_WERKS
+        and MARC~STAWN in S_STAWN
+        and exists ( select MATNR from MAKT
+                       where MATNR = MARA~MATNR
+                         and MAKTX in S_MAKTX
+                   )
+        and exists ( select ATWRT from AUSP
+                       where OBJEK = MARA~MATNR
+                         and KLART = C_KLART_MAT
+                         and MAFID = 'O'
+                         and ATINN = L_ATINN_CCC_STATUS
+                         and ATWRT in S_ATWRT
+                   )
+      .
+
+  elseif S_ATWRT[] is initial.
+
+    select MARA~MATNR
+           MARA~MEINS
+           MARA~NTGEW
+           MARA~BRGEW
+           MARA~GEWEI
+           MARA~GROES
+           MARA~PRDHA
+           MARC~WERKS
+           MARC~STAWN
+           MARC~HERKL
+           MARC~MMSTA
+           MARC~LADGR
+      into table LT_MA
+      from MARA
+      inner join MARC
+      on MARA~MATNR = MARC~MATNR
+      where MARA~MATNR in S_MATNR
+        and MARC~WERKS in S_WERKS
+        and MARC~STAWN in S_STAWN
+        and exists ( select MATNR from MAKT
+                       where MATNR = MARA~MATNR
+                         and MAKTX in S_MAKTX
+                   )
+      .
+
+  elseif S_MAKTX[] is initial.
+
+    select MARA~MATNR
+           MARA~MEINS
+           MARA~NTGEW
+           MARA~BRGEW
+           MARA~GEWEI
+           MARA~GROES
+           MARA~PRDHA
+           MARC~WERKS
+           MARC~STAWN
+           MARC~HERKL
+           MARC~MMSTA
+           MARC~LADGR
+      into table LT_MA
+      from MARA
+      inner join MARC
+      on MARA~MATNR = MARC~MATNR
+      where MARA~MATNR in S_MATNR
+        and MARC~WERKS in S_WERKS
+        and MARC~STAWN in S_STAWN
+        and exists ( select ATWRT from AUSP
+                       where OBJEK = MARA~MATNR
+                         and KLART = C_KLART_MAT
+                         and MAFID = 'O'
+                         and ATINN = L_ATINN_CCC_STATUS
+                         and ATWRT in S_ATWRT
+                   )
+        .
+
+  else.
+
+    select MARA~MATNR
+           MARA~MEINS
+           MARA~NTGEW
+           MARA~BRGEW
+           MARA~GEWEI
+           MARA~GROES
+           MARA~PRDHA
+           MARC~WERKS
+           MARC~STAWN
+           MARC~HERKL
+           MARC~MMSTA
+           MARC~LADGR
+      into table LT_MA
+      from MARA
+      inner join MARC
+      on MARA~MATNR = MARC~MATNR
+      where MARA~MATNR in S_MATNR
+        and MARC~WERKS in S_WERKS
+        and MARC~STAWN in S_STAWN
+      .
+  endif.
+
+  check not LT_MA[] is initial.
+
+  select WERKS BWKEY
+    into table LT_T001W
+    from T001W
+    where WERKS in S_WERKS.
+
+  select BWKEY BUKRS
+    into table LT_T001K
+    from T001K
+    for all entries in LT_T001W
+    where BWKEY = LT_T001W-BWKEY.
+
+  select BUKRS WAERS
+    into table LT_T001
+    from T001
+    for all entries in LT_T001K
+    where BUKRS = LT_T001K-BUKRS.
+
+  loop at LT_MA into LX_MA.
+    LX_MA-OBJEK = LX_MA-MATNR.
+    read table LT_T001W with key WERKS = LX_MA-WERKS.
+    if SY-SUBRC = 0.
+      LX_MA-BWKEY = LT_T001W-BWKEY.
+    endif.
+    modify LT_MA from LX_MA transporting OBJEK BWKEY.
+  endloop.
+
+  LT_MA_SELECT[] = LT_MA[].
+  sort LT_MA_SELECT by MATNR BWKEY.
+  delete adjacent duplicates from LT_MA_SELECT comparing MATNR BWKEY.
+
+  select MATNR BWKEY BWTAR STPRS PEINH
+    into table LT_MBEW
+    from MBEW
+    for all entries in LT_MA_SELECT
+    where MATNR = LT_MA_SELECT-MATNR
+      and BWKEY = LT_MA_SELECT-BWKEY
+    .
+  sort LT_MBEW by MATNR BWKEY.
+
+  LT_MA_SELECT[] = LT_MA[].
+  sort LT_MA_SELECT by MATNR.
+  delete adjacent duplicates from LT_MA_SELECT comparing MATNR.
+
+  select MATNR SPRAS MAKTX
+    into table LT_MAKT
+    from MAKT
+    for all entries in LT_MA_SELECT
+    where MATNR = LT_MA_SELECT-MATNR
+      and SPRAS in ('EN','1')
+    .
+  sort LT_MAKT by MATNR SPRAS.
+
+
+
+
+  select OBJEK
+         ATINN
+         ATZHL
+         MAFID
+         KLART
+         ADZHL
+         ATWRT
+* CHG0164872 Modification Start
+         ATFLV
+* CHG0164872 Modification End
+    into table LT_AUSP
+    from AUSP
+    for all entries in LT_MA_SELECT
+    where OBJEK = LT_MA_SELECT-OBJEK
+      and KLART = C_KLART_MAT
+      and MAFID = 'O'
+      and ATINN in LR_ATINN
+      .
+  sort LT_AUSP by OBJEK ATINN.
+
+  if not LT_AUSP[] is initial.
+    perform GET_CAWN_T using LR_ATINN[] changing LT_CAWN[].
+  endif.
+
+  select MATNR VKORG VTWEG MVGR1
+    into table LT_MVKE
+    from MVKE
+    for all entries in LT_MA_SELECT
+    where MATNR = LT_MA_SELECT-MATNR
+    .
+  sort LT_MVKE by MATNR VKORG VTWEG.
+
+  loop at LT_MA into LX_MA.
+    clear LX_RESULT.
+    move-corresponding LX_MA to LX_RESULT.
+
+    read table LT_MAKT with key MATNR = LX_MA-MATNR
+                                SPRAS = '1'
+                       binary search.
+    if SY-SUBRC = 0.
+      LX_RESULT-MAKTX_ZH = LT_MAKT-MAKTX.
+    endif.
+
+    read table LT_MAKT with key MATNR = LX_MA-MATNR
+                                SPRAS = 'EN'
+                       binary search.
+    if SY-SUBRC = 0.
+      LX_RESULT-MAKTX_EN = LT_MAKT-MAKTX.
+    endif.
+
+    read table LT_MBEW with key MATNR = LX_MA-MATNR
+                                BWKEY = LX_MA-BWKEY
+                       binary search.
+    if SY-SUBRC = 0.
+      LX_RESULT-STPRS = LT_MBEW-STPRS.
+      LX_RESULT-PEINH = LT_MBEW-PEINH.
+    endif.
+
+    read table LT_T001K with key BWKEY = LX_MA-BWKEY.
+    if SY-SUBRC = 0.
+      read table LT_T001 with key BUKRS = LT_T001K-BUKRS.
+      if SY-SUBRC = 0.
+        LX_RESULT-WAERS = LT_T001-WAERS.
+      endif.
+    endif.
+
+    read table LT_MVKE with key MATNR = LX_MA-MATNR
+                       binary search.
+    if SY-SUBRC = 0.
+      LX_RESULT-MVGR1 = LT_MVKE-MVGR1.
+      perform GET_TVM1T_TEXT using LT_MVKE-MVGR1 changing LX_RESULT-BEZEI.
+    endif.
+
+    read table LT_AUSP into LX_AUSP
+                       with key OBJEK = LX_MA-OBJEK
+                                ATINN = L_ATINN_CCC_STATUS
+                       binary search.
+    if SY-SUBRC = 0.
+      LX_RESULT-CCC_STATUS = LX_AUSP-ATWRT.
+      read table LT_CAWN with key ATINN = L_ATINN_CCC_STATUS
+                                  ATWRT = LX_AUSP-ATWRT.
+      if SY-SUBRC = 0.
+        LX_RESULT-CCC_STATUS = LT_CAWN-ATWTB.
+      endif.
+    endif.
+
+    read table LT_AUSP into LX_AUSP
+                       with key OBJEK = LX_MA-OBJEK
+                                ATINN = L_ATINN_CCC_NO
+                       binary search.
+    if SY-SUBRC = 0.
+      LX_RESULT-CCC_NO = LX_AUSP-ATWRT.
+      read table LT_CAWN with key ATINN = L_ATINN_CCC_NO
+                                  ATWRT = LX_AUSP-ATWRT.
+      if SY-SUBRC = 0.
+        LX_RESULT-CCC_NO = LT_CAWN-ATWTB.
+      endif.
+    endif.
+
+    read table LT_AUSP into LX_AUSP
+                       with key OBJEK = LX_MA-OBJEK
+                                ATINN = L_ATINN_CCC_EXP_DATE
+                       binary search.
+    if SY-SUBRC = 0.
+* CHG0164872 Modification Start
+*      LX_RESULT-CCC_EXP_DATE = LX_AUSP-ATWRT.
+*      read table LT_CAWN with key ATINN = L_ATINN_CCC_EXP_DATE
+*                                  ATWRT = LX_AUSP-ATWRT.
+*      if SY-SUBRC = 0.
+*        LX_RESULT-CCC_EXP_DATE = LT_CAWN-ATWTB.
+*      endif.
+      L_DATE_P = LX_AUSP-ATFLV.
+      L_DATE_C = L_DATE_P.
+      LX_RESULT-CCC_EXP_DATE = L_DATE_C.
+* CHG0164872 Modification End
+    endif.
+
+    read table LT_AUSP into LX_AUSP
+                       with key OBJEK = LX_MA-OBJEK
+                                ATINN = L_ATINN_CCC_PRINT_PER
+                       binary search.
+    if SY-SUBRC = 0.
+      LX_RESULT-CCC_PRINT_PER = LX_AUSP-ATWRT.
+      read table LT_CAWN with key ATINN = L_ATINN_CCC_PRINT_PER
+                                  ATWRT = LX_AUSP-ATWRT.
+      if SY-SUBRC = 0.
+        LX_RESULT-CCC_PRINT_PER = LT_CAWN-ATWTB.
+      endif.
+    endif.
+
+    read table LT_AUSP into LX_AUSP
+                       with key OBJEK = LX_MA-OBJEK
+                                ATINN = L_ATINN_CCC_LABPER_DATE
+                       binary search.
+    if SY-SUBRC = 0.
+* CHG0164872 Modification Start
+*      LX_RESULT-CCC_LABPER_DATE = LX_AUSP-ATWRT.
+*      read table LT_CAWN with key ATINN = L_ATINN_CCC_LABPER_DATE
+*                                  ATWRT = LX_AUSP-ATWRT.
+*      if SY-SUBRC = 0.
+*        LX_RESULT-CCC_LABPER_DATE = LT_CAWN-ATWTB.
+*      endif.
+      L_DATE_P = LX_AUSP-ATFLV.
+      L_DATE_C = L_DATE_P.
+      LX_RESULT-CCC_LABPER_DATE = L_DATE_C.
+* CHG0164872 Modification End
+    endif.
+
+    perform GET_LADGR_TEXT using LX_MA-LADGR changing LX_RESULT-LADGR_T.
+    concatenate LX_MA-LADGR LX_RESULT-LADGR_T into LX_RESULT-LADGR_T separated by SPACE.
+
+    append LX_RESULT to F_IT_RESULT_OUT.
+  endloop.
+endform.                    "F1000_GET_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_LADGR_TEXT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->VALUE         text
+*      -->(F_LADGR_IN)  text
+*      -->F_TEXT_OUT    text
+*----------------------------------------------------------------------*
+form GET_LADGR_TEXT using VALUE(F_LADGR_IN) changing F_TEXT_OUT.
+  statics: LT_TLGRT type table of TLGRT with header line.
+
+  clear F_TEXT_OUT.
+
+  read table LT_TLGRT with key LADGR = F_LADGR_IN.
+  if SY-SUBRC = 0.
+    F_TEXT_OUT = LT_TLGRT-VTEXT.
+    return.
+  endif.
+
+  select single VTEXT into F_TEXT_OUT
+    from TLGRT
+    where SPRAS = SY-LANGU
+      and LADGR = F_LADGR_IN
+    .
+  if SY-SUBRC = 0.
+    LT_TLGRT-LADGR = F_LADGR_IN.
+    LT_TLGRT-VTEXT = F_TEXT_OUT.
+    append LT_TLGRT.
+  endif.
+endform.                    "GET_LADGR_TEXT
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_TVM1T_TEXT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->VALUE         text
+*      -->(F_MVGR1_IN)  text
+*      -->F_TEXT_OUT    text
+*----------------------------------------------------------------------*
+form GET_TVM1T_TEXT using VALUE(F_MVGR1_IN) changing F_TEXT_OUT.
+  statics: LT_TVM1T type table of TVM1T with header line.
+
+  clear F_TEXT_OUT.
+
+  read table LT_TVM1T with key MVGR1 = F_MVGR1_IN.
+  if SY-SUBRC = 0.
+    F_TEXT_OUT = LT_TVM1T-BEZEI.
+    return.
+  endif.
+
+  select single BEZEI into F_TEXT_OUT
+    from TVM1T
+    where SPRAS = SY-LANGU
+      and MVGR1 = F_MVGR1_IN
+    .
+  if SY-SUBRC = 0.
+    LT_TVM1T-MVGR1 = F_MVGR1_IN.
+    LT_TVM1T-BEZEI = F_TEXT_OUT.
+    append LT_TVM1T.
+  endif.
+endform.                    "GET_TVM1T_TEXT
+
+*&---------------------------------------------------------------------*
+*&      Form  concert_ATINN_e2i
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->F_ATINN_E_IN   text
+*      -->F_ATINN_I_OUT  text
+*----------------------------------------------------------------------*
+form CONCERT_ATINN_E2I using F_ATINN_E_IN changing F_ATINN_I_OUT.
+  call function 'CONVERSION_EXIT_ATINN_INPUT'
+    exporting
+      INPUT  = F_ATINN_E_IN
+    importing
+      OUTPUT = F_ATINN_I_OUT.
+endform.                    "concert_ATINN_e2i
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_CAWN_T
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->F_R_ATINN_IN   text
+*      -->F_IT_CAWN_OUT  text
+*----------------------------------------------------------------------*
+form GET_CAWN_T using F_R_ATINN_IN type TABLE
+                changing F_IT_CAWN_OUT type TY_T_CAWN.
+  select CAWN~ATINN CAWN~ATZHL CAWN~ADZHL CAWN~ATWRT CAWNT~ATWTB CAWNT~LKENZ
+    into table F_IT_CAWN_OUT
+    from CAWN
+    inner join CAWNT
+     on CAWN~ATINN = CAWNT~ATINN
+    and CAWN~ATZHL = CAWNT~ATZHL
+    and CAWN~ADZHL = CAWNT~ADZHL
+    and CAWNT~SPRAS = SY-LANGU
+    and CAWNT~LKENZ = ' '
+    where CAWN~ATINN in F_R_ATINN_IN
+    .
+endform.                    "GET_CAWN_T
+
+*&---------------------------------------------------------------------*
+*&      Form  F2000_ALV_DISPLAY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->F_IT_RESULT_IN  text
+*----------------------------------------------------------------------*
+form F2000_ALV_DISPLAY using F_IT_RESULT_IN type TY_IT_RESULT.
+  data: LT_FIELDCAT type SLIS_T_FIELDCAT_ALV,
+        LX_LAYOUT type SLIS_LAYOUT_ALV,
+        LT_EVENT_EXIT type SLIS_T_EVENT_EXIT with header line,
+        L_GRID_TITLE type LVC_TITLE.
+  data: L_REPID like SY-REPID.
+
+  perform BUILD_FIELDCAT changing LT_FIELDCAT[].
+
+  LX_LAYOUT-COLWIDTH_OPTIMIZE = 'X'.
+  LX_LAYOUT-ZEBRA = 'X'.
+
+  L_REPID = SY-REPID.
+
+*  LT_EVENT_EXIT-UCOMM = '&REFRESH'.
+*  LT_EVENT_EXIT-BEFORE = 'X'.
+*  append LT_EVENT_EXIT.
+
+  call function 'REUSE_ALV_GRID_DISPLAY'
+    exporting
+      I_BYPASSING_BUFFER                = 'X'
+      I_BUFFER_ACTIVE                   = SPACE
+      I_SAVE                            = 'A'
+      I_CALLBACK_PROGRAM                = L_REPID
+*      IS_VARIANT                        = LX_VARIANT
+*      I_CALLBACK_PF_STATUS_SET          = 'SET_PF_STATUS'
+*      I_CALLBACK_USER_COMMAND           = 'USER_COMMAND'
+*      I_CALLBACK_TOP_OF_PAGE            = ' '
+*      I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*      I_CALLBACK_HTML_END_OF_LIST       = ' '
+*      I_STRUCTURE_NAME                  =
+      I_GRID_TITLE                      = L_GRID_TITLE
+      IS_LAYOUT                         = LX_LAYOUT
+      IT_FIELDCAT                       = LT_FIELDCAT
+*      IT_EVENT_EXIT                     = LT_EVENT_EXIT[]
+*   IMPORTING
+*     E_EXIT_CAUSED_BY_CALLER           =
+*     ES_EXIT_CAUSED_BY_USER            =
+    tables
+      T_OUTTAB                          = F_IT_RESULT_IN[]
+    exceptions
+      PROGRAM_ERROR                     = 1
+      others                            = 2
+            .
+  if SY-SUBRC <> 0.
+* Implement suitable error handling here
+  endif.
+
+endform.                    "F2000_ALV_DISPLAY
+
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->F_IT_FIELDCAT_OUT  text
+*----------------------------------------------------------------------*
+form BUILD_FIELDCAT changing F_IT_FIELDCAT_OUT type SLIS_T_FIELDCAT_ALV.
+  data: LX_FIELDCAT like line of F_IT_FIELDCAT_OUT.
+
+  define _FILL_FIELDCAT.
+    CLEAR LX_FIELDCAT.
+    LX_FIELDCAT-FIELDNAME = &1.
+    LX_FIELDCAT-DATATYPE = &4.
+    LX_FIELDCAT-OUTPUTLEN = &5.
+    LX_FIELDCAT-SELTEXT_L = &2.
+    LX_FIELDCAT-SELTEXT_M = &2.
+    LX_FIELDCAT-SELTEXT_S = &2.
+    LX_FIELDCAT-DDICTXT = 'L'.
+    LX_FIELDCAT-REPTEXT_DDIC = &2.
+    LX_FIELDCAT-NO_OUT = &3.
+    LX_FIELDCAT-REF_TABNAME = &6.
+    LX_FIELDCAT-REF_FIELDNAME = &7.
+    IF LX_FIELDCAT-FIELDNAME = 'NTGEW' OR
+       LX_FIELDCAT-FIELDNAME = 'BRGEW'.
+      LX_FIELDCAT-QFIELDNAME = 'GEWEI'.
+    ENDIF.
+    IF LX_FIELDCAT-FIELDNAME = 'MATNR' OR
+       LX_FIELDCAT-FIELDNAME = 'WERKS'.
+      LX_FIELDCAT-KEY = 'X'.
+    ENDIF.
+    APPEND LX_FIELDCAT TO F_IT_FIELDCAT_OUT.
+  end-of-definition.
+
+
+  refresh F_IT_FIELDCAT_OUT.
+
+  _FILL_FIELDCAT: 'MATNR' TEXT-101 SPACE 'CHAR' 18 'RESB' SPACE,
+                  'WERKS' TEXT-102 SPACE 'CHAR' 4 'RESB' SPACE,
+                  'MAKTX_EN' TEXT-103 SPACE 'CHAR' 40 'MAKT' 'MAKTX',
+                  'MAKTX_ZH' TEXT-104 SPACE 'CHAR' 40 'MAKT' 'MAKTX',
+                  'NTGEW' TEXT-105 SPACE 'QUAN' 17 'MARA' SPACE,
+                  'BRGEW' TEXT-106 SPACE 'QUAN' 17 'MARA' SPACE,
+                  'GEWEI' TEXT-107 SPACE 'UNIT' 3 'MARA' SPACE,
+                  'GROES' TEXT-108 SPACE 'CHAR' 32 'MARA' SPACE,
+                  'PRDHA' TEXT-109 SPACE 'CHAR' 18 'MARA' SPACE,
+                  'MVGR1' TEXT-110 SPACE 'CHAR' 3 'MVKE' SPACE,
+                  'BEZEI' TEXT-111 SPACE 'CHAR' 40 'TVM1T' SPACE,
+                  'CCC_STATUS' TEXT-112 SPACE 'CHAR' 30 'AUSP' 'ATWRT',
+                  'CCC_NO' TEXT-113 SPACE 'CHAR' 30 'AUSP' 'ATWRT',
+* CHG0164872 Modification Start
+*                  'CCC_EXP_DATE' TEXT-114 SPACE 'CHAR' 30 'AUSP' 'ATWRT',
+                  'CCC_EXP_DATE' TEXT-114 SPACE 'DATS' 10 'BKPF' 'BUDAT',
+* CHG0164872 Modification End
+                  'CCC_PRINT_PER' TEXT-115 SPACE 'CHAR' 30 'AUSP' 'ATWRT',
+* CHG0164872 Modification Start
+*                  'CCC_LABPER_DATE' TEXT-116 SPACE 'CHAR' 30 'AUSP' 'ATWRT',
+                  'CCC_LABPER_DATE' TEXT-116 SPACE 'DATS' 10 'BKPF' 'BUDAT',
+* CHG0164872 Modification End
+                  'STAWN' TEXT-117 SPACE 'CHAR' 17 'MARC' SPACE,
+                  'HERKL' TEXT-118 SPACE 'CHAR' 3 'MARC' SPACE,
+                  'STPRS' TEXT-119 SPACE 'CURR' 15 'MBEW' SPACE,
+                  'PEINH' TEXT-120 SPACE 'DEC' 6 'MBEW' SPACE,
+                  'MEINS' TEXT-121 SPACE 'UNIT' 3 'MARA' SPACE,
+                  'WAERS' TEXT-122 SPACE 'CUKY' 5 'T001' SPACE,
+                  'LADGR_T' TEXT-123 SPACE 'CHAR' 50 SPACE SPACE,
+                  'MMSTA' TEXT-124 SPACE 'CHAR' 2 'MARC' SPACE
+                  .
+endform.                    "BUILD_FIELDCAT
+

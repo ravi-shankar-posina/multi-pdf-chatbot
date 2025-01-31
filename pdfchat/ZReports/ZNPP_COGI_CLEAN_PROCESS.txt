@@ -1,0 +1,371 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_COGI_CLEAN_PROCESS
+*&---------------------------------------------------------------------*
+
+*&---------------------------------------------------------------------*
+*&      Form  F2200_BDC_DYNPRO
+*&---------------------------------------------------------------------*
+* Form is used to move data to BDCDATA int'table
+*----------------------------------------------------------------------*
+FORM f2200_bdc_dynpro USING program TYPE bdc_prog
+                            dynpro  TYPE bdc_dynr.
+
+  CLEAR gi_bdcdata.
+  gi_bdcdata-program  = program.
+  gi_bdcdata-dynpro   = dynpro.
+  gi_bdcdata-dynbegin = 'X'.
+  APPEND gi_bdcdata TO gt_bdcdata.
+
+ENDFORM.                    " F2200_BDC_DYNPRO
+*&---------------------------------------------------------------------*
+*&      Form  F2300_BDC_FIELD
+*&---------------------------------------------------------------------*
+* Form is used to move data to BDCDATA int'table
+*----------------------------------------------------------------------*
+FORM f2300_bdc_field USING fnam TYPE any
+                           fval TYPE any.
+
+  CLEAR gi_bdcdata.
+  gi_bdcdata-fnam = fnam.
+  gi_bdcdata-fval  = fval.
+  APPEND gi_bdcdata TO gt_bdcdata.
+
+ENDFORM.                    " F2300_BDC_FIELD
+*&---------------------------------------------------------------------*
+*&      Form  F2400_CALL_TRANSACTION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2400_call_transaction .
+
+  DATA : lf_option TYPE ctu_params,
+         l_transaction(5) VALUE 'COGI',
+         l_mstring(255).
+
+  REFRESH gt_messtab.
+  CLEAR   gi_messtab.
+
+  lf_option-defsize = 'X'.
+  lf_option-dismode = c_dismode.
+  lf_option-updmode = c_updmode.
+
+  CALL TRANSACTION l_transaction
+       USING gt_bdcdata
+       MESSAGES INTO gt_messtab
+       OPTIONS FROM lf_option.
+**** checking the entry is exist in affw table
+  SELECT SINGLE  weblnr
+                 weblpos
+                 matnr
+                 werks
+                 lgort
+                 bwart
+                 erfmg
+                 erfme
+                 aufnr
+                 aufps  FROM affw INTO gi_affw1 WHERE weblnr = gi_affw-weblnr
+                                                   AND weblpos = gi_affw-weblpos.
+  IF sy-subrc NE 0.
+    gi_final-matnr = gi_affw-matnr.
+    gi_final-werks = gi_affw-werks.
+    gi_final-lgort = gi_affw-lgort.
+    gi_final-bwart = gi_affw-bwart.
+    gi_final-erfmg = gi_affw-erfmg.
+    gi_final-erfme = gi_affw-erfme.
+    gi_final-aufnr = gi_affw-aufnr.
+    gi_final-aufps = gi_affw-aufps.
+    gi_final-message = 'PROCESSED Successfully'(004).
+    APPEND gi_final TO gt_final.
+
+  ELSE.
+    gi_final-matnr = gi_affw-matnr.
+    gi_final-werks = gi_affw-werks.
+    gi_final-lgort = gi_affw-lgort.
+    gi_final-bwart = gi_affw-bwart.
+    gi_final-erfmg = gi_affw-erfmg.
+    gi_final-erfme = gi_affw-erfme.
+    gi_final-aufnr = gi_affw-aufnr.
+    gi_final-aufps = gi_affw-aufps.
+    gi_final-message = 'NOT PROCESSED BY COGI'(005).
+    APPEND gi_final TO gt_final.
+  ENDIF.
+
+ENDFORM.                    " F2400_CALL_TRANSACTION
+*&---------------------------------------------------------------------*
+*&      Form  DISPLY_RESULT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM disply_result .
+  DATA: gt_alv TYPE REF TO cl_salv_table .
+  DATA :  lc_msg TYPE REF TO cx_salv_msg.
+  DATA: lo_cols TYPE REF TO cl_salv_columns,
+       lo_column TYPE REF TO cl_salv_column_table,
+       lo_function TYPE REF TO cl_salv_functions_list.
+  IF NOT gt_final IS INITIAL.
+    TRY.
+        cl_salv_table=>factory( IMPORTING r_salv_table = gt_alv
+                           CHANGING  t_table   = gt_final ).
+      CATCH cx_salv_msg INTO lc_msg .
+    ENDTRY.
+*        try.
+    lo_cols = gt_alv->get_columns( ).
+    TRY.
+        lo_column ?= lo_cols->get_column( 'MESSAGE' ).
+      CATCH cx_salv_not_found.
+    ENDTRY.
+    lo_column->set_long_text( 'MESSAGE'(008)  ).
+    lo_column->set_medium_text( 'MESSAGE'(008) ).
+    lo_column->set_output_length( 200 ).
+*         CATCH cx_salv_msg INTO lc_msg .
+*          ENDTRY.
+    gt_alv->display( ).
+  ELSE.
+    MESSAGE 'No Data Found'(007) TYPE 'I'."Added by (Replace E to I) 502765654 GECHG0280122 05.09.2018.
+  ENDIF.
+ENDFORM.                    " DISPLY_RESULT
+*&---------------------------------------------------------------------*
+*&      Form  ZTUHCD1_ENTRIES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM ztuhcd1_entries .
+  gw_ztuhcd1-name = gc_name.
+  APPEND     gw_ztuhcd1 TO gt_ztuhcd1.
+  CLEAR      gw_ztuhcd1.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc <> 0.
+    MESSAGE s398(00) WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+  CLEAR : gw_ztuhcd1.
+
+  SORT gt_ztuhcd1 BY name zkey field.
+
+ENDFORM.                    " ZTUHCD1_ENTRIES
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+***** Retriving data from AFFW( Cogi Entries Data ) based on selection screen
+  SELECT weblnr
+         weblpos
+         matnr
+         werks
+         lgort
+         bwart
+         erfmg
+         erfme
+         aufnr
+         aufps FROM affw INTO TABLE gt_affw WHERE werks IN s_plant
+                                             AND  matnr IN s_matnr
+                                             AND  lgort IN s_lgort
+                                             AND  dispo IN s_dispo
+                                             AND  bwart IN s_bwart
+                                             AND  aufnr IN s_aufnr
+                                             AND msgid IN s_msgid
+                                             AND msgno IN s_msgno
+                                             AND sobkz IN s_sobkz.
+  IF sy-subrc EQ 0.
+    SORT gt_affw BY werks lgort matnr bwart erfme.
+  ELSE.
+    MESSAGE ' NO Data Found For This Process '(003) TYPE 'I'."Added by (Replace E to I) 502765654 GECHG0202708 13.06.2018.
+
+  ENDIF.
+  DATA : lw_quan TYPE erfmg.
+
+***** Validating Retrived data with the entries in hardcode table
+
+  LOOP AT gt_affw INTO gi_affw.
+
+** Checking if the plant and sloc are existed in hard code table or not.
+    READ TABLE gt_ztuhcd1 INTO  gw_ztuhcd1 WITH KEY  field = gi_affw-werks
+                                                       high = gi_affw-lgort.
+    IF sy-subrc EQ 0.
+      APPEND gi_affw TO gt_affw2." collecting all actual storagelocation ofcogi entries
+      gi_affw-lgort = gw_ztuhcd1-low. " changing storage location with actual prod order storage location as COGI records contain the converterd storage location, automatic determined via the user exit.
+      APPEND gi_affw TO gt_affw1.
+      gi_final_lgort-werks  = gi_affw-werks.
+      gi_final_lgort-lgort1  = gw_ztuhcd1-low.
+      gi_final_lgort-lgort2  = gw_ztuhcd1-high.
+      APPEND gi_final_lgort TO gt_final_lgort.
+    ELSE.
+      gi_final-matnr = gi_affw-matnr.
+      gi_final-werks = gi_affw-werks.
+      gi_final-lgort = gi_affw-lgort.
+      gi_final-bwart = gi_affw-bwart.
+      gi_final-erfmg = gi_affw-erfmg.
+      gi_final-erfme = gi_affw-erfme.
+      gi_final-aufnr = gi_affw-aufnr.
+      gi_final-aufps = gi_affw-aufps.
+      gi_final-message = 'Not Valid for this Process'(006).
+      APPEND gi_final TO gt_final.
+    ENDIF.
+
+    CLEAR : gi_final_lgort , gw_ztuhcd1 , gi_affw.
+
+  ENDLOOP.
+  SORT gt_final_lgort BY werks lgort1.
+**** summing all quanties for the records having same plant and storage location and collecting into one internal table
+  LOOP AT gt_affw1 INTO gi_affw.
+    gi_affw_tot-matnr = gi_affw-matnr.
+    gi_affw_tot-werks = gi_affw-werks.
+    gi_affw_tot-lgort = gi_affw-lgort.
+    gi_affw_tot-bwart = gi_affw-bwart.
+    gi_affw_tot-erfmg = gi_affw-erfmg.
+    gi_affw_tot-erfme = gi_affw-erfme.
+    COLLECT gi_affw_tot INTO gt_affw_tot.
+    CLEAR : gi_affw_tot , gi_affw.
+  ENDLOOP.
+****  Retriving actual stock details for hardcode entries storage location  materials from the mard table
+  IF NOT gt_affw_tot IS INITIAL.
+    SELECT matnr
+           werks
+           lgort
+           labst FROM mard INTO TABLE gt_mard
+                           FOR ALL ENTRIES IN gt_affw_tot
+                           WHERE matnr EQ gt_affw_tot-matnr
+                             AND werks EQ gt_affw_tot-werks
+                             AND lgort EQ gt_affw_tot-lgort.
+    IF sy-subrc EQ 0.
+      SORT gt_mard BY matnr werks lgort.
+    ENDIF.
+  ENDIF.
+*****  Retriving actual stock details for cogi entries storage location
+  IF NOT gt_affw2 IS INITIAL.
+    SELECT matnr
+           werks
+           lgort
+           labst FROM mard INTO TABLE gt_mard1
+                           FOR ALL ENTRIES IN gt_affw2
+                           WHERE matnr EQ gt_affw2-matnr
+                             AND werks EQ gt_affw2-werks
+                             AND lgort EQ gt_affw2-lgort.
+    IF sy-subrc EQ 0.
+      SORT gt_mard1 BY matnr werks lgort.
+    ENDIF.
+  ENDIF.
+
+**** Checking quantity of material in the gt_affw_to table with actual quantiy
+  LOOP AT  gt_affw_tot INTO gi_affw_tot .
+    READ TABLE gt_mard INTO gi_mard WITH KEY matnr = gi_affw_tot-matnr
+                                             werks = gi_affw_tot-werks
+                                             lgort = gi_affw_tot-lgort BINARY SEARCH.
+    IF sy-subrc EQ 0 .
+      READ TABLE gt_final_lgort INTO gi_final_lgort WITH KEY werks = gi_affw_tot-werks
+                                                             lgort1 = gi_affw_tot-lgort BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        READ TABLE gt_mard1 INTO gi_mard1 WITH KEY matnr = gi_affw_tot-matnr
+                                             werks = gi_affw_tot-werks
+                                             lgort = gi_final_lgort-lgort2 BINARY SEARCH.
+        IF sy-subrc EQ 0.
+          lw_labst = gi_mard1-labst.
+        ENDIF.
+      ENDIF.
+      lw_labst1 = gi_affw_tot-erfmg - lw_labst.
+      IF gi_mard-labst EQ 0. " no quantiy do not consider this material
+        IF lw_labst1 LE 0.
+          gi_final_cogi-matnr = gi_affw_tot-matnr.
+          gi_final_cogi-werks = gi_affw_tot-werks.
+          gi_final_cogi-lgort = gi_final_lgort-lgort2."gi_affw_tot-lgort.
+          APPEND gi_final_cogi TO gt_final_cogi." collecting all processed materials
+          CLEAR : gi_final_cogi.
+        ENDIF.
+      ELSEIF gi_mard-labst GT lw_labst1 ."gi_affw_tot-erfmg." if actual quantiy is greater than current quantiy take current quantiy( erfmg)
+        IF lw_labst1 GT 0.
+          gi_affw_tot-erfmg = lw_labst1.
+          APPEND gi_affw_tot TO gt_affw_tot1.
+        ELSE.
+          gi_final_cogi-matnr = gi_affw_tot-matnr.
+          gi_final_cogi-werks = gi_affw_tot-werks.
+          gi_final_cogi-lgort = gi_final_lgort-lgort2."gi_affw_tot-lgort.
+          APPEND gi_final_cogi TO gt_final_cogi." collecting all processed materials
+          CLEAR : gi_final_cogi.
+
+        ENDIF.
+      ELSE.
+        gi_affw_tot-erfmg = gi_mard-labst.  " actual quantiy is lessthan current quantiy take actualquantity (labst)
+        APPEND gi_affw_tot TO gt_affw_tot1.
+      ENDIF.
+    ENDIF.
+    CLEAR : lw_labst , lw_labst1 , gi_mard , gi_mard1 , gi_affw_tot, gi_final_lgort.
+  ENDLOOP.
+
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  MOVE_STOCK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM move_stock .
+***** moving quantity from one storage loctaion to another storage location.
+  LOOP AT gt_affw_tot1 INTO  gi_affw_tot.
+    READ TABLE gt_final_lgort INTO gi_final_lgort WITH KEY werks = gi_affw_tot-werks
+                                                           lgort1 = gi_affw_tot-lgort BINARY SEARCH.
+    IF sy-subrc NE 0.
+
+    ELSE.
+      REFRESH : gt_item , gt_return.
+      gi_head-pstng_date = sy-datum.
+      gi_head-doc_date   = sy-datum.
+      gi_item-material = gi_affw_tot-matnr.
+      gi_item-plant    = gi_affw_tot-werks.
+      gi_item-stge_loc   = gi_affw_tot-lgort.
+      gi_item-entry_qnt   = gi_affw_tot-erfmg.
+      gi_item-entry_uom   = gi_affw_tot-erfme.
+      gi_item-move_mat  = gi_affw_tot-matnr.
+      gi_item-move_plant = gi_affw_tot-werks.
+      gi_item-move_stloc = gi_final_lgort-lgort2.
+      gi_item-move_type  = 311.
+      APPEND gi_item TO gt_item.
+      gi_code = '04'.
+      CALL FUNCTION 'BAPI_GOODSMVT_CREATE'
+        EXPORTING
+          goodsmvt_header  = gi_head
+          goodsmvt_code    = gi_code
+        IMPORTING
+          goodsmvt_headret = gi_head_ret
+*         MATERIALDOCUMENT =
+*         MATDOCUMENTYEAR  =
+        TABLES
+          goodsmvt_item    = gt_item
+          return           = gt_return.
+      READ TABLE gt_return INTO gi_return WITH KEY type = 'E'.
+      IF sy-subrc NE 0.
+        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+          .
+
+      ENDIF.
+      gi_final_cogi-matnr = gi_affw_tot-matnr.
+      gi_final_cogi-werks = gi_affw_tot-werks.
+      gi_final_cogi-lgort = gi_final_lgort-lgort2."gi_affw_tot-lgort.
+      APPEND gi_final_cogi TO gt_final_cogi." collecting all processed materials
+      CLEAR : gi_final_cogi.
+
+    ENDIF.
+    CLEAR : gi_item , gi_affw_tot , gi_head , gi_return , gi_final_lgort.
+  ENDLOOP.
+
+ENDFORM.                    " MOVE_STOCK
+

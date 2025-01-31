@@ -1,0 +1,251 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PEGGING_TOP
+*&---------------------------------------------------------------------*
+
+
+*// Types declarations
+TYPES: BEGIN OF gi_fi_ds.
+        INCLUDE STRUCTURE mdrq.
+TYPES:  END OF gi_fi_ds.
+
+
+*// Types declaration for View "Order Headers PP/CO" table
+TYPES: BEGIN OF ty_caufv,
+        aufnr   TYPE  aufnr,
+        auart   TYPE  aufart,
+        autyp   TYPE  auftyp,
+        refnr   TYPE  aufrefnr,
+        ktext   TYPE  auftext,
+        bukrs   TYPE  bukrs,
+        werks	  TYPE  werks_d,
+        objnr   TYPE  j_objnr,
+        rsnum   TYPE  rsnum,
+        gamng   TYPE  gamng,
+        plnbez  TYPE  matnr,
+        stlbez  TYPE  matnr,
+        kdauf	  TYPE  kdauf,
+        kdpos	  TYPE  kdpos,
+        dispo   TYPE  co_dispo,
+        gltrp	  TYPE  co_gltrp,    " Basic finish date
+        gstrp	  TYPE  pm_ordgstrp, " Basic Start Date
+        gltrs   TYPE  co_gltrs,    "Scheduled finish
+        gstrs   TYPE 	co_gstrs,	   "Scheduled start
+        ftrmi   TYPE  co_ftrmi,
+        idat1   TYPE  aufidat1,
+        aprio   TYPE  co_aprio,
+        aufpl   TYPE co_aufpl,
+        bedid   TYPE bedid,
+       END OF ty_caufv.
+
+*// Table tpye for 'Table for Selection Conditions per SELID' table
+TYPES:BEGIN OF ty_tj49,
+    selid	TYPE selid,
+    zaehl	TYPE j_zaehl,
+    stsma	TYPE j_stsma,
+    stats	TYPE j_status,
+    incex	TYPE incl,
+    verkz	TYPE boolkz,
+    activ	TYPE act,
+    inact	TYPE inact,
+    neact	TYPE nev_act,
+    END OF ty_tj49.
+
+*// table type for 'System status texts' table
+TYPES : BEGIN OF ty_tj02t,
+        istat TYPE j_istat,
+        spras TYPE spras,
+        txt04 TYPE j_txt04,
+       END OF ty_tj02t,
+
+*// Table tpye for 'Individual Object Status' table
+       BEGIN OF ty_jest,
+       objnr TYPE j_objnr,
+       stat TYPE j_status,
+       inact TYPE j_inact,
+       END OF ty_jest.
+
+
+TYPES: gt_caufv1 TYPE TABLE OF ty_caufv.
+
+*// Tabke type for 'Operation within an order' table
+TYPES :  BEGIN OF ty_afvc,
+         aufpl TYPE co_aufpl,
+         arbid TYPE cr_objid,
+         rueck TYPE co_rueck,
+         aplzl TYPE co_aplzl,
+         count TYPE i,
+         END OF ty_afvc.
+
+*// Table type for 'Order item' table
+TYPES:BEGIN OF ty_afpo,
+      aufnr  TYPE  aufnr,
+      posnr  TYPE  co_posnr,
+      psmng   TYPE co_psmng,
+      wemng  TYPE co_wemng,
+      kdauf  TYPE afpo-kdauf,
+      kdpos  TYPE afpo-kdpos,
+      matnr    TYPE co_matnr,
+      dwerk  TYPE werks_d,
+      END OF ty_afpo.
+
+*// Table type for 'Work Center Header' table
+TYPES : BEGIN OF ty_crhd,
+        objty TYPE cr_objty,
+        objid TYPE cr_objid,
+        arbpl TYPE arbpl,
+        kapid TYPE  kapid,
+        END OF ty_crhd,
+
+*// Table type for 'Capacity Header Segment'
+        BEGIN OF ty_kako,
+        kapid TYPE kapid,
+        aznor TYPE kapanzahl,
+        begzt TYPE kapbegzt,
+        endzt TYPE kapendzt,
+        ngrad TYPE nutzgrad,
+        pause TYPE kappause,
+       END OF ty_kako.
+
+*// Table type for 'Order Confirmations'
+TYPES : BEGIN OF ty_afru,
+       rueck TYPE co_rueck,
+       lmnga TYPE ru_lmnga,
+       END OF ty_afru.
+
+*// Table type for 'material description' table
+TYPES: BEGIN OF ty_makt,
+       matnr TYPE matnr,
+       maktx TYPE maktx,
+       END OF ty_makt,
+
+*// Tbale type for 'Plant / Material' table
+       BEGIN OF ty_marc,
+         matnr TYPE matnr,
+         werks TYPE werks_d,
+         eisbe TYPE eisbe,
+         zzsrcl TYPE zsrcl,
+         zlclid TYPE zlclid,
+       END OF ty_marc,
+
+*// Table type for 'Header Data for MRP Document'
+       BEGIN OF ty_mdkp,
+       matnr TYPE matnr,
+       plwrk TYPE werks_d,
+       berw1 TYPE berw1,
+       END OF ty_mdkp.
+
+*// Table type for 'Capacity Requirements Records' table
+TYPES : BEGIN OF ty_kbed,
+       bedid  TYPE bedid,
+       bedzl  TYPE cim_count,
+       arbid TYPE arbplatz,
+       kapid  TYPE kapid,
+       kbearest TYPE cy_kbeares,
+       END OF ty_kbed,
+
+*// Table type for 'Capacity Requirements Records' table
+       BEGIN OF ty_kbed1,
+       bedid TYPE bedid,
+       bedzl  TYPE cim_count,
+       arbid TYPE arbplatz,
+       num TYPE qsollwertc,
+       END OF ty_kbed1.
+
+
+*// Data declarations for internal tables and workareas.
+DATA:  gt_final_ds TYPE STANDARD TABLE OF  gi_fi_ds ,
+       gi_final_ds TYPE gi_fi_ds,
+       gi_final_ds1 TYPE gi_fi_ds,
+       gt_tj02t TYPE TABLE OF ty_tj02t,
+       gi_tj02t TYPE ty_tj02t,
+       gt_jest TYPE TABLE OF ty_jest,
+       gi_jest TYPE ty_jest,
+       gt_caufv TYPE TABLE OF ty_caufv,
+       gi_caufv TYPE  ty_caufv,
+       gt_afvc TYPE TABLE OF ty_afvc,
+       gi_afvc TYPE ty_afvc,
+       gi_afvc1 TYPE ty_afvc,
+       gt_afpo TYPE TABLE OF ty_afpo,
+       gi_afpo TYPE ty_afpo,
+       gt_makt TYPE TABLE OF ty_makt,
+       gi_makt TYPE ty_makt,
+       gt_kako TYPE TABLE OF ty_kako,
+       gi_kako TYPE ty_kako,
+       gt_marc TYPE TABLE OF ty_marc,
+       gi_marc TYPE ty_marc,
+       gt_afru TYPE TABLE OF ty_afru,
+       gi_afru TYPE ty_afru,
+       gt_mdkp TYPE TABLE OF ty_mdkp,
+       gi_mdkp TYPE ty_mdkp,
+       gt_crhd TYPE TABLE OF ty_crhd,
+       gi_crhd TYPE ty_crhd,
+       gt_tj49 TYPE TABLE OF ty_tj49,
+       gi_tj49 TYPE  ty_tj49,
+       gt_kbed TYPE TABLE OF ty_kbed,
+       gi_kbed TYPE ty_kbed,
+       gt_kbed1 TYPE TABLE OF ty_kbed1,
+       gi_kbed1 TYPE ty_kbed1,
+       gw_pstyv TYPE pstyv,
+       gw_index TYPE i,
+       gt_record TYPE SORTED TABLE OF zmmdt_pegging_record
+                                      " zmmdt_pegging_record_tab
+                                      WITH NON-UNIQUE KEY  production_order ," production_plant work_center , "changes for CHG0990782 on 22.12.2014
+                                                                               "changes for CHG0990782 DE3K957735  on 31.12.2014by 502277866
+                                                                               "changes for CHG0990782 DE3K957824  on 06.01.2015by 502277866
+       gi_record TYPE zmmdt_pegging_record,
+       gi_output TYPE zmmmt_pegging,
+       prxy TYPE REF TO zmmco_si_pegging_out_async,
+       gw_fault TYPE REF TO cx_ai_system_fault,
+       gt_ztuhcd1  TYPE TABLE OF ztuhcd1,
+       gi_ztuhcd1  TYPE ztuhcd1,
+       gw_index1 TYPE sy-index,
+       gw_index2 TYPE sy-tabix.
+
+*// Ranges declaration
+RANGES : r_mrp FOR mdtb-delkz,
+         r_autyp FOR caufv-autyp.
+
+************************************************************************
+***Varaibles
+************************************************************************
+
+DATA:  gv_plant TYPE werks_d,
+       gv_ortype TYPE aufart,
+       gv_prof  TYPE selid,
+       gv_mrp   TYPE co_dispo.
+
+*// Constant Declarations
+CONSTANTS : gc_delkz TYPE char2 VALUE 'FE',
+            gc_vc TYPE char2 VALUE 'VC',
+            gc_ur TYPE char2 VALUE 'UR',
+            gc_1s TYPE char2 VALUE '1S',
+            gc_sh TYPE char2 VALUE 'SH',
+            gc_pr TYPE char2 VALUE 'PR',
+            gc_pp TYPE char2 VALUE 'PP'," Added for CHG1135336 DE3K960739 on 24.04.2015 by 502277866
+            gc_en TYPE char2 VALUE 'EN',
+            gc_x TYPE c VALUE 'X',
+            gc_a TYPE c VALUE 'A',
+            gc_e TYPE c VALUE 'E',
+            gc_o TYPE c VALUE 'O',
+            gc_one TYPE c VALUE '1',
+            gc_two TYPE c VALUE '2',
+            gc_three TYPE c VALUE '3',
+            gc_four TYPE c VALUE '4',
+            gc_five TYPE c VALUE '5',
+            gc_six TYPE c VALUE '6',
+            gc_zspk TYPE char4 VALUE 'ZSPK',
+            gc_zsk1 TYPE char4 VALUE 'ZSK1',
+            gc_slash TYPE char1 VALUE '/',
+            gc_mrp TYPE char11 VALUE 'MRP_ELEMENT',
+            gc_autyp TYPE char5 VALUE 'AUTYP',
+            gc_i TYPE c VALUE 'I',
+            gc_eq TYPE char2 VALUE 'EQ'.
+
+  TYPES : BEGIN OF ty_mrp,
+          werks  TYPE werks_d,
+          dispo  TYPE dispo,
+          dsnam  TYPE dsnam,
+         END OF ty_mrp.
+ DATA : gt_mrp TYPE TABLE OF ty_mrp,
+        gi_mrp TYPE ty_mrp.
+

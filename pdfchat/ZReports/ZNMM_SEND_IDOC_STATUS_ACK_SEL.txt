@@ -1,0 +1,25 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SEND_IDOC_STATUS_ACK_SEL
+*&---------------------------------------------------------------------*
+***Selection Screen
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+***PARAMETERS: p_dat  TYPE  datum,                        " DATS 8  Job Last Run Date
+***            p_tim  TYPE  uzeit.                        " TIMS 6  Job Last Run TIME
+
+****Begin of Changes by 503162060 on Dated 13/08/2021 TR: DE3K9A0907.
+***SELECT-OPTIONS: s_credat FOR gv_credat,
+SELECT-OPTIONS: s_credat FOR gv_credat OBLIGATORY,
+                s_cretim FOR gv_cretim.
+****End of Changes by 503162060 on Dated 13/08/2021 TR: DE3K9A0907.
+
+SELECT-OPTIONS : s_status FOR gv_status,               " CHAR 2  Status of IDoc
+                 s_docnum FOR gv_docnum,               " NUMC 16 IDOC Number
+                 s_stamno FOR gv_stamno,               " NUMC 3  Status message number
+                 s_direct FOR gv_direct DEFAULT '2',   " CHAR 1  Direction for IDoc
+                 s_mestyp FOR gv_mestyp.               " CHAR 30 Message Type
+
+****Begin of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+PARAMETERS:  p_chk AS CHECKBOX.
+****End of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+SELECTION-SCREEN END OF BLOCK b1.
+

@@ -1,0 +1,889 @@
+*&---------------------------------------------------------------------*
+* Copyright ©  2000 GE ENERGY
+* ALL RIGHTS RESERVED
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+***- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*** Created by            : Soumya Mahapatra / SSO - 502295723 .
+*** Creation Date         : 17/05/2014
+*** Transport Request     : FE3K900270
+*** RICEF Object No       : 1310
+*** Change request No     : CHG0479115
+*** Transaction Code      : ZMM102
+*** Description           : Report to generate Historical data output for APSS Project
+***                         for the given dates for Purchase Order Interface
+***------------------------------------------------------------------***
+**------------------------------------------------------------------***
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 18/06/2014           CHG0479115        502312386 | Change in Date format
+*                                                  | Transport Request : FE3K900491
+**25/06/2014           CHG0479115        502295730 | Logic added for new fields
+*                                                  | TR : FE3K900539
+**30/06/2014           CHG0479115        502295730 | Logic changed for Country Key and City
+*                                                  | TR : FE3K900574
+**01/07/2014           CHG0479115        502295730 | Adjusted Sequence of fields and added Load_date
+*                                                  | TR : FE3K900576
+**24/07/2014           CHG0479283        502295730 | Change for PO LINE ID
+*                                                  | TR : FE3K900610
+**18/11/2014           CHG0479283        502295730 | Filter of CCs
+*                                                  | TR : FE3K900740
+**24/12/2014           CHG0993895        502304796 | Fetch data from CDHDR also for historical
+*                                                  | TR : FE3K900791
+*****************************************************************************************
+
+REPORT  zrmm_apss_po_hist_data NO STANDARD PAGE HEADING MESSAGE-ID zfi_apss_msg_cl LINE-COUNT 1023.
+
+
+************************************************************************
+* T Y P E S   D E C L A R A T I O N
+************************************************************************
+
+TYPES:  BEGIN OF  type_output,
+        c_sor_id1(2) TYPE c,
+        ebeln1       TYPE string ,             "Purchasing Document
+        ebeln2       TYPE string ,             "Purchasing Document number
+        bukrs        TYPE string ,             "Company Code
+        memorytype   TYPE string ,             "Status of Purchasing Document
+        po_amount    TYPE string ,             "Total amount of PO = quan X unit price ( Sum of EKPO-netwr X EKPO-MENGE)
+        aedat        TYPE char40,               "Date on Which Record Was Created
+        waers        TYPE string ,             "Currency Key
+        eknam        TYPE string ,             "Description of purchasing group
+        smtp_addr    TYPE string ,             "E-Mail Address
+        oper_desc    TYPE string,
+        zterm        TYPE string ,             "Terms of Payment Key
+        gbort        TYPE string ,             " (VENDOR gsl)"Place of birth of the person subject to withholding tax
+        name1        TYPE string ,             "Name 1
+        profs        TYPE string ,             "(vendor name)"Profession
+        ort01        TYPE string ,             "City
+        netwr        TYPE string ,             "Net Price in Purchasing Document
+       load_date1    TYPE char40,                " Load Date
+        c_sor_id2(2) TYPE c,
+        ebeln3(15)   TYPE c,                   "Purchasing Document (PO_NUMBER+PO_LINE_NUMBER)
+        ebelp        TYPE string ,             "Item in purchasing document
+        xmwst        TYPE string ,             "Calculate tax automatically
+        elikz        TYPE string ,             "Delivery Completed" Indicator
+        matnr        TYPE string ,             "Material Number
+        txz01        TYPE string,              "SHORT Text
+        netpr        TYPE string ,             "Net Price in Purchasing Document
+        meins        TYPE string ,             "Purchase Order Unit of Measure
+        menge        TYPE string ,             "Purchase Order Quantity
+        netwr2        TYPE string ,             "Net Order Value in PO Currency
+        bldat        TYPE char40,               "Document Date
+        ebeln        TYPE string ,             "Purchasing Document
+        mwart        TYPE string ,             "Tax Type
+        mwskz        TYPE string ,             "Tax on sales/purchases code
+        menge1       TYPE string ,             "Quantity of Material
+        loekz        TYPE string ,             "Deletion Indicator
+        load_date2   TYPE char40,                " Load Date
+        c_sor_id3(2) TYPE c,
+        ean11        TYPE string ,             "International Article Number (EAN/UPC)
+        asuc_description TYPE string,
+        last_update_date TYPE string,
+        load_date3   TYPE char40,                " Load Date
+        stras        TYPE string ,             "House number and street
+        land1        TYPE string ,             "Country Key
+        regio        TYPE string ,             "Region (State, Province, County)
+        regio1       TYPE string ,             "Region (State, Province, County)
+        pstlz        TYPE string ,             "Postal Code
+        landk        TYPE string ,             "Vehicle country key
+        ort012       TYPE string ,             "City
+        asaa_type    TYPE string,
+        c_sor_id4(2) TYPE c,
+        load_date4   TYPE char40,                " Load Date
+        lgort        TYPE string ,             "Storage Location
+        lgobe        TYPE string ,             "Description of Storage Location
+        c_date1       TYPE char40,
+        c_sor_id5(2) TYPE c,
+        lgtyp        TYPE string ,             "Storage Type
+        load_date5   TYPE char40,                " Load Date
+        c_sor_id6(2) TYPE c,
+        zekkn        TYPE string ,
+        ebeln4       TYPE string ,
+        etenr        TYPE string ,
+        zekkn2       TYPE string ,
+        menge2       TYPE string ,
+        ktoks        TYPE string ,
+        prctr        TYPE string ,
+        sakto        TYPE string ,
+        func_area    TYPE string ,
+        const1       TYPE string,
+        kostl        TYPE string,
+        const2       TYPE string,
+        ps_psp_pnr   TYPE string,
+        nplnr        TYPE string,
+        pbukr        TYPE string,
+        psphi        TYPE string,
+        post1        TYPE string,
+        smtp_addr2   TYPE string,
+        const3       TYPE string,
+        const4       TYPE string,
+        const5       TYPE string,
+        const6       TYPE string,
+        const7       TYPE string,
+        const8       TYPE string,
+        const9       TYPE string,
+        load_date    TYPE char40,                " Load Date
+       END OF type_output,
+
+       BEGIN OF type_fields,
+       field TYPE char40,
+       END OF type_fields.
+
+
+************************************************************************
+* I N T E R N A L   T A B L E   D E C L A R A T I O N
+************************************************************************
+
+DATA: gt_output_fm  TYPE zpi_dt_po_req_po_request_tab,
+      gt_output     TYPE TABLE OF type_output,
+      gt_item       TYPE zpi_dt_po_req_po_item_tab,
+      gt_fields     TYPE TABLE OF type_fields.
+
+************************************************************************
+* W O R K  A R E A
+************************************************************************
+
+DATA : gi_output_fm    TYPE zpi_dt_po_req_po_request,
+       gi_output       TYPE type_output,
+       gi_item         TYPE zpi_dt_po_req_po_item,
+       gi_fields       TYPE type_fields.
+
+************************************************************************
+* I N C L U D E
+************************************************************************
+
+INCLUDE : znfi_apss_top_include,
+          znfi_apss_subroutines_include.
+
+************************************************************************
+* T A B L E S
+************************************************************************
+TABLES : ekko.
+
+************************************************************************
+* S E L E C T I O N   S C R E E N
+************************************************************************
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-102.
+
+SELECT-OPTIONS : s_date FOR ekko-aedat NO-EXTENSION OBLIGATORY ,
+                 s_bukrs FOR ekko-bukrs NO INTERVALS .
+
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-002.
+
+PARAMETERS : p_file TYPE rlgrap-filename OBLIGATORY.
+
+SELECTION-SCREEN END OF BLOCK b2.
+
+************************************************************************
+* I N I T I A L I Z A T I O N
+************************************************************************
+INITIALIZATION.
+  s_date-low = sy-datum.
+  s_date-high = sy-datum.
+  s_date-option = gc_bt.
+  s_date-sign = gc_i1.
+
+  APPEND s_date.
+
+*  fetch company codes
+  PERFORM get_comp_codes.
+
+************************************************************************
+* S E L E C T I O N   S C R E E N   E V E N T S
+************************************************************************
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+
+  "File name with path.
+
+  CALL FUNCTION 'KD_GET_FILENAME_ON_F4'
+    EXPORTING
+      field_name    = p_file
+    CHANGING
+      file_name     = p_file
+    EXCEPTIONS
+      mask_too_long = 1
+      OTHERS        = 2.
+
+  IF sy-subrc <> 0.
+    MESSAGE s026.
+  ENDIF.   " IF sy-subrc <> 0.
+
+**********************************************************************
+* S T A R T   O F   S E L E C T I O N
+************************************************************************
+START-OF-SELECTION.
+
+  PERFORM data_fetch.      "Fetch data based on selection*
+
+************************************************************************
+* E N D   OF   S E L E C T I O N
+************************************************************************
+END-OF-SELECTION.
+
+  PERFORM output_alv.      "Grid display
+
+  PERFORM clear_variables. "Clear variables
+
+*&---------------------------------------------------------------------*
+*&      Form  DATA_FETCH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM data_fetch .
+
+ LOOP AT gt_ccodes INTO gi_ccodes.
+    IF gi_ccodes-bukrs NOT IN s_bukrs[].
+      gi_ccodes-bukrs = ' '.
+      MODIFY gt_ccodes FROM gi_ccodes.
+    ENDIF.
+  ENDLOOP.
+
+  IF gt_ccodes IS NOT INITIAL.
+
+*  FM for Purchaseorder data fetch
+
+    CALL FUNCTION 'ZMM_APSS_PODATA_FETCH_FM'
+      EXPORTING
+        im_datefrom   = s_date-low
+        im_dateto     = s_date-high
+        im_hist       = space"gc_x
+      IMPORTING
+        ex_output     = gt_output_fm
+      TABLES
+        tb_ccodes     = gt_ccodes[]
+      EXCEPTIONS                                            "#EC FB_RC
+        program_error = 1
+        OTHERS        = 2.
+
+  ENDIF.
+
+ENDFORM.                    " DATA_FETCH
+*&---------------------------------------------------------------------*
+*&      Form  OUTPUT_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM output_alv .
+
+  PERFORM fill_output_table.
+
+  IF NOT p_file IS INITIAL.
+    PERFORM fill_field_names.
+    PERFORM download_file.
+  ENDIF.
+
+  PERFORM create_field_catalog.
+  PERFORM create_alv_layout.
+  PERFORM call_alv.
+
+ENDFORM.                    " OUTPUT_ALV
+*&---------------------------------------------------------------------*
+*&      Form  CLEAR_VARIABLES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM clear_variables .
+
+  CLEAR : gt_output[],gt_output_fm[],gt_item[],gt_ccodes[],gt_fieldcat[].
+
+
+  CLEAR : gi_output,gi_item,gi_output_fm,gi_fieldcat,gw_seqno
+          .
+ENDFORM.                    " CLEAR_VARIABLES
+*&---------------------------------------------------------------------*
+*&      Form  CALL_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM call_alv .
+
+  IF gt_output IS NOT INITIAL.
+
+    PERFORM display_output TABLES gt_output[].
+  ELSE.
+    MESSAGE s030.
+  ENDIF.
+
+ENDFORM.                    " CALL_ALV
+
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_field_catalog .
+
+  PERFORM:     fill_catalog USING gw_seqno 'C_SOR_ID1'    text-036,
+               fill_catalog USING gw_seqno 'EBELN1'       text-004,
+               fill_catalog USING gw_seqno 'EBELN2'       text-005,
+               fill_catalog USING gw_seqno 'BUKRS'        text-006,
+               fill_catalog USING gw_seqno 'MEMORYTYPE'   text-066,
+               fill_catalog USING gw_seqno 'PO_AMOUNT'    text-092,
+               fill_catalog USING gw_seqno 'AEDAT'        text-007,
+               fill_catalog USING gw_seqno 'WAERS'        text-008,
+               fill_catalog USING gw_seqno 'EKNAM'        text-064,
+               fill_catalog USING gw_seqno 'SMTP_ADDR'    text-065,
+               fill_catalog USING gw_seqno 'OPER_DESC'    text-130,
+               fill_catalog USING gw_seqno 'ZTERM'        text-009,
+               fill_catalog USING gw_seqno 'GBORT'        text-048,
+               fill_catalog USING gw_seqno 'NAME1'        text-049,
+               fill_catalog USING gw_seqno 'PROFS'        text-050,
+               fill_catalog USING gw_seqno 'ORT01'        text-051,
+               fill_catalog USING gw_seqno 'NETWR'        text-012,
+               fill_catalog USING gw_seqno 'LOAD_DATE1'   text-075,
+               fill_catalog USING gw_seqno 'C_SOR_ID2'    text-076,
+               fill_catalog USING gw_seqno 'EBELN3'       text-010,
+               fill_catalog USING gw_seqno 'EBELP'        text-013,
+               fill_catalog USING gw_seqno 'XMWST'        text-003,
+               fill_catalog USING gw_seqno 'ELIKZ'        text-014,
+               fill_catalog USING gw_seqno 'MATNR'        text-015,
+               fill_catalog USING gw_seqno 'TXZ01'        text-016,
+               fill_catalog USING gw_seqno 'NETPR'        text-077,
+               fill_catalog USING gw_seqno 'MEINS'        text-042,
+               fill_catalog USING gw_seqno 'MENGE'        text-043,
+               fill_catalog USING gw_seqno 'NETWR2'       text-044,
+               fill_catalog USING gw_seqno 'BLDAT'        text-067,
+               fill_catalog USING gw_seqno 'EBELN'        text-045,
+               fill_catalog USING gw_seqno 'MWART'        text-063,
+               fill_catalog USING gw_seqno 'MWSKZ'        text-046,
+               fill_catalog USING gw_seqno 'MENGE1'       text-047,
+               fill_catalog USING gw_seqno 'LOEKZ'        text-073,
+               fill_catalog USING gw_seqno 'LOAD_DATE2'   text-075,
+               fill_catalog USING gw_seqno 'C_SOR_ID3'    text-078,
+               fill_catalog USING gw_seqno 'EAN11'        text-053,
+               fill_catalog USING gw_seqno 'ASUC_DESCRIPTION'        text-131,
+               fill_catalog USING gw_seqno 'LAST_UPDATE_DATE'        text-132,
+               fill_catalog USING gw_seqno 'LOAD_DATE3'   text-075,
+               fill_catalog USING gw_seqno 'STRAS'        text-056,
+               fill_catalog USING gw_seqno 'LAND1'        text-057,
+               fill_catalog USING gw_seqno 'REGIO'        text-058,
+               fill_catalog USING gw_seqno 'REGIO1'       text-059,
+               fill_catalog USING gw_seqno 'PSTLZ'        text-060,
+               fill_catalog USING gw_seqno 'LANDK'        text-062,
+               fill_catalog USING gw_seqno 'ORT012'       text-061,
+               fill_catalog USING gw_seqno 'ASAA_TYPE'    text-133,
+               fill_catalog USING gw_seqno 'C_SOR_ID4'    text-069,
+               fill_catalog USING gw_seqno 'LOAD_DATE4'   text-075,
+               fill_catalog USING gw_seqno 'LGORT'        text-070,
+               fill_catalog USING gw_seqno 'LGOBE'        text-071,
+               fill_catalog USING gw_seqno 'C_DATE1'      text-101,
+               fill_catalog USING gw_seqno 'C_SOR_ID5'    text-103,
+               fill_catalog USING gw_seqno 'LGTYP'        text-072,
+               fill_catalog USING gw_seqno 'LOAD_DATE5'   text-075,
+               fill_catalog USING gw_seqno 'C_SOR_ID6'    text-104,
+               fill_catalog USING gw_seqno 'ZEKKN'        text-105,
+               fill_catalog USING gw_seqno 'EBELN4'       text-106,
+               fill_catalog USING gw_seqno 'ETENR'        text-107,
+               fill_catalog USING gw_seqno 'ZEKKN2'       text-108,
+               fill_catalog USING gw_seqno 'MENGE2'       text-109,
+               fill_catalog USING gw_seqno 'KTOKS'        text-110,
+               fill_catalog USING gw_seqno 'PRCTR'        text-111,
+               fill_catalog USING gw_seqno 'SAKTO'        text-112,
+               fill_catalog USING gw_seqno 'FUNC_AREA'    text-113,
+               fill_catalog USING gw_seqno 'CONST1'       text-114,
+               fill_catalog USING gw_seqno 'KOSTL'        text-115,
+               fill_catalog USING gw_seqno 'CONST2'       text-116,
+               fill_catalog USING gw_seqno 'PS_PSP_PNR'   text-117,
+               fill_catalog USING gw_seqno 'NPLNR'        text-118,
+               fill_catalog USING gw_seqno 'PBUKR'        text-119,
+               fill_catalog USING gw_seqno 'PSPHI'        text-120,
+               fill_catalog USING gw_seqno 'POST1'        text-121,
+               fill_catalog USING gw_seqno 'SMTP_ADDR2'   text-122,
+               fill_catalog USING gw_seqno 'CONST3'       text-123,
+               fill_catalog USING gw_seqno 'CONST4'       text-124,
+               fill_catalog USING gw_seqno 'CONST5'       text-125,
+               fill_catalog USING gw_seqno 'CONST6'       text-126,
+               fill_catalog USING gw_seqno 'CONST7'       text-127,
+               fill_catalog USING gw_seqno 'CONST8'       text-128,
+               fill_catalog USING gw_seqno 'CONST9'       text-129,
+               fill_catalog USING gw_seqno 'LOAD_DATE'    text-075.
+
+ENDFORM.                    " CREATE_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*&      Form  DOWNLOAD_FILE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM download_file .
+* Local Data
+  DATA : lw_filename TYPE string,
+         lw_filetype TYPE char10.
+  lw_filename = p_file.
+  lw_filetype = gc_asc.
+
+  IF lw_filename IS NOT INITIAL.
+    IF gt_output IS  NOT INITIAL.
+* Download file in given path
+
+      CALL FUNCTION 'GUI_DOWNLOAD'
+        EXPORTING
+          filename                = lw_filename
+          filetype                = lw_filetype
+          write_field_separator   = gc_x
+          trunc_trailing_blanks   = gc_x
+          codepage                = space
+          write_bom               = gc_x
+        TABLES
+          data_tab                = gt_output
+          fieldnames              = gt_fields
+        EXCEPTIONS
+          file_write_error        = 1
+          no_batch                = 2
+          gui_refuse_filetransfer = 3
+          invalid_type            = 4
+          no_authority            = 5
+          unknown_error           = 6
+          header_not_allowed      = 7
+          separator_not_allowed   = 8
+          filesize_not_allowed    = 9
+          header_too_long         = 10
+          dp_error_create         = 11
+          dp_error_send           = 12
+          dp_error_write          = 13
+          unknown_dp_error        = 14
+          access_denied           = 15
+          dp_out_of_memory        = 16
+          disk_full               = 17
+          dp_timeout              = 18
+          file_not_found          = 19
+          dataprovider_exception  = 20
+          control_flush_error     = 21
+          OTHERS                  = 22.
+      IF sy-subrc <> 0.
+        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+
+      ELSE.
+        MESSAGE s028.       " successfully downloaded
+      ENDIF.
+    ENDIF.
+  ELSE.
+    MESSAGE e029.         " Failed to download
+
+  ENDIF .
+
+ENDFORM.                    " DOWNLOAD_FILE
+*&---------------------------------------------------------------------*
+*&      Form  FILL_OUTPUT_TABLE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+
+FORM fill_output_table .
+
+  CLEAR: gt_item[], gi_item.
+
+  LOOP AT gt_output_fm INTO gi_output_fm.
+
+    gt_item[] = gi_output_fm-po_item.
+    gi_output-c_sor_id1      = gc_sor.
+    gi_output-c_sor_id2      = gc_sor.
+    gi_output-c_sor_id3      = gc_sor.
+    gi_output-c_sor_id4      = gc_sor.
+    gi_output-c_sor_id5      = gc_sor.
+
+
+    LOOP AT gt_item INTO gi_item.                        "#EC CI_NESTED
+
+      gi_output-ebeln1        = gi_output_fm-po_header_id .
+      gi_output-ebeln2        = gi_output_fm-apha_po_number.
+      gi_output-bukrs         = gi_output_fm-operating_unit_id.
+      gi_output-memorytype    = gi_output_fm-status_code.
+      gi_output-po_amount     = gi_output_fm-po_amount.
+
+      gw_df = sy-datum.
+      PERFORM conv_date_format USING gw_df.
+      gi_output-load_date  = gw_df.
+      gi_output-load_date1 = gw_df.
+      gi_output-load_date2 = gw_df.
+      gi_output-load_date3 = gw_df.
+      gi_output-load_date4 = gw_df.
+      gi_output-load_date5 = gw_df.
+      CLEAR gw_df.
+
+      IF  gi_output_fm-po_date IS NOT INITIAL.
+        gw_df = gi_output_fm-po_date.
+        PERFORM conv_date_format USING gw_df.
+        gi_output-aedat = gw_df.
+        CLEAR gw_df.
+      ENDIF.
+      IF gi_item-last_update_date IS NOT INITIAL.
+        gw_df = gi_item-last_update_date.
+        PERFORM conv_date_format USING gw_df.
+        gi_output-last_update_date =  gw_df.
+        gi_output-c_date1          = gw_df.
+        CLEAR gw_df.
+      ENDIF.
+      gi_output-waers         = gi_output_fm-transactional_curr.
+      gi_output-eknam         = gi_output_fm-buyer_name.
+      gi_output-smtp_addr     = gi_output_fm-buyer_email.
+      gi_output-zterm         = gi_output_fm-po_payment_terms.
+      gi_output-gbort         = gi_output_fm-vendor_gsl.
+      gi_output-name1         = gi_output_fm-vendor_name.
+      gi_output-profs         = gi_output_fm-vendor_site.
+      gi_output-ort01         = gi_output_fm-vendor_site_name.
+      gi_output-netwr         = gi_output_fm-transactional_po_amount.
+      gi_output-ebeln3        = gi_item-po_line_id.
+      gi_output-ebelp         = gi_item-po_line_number.
+      gi_output-xmwst         = gi_item-tax_flag.
+      gi_output-elikz         = gi_item-active_flag.
+      gi_output-matnr         = gi_item-item_id.
+      gi_output-txz01         = gi_item-item_description.
+      gi_output-netwr2        = gi_item-unit_price.
+      gi_output-meins         = gi_item-uom.
+      gi_output-menge         = gi_item-quantity_ordered.
+      gi_output-netpr         = gi_item-order_amount.
+      gi_output-c_sor_id6     = gi_item-pod_sor_id.
+      gi_output-zekkn         = gi_item-po_distribution_id .
+      gi_output-ebeln4        =  gi_item-shipment_line_id    .
+      gi_output-zekkn2        = gi_item-po_dist_number      .
+      gi_output-menge2        = gi_item-dist_qty.
+      gi_output-prctr         = gi_item-account_dst_legal   .
+      gi_output-sakto         = gi_item-account_dst_account.
+      gi_output-kostl         = gi_item-account_dst_me      .
+      gi_output-ps_psp_pnr    = gi_item-account_dst_resv1   .
+      gi_output-nplnr         = gi_item-account_dst_resv2   .
+      gi_output-func_area       = gi_item-account_dst_func .
+      gi_output-ktoks           = gi_item-expenditure_type .
+      gi_output-etenr           = gi_item-po_ship_dist_line_id .
+      gi_output-pbukr           = gi_item-expenditure_organization_id .
+      gi_output-psphi           = gi_item-project_id   .
+      gi_output-post1           = gi_item-project_task  .
+      gi_output-const1         = gi_item-account_dst_analytical.
+      gi_output-const2         = gi_item-account_dst_intcomp.
+      gi_output-const3         = gi_item-account_dst_resv3 .
+      gi_output-const4         = gi_item-account_dst_resv4.
+      gi_output-const5         = gi_item-account_dst_resv5 .
+      gi_output-const6         = gi_item-account_dst_resv6 .
+      gi_output-const7         = gi_item-account_dst_resv7 .
+      gi_output-const8         = gi_item-account_dst_resv8 .
+      gi_output-const9         = gi_item-account_dst_resv9 .
+      gi_output-smtp_addr2     = gi_item-requester_email .
+
+
+      IF  gi_item-last_recvd_date IS NOT INITIAL.
+        gw_df = gi_item-last_recvd_date.
+        PERFORM conv_date_format USING gw_df.
+        gi_output-bldat = gw_df.
+        CLEAR gw_df.
+      ENDIF.
+      gi_output-ebeln         = gi_item-apl_po_number.
+      gi_output-mwart         = gi_item-tax_type.
+      gi_output-mwskz         = gi_item-tax_code.
+      gi_output-menge1        = gi_item-line_qty_invoiced.
+      gi_output-ean11         = gi_item-unspsc_code.
+      gi_output-stras         = gi_item-address.
+      gi_output-land1         = gi_item-country.
+      gi_output-regio         = gi_item-province.
+      gi_output-regio1        = gi_item-state.
+      gi_output-pstlz         = gi_item-zip.
+      gi_output-landk         = gi_item-country_name.
+      gi_output-ort012        = gi_item-state_name.
+      gi_output-lgort         = gi_item-location_code.
+      gi_output-lgobe         = gi_item-asl_description.
+      gi_output-lgtyp         = gi_item-asl_type.
+      gi_output-loekz         = gi_item-del_ind.
+
+
+      APPEND gi_output TO gt_output.
+
+    ENDLOOP.
+
+    CLEAR : gt_item[],gi_item,gi_output_fm.
+
+  ENDLOOP.
+
+ENDFORM.                    " FILL_OUTPUT_TABLE
+
+*&---------------------------------------------------------------------*
+*&      Form  FILL_FIELD_NAMES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+
+FORM fill_field_names .
+
+  gi_fields-field = text-036.       "sor id
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-004.       " po number
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-005.       "po number
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-006.       "Company code
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-066.       "status of po
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-092.       "total amount of po
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-007.       "date created
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-008.       "Currency Key
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-064.       "purchasing group desc
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-065.       " email address
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-130.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-009.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-048.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-049.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-050.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-051.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-134.
+  APPEND gi_fields TO gt_fields.  " Transactional AMT
+
+  gi_fields-field = text-075.
+  APPEND gi_fields TO gt_fields. " Load_date
+
+  gi_fields-field = text-076.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-010.        " PO line number
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-013.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-003.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-014.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-015.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-016.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-012.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-042.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-043.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-044.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-067.           "document date
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-045.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-063.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-046.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-047.         "quantity of material
+  APPEND gi_fields TO gt_fields.
+
+   gi_fields-field = text-073.        "Del_ind
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-075.         "quantity of material
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-078.         "SOR lD
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-053.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-131.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-132.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-075.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-056.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-057.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-058.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-059.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-060.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-062.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-061.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-133.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-069.      "ASAA_SOR_ID
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-075.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-070.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-071.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-074.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-103.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-072.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-075.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-104.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-105.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-106.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-107.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-108.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-109.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-110.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-111.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-112.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-113.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-114.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-115.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-116.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-117.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-118.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-119.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-120.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-121.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-122.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-123.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-124.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-125.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-126.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-127.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-128.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-129.
+  APPEND gi_fields TO gt_fields.
+
+  gi_fields-field = text-075.
+  APPEND gi_fields TO gt_fields.
+
+ENDFORM.                    " FILL_FIELD_NAMES

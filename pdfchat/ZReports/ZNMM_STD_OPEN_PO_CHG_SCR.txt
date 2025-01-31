@@ -1,0 +1,27 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNSD_OPENPO_SCR
+*&---------------------------------------------------------------------*
+
+*&----------------------------------------------------------------------*
+*& S E L E C T I O N      S C R E E N
+*&----------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b01 WITH FRAME TITLE text-f01.
+PARAMETERS: p_infile TYPE rlgrap-filename OBLIGATORY.
+SELECTION-SCREEN : BEGIN OF LINE,
+            COMMENT 20(79) text-025.
+SELECTION-SCREEN : END OF LINE.
+SELECTION-SCREEN : BEGIN OF LINE,
+            COMMENT 20(79) text-026.
+SELECTION-SCREEN : END OF LINE.
+PARAMETERS p_bukrs TYPE bukrs OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b01.
+SELECTION-SCREEN BEGIN OF BLOCK b02 WITH FRAME TITLE text-f02.
+SELECT-OPTIONS: s_email FOR somlreci1-receiver NO INTERVALS.
+SELECTION-SCREEN : BEGIN OF LINE,
+            COMMENT 20(79) text-027.
+SELECTION-SCREEN : END OF LINE.
+SELECTION-SCREEN END OF BLOCK b02.
+SELECTION-SCREEN BEGIN OF BLOCK b03 WITH FRAME TITLE text-f03.
+PARAMETERS: p_test AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN END OF BLOCK b03.
+

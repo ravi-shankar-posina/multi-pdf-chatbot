@@ -1,0 +1,493 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_NON_STD_DEL_PLT_STOCK_F01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  F1000_DATA_RETRIEVE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f1000_data_retrieve .
+  SELECT vbak~vbeln
+         vbak~vbeln AS vbeln_x
+         vbak~erdat
+         vbak~ernam
+         vbak~kunnr
+         vbap~posnr
+         vbap~posnr AS posnr_x
+         vbap~matnr
+         vbap~kwmeng
+         vbap~vrkme
+         vbap~lprio
+         vbep~edatu
+    INTO CORRESPONDING FIELDS OF TABLE t_order_info
+    FROM vbak
+    INNER JOIN vbap
+      ON vbak~vbeln EQ vbap~vbeln
+    INNER JOIN vbup
+      ON vbap~vbeln EQ vbup~vbeln
+     AND vbap~posnr EQ vbup~posnr
+    INNER JOIN vbep
+      ON vbap~vbeln EQ vbep~vbeln
+     AND vbap~posnr EQ vbep~posnr
+   WHERE vbak~vbeln IN s_vbeln
+     AND vbak~erdat IN s_erdat
+     AND vbak~auart IN s_auart
+     AND vbak~kunnr IN s_kunnr
+     AND vbap~posnr IN s_posnr
+     AND vbap~matnr IN s_matnr
+     AND vbap~werks EQ c_werks_s
+     AND vbap~pstyv IN s_pstyv
+     AND ( vbup~gbsta EQ c_a
+      OR vbup~gbsta EQ c_b )
+     AND vbup~absta EQ c_a
+     AND vbep~etenr EQ c_1.
+  IF sy-subrc EQ 0.
+    SORT t_order_info BY lprio erdat vbeln_x posnr_x.
+  ELSE.
+    MESSAGE s050(zmm) DISPLAY LIKE c_e.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+ENDFORM.                    " F_GET_SALES_INFO
+*&---------------------------------------------------------------------*
+*&      Form  F2000_DATA_RETRIEVE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2000_data_retrieve .
+  CLEAR w_vbbe.
+  REFRESH t_vbbe[].
+  IF t_order_info[] IS NOT INITIAL.
+    SELECT vbeln
+           posnr
+           omeng
+           vmeng
+      INTO w_vbbe
+      FROM vbbe
+      FOR ALL ENTRIES IN t_order_info
+     WHERE vbeln EQ t_order_info-vbeln
+       AND posnr EQ t_order_info-posnr.
+      COLLECT w_vbbe INTO t_vbbe.
+    ENDSELECT.
+  ENDIF.
+  LOOP AT t_order_info
+    ASSIGNING <fs_order_info>.
+    CLEAR w_vbbe.
+    READ TABLE t_vbbe INTO w_vbbe WITH KEY vbeln = <fs_order_info>-vbeln
+                                           posnr = <fs_order_info>-posnr.
+    IF sy-subrc EQ 0.
+      <fs_order_info>-omeng = w_vbbe-omeng.
+      <fs_order_info>-vmeng = w_vbbe-vmeng.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.                    " F_GET_OPEN_AVA_QTY
+*&---------------------------------------------------------------------*
+*&      Form  F3000_MAIN_PROCESSING
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f3000_main_processing .
+  DATA: ix_line  LIKE sy-index,
+        g_deduct LIKE ekpo-menge,
+        g_qty    LIKE ekpo-menge.
+  DATA: t_bapiwmdvs LIKE STANDARD TABLE OF bapiwmdvs,
+        t_bapiwmdve LIKE STANDARD TABLE OF bapiwmdve,
+        w_bapiwmdvs LIKE bapiwmdvs,
+        w_bapiwmdve LIKE bapiwmdve.
+  FIELD-SYMBOLS: <fs_bapiwmdve> LIKE w_bapiwmdve.
+  "Get all the materials in scope
+  REFRESH t_material[].
+  LOOP AT t_order_info
+    INTO w_order_info.
+    CLEAR w_material.
+    w_material-matnr = w_order_info-matnr.
+    w_material-vrkme = w_order_info-vrkme.
+    APPEND w_material TO t_material.
+  ENDLOOP.
+  SORT t_material BY matnr.
+  DELETE ADJACENT DUPLICATES FROM t_material COMPARING matnr.
+
+  UNASSIGN <fs_material>.
+  LOOP AT t_material
+    ASSIGNING <fs_material>.
+    LOOP AT t_order_info
+      INTO w_order_info WHERE matnr EQ <fs_material>-matnr.
+      CLEAR w_bapiwmdvs.
+      ix_line = ix_line + 1.
+      w_bapiwmdvs-req_date = w_order_info-edatu.
+      IF w_order_info-omeng NE 0.
+        CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+          EXPORTING
+            i_matnr              = w_order_info-matnr
+            i_in_me              = w_order_info-vrkme
+            i_out_me             = <fs_material>-vrkme
+            i_menge              = w_order_info-omeng
+          IMPORTING
+            e_menge              = w_bapiwmdvs-req_qty
+          EXCEPTIONS
+            error_in_application = 1
+            error                = 2
+            OTHERS               = 3.
+      ELSE.
+        w_bapiwmdvs-req_qty = 0.
+      ENDIF.
+      w_bapiwmdvs-delkz = c_vc.
+      w_bapiwmdvs-yline = ix_line.
+      APPEND w_bapiwmdvs TO t_bapiwmdvs.
+    ENDLOOP. " Get all sales order which has the material number in its item
+    CALL FUNCTION 'BAPI_MATERIAL_AVAILABILITY'
+      EXPORTING
+        plant           = c_werks_n
+        material        = <fs_material>-matnr
+        unit            = <fs_material>-vrkme
+        check_rule      = c_check_rule_a
+        read_atp_lock   = c_read_atp_lock_c
+        read_atp_lock_x = c_read_atp_lock_x
+      TABLES
+        wmdvsx          = t_bapiwmdvs
+        wmdvex          = t_bapiwmdve.
+    LOOP AT t_order_info
+      ASSIGNING <fs_order_info> WHERE matnr EQ <fs_material>-matnr.
+      IF <fs_order_info>-edatu LE sy-datlo.
+        READ TABLE t_bapiwmdve ASSIGNING <fs_bapiwmdve> WITH KEY req_date = sy-datlo.
+        IF  sy-subrc EQ 0.
+          IF <fs_bapiwmdve>-com_qty NE 0.
+            CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+              EXPORTING
+                i_matnr              = <fs_material>-matnr
+                i_in_me              = <fs_material>-vrkme
+                i_out_me             = <fs_order_info>-vrkme
+                i_menge              = <fs_bapiwmdve>-com_qty
+              IMPORTING
+                e_menge              = g_qty
+              EXCEPTIONS
+                error_in_application = 1
+                error                = 2
+                OTHERS               = 3.
+          ELSE.
+            g_qty = 0.
+          ENDIF.
+          IF g_qty LE <fs_order_info>-omeng.
+            <fs_order_info>-vmeng_n = g_qty.
+            <fs_bapiwmdve>-com_qty = 0.
+          ELSE.
+*        Convert back to item unit
+            IF <fs_order_info>-omeng NE 0.
+              CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+                EXPORTING
+                  i_matnr              = <fs_material>-matnr
+                  i_in_me              = <fs_order_info>-vrkme
+                  i_out_me             = <fs_material>-vrkme
+                  i_menge              = <fs_order_info>-omeng
+                IMPORTING
+                  e_menge              = g_deduct
+                EXCEPTIONS
+                  error_in_application = 1
+                  error                = 2
+                  OTHERS               = 3.
+            ELSE.
+              g_deduct = 0.
+            ENDIF.
+            <fs_order_info>-vmeng_n = <fs_order_info>-omeng.
+            <fs_bapiwmdve>-com_qty = <fs_bapiwmdve>-com_qty - g_deduct.
+          ENDIF.
+        ENDIF.
+      ELSE.
+        READ TABLE t_bapiwmdve ASSIGNING <fs_bapiwmdve> WITH KEY req_date = <fs_order_info>-edatu.
+        IF  sy-subrc EQ 0.
+          IF <fs_bapiwmdve>-com_qty NE 0.
+            CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+              EXPORTING
+                i_matnr              = <fs_material>-matnr
+                i_in_me              = <fs_material>-vrkme
+                i_out_me             = <fs_order_info>-vrkme
+                i_menge              = <fs_bapiwmdve>-com_qty
+              IMPORTING
+                e_menge              = g_qty
+              EXCEPTIONS
+                error_in_application = 1
+                error                = 2
+                OTHERS               = 3.
+          ELSE.
+            g_qty = 0.
+          ENDIF.
+          IF g_qty LE <fs_order_info>-omeng.
+            <fs_order_info>-vmeng_n = g_qty.
+            <fs_bapiwmdve>-com_qty = 0.
+          ELSE.
+*        Convert back to item unit
+            IF <fs_order_info>-omeng NE 0.
+              CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+                EXPORTING
+                  i_matnr              = <fs_material>-matnr
+                  i_in_me              = <fs_order_info>-vrkme
+                  i_out_me             = <fs_material>-vrkme
+                  i_menge              = <fs_order_info>-omeng
+                IMPORTING
+                  e_menge              = g_deduct
+                EXCEPTIONS
+                  error_in_application = 1
+                  error                = 2
+                  OTHERS               = 3.
+            ELSE.
+              g_deduct = 0.
+            ENDIF.
+            <fs_order_info>-vmeng_n = <fs_order_info>-omeng.
+            <fs_bapiwmdve>-com_qty = <fs_bapiwmdve>-com_qty - g_deduct.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+      <fs_order_info>-werks_s = c_werks_s.
+      <fs_order_info>-werks_n = c_werks_n.
+    ENDLOOP.
+    REFRESH: t_bapiwmdvs[],
+             t_bapiwmdve[].
+    CLEAR: g_qty,
+           g_deduct.
+  ENDLOOP.
+ENDFORM.                    " F_MATERIAL_AVAILABLE
+*&---------------------------------------------------------------------*
+*&      Form  F4000_FIELDCAT_BUILD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4000_fieldcat_build .
+  DATA: ix_spos LIKE alvdynp-sortpos.
+  fieldcat: 'VBELN' text-l01 space c_x,
+            'VBELN_X' space  c_x space,
+            'POSNR' text-l02 space c_x,
+            'POSNR_X' space  c_x space,
+            'KUNNR' text-l03 space space,
+            'MATNR' text-l04 space space,
+           'KWMENG' text-l05 space space,
+            'OMENG' text-l06 space space,
+          'WERKS_S' text-l07 space space,
+            'VMENG' text-l08 space space,
+          'WERKS_N' text-l09 space space,
+          'VMENG_N' text-l10 space space,
+            'EDATU' text-l11 space space,
+            'ERNAM' text-l12 space space,
+            'LPRIO' space    c_x space,
+            'ERDAT' space    c_x space.
+
+  w_layout-colwidth_optimize = c_x.
+  w_layout-box_fieldname = 'SEL'.
+  w_layout-zebra = c_x.
+  w_layout-detail_popup = c_x.
+ENDFORM.                    " F_FIELDCAT_BUIL
+*&---------------------------------------------------------------------*
+*&      Form  F4100_ALV_DISPLAY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4100_alv_display .
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer       = c_x
+      i_buffer_active          = space
+      i_callback_program       = sy-repid
+      i_callback_pf_status_set = c_callback_status
+      i_callback_user_command  = c_callback_usercommand
+      is_layout                = w_layout
+      it_fieldcat              = t_fieldcat
+      it_sort                  = t_sort
+    TABLES
+      t_outtab                 = t_order_info.
+  IF sy-subrc <> 0.
+  ENDIF.
+ENDFORM.                    " F_ALV_DISPLAY
+*&---------------------------------------------------------------------*
+*&      Form  F_STATUS_SET
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->RT_EXTAB   text
+*----------------------------------------------------------------------*
+FORM f_status_set USING rt_extab TYPE slis_t_extab.
+  SET PF-STATUS 'ZSTATUS'.
+ENDFORM.                    "F_STATUS_SET
+*&---------------------------------------------------------------------*
+*&      Form  F_USER_COMMAND
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->R_UCOMM      text
+*      -->RS_SELFIELD  text
+*----------------------------------------------------------------------*
+FORM f_user_command  USING r_ucomm LIKE sy-ucomm
+                                   rs_selfield TYPE slis_selfield.
+  DATA: w_bapiheader  LIKE bapisdh1x,
+        w_bapiitem    LIKE bapisditm,
+        w_bapiitem_x  LIKE bapisditmx,
+        w_return      LIKE bapiret2.
+  DATA: t_bapiitem    LIKE STANDARD TABLE OF bapisditm,
+        t_bapiitem_x  LIKE STANDARD TABLE OF bapisditmx,
+        t_return      LIKE STANDARD TABLE OF bapiret2.
+  CASE r_ucomm.
+    WHEN '&CHG'.
+      AUTHORITY-CHECK OBJECT 'V_VBAK_VKO'
+                      ID 'ACTVT' FIELD '02'.
+      IF sy-subrc EQ 0.
+        UNASSIGN <fs_order_info>.
+        LOOP AT t_order_info
+          ASSIGNING <fs_order_info> WHERE sel = c_x.
+          CLEAR: w_bapiheader,
+                 w_bapiitem,
+                 w_bapiitem_x,
+                 w_return.
+          REFRESH: t_bapiitem_x[],
+                   t_bapiitem[],
+                   t_return[].
+          w_bapiheader-updateflag = 'U'.
+
+          w_bapiitem_x-itm_number = <fs_order_info>-posnr.
+          w_bapiitem_x-updateflag = 'U'.
+          w_bapiitem_x-plant = c_x.
+          APPEND w_bapiitem_x TO t_bapiitem_x.
+
+          w_bapiitem-itm_number = <fs_order_info>-posnr.
+          w_bapiitem-plant = <fs_order_info>-werks_n.
+          APPEND w_bapiitem TO t_bapiitem.
+
+          CALL FUNCTION 'BAPI_SALESORDER_CHANGE'
+            EXPORTING
+              salesdocument    = <fs_order_info>-vbeln
+              order_header_inx = w_bapiheader
+            TABLES
+              return           = t_return
+              order_item_in    = t_bapiitem
+              order_item_inx   = t_bapiitem_x.
+          READ TABLE t_return INTO w_return WITH KEY type = c_e.
+          IF sy-subrc NE 0.
+            CALL FUNCTION 'BAPI_TRANSACTION_COMMIT' .
+          ELSE.
+            CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+            <fs_order_info>-not_del = c_x.
+            CLEAR tx_mss.
+            CONCATENATE <fs_order_info>-vbeln
+                        '-'
+                        <fs_order_info>-posnr
+                   into tx_mss.
+            MESSAGE i051(zmm) WITH tx_mss
+                                   w_return-message+0(50)
+                                   w_return-message+50(50)
+                                   w_return-message+100(50)
+                                   .
+          ENDIF.
+        ENDLOOP.
+      ENDIF.
+    WHEN OTHERS.
+  ENDCASE.
+  DELETE t_order_info WHERE sel = c_x
+                        AND not_del = space.
+  rs_selfield-refresh = c_x.
+ENDFORM.                    "user_command
+*&---------------------------------------------------------------------*
+*&      Form  F4200_SORTINFO_BUILD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4200_sortinfo_build .
+  IX_SPOS = IX_SPOS + 1.
+  W_SORT-SPOS = IX_SPOS.
+  W_SORT-fieldname = 'LPRIO'.
+  W_SORT-UP = C_X.
+  APPEND W_SORT TO T_SORT.
+  IX_SPOS = IX_SPOS + 1.
+  W_SORT-SPOS = IX_SPOS.
+  W_SORT-fieldname = 'ERDAT'.
+  W_SORT-UP = C_X.
+  APPEND W_SORT TO T_SORT.
+  IX_SPOS = IX_SPOS + 1.
+  W_SORT-SPOS = IX_SPOS.
+  W_SORT-fieldname = 'VBELN_X'.
+  W_SORT-UP = C_X.
+  APPEND W_SORT TO T_SORT.
+  IX_SPOS = IX_SPOS + 1.
+  W_SORT-SPOS = IX_SPOS.
+  W_SORT-fieldname = 'POSNR_X'.
+  W_SORT-UP = C_X.
+  APPEND W_SORT TO T_SORT.
+*  CLEAR w_sort.
+*  w_sort-spos = p_delpri.
+*  w_sort-fieldname = 'LPRIO'.
+*  w_sort-up = c_x.
+*  APPEND w_sort TO t_sort.
+*
+*  CLEAR w_sort.
+*  w_sort-spos = p_date.
+*  IF p_dcreat = c_x.
+*    w_sort-fieldname = 'ERDAT'.
+*  ELSEIF p_ddeliv = c_x.
+*    w_sort-fieldname = 'EDATU'.
+*  ENDIF.
+*  w_sort-up = c_x.
+*  APPEND w_sort TO t_sort.
+*
+*  CLEAR w_sort.
+*  w_sort-spos = p_docno.
+*  w_sort-fieldname = 'VBELN_X'.
+*  w_sort-up = c_x.
+*  APPEND w_sort TO t_sort.
+*
+*  CLEAR w_sort.
+*  w_sort-spos = p_itemno.
+*  w_sort-fieldname = 'POSNR_X'.
+*  w_sort-up = c_x.
+*  APPEND w_sort TO t_sort.
+ENDFORM.                    " F4200_SORTINFO_BUILD
+*&---------------------------------------------------------------------*
+*&      Form  F5000_INITIAL_CHECK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+*FORM f5000_initial_check .
+*  IF  p_delpri CA '01234'
+*  AND p_date   CA '01234'
+*  AND p_docno  CA '01234'
+*  AND p_itemno CA '01234'.
+*  ELSE.
+*    MESSAGE e003(zsc).
+*  ENDIF.
+*
+*  nb_num = p_delpri + p_date + p_docno + p_itemno.
+*  IF nb_num = 0.
+*    MESSAGE w004(zsc).
+*  ENDIF.
+*
+*  IF ( p_docno > p_itemno AND NOT p_itemno IS INITIAL )
+*  OR ( p_docno IS INITIAL AND p_itemno > 0 ).
+**  Item-number should not be ranked higher than document number
+*    MESSAGE e005(zsc).
+*  ENDIF.
+*
+*  IF p_delpri EQ p_date
+*  OR p_delpri EQ p_docno
+*  OR p_delpri EQ p_itemno
+*  OR p_date   EQ p_docno
+*  OR p_date   EQ p_itemno
+*  OR p_docno  EQ p_itemno.
+*    MESSAGE e006(zsc).
+*  ENDIF.
+*ENDFORM.                   " F5000_INITIAL_CHECK
+

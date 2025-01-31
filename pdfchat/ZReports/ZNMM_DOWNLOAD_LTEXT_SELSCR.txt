@@ -1,0 +1,34 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMM_DOWNLOAD_LTEXT_SELSCR
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK a1 WITH FRAME TITLE text-001.
+SELECT-OPTIONS : gs_objec    FOR gv_tdobject OBLIGATORY  NO INTERVALS NO-EXTENSION,
+                 gs_tdnam    FOR gv_tdname,
+                 gs_tdid     FOR gv_tdid,
+                 gs_spras    FOR gv_tdspras.
+ PARAMETERS : p_werks TYPE werks_d.  " Changes by 503103496 DE3K9A0DT3 CHG0207844
+SELECTION-SCREEN END OF BLOCK a1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b04 WITH FRAME TITLE text-b04.
+SELECTION-SCREEN: BEGIN OF LINE.
+PARAMETERS: p_mod1 RADIOBUTTON GROUP r03.  "ALV
+SELECTION-SCREEN: COMMENT 3(10) text-005.
+SELECTION-SCREEN: END   OF LINE.
+
+SELECTION-SCREEN: BEGIN OF LINE.
+PARAMETERS: p_mod2 RADIOBUTTON GROUP r03.  "Local PC
+SELECTION-SCREEN: COMMENT 3(10) text-004 FOR FIELD gp_file.
+PARAMETERS: gp_file TYPE localfile.
+SELECTION-SCREEN: END   OF LINE.
+SELECTION-SCREEN: BEGIN OF LINE.
+
+PARAMETERS: p_mod3 RADIOBUTTON GROUP r03.   "SAP Server
+SELECTION-SCREEN: COMMENT 3(10) text-006 FOR FIELD gp_ofile.
+PARAMETERS: gp_ofile TYPE localfile. " LOWER CASE OBLIGATORY. " DEFAULT text-003. "rlgrap-filename
+SELECTION-SCREEN: END   OF LINE.
+
+SELECTION-SCREEN END OF BLOCK b04.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gp_file.
+  PERFORM f4_fileselect.
+

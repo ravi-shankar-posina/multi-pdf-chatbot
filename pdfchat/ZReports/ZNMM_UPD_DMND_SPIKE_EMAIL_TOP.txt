@@ -1,0 +1,48 @@
+*&---------------------------------------------------------------------*
+*&  Include           I	ZNMM_UPD_DMND_SPIKE_TOP
+*&---------------------------------------------------------------------*
+*&***------------------------------------------------------------------***
+*** Created by            : Manas MIsra
+*** Creation Date         : 27/02/2023
+*** Transport Request #   : DE3K9A0J08
+*** RICEF Object No #     : 2635
+*** TC ode                : ZMM2635
+*** Description           : Conversion & maintaince program to upload
+***                         Demand Spike ELIP  table
+***                         Data would be uploaded via  a file from PC
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* C O N S T A N T S
+*----------------------------------------------------------------------*
+CONSTANTS:
+  c_x          VALUE 'X',                         "Constant value for X
+  c_rec_type   TYPE so_escape VALUE 'U',   "Record Type for Email
+  c_com_type   TYPE so_snd_art VALUE 'INT', "Communication Type of Email
+  c_doc_type   TYPE so_obj_tp VALUE 'RAW', "Document Type of Email
+  c_obj_name   TYPE so_obj_nam VALUE 'SAPRPT', "Object Name for Email Purpose
+  c_sensitivty TYPE so_obj_sns VALUE 'F'.
+
+"Object Sensitivity for Email Purpose
+*----------------------------------------------------------------------*
+* W O R K A R E A       D E C L A R A T I O N S
+*----------------------------------------------------------------------*
+DATA: wa_message      TYPE solisti1,        "Workarea for Mail Message
+      wa_attach       TYPE solisti1,         "Workarea for Mail Attach
+      wa_packing_list TYPE sopcklsti1, "Workarea for Mail packing
+      wa_receivers    TYPE somlreci1.     "Workarea for Mail Receivers
+*----------------------------------------------------------------------*
+* I N T E R N A L    T A B L E S    D E C L A R A T I O N S
+*----------------------------------------------------------------------*
+DATA:
+  it_message      TYPE STANDARD TABLE OF solisti1, "Int Table for Mail Message
+  it_attach       TYPE STANDARD TABLE OF solisti1, "Int Table for Mail Attach
+  it_packing_list TYPE STANDARD TABLE OF sopcklsti1, "Int Table for Mail Packing
+  it_receivers    TYPE STANDARD TABLE OF somlreci1, "Int Table for Mail Receiver
+  it_attachment   TYPE STANDARD TABLE OF solisti1. "Int Table for Attachment
+*----------------------------------------------------------------------*
+* G L O B A L       D E C L A R A T I O N S
+*----------------------------------------------------------------------*
+DATA: g_cnt      TYPE i,              "Record Count
+      g_sent_all TYPE c,              "Flag for Mail sending
+      g_doc_data LIKE sodocchgi1.     "Mail Document Data
+

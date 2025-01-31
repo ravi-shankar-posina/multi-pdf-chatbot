@@ -1,0 +1,256 @@
+*&---------------------------------------------------------------------*
+*& Report ZRMM_GR_OUTPUT_PROG
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zrmm_gr_output_prog.
+TYPES: ty_daterange TYPE RANGE OF mseg-budat_mkpf.
+TABLES :  nast.
+
+CONSTANTS: c_yes(3)    TYPE c                        VALUE 'YES',
+           c_verify(6) TYPE c                        VALUE 'VERIFY'.
+
+FORM entry USING p_return_code p_us_screen.
+  DATA: lt_final     TYPE STANDARD TABLE OF zsmm_output_struct,
+        lt_daterange TYPE ty_daterange,
+        lv_days      TYPE i,
+        lv_fm_name   TYPE rs38l_fnam,
+        lt_tab       TYPE tsfdara,
+        lw_control   TYPE ssfctrlop,
+        lw_output    TYPE ssfcompop.
+  p_return_code  = 0.
+* First check is related to Printer Parameter, if not set then put output type in error
+  SELECT SINGLE parva FROM usr05
+    INTO @DATA(lv_print_param) WHERE bname = @sy-uname AND parid = 'ZMOB_PRINTER'.
+  IF sy-subrc = 0.
+
+    SELECT  mseg~mblnr, mseg~mjahr, mseg~zeile, mseg~matnr, mseg~werks, mseg~lifnr, mseg~lgort, mseg~menge,
+            mseg~ebeln, mseg~ebelp, mseg~lgnum, mseg~lgtyp,
+            mseg~bestq, mseg~budat_mkpf, mseg~cputm_mkpf, mseg~usnam_mkpf,
+            mara~groes, mara~brgew, marc~lgpro, marc~dispo, marc~abcin, makt~maktx, lfa1~name1
+      FROM mseg INNER JOIN mara ON mara~matnr = mseg~matnr "#EC "#EC CI_CMPLX_WHERE
+      INNER JOIN marc ON marc~matnr = mseg~matnr AND marc~werks = mseg~werks "#EC "#EC CI_CMPLX_WHERE
+      INNER JOIN makt ON makt~matnr = mseg~matnr AND makt~spras = @nast-spras "#EC "#EC CI_CMPLX_WHERE
+      INNER JOIN lfa1 ON lfa1~lifnr = mseg~lifnr "#EC "#EC CI_CMPLX_WHERE
+      INTO TABLE @DATA(lt_mseg)
+     WHERE mblnr = @nast-objky(10)
+       AND mjahr = @nast-objky+10(4)
+       AND zeile = @nast-objky+14(4).
+    IF sy-subrc = 0.
+      APPEND INITIAL LINE TO lt_daterange ASSIGNING FIELD-SYMBOL(<lw_daterange>).
+      <lw_daterange>-sign   = 'I'.
+      <lw_daterange>-option = 'EQ'.
+      <lw_daterange>-low = sy-datum - 365.               "#EC NUMBER_OK
+      <lw_daterange>-high = sy-datum.
+
+      SELECT mseg~mblnr, mseg~mjahr, mseg~zeile, mseg~matnr, mseg~werks, mseg~budat_mkpf
+        FROM mseg
+        INTO TABLE @DATA(lt_count)
+        FOR ALL ENTRIES IN @lt_mseg
+        WHERE matnr = @lt_mseg-matnr
+        AND   werks = @lt_mseg-werks
+        AND   budat_mkpf IN @lt_daterange.
+      IF sy-subrc = 0.
+        SORT lt_count BY matnr werks ASCENDING budat_mkpf DESCENDING.
+
+      ENDIF..
+
+      SELECT  ltbk~lgnum, ltbk~tbnum,  ltbk~mblnr,  ltbp~tbpos, ltbp~matnr, ltbp~mbpos, "#EC "#EC CI_SUBRC
+              mlgn~lgbkz, mlgn~ltkze, mlgn~block, mlgt~lgtyp,  mlgt~lgpla, t331~stein
+        FROM ltbk INNER JOIN ltbp ON ltbp~lgnum = ltbk~lgnum "#EC "#EC CI_CMPLX_WHERE
+                                 AND ltbp~tbnum = ltbk~tbnum
+        INNER JOIN mlgn ON mlgn~matnr = ltbp~matnr "#EC "#EC CI_CMPLX_WHERE
+                 AND mlgn~lgnum = ltbp~lgnum
+        INNER JOIN t331 ON t331~lgnum = mlgn~lgnum "#EC "#EC CI_CMPLX_WHERE
+               AND t331~lgtyp = mlgn~ltkze
+        INNER JOIN mlgt ON mlgt~matnr = mlgn~matnr "#EC "#EC CI_BUFFJOIN "#EC "#EC CI_CMPLX_WHERE
+                        AND mlgt~lgnum = mlgn~lgnum
+        INTO TABLE @DATA(lt_ltbk)
+        FOR ALL ENTRIES IN @lt_mseg
+        WHERE ltbk~lgnum = @lt_mseg-lgnum
+        AND   ltbk~mblnr = @lt_mseg-mblnr.
+* No need of sy-subrc check
+      LOOP AT lt_mseg INTO DATA(lw_mseg).
+        APPEND INITIAL LINE TO lt_final ASSIGNING FIELD-SYMBOL(<lw_final>).
+        <lw_final>-matnr  = lw_mseg-matnr.
+        CONCATENATE lw_mseg-budat_mkpf lw_mseg-cputm_mkpf INTO <lw_final>-timestamp SEPARATED BY space.
+        <lw_final>-usnam_mkpf = lw_mseg-usnam_mkpf.
+        <lw_final>-bsetq = lw_mseg-bestq.
+        <lw_final>-maktx = lw_mseg-maktx.
+        <lw_final>-po =  lw_mseg-ebeln  && |{ lw_mseg-ebelp  ALPHA = OUT }| .
+        <lw_final>-menge = lw_mseg-menge .
+        <lw_final>-lgort = lw_mseg-lgort.
+        <lw_final>-abcin = lw_mseg-abcin.
+        <lw_final>-mblnr = lw_mseg-mblnr.
+        <lw_final>-mjahr = lw_mseg-mjahr.
+        <lw_final>-zeile = lw_mseg-zeile.
+        <lw_final>-werks = lw_mseg-werks.  "added by praveen L
+        <lw_final>-lgnum = lw_mseg-lgnum.  "added by praveen L
+        <lw_final>-matdoc = |{ lw_mseg-mblnr }| & |{ lw_mseg-zeile }|.
+        IF <lw_final>-abcin = 'A'.
+          <lw_final>-count = c_yes.
+        ELSE.
+          READ TABLE lt_count INTO DATA(lw_count) WITH KEY matnr = lw_mseg-matnr
+                                                           werks = lw_mseg-werks.
+          IF sy-subrc = 0.
+            CALL FUNCTION 'HR_SGPBS_YRS_MTHS_DAYS'
+              EXPORTING
+                beg_da        = lw_count-budat_mkpf
+                end_da        = sy-datum
+              IMPORTING
+                no_day        = lv_days
+              EXCEPTIONS
+                dateint_error = 1
+                OTHERS        = 2.
+            IF sy-subrc = 0.
+
+              IF <lw_final>-abcin = 'B'.
+                IF lv_days GT 90.                        "#EC NUMBER_OK
+                  <lw_final>-count = c_yes.
+                ELSE.
+                  <lw_final>-count = c_verify.
+                ENDIF.
+              ELSEIF <lw_final>-abcin = 'C'.
+                IF lv_days GT 365.                       "#EC NUMBER_OK
+                  <lw_final>-count = c_yes.
+                ELSE.
+                  <lw_final>-count = c_verify.
+                ENDIF.
+              ENDIF.
+            ENDIF.
+          ELSE.
+            IF <lw_final>-abcin = 'C' OR <lw_final>-abcin = 'B' .
+              <lw_final>-count = c_yes.
+            ENDIF.
+          ENDIF.
+
+        ENDIF.
+        <lw_final>-dispo = lw_mseg-dispo.
+        <lw_final>-brgew = lw_mseg-brgew.
+        <lw_final>-groes = lw_mseg-groes.
+        <lw_final>-name1 = lw_mseg-name1.
+        READ TABLE lt_ltbk INTO DATA(lw_ltbk) WITH KEY mblnr = lw_mseg-mblnr
+                                matnr = lw_mseg-matnr
+                                mbpos = lw_mseg-zeile.
+        IF sy-subrc = 0.
+* Start of change by USDEJAI for Hypercare issue
+          READ TABLE lt_ltbk INTO DATA(lw_mlgt) WITH KEY mblnr = lw_mseg-mblnr
+                       matnr = lw_mseg-matnr
+                       mbpos = lw_mseg-zeile
+                       lgtyp = lw_ltbk-ltkze
+                       stein = 'F'.
+          IF sy-subrc = 0.
+            <lw_final>-lgpla = lw_mlgt-lgpla.
+          ENDIF.
+*End of change by USDEJAI for Hypercare issue
+          <lw_final>-ltkze = lw_ltbk-ltkze.
+          <lw_final>-lgbkz = lw_ltbk-lgbkz.
+
+          <lw_final>-block = lw_ltbk-block.
+          <lw_final>-to = lw_ltbk-tbnum .
+          IF sy-subrc = 0.
+            CONDENSE <lw_final>-to NO-GAPS.
+          ENDIF.
+          <lw_final>-tbnum = lw_ltbk-tbnum.
+          <lw_final>-tbpos = lw_ltbk-tbpos.
+        ENDIF.
+        CLEAR lw_mseg.
+      ENDLOOP.
+    ENDIF.
+
+    IF lt_final IS NOT INITIAL.
+*****call the form
+      CALL FUNCTION 'SSF_FUNCTION_MODULE_NAME'
+        EXPORTING
+          formname           = 'ZMM_RICHMOND_FORM_SF'
+        IMPORTING
+          fm_name            = lv_fm_name
+        EXCEPTIONS
+          no_form            = 1
+          no_function_module = 2
+          OTHERS             = 3.
+
+      IF sy-subrc = 0.
+        lw_control-device = 'PRINTER'.
+
+        lw_output-tddest = lv_print_param.
+        lw_control-no_dialog = abap_true.
+        IF p_us_screen = abap_true.
+          lw_control-preview = abap_true.
+          lw_output-tdnoprint = abap_true.
+        ELSE.
+          lw_control-preview = abap_false.
+          lw_output-tdnewid = abap_true.
+          lw_output-tdimmed = abap_true.
+        ENDIF.
+        CALL FUNCTION lv_fm_name
+          EXPORTING
+            control_parameters = lw_control
+            output_options     = lw_output
+            user_settings      = ' '
+          TABLES
+            lt_final           = lt_final[]
+          EXCEPTIONS
+            formatting_error   = 1
+            internal_error     = 2
+            send_error         = 3
+            user_canceled      = 4
+            OTHERS             = 5.
+        IF sy-subrc <> 0.
+          PERFORM update_protocol USING sy-msgid sy-msgno sy-msgty sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+          p_return_code = 4.
+        ENDIF.
+      ELSE.
+        PERFORM update_protocol USING 'ZMM01' '023' 'E' space space space space.
+        p_return_code = 4.
+      ENDIF.
+    ELSE.
+      PERFORM update_protocol USING 'ZMM01' '022' 'E' space space space space.
+      p_return_code = 4.
+    ENDIF.
+  ELSE.
+    PERFORM update_protocol USING 'ZMM01' '021' 'E' space space space space.
+    p_return_code = 4.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_PROTOCOL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0481   text
+*      -->P_0482   text
+*      -->P_0483   text
+*      -->P_SPACE  text
+*      -->P_SPACE  text
+*      -->P_SPACE  text
+*      -->P_SPACE  text
+*----------------------------------------------------------------------*
+FORM update_protocol  USING pv_msgid  TYPE sy-msgid
+                            pv_msgno  TYPE sy-msgno
+                            pv_msgty  TYPE sy-msgty
+                            pv_msgv1  TYPE sy-msgv1
+                            pv_msgv2  TYPE sy-msgv2
+                            pv_msgv3  TYPE sy-msgv3
+                            pv_msgv4  TYPE sy-msgv4.
+
+
+
+  CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+    EXPORTING
+      msg_arbgb              = pv_msgid
+      msg_nr                 = pv_msgno
+      msg_ty                 = pv_msgty
+      msg_v1                 = pv_msgv1
+      msg_v2                 = pv_msgv2
+      msg_v3                 = pv_msgv3
+      msg_v4                 = pv_msgv4
+    EXCEPTIONS
+      message_type_not_valid = 1
+      no_sy_message          = 2
+      OTHERS                 = 3.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+ENDFORM.
+

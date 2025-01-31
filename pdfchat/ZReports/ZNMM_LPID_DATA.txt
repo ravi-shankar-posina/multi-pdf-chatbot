@@ -1,0 +1,68 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PLID_DATA
+*&---------------------------------------------------------------------*
+TABLES : sscrfields.
+TYPES: BEGIN OF y_search,
+  matnr   LIKE mara-matnr,
+  qty     TYPE i,
+  flag(1),
+  END OF y_search.
+TYPES: BEGIN OF y_baseunit,
+  matnr   LIKE mara-matnr,
+  END OF y_baseunit.
+TYPES: BEGIN OF y_makt,
+  matnr   LIKE makt-matnr,
+  maktx   LIKE makt-maktx,
+  END OF y_makt.
+TYPES: BEGIN OF y_bomlist,
+  zbom    LIKE mara-matnr,
+  zcom    LIKE mara-matnr,
+  END OF y_bomlist.
+TYPES: BEGIN OF y_writeout,
+  line(255) TYPE c,
+  END OF y_writeout.
+DATA: w_search        TYPE y_search,
+      w_search_tmp    TYPE y_search,
+      w_baseunit      TYPE y_baseunit,
+      w_mara          TYPE y_baseunit,
+      w_makt          TYPE y_makt,
+      w_mara1         TYPE y_baseunit,
+      w_bomlist       TYPE y_bomlist,
+      w_bomlist_temp  TYPE y_bomlist,
+      w_writeout      TYPE y_writeout.
+DATA: t_ucomm         TYPE TABLE OF sy-ucomm,
+      t_search        TYPE STANDARD TABLE OF y_search,
+      t_search_tmp    TYPE STANDARD TABLE OF y_search,
+      t_baseunit      TYPE STANDARD TABLE OF y_baseunit,
+      t_mara          TYPE STANDARD TABLE OF y_baseunit,
+      t_makt          TYPE STANDARD TABLE OF y_makt,
+      t_mara1         TYPE STANDARD TABLE OF y_baseunit,
+      t_bomlist       TYPE STANDARD TABLE OF y_bomlist,
+      t_bomlist_temp  TYPE STANDARD TABLE OF y_bomlist,
+      t_writeout      TYPE STANDARD TABLE OF y_writeout.
+
+DATA: g_mod(2)        TYPE n,
+      g_line(255)     TYPE c,
+      g_index         LIKE sy-tabix.
+
+CONSTANTS: c_fc01         LIKE sy-ucomm VALUE 'FC01',
+           c_fc02         LIKE sy-ucomm VALUE 'FC02',
+           c_fc03         LIKE sy-ucomm VALUE 'FC03',
+           c_prin         LIKE sy-ucomm VALUE 'PRIN',
+           c_spos         LIKE sy-ucomm VALUE 'SPOS',
+           c_onli         LIKE sy-ucomm VALUE 'ONLI',
+           c_matfld       LIKE dd03l-fieldname VALUE 'P_MAT',
+           c_qtyfld       LIKE dd03l-fieldname VALUE 'P_QTY',
+           c_kind_p(1)    TYPE c        VALUE 'P',
+           c_msg_e(1)     TYPE c        VALUE 'E',
+           c_x(1)         TYPE c        VALUE 'X',
+           c_sign1(1)     TYPE c        VALUE ',',
+           c_sign2(2)     TYPE c        VALUE '--'.
+FIELD-SYMBOLS: <fs_search>  LIKE w_search_tmp.
+
+DEFINE writeout.
+  CLEAR w_writeout.
+  w_writeout-line = &1.
+  APPEND w_writeout TO t_writeout.
+END-OF-DEFINITION.
+

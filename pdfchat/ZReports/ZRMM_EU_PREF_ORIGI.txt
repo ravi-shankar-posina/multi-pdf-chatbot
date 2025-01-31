@@ -1,0 +1,60 @@
+REPORT  zrmm_eu_pref_origi.
+*  ***------------------------------------------------------------------***
+*** Created by            : Sekhar.Perala(502277866)
+*** Creation Date         : 30.03.2014
+*** Transport Request #   : DE3K923089
+*** RICEF Object No #     : RICEF-749
+*** Change request No     : CHG0479115
+*** Description           : This report could extract the data from different source tables
+*                           such PO History, Material document, Invoice document and bom deatails
+***------------------------------------------------------------------***
+*  DATE       | CR No            | CHANGED BY           | DESCRIPTION OF CHANGE
+***********************************************************************************************************
+*19/06/2014    |CHG0479115       | 5022277866           | DE3K939258changed logic for standard cost
+************************************************************************************************************
+*10/02/2015    |CHG1060352       |  502197710           | DE3K959275 1.	Optimization of the select on EIPA
+*                                                                    2.	Making the field Plant-Specific Material
+*                                                                       Stat as mandatory
+************************************************************************************************************
+
+TABLES : mara , marc.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+SELECT-OPTIONS : s_labor FOR mara-labor,
+                 s_werks FOR marc-werks OBLIGATORY,
+                 s_mstae FOR mara-mstae,
+                 s_mmsta FOR marc-mmsta OBLIGATORY. "Anil Reddy DE3K959275 CHG1060352 10.02.2015
+SELECTION-SCREEN   END OF BLOCK b1.
+****Data Declarations
+INCLUDE znmm_eu_pref_origi_top.
+
+START-OF-SELECTION.
+**** Retriving Material details
+PERFORM matdetails.
+**** Retriving po details for the materials in gt_marc
+PERFORM podetails.
+***** Retriving BOM components for the materials in gt_marc
+PERFORM bomdetails.
+***** Preparing final output.
+PERFORM final_output.
+END-OF-SELECTION.
+******  Prparing fieldcatalog for ALV display
+PERFORM PRPEAR_FIELD_CAT.
+  MOVE sy-repid TO gw_repid.
+
+
+****** Displayin finla table into ALV
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer = gc_x
+      i_buffer_active    = space
+      i_callback_program = gw_repid
+      is_layout          = gs_layout
+      it_fieldcat        = gt_fieldcat
+    TABLES
+      t_outtab           = gt_final1.
+  IF sy-subrc <> 0.
+  ENDIF.
+ INCLUDE znmm_eu_pref_origi_field_caf01.
+
+INCLUDE ZNMM_EU_PREF_DATA_RETRIVAL.
+

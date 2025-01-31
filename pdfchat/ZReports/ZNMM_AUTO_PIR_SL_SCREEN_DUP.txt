@@ -1,0 +1,65 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_AUTO_PIR_SL_SCREEN_DUP
+*&---------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 29-AUG-2024        |  DE3K9A0SQZ      |USPRSAH   | Added this duplicate program to indentify the error in Production
+*-------------------------------------------------------------------------------------------
+
+TYPES : BEGIN OF ty_knttp,
+        knttp TYPE eban-knttp,
+        text  TYPE char40,
+        END OF ty_knttp.
+
+DATA : gt_knttp TYPE TABLE OF ty_knttp,
+       gi_knttp TYPE ty_knttp.
+
+DATA : gw_kntp TYPE char1.
+
+TABLES : prps, eban ,  resb.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2.
+SELECT-OPTIONS : s_werks FOR gw_werks NO INTERVALS  NO-EXTENSION OBLIGATORY,
+                 s_ekgrp FOR gw_ekgrp NO INTERVALS OBLIGATORY MATCHCODE OBJECT h_t024,
+                 s_rdate FOR gw_rdate  OBLIGATORY,
+                 s_banfn FOR gw_banfn,
+                 s_ebakz FOR gw_ebakz NO INTERVALS,
+                 s_statu FOR gw_statu NO INTERVALS,
+                 s_matnr FOR gw_matnr,
+                 s_flief FOR gw_flief NO INTERVALS,
+                 s_knttp FOR eban-knttp NO INTERVALS MODIF ID md1,
+                 s_psext FOR prps-posid NO INTERVALS MODIF ID md1,
+                 s_vbeln FOR ebkn-vbeln,
+                 s_vbelp FOR gw_vbelp,
+                 s_aufnr FOR ebkn-aufnr MODIF ID md1 MATCHCODE OBJECT orde NO INTERVALS ,
+                 s_nplnr FOR ebkn-nplnr NO INTERVALS MODIF ID md1,
+                 s_vornr FOR resb-vornr NO INTERVALS MODIF ID md1,
+                 s_prdha FOR gw_prdha MATCHCODE OBJECT prodh,
+                 s_email for somlreci1-receiver NO INTERVALS.
+SELECTION-SCREEN END OF BLOCK b2.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+
+PARAMETERS:
+ gp_r1 RADIOBUTTON GROUP rad USER-COMMAND abc
+             DEFAULT 'X',
+gp_r2  RADIOBUTTON GROUP rad,
+gp_r3  RADIOBUTTON GROUP rad.
+SELECTION-SCREEN END OF BLOCK b1.
+
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR s_knttp-low.
+  FREE gt_knttp.
+  PERFORM update_knttp_f4 using 'Q' TEXT-024.
+  PERFORM update_knttp_f4 using 'E' TEXT-025.
+  PERFORM update_knttp_f4 using 'X' TEXT-026.
+  PERFORM update_knttp_f4 using 'F' TEXT-027.
+  PERFORM update_knttp_f4 using 'N' TEXT-028.
+  PERFORM populate_knttp_f4.
+
+AT SELECTION-SCREEN OUTPUT.
+  PERFORM modify_screen_ats.
+

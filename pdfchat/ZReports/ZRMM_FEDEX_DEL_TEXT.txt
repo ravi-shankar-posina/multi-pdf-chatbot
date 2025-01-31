@@ -1,0 +1,87 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_FEDEX_DEL_TEXT
+*&
+*&---------------------------------------------------------------------*
+*&*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Name             : ZRMM_FEDEX_DEL_TEXT                               *
+* Created by       : Laxma Reddy K (502199780)                         *
+* Transport Request: DE3K957888                                        *
+* RICEF Object No  : RICEF-1295                                        *
+* Transaction code : ZMM983                                            *
+* Description:       Program is meant to delete the standard texts used*
+*                    to store the zebra code of FedEx label returned by*
+*                    FedEx interface for each HU that gets tracking No.*
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+************************************************************************
+* DATE               | CR No.         |CHANGED BY |DESCRIPTION OF CHANGE
+************************************************************************
+* 12-Jan-2015        | CHG1002184     |502199780  | Initial Development
+***------------------------------------------------------------------***
+
+REPORT  zrmm_fedex_del_text.
+
+*----------------------------------------------------------------------*
+* RANGE TABLE Declarations
+*----------------------------------------------------------------------*
+DATA: gr_tdobname TYPE RANGE OF tdobname.
+
+*----------------------------------------------------------------------*
+* VARIABLE Declarations
+*----------------------------------------------------------------------*
+DATA: gw_tdname TYPE tdobname,
+      gw_date TYPE sydatum.
+
+*----------------------------------------------------------------------*
+* WORKAREA Declarations
+*----------------------------------------------------------------------*
+DATA: gi_tdobname_ds LIKE LINE OF gr_tdobname.
+
+*----------------------------------------------------------------------*
+* INTERNAL TABLE Declarations
+*----------------------------------------------------------------------*
+DATA gt_tdname TYPE STANDARD TABLE OF tdobname.
+
+CLEAR gw_date.
+gw_date = sy-datum - 5.
+
+CLEAR gi_tdobname_ds.
+CONCATENATE 'ZCC_FEDEX_' '*' 'ST' INTO gi_tdobname_ds-low.
+gi_tdobname_ds-sign = 'I'.
+gi_tdobname_ds-option = 'CP'.
+APPEND gi_tdobname_ds TO gr_tdobname.
+
+REFRESH gt_tdname[].
+SELECT tdname
+       FROM stxh
+       INTO TABLE gt_tdname
+       WHERE tdobject = 'TEXT' AND
+             tdname IN gr_tdobname AND
+             tdid = 'ST' AND
+             tdspras = 'E' AND
+             tdldate LT gw_date.
+IF sy-subrc IS INITIAL.
+  LOOP AT gt_tdname INTO gw_tdname.
+    CALL FUNCTION 'DELETE_TEXT'
+      EXPORTING
+*       CLIENT          = SY-MANDT
+        id              = 'ST'
+        language        = 'E'
+        name            = gw_tdname
+        object          = 'TEXT'
+        savemode_direct = 'X'
+*       TEXTMEMORY_ONLY = ' '
+*       LOCAL_CAT       = ' '
+      EXCEPTIONS
+        not_found       = 1
+        OTHERS          = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+    CLEAR gw_tdname.
+  ENDLOOP.
+ENDIF.
+

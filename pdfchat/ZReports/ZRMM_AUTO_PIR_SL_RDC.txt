@@ -1,0 +1,54 @@
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRMM_AUTO_PIR_SL_RDC
+* Created by        : Prashant Joshi
+* Transport Request : DE3K9A0HOJ
+* RICEF Object No   : RICEF2604
+* Transaction code  : ZMM_RDC_AUTOPIR
+* Change request No : RITM5161643
+* Description       : This report is copy of existing report ZRMM_AUTO_PIR_SL
+*                     This program will craete automatically PIR for
+*                     Materials which are recieved from selection screen.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+REPORT  zrmm_auto_pir_sl_rdc.
+
+INCLUDE znmm_auto_pir_sl_rdc_top.
+
+INCLUDE znmm_auto_pir_sl_rdc_screen.
+
+INCLUDE znmm_auto_pir_sl_rdc_forms.
+
+START-OF-SELECTION.
+
+  PERFORM get_harcode_values.
+
+*{ Begin of Change DE3K9A0HOJ
+*  PERFORM  get_pr_data.
+
+  PERFORM get_material_data.
+*} End of Change DE3K9A0HOJ
+
+  PERFORM template_data.
+
+  PERFORM final_data.
+
+  PERFORM bcd_me11_me01.
+
+  PERFORM dispaly_data.
+
+*{ Begin of Change DE3K9A0HOJ
+*"  E-Mail the error records
+  IF NOT s_email[] IS INITIAL AND NOT gt_result[] IS INITIAL.
+    PERFORM send_mail USING  TEXT-004.
+  ENDIF.
+*} End   of Change DE3K9A0HOJ
+INCLUDE znmm_auto_pir_sl_rdc_forms2.
+

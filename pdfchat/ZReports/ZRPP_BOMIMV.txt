@@ -1,0 +1,95 @@
+*&---------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Created by            : Prakash Reddy K
+*** Creation Date         : 30/04/2015
+*** Transport Request #   : DE3K961677
+*** RICEF Object No #     : RICEF1523
+*** TCODE                 : ZPP003
+*** Description           : Report is copied from ZPBOMIMV of 3.1 system
+*                           Report will show BOM details like material,
+*                           plant,local code, quantity,BOM long text
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 30-Apr-2015       | CHG1204750      |502209589  | Object created
+* 29-Jun-2015       | CHG1305881      |502209589  | Changes incorporated to work with
+*                                                   Multiple Material instead of one
+* 06-Jul-2015       | CHG1305881      |502209589  | Changes incorporated features of FTP
+*                                                   And Application server
+* 31-Jul-2015       | CHG1305881      |502209589  | leading zeros from material and qty
+* 04-Aug-2015       | CHG1305881      |502209589  | Base Qty field added in output list
+* 07-Aug-2015       | CHG1305881      |502209589  | Bug fixed changes incorporated in EXcel
+*                                                   when downloading
+* 07-Aug-2016       | CHG2219362      |502209589  | fetching lgpro field instead of lgort
+* 27-Dec-2016       | CHG2411358      |502683007  | Display Quantity field as per User Profile
+* 06-Feb-2017       | CHG2449096      |502683007  | Remove Message ID statement and skip the error
+* 09-AUG-2017       | CHG2683792      |502765654  | Added SFTP option then the file name will be mandatory
+*                                                    And Add the default value as 5000 for file count
+* 09-Mar-2020       | GECHG0711807    |502765654  | Added logic selection screen and output BOM Creation date
+* 02-August-2020    | GECHG0878761    |502627001  | Directory File Path is changed from /REPORTS/PE3/ACTIVE
+*                                                   to /reports/PE3/active/
+* 02-Jan-2024       | CHG2052338      |DE3K9A0OHT | Bug Fix
+***-----------------------------------------------------------------------------------------------------------*
+REPORT  zrpp_bomimv
+            NO STANDARD PAGE HEADING
+*            LINE-SIZE  275
+*            LINE-COUNT 65(0)
+            MESSAGE-ID 29.
+
+INCLUDE znpp_bomtop.
+PARAMETERS : p_ch AS CHECKBOX.                                 "CR#CHG2411358  by 502683007 on 27-Dec-2016
+* CHG1305881  DE3K963546  Changes begin by 502209589.
+INITIALIZATION.
+  CONCATENATE gc_rep_name sy-sysid gc_rep_name1 gc_fname sy-datum gc_fname1 sy-uzeit gc_fname2 INTO p_fname.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_exfile.
+  PERFORM f4_fileselect.
+
+AT SELECTION-SCREEN.
+  IF p_exfile IS INITIAL AND p_excel = 'X'.
+    MESSAGE e899 WITH text-066.
+    EXIT.
+  ENDIF.
+*Begin of changes done by Anil G CHG2683792 DE3K980714  09.08.2017.
+  IF p_file IS INITIAL AND p_ftp = 'X'.
+    MESSAGE e899 WITH text-070.
+    EXIT.
+  ENDIF.
+*En of changes done by Anil G CHG2683792  DE3K980714   09.08.2017.
+* CHG1305881  DE3K963546  Changes End by 502209589.
+START-OF-SELECTION.
+  PERFORM get_data.
+
+END-OF-SELECTION.
+  PERFORM write_data.
+* CHG1305881  DE3K963546  Changes begin by 502209589.
+  IF p_excel EQ 'X'.
+    PERFORM f_excel_download.
+  ENDIF.
+* CHG1305881  DE3K963546  Changes End by 502209589.
+*top-of-page
+TOP-OF-PAGE.
+  IF p_solcom = ' '.
+    PERFORM header_data.
+  ENDIF.
+  INCLUDE znpp_bom_main.
+*&---------------------------------------------------------------------*
+*&      Form  F4_FILESELECT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_fileselect .
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+    IMPORTING
+      file_name     = p_exfile.
+ENDFORM.                    " F4_FILESELECT
+

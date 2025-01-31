@@ -1,0 +1,547 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZIMM_FEDEX_F01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data.
+
+  LOOP AT gs_cust[] INTO gi_cust.
+
+  IF gi_cust-low IS NOT INITIAL.
+   CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+    EXPORTING
+      input     =  gi_cust-low
+    IMPORTING
+     OUTPUT     =  gi_cust-low.
+  ENDIF.
+
+  IF gi_cust-high IS NOT INITIAL.
+   CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+    EXPORTING
+      input     =  gi_cust-high
+    IMPORTING
+     OUTPUT     =  gi_cust-high.
+  ENDIF.
+
+  MODIFY gs_cust FROM gi_cust.
+  CLEAR gi_cust.
+
+  ENDLOOP.
+
+  SELECT tracknum
+         custtranid
+         plant
+         exidv
+         counter
+         mastertracknum
+         frtcharge
+         frtcurr
+         cdate
+         sertype
+         msglevel
+         message
+         FROM ztmm_fedex_inb
+         INTO TABLE gt_fedex_inb
+         WHERE tracknum IN gs_trnm
+          AND  custtranid IN gs_cust
+          AND  plant IN gs_werks
+          AND  exidv IN gs_hunt
+          AND  mastertracknum IN gs_mtrnm
+          AND  cdate IN gs_date
+          AND  sertype IN gs_styp
+          AND  msglevel IN gs_msgl."= 'SUCCESS'.
+  IF sy-subrc IS INITIAL.
+    SORT gt_fedex_inb BY exidv.
+
+    gt_fedex[] = gt_fedex_inb.
+    SORT gt_fedex BY exidv counter DESCENDING.
+    DELETE ADJACENT DUPLICATES FROM gt_fedex COMPARING exidv.
+
+    SELECT venum
+           exidv
+           brgew
+           gewei
+           vhilm
+      FROM vekp
+      INTO TABLE gt_vekp
+      FOR ALL ENTRIES IN gt_fedex
+      WHERE exidv = gt_fedex-exidv.
+    IF  sy-subrc IS INITIAL.
+      SORT gt_vekp BY venum.
+      SELECT vbeln
+             posnr
+             matnr
+             vemng
+             vemeh
+             werks
+             venum
+        FROM vepo
+        INTO TABLE gt_vepo
+        FOR ALL ENTRIES IN gt_vekp
+        WHERE venum = gt_vekp-venum.
+      IF sy-subrc IS INITIAL.
+        SORT gt_vepo BY venum.
+
+        SELECT vbeln
+               wadat_ist
+          FROM likp
+          INTO TABLE gt_likp
+          FOR ALL ENTRIES IN gt_vepo
+          WHERE vbeln = gt_vepo-vbeln.
+        IF sy-subrc IS INITIAL.
+          SORT gt_likp BY vbeln.
+        ENDIF.
+
+        SELECT vbelv
+               posnv
+               vbeln
+               posnn
+               vbtyp_n
+          FROM vbfa
+          INTO TABLE gt_vbfa
+          FOR ALL ENTRIES IN gt_vepo
+          WHERE vbeln = gt_vepo-vbeln
+            AND posnn = gt_vepo-posnr
+            AND vbtyp_n = 'J'
+            AND vbtyp_v = gc_c
+            AND stufe = 00.
+        IF sy-subrc IS INITIAL.
+          SORT gt_vbfa BY vbeln posnn.
+          SELECT vbeln
+                 knumv
+                 erdat
+                 bstnk
+                 bstdk
+                 kunnr
+                 netwr
+                 waerk
+            FROM vbak
+            INTO TABLE gt_vbak
+            FOR ALL ENTRIES IN gt_vbfa
+            WHERE vbeln = gt_vbfa-vbelv.
+          IF sy-subrc IS INITIAL.
+            SORT gt_vbak BY vbeln.
+          ENDIF.
+
+          SELECT vbeln
+                 posnr
+                 arktx
+                 kwmeng
+                 netwr
+                 waerk
+            FROM vbap
+            INTO TABLE gt_vbap
+            FOR ALL ENTRIES IN gt_vbfa
+            WHERE vbeln = gt_vbfa-vbelv
+              AND posnr = gt_vbfa-posnv.
+          IF sy-subrc IS INITIAL.
+            SORT gt_vbap BY vbeln posnr.
+          ENDIF.
+
+          SELECT vbeln
+                 posnr
+                 parvw
+                 kunnr
+                 adrnr
+            FROM vbpa
+            INTO TABLE gt_vbpa
+            FOR ALL ENTRIES IN gt_vbfa
+            WHERE vbeln = gt_vbfa-vbelv
+              AND posnr = 000000.
+          IF sy-subrc IS INITIAL.
+            SORT gt_vbpa BY vbeln posnr parvw.
+            SELECT addrnumber
+                   name1
+                   name2
+                   street
+                   str_suppl1
+                   city1
+                   post_code1
+                   region
+                   country
+              FROM adrc
+              INTO TABLE gt_adrc
+              FOR ALL ENTRIES IN gt_vbpa
+              WHERE addrnumber = gt_vbpa-adrnr.
+            IF sy-subrc IS INITIAL.
+              SORT gt_adrc BY addrnumber.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ELSE.
+    MESSAGE i083(zmm) WITH text-001.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  SELECTIONSCREEN_VALIDATION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM selectionscreen_validation .
+  IF gs_werks IS NOT INITIAL.
+    CLEAR gw_werks.
+    SELECT SINGLE werks FROM t001w INTO gw_werks WHERE werks IN gs_werks.
+    IF sy-subrc NE 0.
+     SET CURSOR FIELD 'GS_WERKS-LOW'.
+     MESSAGE e090(zmm) WITH text-007.
+    ENDIF.
+  ELSE.
+     MESSAGE e090(zmm) WITH text-003.
+  ENDIF.
+
+  IF gs_styp IS NOT INITIAL.
+    CLEAR gw_msgl.
+    SELECT SINGLE sertype FROM ztmm_fdx_sertype INTO gw_styp WHERE sertype IN gs_styp.
+      IF sy-subrc NE 0.
+        SET CURSOR FIELD 'GS_STYP-LOW'.
+        MESSAGE e090(zmm) WITH text-011.
+      ENDIF.
+  ENDIF.
+
+  IF gs_msgl IS NOT INITIAL.
+    CLEAR gw_msgl.
+    SELECT SINGLE low FROM ztuhcd1 INTO gw_msgl WHERE name = gc_name
+                                               AND zkey = gc_msg
+                                               AND field = gc_message AND low IN gs_msgl.
+      IF sy-subrc NE 0.
+        SET CURSOR FIELD 'GS_MSGL-LOW'.
+        MESSAGE e090(zmm) WITH text-012.
+      ENDIF.
+  ENDIF.
+
+
+ENDFORM.                    " SELECTIONSCREEN_VALIDATION
+*&---------------------------------------------------------------------*
+*&      Form  POPU_FCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM popu_fcat .
+  LOOP AT gt_vepo INTO gi_vepo.
+    gi_final-vbeln = gi_vepo-vbeln.
+    gi_final-posnr = gi_vepo-posnr.
+    gi_final-matnr = gi_vepo-matnr.
+    gi_final-vemng = gi_vepo-vemng.
+    gi_final-vemeh = gi_vepo-vemeh.
+    gi_final-werks = gi_vepo-werks.
+
+    READ TABLE gt_vekp INTO gi_vekp WITH KEY venum = gi_vepo-venum BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+*      gi_final-venum = gi_vekp-venum.
+      gi_final-brgew = gi_vekp-brgew.
+      gi_final-gewei = gi_vekp-gewei.
+      gi_final-vhilm = gi_vekp-vhilm.
+
+      READ TABLE gt_fedex INTO gi_fedex WITH KEY exidv = gi_vekp-exidv BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_final-tracknum         =   gi_fedex-tracknum  .
+        gi_final-custtranid       =   gi_fedex-custtranid .
+        gi_final-plant            =   gi_fedex-plant       .
+        gi_final-exidv            =   gi_fedex-exidv        .
+        gi_final-mastertracknum   =   gi_fedex-mastertracknum.
+        gi_final-frtcharge        =   gi_fedex-frtcharge     .
+        gi_final-frtcurr          =   gi_fedex-frtcurr      .
+        gi_final-cdate            =   gi_fedex-cdate       .
+        gi_final-msglevel         =   gi_fedex-msglevel.
+        gi_final-message          =   gi_fedex-message.
+      ENDIF.
+    ENDIF.
+
+    READ TABLE gt_likp INTO gi_likp WITH KEY vbeln = gi_vepo-vbeln BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final-wadat_ist = gi_likp-wadat_ist.
+    ENDIF.
+
+    READ TABLE gt_vbfa INTO gi_vbfa WITH KEY vbeln = gi_vepo-vbeln
+                                             posnn = gi_vepo-posnr BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final-vbelv            =   gi_vbfa-vbelv.
+      gi_final-posnv            =   gi_vbfa-posnv.
+
+      READ TABLE gt_vbak INTO gi_vbak WITH KEY vbeln = gi_vbfa-vbelv BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+*        gi_final-vbeln1  = gi_vbak-vbeln.
+*        gi_final-knumv   = gi_vbak-knumv.
+        gi_final-erdat   = gi_vbak-erdat.
+        gi_final-bstnk   = gi_vbak-bstnk.
+        gi_final-bstdk   = gi_vbak-bstdk.
+        gi_final-kunnr   = gi_vbak-kunnr.
+        gi_final-netwr   = gi_vbak-netwr.
+        gi_final-waerk   = gi_vbak-waerk.
+      ENDIF.
+
+      READ TABLE gt_vbap INTO gi_vbap WITH KEY vbeln = gi_vbfa-vbelv
+                                               posnr = gi_vbfa-posnv BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_final-arktx  = gi_vbap-arktx.
+        gi_final-kwmeng = gi_vbap-kwmeng.
+        gi_final-netwr1 = gi_vbap-netwr.
+        gi_final-waerk1 = gi_vbap-waerk.
+      ENDIF.
+
+      READ TABLE gt_vbpa INTO gi_vbpa WITH KEY vbeln = gi_vbfa-vbelv
+                                            posnr = ' '
+                                            parvw = 'AG' BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_final-kunnr1 = gi_vbpa-kunnr.
+*        gi_final-adrnr  = gi_vbpa-adrnr.
+        IF sy-subrc IS INITIAL.
+          READ TABLE gt_adrc INTO gi_adrc WITH KEY addrnumber = gi_vbpa-adrnr BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            gi_final-name1      = gi_adrc-name1.
+            gi_final-name2      = gi_adrc-name2.
+            gi_final-street     = gi_adrc-street.
+            gi_final-str_suppl1 = gi_adrc-str_suppl1.
+            gi_final-city1      = gi_adrc-city1.
+            gi_final-post_code1 = gi_adrc-post_code1.
+            gi_final-region     = gi_adrc-region.
+            gi_final-country    = gi_adrc-country.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+      CLEAR gi_vbpa.
+      READ TABLE gt_vbpa INTO gi_vbpa WITH KEY vbeln = gi_vbfa-vbelv
+                                               posnr = ' '
+                                               parvw = 'ZX' BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_final-kunnr2  = gi_vbpa-kunnr.
+*        gi_final-adrnr1  = gi_vbpa-adrnr.
+        CLEAR gi_adrc.
+        READ TABLE gt_adrc INTO gi_adrc WITH KEY addrnumber = gi_vbpa-adrnr BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          gi_final-name11      = gi_adrc-name1.
+          gi_final-name21      = gi_adrc-name2.
+          gi_final-street1     = gi_adrc-street.
+          gi_final-str_suppl11 = gi_adrc-str_suppl1.
+          gi_final-city11      = gi_adrc-city1.
+          gi_final-post_code11 = gi_adrc-post_code1.
+          gi_final-region1     = gi_adrc-region.
+          gi_final-country1   = gi_adrc-country.
+        ENDIF.
+      ELSE.
+        READ TABLE gt_vbpa INTO gi_vbpa WITH KEY vbeln = gi_vbfa-vbelv
+                                                 posnr = ' '
+                                                 parvw = 'WE' BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          gi_final-kunnr2  = gi_vbpa-kunnr.
+*          gi_final-adrnr1  = gi_vbpa-adrnr.
+          CLEAR gi_adrc.
+          READ TABLE gt_adrc INTO gi_adrc WITH KEY addrnumber = gi_vbpa-adrnr BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            gi_final-name11      = gi_adrc-name1.
+            gi_final-name21      = gi_adrc-name2.
+            gi_final-street1     = gi_adrc-street.
+            gi_final-str_suppl11 = gi_adrc-str_suppl1.
+            gi_final-city11      = gi_adrc-city1.
+            gi_final-post_code11 = gi_adrc-post_code1.
+            gi_final-region1     = gi_adrc-region.
+            gi_final-country1    = gi_adrc-country.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    APPEND gi_final TO gt_final.
+    CLEAR: gi_final, gi_likp, gi_adrc, gi_vbap, gi_vbpa, gi_vbak, gi_vekp, gi_vepo, gi_vbfa, gi_fedex.
+  ENDLOOP.
+ENDFORM.                    " POPU_FCAT
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fieldcatalog .
+  PERFORM  popu_fcatf USING:
+           gc_field1_tx   text-b01 ,
+           gc_field2_tx   text-b02 ,
+           gc_field3_tx   text-b03 ,
+           gc_field4_tx   text-b04 ,
+           gc_field5_tx   text-b05 ,
+           gc_field6_tx   text-b06 ,
+           gc_field7_tx   text-b07 ,
+           gc_field8_tx   text-b08 ,
+*           gc_field9_tx   text-b09 ,
+           gc_field10_tx  text-b10 ,
+           gc_field11_tx  text-b11 ,
+           gc_field12_tx  text-b12 ,
+           gc_field13_tx  text-b13 ,
+           gc_field14_tx  text-b14 ,
+           gc_field15_tx  text-b15 ,
+           gc_field16_tx  text-b16 ,
+           gc_field17_tx  text-b17 ,
+           gc_field18_tx  text-b18 ,
+           gc_field19_tx  text-b19 ,
+           gc_field20_tx  text-b20 ,
+*           gc_field21_tx  text-b21 ,
+*           gc_field22_tx  text-b22 ,
+           gc_field23_tx  text-b23 ,
+           gc_field24_tx  text-b24 ,
+           gc_field25_tx  text-b25 ,
+           gc_field26_tx  text-b26 ,
+           gc_field27_tx  text-b27 ,
+           gc_field28_tx  text-b28 ,
+           gc_field29_tx  text-b29 ,
+           gc_field30_tx  text-b30 ,
+           gc_field31_tx  text-b31 ,
+           gc_field32_tx  text-b32 ,
+           gc_field33_tx  text-b33 ,
+*           gc_field34_tx  text-b34 ,
+           gc_field35_tx  text-b35 ,
+           gc_field36_tx  text-b36 ,
+           gc_field37_tx  text-b37 ,
+           gc_field38_tx  text-b38 ,
+           gc_field39_tx  text-b39 ,
+           gc_field40_tx  text-b40 ,
+           gc_field41_tx  text-b41 ,
+           gc_field42_tx  text-b42 ,
+           gc_field43_tx  text-b43 ,
+*           gc_field44_tx  text-b44 ,
+           gc_field45_tx  text-b45 ,
+           gc_field46_tx  text-b46 ,
+           gc_field47_tx  text-b47 ,
+           gc_field48_tx  text-b48 ,
+           gc_field49_tx  text-b49 ,
+           gc_field50_tx  text-b50 ,
+           gc_field51_tx  text-b51 ,
+           gc_field52_tx  text-b52 ,
+           gc_field53_tx  text-b53 ,
+           gc_field54_tx  text-b54 ,
+           gc_field55_tx  text-b55 .
+ENDFORM.                    " FIELDCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  popu_fcatf
+*&---------------------------------------------------------------------*
+FORM popu_fcatf  USING   lp_fieldname_ds     TYPE slis_fieldname
+                         lp_reptext_ddic_ds  TYPE reptext.
+
+  gi_fcat-fieldname     = lp_fieldname_ds.
+  gi_fcat-reptext_ddic  = lp_reptext_ddic_ds.
+
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+ENDFORM.                    "popu_fcatf
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_alv .
+
+  DATA     : li_layout_ds TYPE slis_layout_alv.
+  CONSTANTS: gc_x         TYPE c VALUE 'X'.
+
+  li_layout_ds-colwidth_optimize = gc_x.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      is_layout     = li_layout_ds
+      it_fieldcat   = gt_fcat
+    TABLES
+      t_outtab      = gt_final
+    EXCEPTIONS
+      program_error = 1
+      OTHERS        = 2.
+ENDFORM.                    " DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*&      Form  F4_MSGL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+form F4_MSGL .
+
+   TYPES : BEGIN OF ty_msgl,
+            message TYPE char7,
+           END OF ty_msgl.
+
+   DATA :  lt_msgl TYPE TABLE OF ty_msgl.
+   REFRESH lt_msgl.
+   SELECT low
+     FROM ztuhcd1
+     INTO TABLE lt_msgl
+     WHERE name  = gc_name
+     AND   zkey  = gc_msg
+     AND   field = gc_message.
+   IF sy-subrc IS INITIAL.
+    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'MESSAGE'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GS_MSGL'
+      value_org       = 'S'
+    TABLES
+      value_tab       = lt_msgl
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc IS INITIAL.
+    SORT lt_msgl BY message.
+  ENDIF.
+ ENDIF.
+
+endform.                    " F4_MSGL
+*&---------------------------------------------------------------------*
+*&      Form  F4_STYP
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+form F4_STYP .
+   TYPES : BEGIN OF ty_styp,
+            sertyp TYPE zfdx_servc_type,
+           END OF ty_styp.
+
+   DATA :  lt_styp TYPE TABLE OF ty_styp.
+   REFRESH lt_styp.
+   SELECT sertype
+     FROM ztmm_fdx_sertype
+     INTO TABLE lt_styp.
+   IF sy-subrc IS INITIAL.
+    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'SERTYP'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GS_STYP'
+      value_org       = 'S'
+    TABLES
+      value_tab       = lt_styp
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc IS INITIAL.
+    SORT lt_styp BY sertyp.
+  ENDIF.
+ ENDIF.
+endform.                    " F4_STYP
+

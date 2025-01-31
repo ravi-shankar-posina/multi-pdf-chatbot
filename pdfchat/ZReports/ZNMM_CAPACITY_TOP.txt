@@ -1,0 +1,493 @@
+*----------------------------------------------------------------------*
+*   INCLUDE ZNMM_CAPACITY_TOP                                         *
+*----------------------------------------------------------------------*
+
+TYPES : BEGIN OF ty_afpo,
+          aufnr TYPE aufnr,       " Order number
+          posnr TYPE co_posnr,       " Order item number
+          plnum TYPE plnum,       " Planned order number
+          kdauf TYPE co_kdauf,       " Project
+          kdpos TYPE co_kdpos,       " Sales Order
+          matnr TYPE co_matnr,       " material no
+          psmng TYPE co_psmng,       " Order item quantity
+          wemng TYPE co_wemng,       " Quantity of goods received for
+          dfrei TYPE co_frei,       " Order Status
+          dwerk TYPE werks_d,       " Plant
+          projn TYPE ps_psp_ele,        " WBS Element
+          pronr TYPE pronr,        "Proj. Def.
+          nwrk  TYPE aufnr,         "Network
+
+       END OF ty_afpo,
+       BEGIN OF ty_afko,
+         aufnr TYPE aufnr,    "Order Number
+         dispo TYPE co_dispo, "MRP controller for the order
+         gltrs TYPE co_gltrs, "Scheduled finish
+         ftrmi TYPE co_ftrmi, "Actual release date
+         aufpl TYPE co_aufpl,  "Routing number of operations in the order
+         rsnum TYPE rsnum,     "Number of Reservation/Dependent Requirement
+       END OF ty_afko,
+      BEGIN OF ty_afvc,
+         aufpl TYPE co_aufpl,  "Routing number of operations in the order
+         aplzl TYPE co_aplzl,  "General counter for order
+         arbid TYPE cr_objid,  "Object ID of the resource
+         vornr TYPE vornr,        " Operation/Activity Number
+      END OF ty_afvc,
+     BEGIN OF ty_afvv,
+         aufpl TYPE co_aufpl,     "Routing number of operations in the order
+         aplzl TYPE co_aplzl,     " General counter for order
+         lmnga TYPE lmnga,        " Total Yield Confirmed
+         mgvrg TYPE mgvrg,        " Operation Quantity
+         vge01 TYPE vgwrteh,      "Unit of measure for the standard value
+         vgw01 TYPE vgwrt,        "Standard Value
+         vge02 TYPE vgwrteh,      "Unit of measure for the standard value
+         vgw02 TYPE vgwrt,        "Standard Value
+         ism01 TYPE co_rumng,     "Previously confirmed activity
+         ism02 TYPE co_rumng,     "Previously confirmed activity
+         bmsch TYPE bmsch,        "Base Quantity
+         rem_setup TYPE vgwrt,
+         rem_processing TYPE vgwrt,
+         rem_labour TYPE vgwrt,
+         qty TYPE mgvrg,
+     END OF ty_afvv,
+     BEGIN OF ty_crhd,
+         objty TYPE cr_objty,     "Object types of the CIM resource
+         objid TYPE cr_objid,     "Object ID of the resource
+         arbpl TYPE arbpl,        "Work center
+         veran TYPE ap_veran,     "Person responsible for the work center
+     END OF ty_crhd,
+     BEGIN OF ty_mdkp,
+       dtart TYPE dtart,          "Type of MRP list
+       matnr TYPE matnr,          "Material Number
+       plwrk TYPE werks_d,        "Plant
+       dtnum TYPE dtnum,          "Number of material requirements planning table
+     END OF ty_mdkp,
+     BEGIN OF ty_mdtb,
+      dtnum TYPE dtnum,           " Number of material requirements planning table
+      dtpos TYPE dtpos,           " Item number of MRP list
+      mng01 TYPE mng01,           "Quantity received or quantity required
+      delkz TYPE delkz,           "MRP element
+     END OF ty_mdtb,
+        BEGIN OF  ty_resb,
+         rsnum TYPE rsnum,        "Number of Reservation/Dependent Requirement
+         rspos TYPE rspos,        "Item Number of Reservation/Dependent Requirement
+         matnr TYPE matnr,        "Material Number
+         aufnr TYPE aufnr,        "Order Number
+         xloek TYPE xloek,        "Item is Deleted
+         bdart TYPE bdart,        "Requirement type
+        END OF ty_resb,
+
+       BEGIN OF  ty_mdtb1,
+       dtnum TYPE dtnum,          "Number of material requirements planning table
+       soqty TYPE mng01,
+       END OF ty_mdtb1,
+      BEGIN OF ty_t024d,
+         werks TYPE werks_d,       "Plant
+        dispo TYPE dispo,          "MRP Controller (Materials Planner)
+        dsnam TYPE dsnam,          "Name of MRP controller
+       END OF ty_t024d,
+       BEGIN OF ty_vbak,
+        vbeln  TYPE vbeln_va,       " Sales Document
+        kunnr TYPE kunag,           "Sold-to party
+        aufnr TYPE aufnr,           "Order Number
+      END OF ty_vbak,
+       BEGIN OF ty_mbew ,
+         matnr TYPE matnr,          "Material Number
+         bwkey TYPE bwkey,          "Valuation Area
+         stprs TYPE stprs,          "Standard price
+         bwprs TYPE bwprs,          "Valuation price based on tax law: level 1
+         peinh TYPE peinh,          "Price Unit
+         bwps1 TYPE bwps1,          "Valuation price based on tax law: level 2
+         vjbws TYPE vjbws,          "Valuation price based on tax law: level 3
+       END OF ty_mbew,
+      BEGIN OF ty_aufk ,
+        aufnr TYPE aufnr,           "Order Number
+        erdat TYPE auferfdat,       "Created on
+       END OF ty_aufk,
+      BEGIN OF ty_crtx,
+        objty TYPE cr_objty,       "Object types of the CIM resource
+        objid TYPE cr_objid,       "Object ID of the resource
+        spras TYPE spras,          "Language Key
+        ktext TYPE cr_ktext,       "Short description
+       END OF ty_crtx,
+    BEGIN OF ty_marc ,
+        matnr TYPE matnr,          "Material Number
+        werks TYPE werks_d,        "Plant
+        zlclid TYPE zlclid,        "Local material number
+       END OF ty_marc,
+     BEGIN OF ty_makt,
+       matnr TYPE matnr,           "Material Number
+       spras TYPE spras,           "Language Key
+       maktx TYPE maktx,           "Material Description (Short Text)
+       END OF ty_makt,
+        BEGIN OF ty_rdd_date,
+       year(4) TYPE n,             "year
+       month(2) TYPE n,            "month
+       date(2) TYPE n,              "date
+     END OF ty_rdd_date,
+        BEGIN OF ty_sys_date,
+       year(4) TYPE n,             "year
+       month(2) TYPE n,            "month
+       date(2) TYPE n,             "date
+     END OF ty_sys_date,
+*Begin of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+     BEGIN OF ty_title,
+       title(35),
+     END OF ty_title.
+*End of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+
+TYPES:   BEGIN OF ty_output,
+         dispo TYPE dispo,
+         dsnam TYPE dsnam,
+         kdauf TYPE co_kdauf,
+         kdpos TYPE co_kdpos,
+         kunnr TYPE kunnr,
+         dfrei TYPE co_frei,
+         aufnr TYPE aufnr,
+         vornr TYPE vornr,
+         veran TYPE ap_veran,
+         arbpl TYPE arbpl,
+         ktext TYPE cr_ktext,
+         mgvrg TYPE mgvrg,
+         qty   TYPE mgvrg,
+         value TYPE stprs,
+         gltrs TYPE char10,
+         erdat TYPE char10,
+         ftrmi TYPE char10,
+         fw(2),
+         timecode(3),
+         year(4),
+*Begin of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5919
+         matnr(18),
+*Begin of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5919
+         zlclid(40),
+         maktx(40),
+         labour TYPE stprs,
+         matcost TYPE stprs,
+         labourcost TYPE stprs,
+         ovhcost TYPE stprs,
+         materialall(40),
+         soqty TYPE mgvrg,
+         index1(18),
+         index2(18),
+         index3(18),
+         pronr(24) ,
+         nwrk TYPE aufnr,
+         projn(24),
+         post1(40),
+         stru(125),
+     END   OF ty_output,
+     BEGIN OF ty_unix,
+         dispo(14),
+         fill1(1),
+         dsnam(18),
+         fill2(1),
+         kdauf(10),
+         fill3(1),
+         kdpos(12),
+         fill4(1),
+         kunnr(10),
+         fill5(1),
+         dfrei(6),
+         fill6(1),
+         aufnr(12),
+         fill7(1),
+         vornr(12),
+         fill8(1),
+         veran(10),
+         fill9(1),
+         arbpl(11),
+         fill10(1),
+         ktext(35),
+         fill11(1),
+         mgvrg(14),
+         fill12(1),
+         qty(18),
+         fill13(1),
+         value(18),
+         fill14(1),
+         gltrs(8),
+         fill15(1),
+         erdat(8),
+         fill16(1),
+         ftrmi(8),
+         fill17(1),
+         fw(11),
+         fill18(1),
+         timecode(10),
+         fill19(1),
+         year(4),
+         fill20(1),
+         matnr(18),
+         fill21(1),
+         zlclid(40),
+         fill22(1),
+         maktx(40),
+         fill23(1),
+         labour(15),
+         fill24(1),
+         matcost(18),
+         fill25(1),
+         labourcost(17),
+         fill26(1),
+         ovhcost(17),
+         fill27(1),
+         materialall(20),
+         fill28(1),
+         soqty(10),
+         fill29(1),
+         index1(15),
+         fill30(1),
+         index2(15),
+         fill31(1),
+         index3(15),
+         fill32(1),
+         pronr(24),
+         fill33(1),
+         nwrk(15),
+         fill34(1),
+         projn(24),
+         fill35(1),
+         post1(40),
+     END OF ty_unix.
+*&---------------------------------------------------------------------*
+*&** Internal Table Declaration
+*&---------------------------------------------------------------------*
+
+DATA : "gt_resb   TYPE TABLE OF  ty_resb,"chnages DE3K942288 INC4444936 Sreenivasa Pemi
+      gt_afvv   TYPE TABLE OF ty_afvv,
+      gt_afko   TYPE TABLE OF  ty_afko,
+* start of chnages DE3K942288 INC4444936 Sreenivasa Pemi
+*      gt_afko1  TYPE TABLE OF afko,
+*      gt_aufk1  TYPE TABLE OF aufk,
+*      gt_aufk2  TYPE TABLE OF aufk,
+*      gt_afpo1  TYPE TABLE OF afpo,
+*      gt_afpo1_c TYPE TABLE OF afpo,
+*      gt_afpo   TYPE TABLE OF  ty_afpo,
+* End of chnages DE3K942288 INC4444936 Sreenivasa Pemi
+      gt_unix   TYPE TABLE OF ty_unix,
+      gt_afvc   TYPE TABLE OF ty_afvc,
+      gt_crhd   TYPE TABLE OF  ty_crhd,
+      gt_mdkp   TYPE TABLE OF ty_mdkp ,
+      gt_mdtb   TYPE TABLE OF ty_mdtb,
+      gt_mdtb1  TYPE TABLE OF ty_mdtb1,
+      gt_crtx_t TYPE TABLE OF ty_crtx,
+      gt_output TYPE TABLE OF ty_output,
+      gt_t024d  TYPE TABLE OF ty_t024d,
+      gt_vbak   TYPE TABLE OF ty_vbak,
+      gt_mbew   TYPE TABLE OF ty_mbew,
+      gt_crtx   TYPE TABLE OF ty_crtx,
+      gt_marc   TYPE TABLE OF ty_marc,
+      gt_aufk   TYPE TABLE OF ty_aufk,
+       gt_makt TYPE TABLE OF ty_makt,
+      gt_fcat   TYPE  slis_t_fieldcat_alv,
+      gt_ztuhcd1 TYPE TABLE OF ztuhcd1,
+*Begin of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+      gt_title   TYPE TABLE OF ty_title,
+*End of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+*&---------------------------------------------------------------------*
+*&** Work Areas Declaration
+*&---------------------------------------------------------------------*
+      gi_t024d  TYPE ty_t024d,
+      gi_vbak   TYPE ty_vbak,
+      gi_mbew   TYPE ty_mbew,
+      gi_aufk   TYPE ty_aufk,
+      gi_crtx   TYPE ty_crtx,
+      gi_crtx_t TYPE ty_crtx,
+      gi_marc   TYPE ty_marc,
+      gi_makt   TYPE ty_makt,
+      gi_output TYPE ty_output,
+      gi_afko1  TYPE afko,
+      gi_afpo   TYPE ty_afpo,
+      gi_afko   TYPE ty_afko,
+      gi_afvv   TYPE ty_afvv,
+      gi_mdtb   TYPE ty_mdtb,
+      gi_resb   TYPE ty_resb,
+      gi_unix   TYPE ty_unix,
+      gi_afvc   TYPE ty_afvc,
+      gi_crhd   TYPE  ty_crhd,
+      gi_mdkp   TYPE ty_mdkp,
+      gi_aufk1  TYPE aufk,
+      gi_aufk2  TYPE aufk,
+      gi_mdtb1  TYPE ty_mdtb1,
+      gi_afpo1_c TYPE afpo,
+      gi_sys_date TYPE ty_sys_date,
+      gi_rdd_date TYPE ty_rdd_date,
+      gi_prps     TYPE prps,
+      gi_fcat   TYPE slis_fieldcat_alv ,
+      gi_ztuhcd1 TYPE  ztuhcd1,
+*Begin of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+      gi_title   TYPE ty_title.
+* start of chnages DE3K942288 INC4444936 Sreenivasa Pemi
+DATA: BEGIN OF gt_afpo   OCCURS 50000.
+        INCLUDE TYPE ty_afpo.
+DATA: END OF gt_afpo.
+
+DATA: BEGIN OF gt_afpo1   OCCURS 50000.
+        INCLUDE STRUCTURE afpo.
+DATA: END OF gt_afpo1.
+
+DATA: BEGIN OF gt_afpo1_c   OCCURS 50000.
+        INCLUDE STRUCTURE afpo.
+DATA: END OF gt_afpo1_c.
+
+DATA: BEGIN OF gt_afko1   OCCURS 50000.
+        INCLUDE STRUCTURE afko.
+DATA: END OF gt_afko1.
+
+DATA: BEGIN OF gt_aufk1   OCCURS 50000.
+        INCLUDE STRUCTURE aufk.
+DATA: END OF gt_aufk1.
+
+DATA: BEGIN OF gt_aufk2   OCCURS 50000.
+        INCLUDE STRUCTURE aufk.
+DATA: END OF gt_aufk2.
+
+DATA: BEGIN OF gt_resb   OCCURS 100000.
+        INCLUDE TYPE ty_resb.
+DATA: END OF gt_resb.
+
+DATA: BEGIN OF gt_afpo_temp OCCURS 50000.  "INC4460759 DE3K942632 502199780
+        INCLUDE TYPE ty_afpo.          "INC4460759 DE3K942632 502199780
+DATA: END OF gt_afpo_temp.                 "INC4460759 DE3K942632 502199780
+
+* End of chnages DE3K942288 INC4444936 Sreenivasa Pemi
+*End of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+*&---------------------------------------------------------------------*
+*&  variables DECLARATION
+*&---------------------------------------------------------------------*
+DATA : gw_fw      TYPE kweek,
+       gw_date    TYPE scdatum,
+       gw_gltrs   TYPE sy-datum,
+       gw_tcode(3),
+       gw_vlue1   TYPE p DECIMALS 2,
+       gw_matnr   TYPE co_matnr,
+       gw_gr_qty  TYPE co_psmng,
+       gw_soqty   TYPE p DECIMALS 2,
+       gw_maktx(40),
+       gw_qty(15),
+       gw_mgvrg   TYPE mgvrg,
+       gw_filename  TYPE string,
+       gw_filename1  TYPE string,  "added by 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+       gw_file1  TYPE string,  "added by 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+       gw_file2  TYPE string,  "added by 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+       gw_projn(24),
+       gw_months TYPE i,
+       gw_mng01  TYPE mng01,
+       gw_path   TYPE char128,
+       gw_len    TYPE i,
+       gw_remlen TYPE i,
+       gw_offset1 TYPE char40,
+       gw_offset2 TYPE char40,
+       gw_tabix TYPE sy-tabix." Added by 502765654 GECHG0267410 17.08.2018
+
+
+*&---------------------------------------------------------------------*
+*&  CONSTANTS DECLARATION
+*&---------------------------------------------------------------------*
+CONSTANTS : gc_dispo      TYPE char5 VALUE 'DISPO',
+            gc_kdauf      TYPE char5 VALUE 'KDAUF',
+            gc_kdpos      TYPE char5 VALUE 'KDPOS',
+            gc_kunnr      TYPE char5 VALUE 'KUNNR',
+            gc_dfrei      TYPE char5 VALUE 'DFREI',
+            gc_aufnr      TYPE char5 VALUE 'AUFNR',
+            gc_vornr      TYPE char5 VALUE 'VORNR',
+            gc_veran      TYPE char5 VALUE 'VERAN',
+            gc_arbpl      TYPE char5 VALUE 'ARBPL',
+            gc_qty        TYPE char3 VALUE 'QTY',
+            gc_value      TYPE char5 VALUE 'VALUE',
+            gc_gltrs      TYPE char5 VALUE 'GLTRS',
+            gc_erdat      TYPE char5 VALUE 'ERDAT',
+            gc_ftrmi      TYPE char5 VALUE 'FTRMI',
+            gc_fw         TYPE char2 VALUE 'FW',
+            gc_timecode   TYPE char8 VALUE 'TIMECODE',
+            gc_matnr      TYPE char5 VALUE 'MATNR',
+            gc_zlclid     TYPE char6 VALUE 'ZLCLID',
+            gc_maktx      TYPE char5 VALUE 'MAKTX',
+            gc_labour     TYPE char6 VALUE 'LABOUR',
+            gc_soqty      TYPE char5 VALUE 'SOQTY',
+            gc_pronr      TYPE char5 VALUE 'PRONR',
+            gc_nwrk       TYPE char4 VALUE 'NWRK',
+            gc_projn      TYPE char5 VALUE 'PROJN' ,
+            gc_twenty     TYPE char2 VALUE '20',
+            gc_min        TYPE char3 VALUE 'MIN',
+            gc_s          TYPE char1 VALUE'S',
+            gc_sixty      TYPE char2 VALUE '60',
+            gc_thirtysix  TYPE char4 VALUE '3600',
+            gc_md         TYPE char2 VALUE 'MD',
+            gc_vc         TYPE char2 VALUE 'VC',
+            gc_u1         TYPE char2 VALUE 'U1',
+            gc_lang       TYPE char1 VALUE 'E',
+            gc_one        TYPE numc4 VALUE '0001',
+            gc_two        TYPE numc4 VALUE '0002',
+            gc_three      TYPE numc4 VALUE '0003',
+            gc_ovd        TYPE char3 VALUE 'OVD',
+            gc_crm        TYPE char3 VALUE 'CRM',
+            gc_m1         TYPE char3 VALUE 'M+1',
+            gc_m2         TYPE char3 VALUE 'M+2',
+            gc_ftr        TYPE char3 VALUE 'FTR',
+            gc_onenum     TYPE char1 VALUE '1',
+            gc_twonum     TYPE char1 VALUE '2',
+            gc_ar         TYPE char2 VALUE 'AR',
+            gc_a          TYPE char1 VALUE 'A',
+            gc_flag       TYPE char1 VALUE 'X',
+            gc_name       TYPE char20 VALUE 'ZRMM_CAPACITY',
+            gc_filepath(10) TYPE c VALUE 'FILEPATH' ,
+*Begin of changes DE3K954562 INC5327054 502347739 on 18.11.2014
+            gc_rep_name(15) VALUE '/INTERFACES/',
+            gc_rep_name1(15) VALUE '/ZCAPPLAN',
+            gc_fname(20) VALUE '/CAPACITY_',
+            gc_fname1 VALUE '_',
+            gc_fname2(4) VALUE '.XLS'.
+TYPES:   BEGIN OF ty_final,
+         dispo TYPE dispo,
+         dsnam TYPE dsnam,
+         kdauf TYPE co_kdauf,
+         kdpos(6),
+         kunnr TYPE kunnr,
+         dfrei TYPE co_frei,
+         aufnr TYPE aufnr,
+         vornr TYPE vornr,
+         veran TYPE ap_veran,
+         arbpl TYPE arbpl,
+         ktext TYPE cr_ktext,
+         mgvrg(13),
+         qty(13),
+         value(11),
+         gltrs TYPE char10,
+         erdat TYPE char10,
+         ftrmi TYPE char10,
+         fw(2),
+         timecode(3),
+         year(4),
+         matnr(18),
+         zlclid(40),
+         maktx(40),
+         labour(11),
+         matcost(11),
+         labourcost(11),
+         ovhcost(11),
+         materialall(40),
+         soqty(13),
+         index1(18),
+         index2(18),
+         index3(18),
+         pronr(24) ,
+         nwrk TYPE aufnr,
+         projn(24),
+         post1(40),
+         stru(125),
+     END   OF ty_final.
+DATA: gt_final TYPE TABLE OF ty_final,
+      gi_final TYPE ty_final.
+*End of changes DE3K954562 INC5327054 502347739 on 18.11.2014
+* Begin of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+DATA:  lw_mgvrg(13),
+     lw_qty(13),
+     lw_value(11),
+     lw_labour(11),
+     lw_matcost(11),
+     lw_labourcost(11),
+     lw_ovhcost(11),
+     lw_soqty(13).
+*End of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+

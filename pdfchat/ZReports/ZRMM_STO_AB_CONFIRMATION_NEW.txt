@@ -1,0 +1,52 @@
+REPORT  zrmm_sto_ab_confirmation_new.
+***------------------------------------------------------------------***
+*** Created by            : sekhar.peral(502277866)
+*** Creation Date         : 25/09/2014
+*** Transport Request #   : DE3K948819
+*** RICEF Object No #     : RICEF-1384
+*** Description           : Conversion program for STO
+***                         AUTO AB CONFIRMATION.
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+*-------------------------------------------------------------------------------
+* Date        |CR number       |Changed By        |Description of change
+********************************************************************************
+*19.10.2014     CHG0479283      502277866          changed logic for item deletion .
+*21.10.2014     CHG0479283      502277866         DE3K953110 changed logic for confirmation items .
+*03.11.2014     CHG0479283      502277866         DE3K954065 changed logic for caluclating difference between dates .
+*10.12.2014     CHG0479283      502277866         DE3K956548 changed logic for caluclating issued quantity and confirmed date
+*                                                  Added loigc to dispay no data found.
+*11.12.2014     CHG0479283      502277866         DE3K956705  changed logic for caluclating Scheduling Qty
+*15.12.2014     CHG0479283      502277866         DE3K957053  checking ponumber while deleting entries in eket table
+*16.12.2014     CHG0479283      502277866         DE3K957053 modified logic to delete entries in gt_eket2 table.
+*16.12.2014     CHG0479283      502277866         DE3K957108 changed messages types and commented logic for la confirmation
+***                                                           quantity checking
+*16.12.2014     CHG0479283      502277866         DE3K957125 Added logic to display already confirmed lines
+*04.06.2015     CHG1249876      502287934         DE3K962987 Added condtion when schedule quantitty is less than issue quantity
+*                                                            them AB conformation should be triggered.
+*08.06.2015     CHG1249876      502287934        DE3K963242  Incorporated message type Confirmations already exist when condition
+*                                                            scheduled quantity is less than issue quantity
+*08.06.2015     CHG1249876      502287934        DE3K963261  RE Assigning the values of internal table gt_schedule1,gt_confirm_line1,gt_eket21
+*                                                            to internal tables gt_schedule,gt_confirm_line,gt_eket2 on delete condittion
+*                                                            when scheduled quantity is less than issue quantity
+*08.06.2015    CHG1249876       502287934       DE3K963277   Incorporated code for deleting conformations, and for working proper
+*                                                            working of message types.
+*09.06.2015    CHG1249876       502287934       DE3K963313   Incoporating the message No AB Confirmation Exist when scheduled quantity
+*                                                            is less than issue quantity
+**************************************************************************************************************************************
+
+
+INCLUDE znmm_sto_ab_confirmation_data.
+*----------------------------------------------------------------------*
+*                 SELECTION SCREEN                                     *
+*----------------------------------------------------------------------*
+INCLUDE znmm_sto_ab_confirmation_scr.
+
+START-OF-SELECTION.
+****data retrival logic
+  INCLUDE znmm_sto_ab_confirm_dataret.
+**** data processin logic
+  INCLUDE znmm_sto_ab_confirm_process.
+************* Displaying all Processed records.
+  INCLUDE znmm_sto_ab_confirm_display.
+

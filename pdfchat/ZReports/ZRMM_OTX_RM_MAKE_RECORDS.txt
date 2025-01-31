@@ -1,0 +1,838 @@
+*&---------------------------------------------------------------------*
+*& Report  /OTX/RM_MAKE_RECORDS
+*&
+*&---------------------------------------------------------------------*
+*&****------------------------------------------------------------------***
+*** Created by            : Devesh Modi(9X10112895)
+*** Creation Date         : 03/01/2020
+*** Transport Request     : DE3K997276
+*** RICEF Object No       : RICEF2080
+*** Description           : Creation of Business Workspace
+*** CR Created            : GECHG0708352
+***------------------------------------------------------------------***
+*&
+*&---------------------------------------------------------------------*
+*   This reports preforms block reading for the tables listed in the
+*   toaco table.
+*
+*   The fetch ABAP statement does not work in our case, since we have to
+*   call a web service for each block. This causes a commit work that
+*   destroys the fetch cursor. The idea of our strategy, is to select a
+*   block of a fixed size with SORTED keys. And remember the last key to
+*   use it again in the following select.
+*
+*   The table TOA01 has the four keys: object type, ID, archive ID and
+*   doc ID. We first select the distinct values of object type and
+*   archive ID. The internal table of this select does not explode, due
+*   to the restricted size of object types and archive IDs. After that,
+*   we do the block select with a fixed object type and archive ID. If
+*   the number of rows is smaller than the max. block size, we are
+*   finished. Otherwise, we analyse the last row of the current block
+*   and the first row of the following one. If the last row ID of the
+*   current block, is different than the first row ID of the next block,
+*   we use the last row ID with a ">" condition for the next block
+*   select. If they are the identical, we select a block with a '='
+*   condition on the object ID and ">" condition on the archive ID of
+*   the last row. We continue with a constant object ID and a changing
+*   archive ID until all entries for this combination are found.
+*
+*   The following example shows the block structure with a maximal block
+*   size of 2. The dashed line delimits each subblock, the solid line
+*   delimits each block. The symbol # shows a block change.
+*
+*   OBJECT  ID  AID DOCID
+*	  1	      1	  1	  1   Main block
+*	  1	      1	  1	  2
+*   -----------------
+*	  1	      1	  1	  3   Subblock with constant object type, ID and AID
+*   _________________
+* # 1	      2	  1	  1   Main block
+*	  1	      3	  1	  1
+*   _________________
+* #	1	      4	  1	  1   Main block
+*	  1	      4	  1	  2
+*   -----------------
+*	  1	      4	  1	  3   Sub block
+*	  1	      4	  1	  4
+*   _________________
+* #	1	      5	  1	  1   Main block
+*   _________________
+*
+
+
+REPORT /otx/rm_make_records
+  LINE-SIZE 418
+  NO STANDARD PAGE HEADING MESSAGE-ID /otx/rm.
+
+
+TYPES:
+  BEGIN OF object_elib,
+    sap_object   TYPE saeanwdid,
+    ar_object    TYPE saeobjart,
+    elib_id      TYPE /otx/rmcon_de_les_id,
+  END OF object_elib.
+
+TYPES t_object_elib
+  TYPE HASHED TABLE OF object_elib
+  WITH UNIQUE KEY sap_object ar_object.
+
+TYPES:
+  BEGIN OF /otx/_rm_elib_ws,
+    elib_id      TYPE /otx/rm_telib-les_id,
+    rm_service   TYPE REF TO /otx/rm_cl_service,
+    toaxx_block  TYPE /otx/rm_tt_toav0,
+  END OF /otx/_rm_elib_ws.
+
+TYPES /otx/_rm_elib_ws_pool
+  TYPE HASHED TABLE OF /otx/_rm_elib_ws
+  WITH UNIQUE KEY elib_id.
+
+TABLES toav0.
+
+CONSTANTS: c_migration_failure TYPE balnrext
+             VALUE 'Migration failure',                     "#EC NOTEXT
+           c_jobstatus_running TYPE /otx/rm_tmonitor-jobstatus
+             VALUE 'R',                                     "#EC NOTEXT
+           c_jobstatus_finished TYPE /otx/rm_tmonitor-jobstatus
+             VALUE 'F',                                     "#EC NOTEXT
+           c_jobstatus_canceled TYPE /otx/rm_tmonitor-jobstatus
+             VALUE 'C'.                                     "#EC NOTEXT
+
+DATA: gt_elib_ws_pool     TYPE /otx/_rm_elib_ws_pool,
+      gt_object_elib_pool TYPE t_object_elib.
+
+* Selection mask
+SELECT-OPTIONS ar_dates FOR toav0-ar_date.                  "#EC *
+SELECT-OPTIONS sapobj FOR toav0-sap_object." DEFAULT 'BUS2032'.
+SELECT-OPTIONS sapobjid FOR toav0-object_id." DEFAULT '0000011783'.
+SELECT-OPTIONS doctype FOR toav0-ar_object.
+SELECT-OPTIONS archid FOR toav0-archiv_id." DEFAULT 'SD'.
+PARAMETERS g_upd TYPE abap_bool AS CHECKBOX DEFAULT abap_false.
+PARAMETERS g_log TYPE abap_bool NO-DISPLAY DEFAULT abap_true.
+PARAMETERS g_bsize TYPE i NO-DISPLAY DEFAULT '50'.
+* Only technical
+DATA g_comp TYPE abap_bool VALUE abap_false.
+
+TYPES:
+  BEGIN OF t_distinct,
+    sap_object TYPE saeanwdid,
+    archiv_id TYPE saearchivi,
+  END OF t_distinct.
+
+* Ensures block size is valid.
+IF g_bsize < 1.
+  WRITE: text-200.
+  RETURN.
+ENDIF.
+
+* check open text development installation numbers
+DATA l_inst_no TYPE  avers-fulltask.
+CALL FUNCTION 'SUBST_GET_INSTNO'
+  IMPORTING
+    inst_no = l_inst_no.
+IF l_inst_no = '0020073437'.
+  g_comp = abap_true.
+ENDIF.
+
+
+DATA: lt_toaco TYPE TABLE OF toaco,
+      ls_toaco TYPE toaco,
+      ls_toaco_header TYPE toaco.
+SELECT * FROM toaco INTO TABLE lt_toaco.
+
+
+DATA l_jobcount TYPE tbtcm-jobcount.
+DATA l_jobname TYPE tbtcm-jobname.
+DATA l_total_count TYPE /otx/rm_tmonitor-target_number.
+DATA g_total_success_count TYPE /otx/rm_tmonitor-success.
+DATA g_total_ignored_count TYPE /otx/rm_tmonitor-noupdate.
+DATA g_total_failure_count TYPE /otx/rm_tmonitor-failure.
+DATA g_avg_rate TYPE /otx/rm_tmonitor-average_rate.
+DATA g_time_begin TYPE timestampl.
+DATA g_time_end TYPE timestampl.
+DATA gs_monitor TYPE /otx/rm_tmonitor.
+DATA g_block_num TYPE i.
+
+
+IF sy-batch = 'X'.
+  " Gets the current job information.
+  CALL FUNCTION 'GET_JOB_RUNTIME_INFO'
+    IMPORTING
+      jobcount        = l_jobcount
+      jobname         = l_jobname
+    EXCEPTIONS
+      no_runtime_info = 1
+      OTHERS          = 2.
+  IF sy-subrc <> 0.
+    WRITE: / text-250.
+    RETURN.
+  ENDIF.
+
+  " Counts the total amount of records to process.
+  LOOP AT lt_toaco INTO ls_toaco.
+    SELECT COUNT( * ) FROM (ls_toaco-connection)
+      WHERE sap_object IN sapobj
+      AND object_id    IN sapobjid
+      AND archiv_id    IN archid
+      AND ar_object    IN doctype
+      AND ar_date      IN ar_dates.
+    ADD sy-dbcnt TO l_total_count.
+  ENDLOOP.
+
+  gs_monitor-jobname = l_jobname.
+  gs_monitor-jobcount = l_jobcount.
+  gs_monitor-startdate = sy-datum.
+  gs_monitor-starttime = sy-uzeit.
+  gs_monitor-username = sy-uname.
+  gs_monitor-jobstatus = c_jobstatus_running.
+  gs_monitor-target_number = l_total_count.
+  INSERT into /otx/rm_tmonitor values gs_monitor.
+ENDIF.
+
+
+" Starts timing.
+GET TIME STAMP FIELD g_time_begin.
+
+
+TOP-OF-PAGE.
+
+  DESCRIBE TABLE lt_toaco.
+  IF sy-tfill > 0.
+    READ TABLE lt_toaco INTO ls_toaco_header  INDEX 1.
+    " TABLE HEADER
+    CALL METHOD /otx/rm_cl_util=>write_declare_results
+      EXPORTING
+        pi_table_header  = abap_true
+        pi_block_num     = g_block_num
+        pi_connection    = ls_toaco_header-connection
+      CHANGING
+        pc_count_success = g_total_success_count
+        pc_count_ignore  = g_total_ignored_count
+        pc_count_failure = g_total_failure_count.
+  ENDIF.
+
+
+START-OF-SELECTION.
+
+* Loops through all toa-like tables.
+  LOOP AT lt_toaco INTO ls_toaco.
+
+* Reads distinct SAP objects and archive IDs.
+    DATA lt_distinct TYPE TABLE OF t_distinct.
+    SELECT DISTINCT sap_object archiv_id FROM (ls_toaco-connection)
+      INTO TABLE lt_distinct
+      WHERE sap_object IN sapobj
+      AND object_id    IN sapobjid
+      AND archiv_id    IN archid
+      AND ar_object    IN doctype
+      AND ar_date      IN ar_dates.
+
+    DATA ls_distinct TYPE t_distinct.
+
+    LOOP AT lt_distinct INTO ls_distinct.
+
+      DATA l_count_distinct TYPE i.
+      l_count_distinct = 0.
+
+      IF g_comp = abap_true.
+        DATA lt_toax_blocks TYPE /otx/rm_tt_toav0.
+      ENDIF.
+
+      DATA l_object_id_lowerbound LIKE toav0-object_id.
+      CLEAR l_object_id_lowerbound.
+
+      DO.
+        DATA l_truncated TYPE abap_bool.
+        DATA l_truncated_object_ids TYPE abap_bool.
+
+        DATA lt_toax_block TYPE /otx/rm_tt_toav0.
+        CLEAR lt_toax_block.
+
+        DATA l_doc_id_lowerbound LIKE toav0-arc_doc_id.
+        CLEAR l_doc_id_lowerbound.
+
+        PERFORM select_block TABLES sapobjid[]
+                                    doctype[]
+                                    ar_dates[]
+                             USING ls_toaco-connection
+                                   ls_distinct-sap_object
+                                   ls_distinct-archiv_id
+                                   l_object_id_lowerbound
+                                   l_doc_id_lowerbound
+                             CHANGING l_truncated
+                                      l_truncated_object_ids
+                                      lt_toax_block.
+
+        " Reads the object ID and the document ID
+        " of the last row of the current block.
+        DATA l_rows TYPE i.
+        DESCRIBE TABLE lt_toax_block LINES l_rows.
+        DATA ls_toax LIKE toav0.
+        READ TABLE lt_toax_block INDEX l_rows INTO ls_toax.
+        l_object_id_lowerbound = ls_toax-object_id.
+        l_doc_id_lowerbound = ls_toax-arc_doc_id.
+
+        l_count_distinct = l_count_distinct + l_rows.
+
+        IF g_comp = abap_true.
+          APPEND LINES OF lt_toax_block TO lt_toax_blocks.
+        ENDIF.
+
+        " Processes the current block.
+        PERFORM process_block USING lt_toax_block.
+        IF gs_monitor-jobstatus = c_jobstatus_canceled.
+          EXIT.
+        ENDIF.
+
+        IF l_truncated = abap_false.
+          EXIT.
+        ENDIF.
+
+        IF l_truncated_object_ids = abap_true.
+
+          DATA l_sindex TYPE i.
+          CLEAR l_sindex.
+
+          WHILE l_truncated = abap_true.
+
+            ADD 1 TO l_sindex.
+
+            CLEAR lt_toax_block.
+
+            PERFORM select_block TABLES sapobjid[]
+                                        doctype[]
+                                        ar_dates[]
+                                 USING ls_toaco-connection
+                                       ls_distinct-sap_object
+                                       ls_distinct-archiv_id
+                                       l_object_id_lowerbound
+                                       l_doc_id_lowerbound
+                                 CHANGING l_truncated
+                                          l_truncated_object_ids
+                                          lt_toax_block.
+
+            " Reads the the document ID
+            " of the last row of the current block.
+            DESCRIBE TABLE lt_toax_block LINES l_rows.
+            READ TABLE lt_toax_block INDEX l_rows INTO ls_toax.
+            l_doc_id_lowerbound = ls_toax-arc_doc_id.
+
+            l_count_distinct = l_count_distinct + l_rows.
+
+            IF g_comp = abap_true.
+              APPEND LINES OF lt_toax_block TO lt_toax_blocks.
+            ENDIF.
+
+            " Processes the current block.
+            PERFORM process_block USING lt_toax_block.
+            IF gs_monitor-jobstatus = c_jobstatus_canceled.
+              EXIT.
+            ENDIF.
+
+          ENDWHILE.
+        ENDIF.
+
+        IF gs_monitor-jobstatus = c_jobstatus_canceled.
+          EXIT.
+        ENDIF.
+
+      ENDDO.
+
+      IF gs_monitor-jobstatus = c_jobstatus_canceled.
+        EXIT.
+      ENDIF.
+
+    ENDLOOP.
+
+    IF gs_monitor-jobstatus = c_jobstatus_canceled.
+      SKIP 2.
+      WRITE: / text-252.
+      SKIP 2.
+    ENDIF.
+
+    IF sy-batch = 'X'.
+      IF gs_monitor-jobstatus = c_jobstatus_running.
+        gs_monitor-jobstatus = c_jobstatus_finished.
+      ENDIF.
+
+      IF gs_monitor-jobstatus = c_jobstatus_canceled.
+        gs_monitor-failure = l_total_count
+          - gs_monitor-success - gs_monitor-noupdate.
+        UPDATE /otx/rm_tmonitor FROM gs_monitor.
+        COMMIT WORK.
+        EXIT.
+      ENDIF.
+
+      UPDATE /otx/rm_tmonitor FROM gs_monitor.
+      COMMIT WORK.
+    ENDIF.
+
+    IF gs_monitor-jobstatus = c_jobstatus_canceled.
+      EXIT.
+    ENDIF.
+
+    IF g_comp = abap_true
+      AND gs_monitor-jobstatus <> c_jobstatus_canceled.
+*   compare methods
+*   soll wert
+      DATA lt_toaxx_full TYPE /otx/rm_tt_toav0.
+      DATA ls_toaxx LIKE toav0.
+      SELECT * FROM (ls_toaco-connection) INTO ls_toaxx
+        WHERE sap_object IN sapobj
+        AND object_id IN sapobjid
+        AND ar_object IN doctype
+        AND ar_date   IN ar_dates
+        AND archiv_id IN archid
+        ORDER BY PRIMARY KEY.
+        APPEND ls_toaxx TO lt_toaxx_full.
+      ENDSELECT.
+
+
+      SORT lt_toax_blocks AS TEXT.
+      SORT lt_toaxx_full AS TEXT.
+      IF lt_toaxx_full[] <> lt_toax_blocks[].
+        WRITE: text-230.
+        DATA l_lines_blocks TYPE i.
+        DATA l_lines_full TYPE i.
+        DESCRIBE TABLE lt_toaxx_full LINES l_lines_full.
+        DESCRIBE TABLE lt_toax_blocks LINES l_lines_blocks.
+        WRITE: / text-232, l_lines_full.
+        WRITE: / text-234, l_lines_blocks.
+        LOOP AT lt_toaxx_full INTO ls_toaxx.
+          READ TABLE lt_toax_blocks
+            FROM ls_toaxx TRANSPORTING NO FIELDS.
+          IF sy-subrc = 0.
+            WRITE: / ls_toaxx.
+            DELETE TABLE lt_toax_blocks FROM ls_toaxx .
+            IF sy-subrc <> 0.
+              WRITE: / text-236.
+            ENDIF.
+          ELSE.
+            WRITE: / ls_toaxx, text-240.
+          ENDIF.
+
+        ENDLOOP.
+      ENDIF.
+    ENDIF.
+
+  ENDLOOP.
+
+
+  " TABLE FOOTER
+  CALL METHOD /otx/rm_cl_util=>write_declare_results
+    EXPORTING
+      pi_table_footer  = abap_true
+      pi_block_num     = g_block_num
+      pi_connection    = ls_toaco-connection
+    CHANGING
+      pc_count_success = g_total_success_count
+      pc_count_ignore  = g_total_ignored_count
+      pc_count_failure = g_total_failure_count.
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form select_block
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_SAPOBJID              text
+*      -->P_DOCTYPE               text
+*      -->P_AR_DATES              text
+*      -->P_SAP_OBJECT            text
+*      -->P_ARCHIV_ID             text
+*      -->P_LASTBLOCK_OBJECT_ID   text
+*      -->P_LASTBLOCK_DOC_ID      text
+*      -->P_TRUNCATED             text
+*      -->P_TRUNCATED_OBJECT_IDS  text
+*      -->PT_TOAX                 text
+*----------------------------------------------------------------------*
+FORM select_block TABLES p_sapobjid
+                         p_doctype
+                         p_ar_dates
+                  USING    p_toaco_conn TYPE toaco-connection
+                           p_sap_object TYPE toav0-sap_object
+                           p_archiv_id TYPE toav0-archiv_id
+                           p_lastblock_object_id TYPE saeobjid
+                           p_lastblock_doc_id TYPE saeardoid
+                  CHANGING p_truncated TYPE abap_bool
+                           p_truncated_object_ids TYPE abap_bool
+                           pt_toax TYPE /otx/rm_tt_toav0.
+
+
+  " Sets the number of rows to read.
+  DATA l_bsize_plus_1 TYPE i.
+  l_bsize_plus_1 = g_bsize + 1.
+
+  " Resets block truncation indicators.
+  p_truncated = abap_false.
+  p_truncated_object_ids = abap_false.
+
+  " Selects the current block of rows
+  " and the first row of the next block.
+  IF p_lastblock_object_id IS INITIAL.
+    " Case 1: First block beginning with a given combination of
+    "         SAP object and archive ID
+    SELECT * FROM (p_toaco_conn) INTO TABLE pt_toax
+      UP TO l_bsize_plus_1 ROWS
+      WHERE sap_object EQ p_sap_object
+        AND archiv_id EQ p_archiv_id
+        AND object_id IN p_sapobjid
+        AND ar_object IN p_doctype
+        AND ar_date   IN p_ar_dates
+      ORDER BY PRIMARY KEY.
+  ELSE.
+    " Case 2: Next block after case 1
+    "         that stays within the same combination of
+    "         SAP object and archive ID
+    "         but begins with the next object ID
+    IF p_lastblock_doc_id IS INITIAL.
+      SELECT * FROM (p_toaco_conn) INTO TABLE pt_toax
+        UP TO l_bsize_plus_1 ROWS
+        WHERE sap_object EQ p_sap_object
+          AND archiv_id EQ p_archiv_id
+          AND object_id IN p_sapobjid
+          AND ar_object IN p_doctype
+          AND ar_date   IN p_ar_dates
+          AND object_id > p_lastblock_object_id
+        ORDER BY PRIMARY KEY.
+    ELSE.
+      " Case 3: Subsequent blocks of case 1 or case 2
+      "         to finish reading rows with the last object ID
+      "         of case 1 or case 2
+      SELECT * FROM (p_toaco_conn) INTO TABLE pt_toax
+        UP TO l_bsize_plus_1 ROWS
+        WHERE sap_object EQ p_sap_object
+          AND archiv_id EQ p_archiv_id
+          AND object_id EQ p_lastblock_object_id
+          AND ar_object IN p_doctype
+          AND ar_date   IN p_ar_dates
+          AND arc_doc_id > p_lastblock_doc_id
+        ORDER BY PRIMARY KEY.
+    ENDIF.
+  ENDIF.
+*** Begin of changes by 9X10112895
+  DATA : pt_toaat TYPE TABLE OF toaat,
+         ls_toaat TYPE toaat,
+         pt_toax_temp TYPE /otx/rm_tt_toav0.
+
+  IF pt_toax IS NOT INITIAL.
+    SELECT *
+      FROM toaat
+      INTO TABLE pt_toaat
+      FOR ALL ENTRIES IN pt_toax
+      WHERE arc_doc_id = pt_toax-arc_doc_id.
+
+    SORT pt_toaat BY filename ASCENDING.
+
+    pt_toax_temp[] = pt_toax[].
+    CLEAR pt_toax[].
+
+    LOOP AT pt_toaat INTO ls_toaat.
+      READ TABLE pt_toax_temp INTO ls_toaxx WITH KEY arc_doc_id = ls_toaat-arc_doc_id.
+      IF sy-subrc = 0.
+        APPEND ls_toaxx TO pt_toax.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+*** End of changes by 9X10112895
+  " Reads the first row of the next block.
+  DATA ls_toax_next_row TYPE LINE OF /otx/rm_tt_toav0.
+  READ TABLE pt_toax INDEX l_bsize_plus_1 INTO ls_toax_next_row.
+
+  " Plans next block.
+  IF sy-subrc = 0.
+    p_truncated = abap_true.
+
+    IF p_lastblock_doc_id IS INITIAL.
+      " Reads the last row of this block.
+      DATA ls_toax_last_row TYPE LINE OF /otx/rm_tt_toav0.
+      READ TABLE pt_toax INDEX g_bsize INTO ls_toax_last_row.
+
+      " Checks if there are more documents with the same object ID.
+      IF ls_toax_last_row-object_id = ls_toax_next_row-object_id.
+        p_truncated_object_ids = abap_true.
+      ENDIF.
+    ENDIF.
+
+    " Gets rid of the last entry because it belongs to the next block.
+    DELETE pt_toax INDEX l_bsize_plus_1.
+  ENDIF.
+
+ENDFORM.                    "select_block
+
+
+*&---------------------------------------------------------------------*
+*&      Form PROCESS_BLOCK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_LT_TOAX_BLOCK  text
+*----------------------------------------------------------------------*
+FORM process_block USING pt_toax_block TYPE /otx/rm_tt_toav0.
+
+  DATA: lt_status         TYPE /otx/rm_tt_make_record_status,
+        ls_status         TYPE /otx/rm_s_make_record_status,
+        lh_root_exc       TYPE REF TO cx_root,
+        ls_toaxx          TYPE toav0,
+        l_rm_profile_id   TYPE /otx/rm_tpassign-profile_id,
+        ls_elib_ws        TYPE /otx/_rm_elib_ws,
+        ls_object_elib    TYPE object_elib,
+        lt_content_ref    TYPE /otx/rm_tt_content_ref,
+        lh_contref_alink  TYPE REF TO /otx/rm_cl_contref_alink,
+* JIRA SAPRM-2448/2449 Start
+        lh_content_ref    TYPE REF TO /otx/rm_if_content_ref,
+        l_lognumber       TYPE balognr.
+* JIRA SAPRM-2448/2449 End
+
+  FIELD-SYMBOLS:
+      <ls_elib_ws>      TYPE /otx/_rm_elib_ws,
+      <ls_object_elib>  TYPE object_elib.
+
+
+  IF LINES( pt_toax_block ) EQ 0.
+    RETURN.
+  ENDIF.
+
+
+  TRY.
+
+      " Clear the block of entries for the different elib servers
+      LOOP AT gt_elib_ws_pool ASSIGNING <ls_elib_ws>.
+        CLEAR <ls_elib_ws>-toaxx_block.
+      ENDLOOP.
+
+      " Round 1: Distribute the block entries
+      " to the different elib servers
+      LOOP AT pt_toax_block INTO ls_toaxx.
+
+        " Sees if there is already a ELib ID in the cache.
+        READ TABLE gt_object_elib_pool
+          WITH TABLE KEY sap_object = ls_toaxx-sap_object
+                         ar_object  = ls_toaxx-ar_object
+          ASSIGNING <ls_object_elib>.
+
+        " Get Elib ID if not found in cache and store in cache.
+        IF sy-subrc NE 0.
+
+          " Gets the RM profile ID.
+          CALL METHOD /otx/rmcon_cl_profile_service=>get_rm_profile_id
+            EXPORTING
+              pi_sap_object    = ls_toaxx-sap_object
+              pi_ar_object     = ls_toaxx-ar_object
+            IMPORTING
+              po_rm_profile_id = l_rm_profile_id.
+
+          IF l_rm_profile_id IS INITIAL.
+            CONTINUE.
+          ENDIF.
+
+          " Gets the ELib ID.
+          ls_object_elib-elib_id =
+          /otx/rmcon_cl_profile_service=>get_elib_id( l_rm_profile_id ).
+
+          ls_object_elib-sap_object = ls_toaxx-sap_object.
+          ls_object_elib-ar_object  = ls_toaxx-ar_object.
+
+          INSERT ls_object_elib INTO TABLE gt_object_elib_pool
+                                ASSIGNING <ls_object_elib>.
+
+        ENDIF.
+
+        " Sees if there is already a server for this ELib ID.
+        READ TABLE gt_elib_ws_pool
+          WITH TABLE KEY elib_id = <ls_object_elib>-elib_id
+          ASSIGNING <ls_elib_ws>.
+
+        " Instantiates a new server if necessary.
+        IF sy-subrc <> 0.
+          ls_elib_ws-elib_id = <ls_object_elib>-elib_id.
+          CREATE OBJECT ls_elib_ws-rm_service
+            EXPORTING
+              pi_elib_id = <ls_object_elib>-elib_id.
+          INSERT ls_elib_ws INTO TABLE gt_elib_ws_pool
+                            ASSIGNING <ls_elib_ws>.
+        ENDIF.
+
+        " Append entry to the server block
+        APPEND ls_toaxx TO <ls_elib_ws>-toaxx_block.
+
+      ENDLOOP.
+
+      " Proceeds the current block of links,
+      " distributed to the different servers
+      ADD 1 TO g_block_num.
+
+
+      " Round 2: Call each elib server to declare records
+      LOOP AT gt_elib_ws_pool ASSIGNING <ls_elib_ws>.
+
+        IF <ls_elib_ws>-toaxx_block IS INITIAL.
+          CONTINUE.
+        ENDIF.
+
+        " Converts data.
+        CLEAR lt_content_ref.
+        LOOP AT <ls_elib_ws>-toaxx_block INTO ls_toaxx.
+          CREATE OBJECT lh_contref_alink
+            EXPORTING
+              pis_alink = ls_toaxx.
+          APPEND lh_contref_alink TO lt_content_ref.
+        ENDLOOP.
+
+        CALL METHOD <ls_elib_ws>-rm_service->make_records(
+          EXPORTING
+            pit_content_ref = lt_content_ref
+            pi_update = g_upd
+            pi_throw_exceptions = abap_false
+* JIRA SAPRM-2448/2449 Start
+            pi_add_to_errq = abap_false
+* JIRA SAPRM-2448/2449 End
+          IMPORTING
+            pot_status = lt_status ).
+
+        " Writes table line.
+        CALL METHOD /otx/rm_cl_util=>write_declare_results
+          EXPORTING
+            pit_declare_results = lt_status
+            pi_connection       = ls_toaco-connection
+            pi_block_num        = g_block_num
+          CHANGING
+            pc_count_success    = g_total_success_count
+            pc_count_ignore     = g_total_ignored_count
+            pc_count_failure    = g_total_failure_count.
+
+        LOOP AT lt_status INTO ls_status
+          WHERE cxroot IS NOT INITIAL.
+* JIRA SAPRM-2448/2449 Start
+*          IF g_log = abap_true.
+** JIRA SAPRM-1804 Start
+**            lh_root_exc = ls_status-cxroot.
+**            /otx/rm_cl_util=>log_exception(
+**              pih_exception = lh_root_exc
+**              pi_alprog = sy-repid
+**              pi_subobject = /otx/rm_cl_util=>c_log_rm_migr
+**              pi_extnumber = c_migration_failure ).
+*            " If it is a /OTX/CX_RM_PP_NO_DECLARING Exception it
+*            " was an explicit request in Prop. Provider to not declare.
+*            " -> Not a failure, do not log exception in this case
+*            IF abap_false EQ
+*   /otx/rm_cl_util=>is_pp_no_declaring_exc( ls_status-cxroot ).
+*              " All other exceptions, log exception
+*              /otx/rm_cl_util=>log_exception(
+*                pih_exception = ls_status-cxroot
+*                pi_alprog     = sy-repid
+*                pi_subobject  = /otx/rm_cl_util=>c_log_rm_migr
+*                pi_extnumber  = c_migration_failure ).
+*            ENDIF.
+** JIRA SAPRM-1804 End
+*          ENDIF.
+
+          " If it is a /OTX/CX_RM_PP_NO_DECLARING Exception it
+          " was an explicit request in Prop. Provider to not declare.
+          " -> Not a failure, do not add to error queue and
+          " do not log exception in this case
+          IF abap_false EQ
+    /otx/rm_cl_util=>is_pp_no_declaring_exc( ls_status-cxroot ) AND
+            "SAPRM-10364/  begin.
+            abap_false EQ
+    /otx/rm_cl_util=>is_already_declared_exc( ls_status-cxroot ).
+            "SAPRM-10364/  end
+            " All other exceptions, add to error queue and log exception
+            IF g_log = abap_true.
+             CALL METHOD /otx/rm_cl_util=>add_to_errq_and_log_exception
+               EXPORTING
+                 pih_content_ref  = ls_status-content_ref
+                 pih_exception    = ls_status-cxroot
+                 pi_log_alprog    = sy-repid
+                 pi_log_subobject = /otx/rm_cl_util=>c_log_rm_migr
+                 pi_log_extnumber = c_migration_failure.
+            ELSE.
+              CALL METHOD /otx/rm_cl_util=>add_to_errq
+                EXPORTING
+                  pih_content_ref = ls_status-content_ref.
+            ENDIF.
+          ENDIF.
+* JIRA SAPRM-2448/2449 End
+        ENDLOOP.
+
+        " Gets the time now.
+        GET TIME STAMP FIELD g_time_end.
+        " Computes the rate of record declarations per minute.
+        g_avg_rate = '60.0' * g_total_success_count
+          / ( g_time_end - g_time_begin ).
+
+        IF sy-batch = 'X'.
+          gs_monitor-success = g_total_success_count.
+          gs_monitor-noupdate = g_total_ignored_count.
+          gs_monitor-failure = g_total_failure_count.
+          gs_monitor-average_rate = g_avg_rate.
+          UPDATE /otx/rm_tmonitor FROM gs_monitor.
+          COMMIT WORK.
+        ENDIF.
+
+      ENDLOOP.
+
+    CATCH
+      /otx/cx_rm_elcore_service_exc
+      cx_ai_system_fault
+      /otx/rm_cl_exception
+      /otx/cx_rm_property_provider
+      /otx/cx_rm_wsc
+* JIRA SAPRM-6866 Start
+      /otx/cx_rm_wsc_serv
+* JIRA SAPRM-6866 End
+      /otx/cx_authenticate_fault
+      INTO lh_root_exc.
+
+* JIRA SAPRM-2448/2449 Start
+*      /otx/rm_cl_util=>log_exception(
+*        pih_exception = lh_root_exc
+*        pi_alprog = sy-repid
+*        pi_subobject = /otx/rm_cl_util=>c_log_rm_migr
+*        pi_extnumber = c_migration_failure ).
+
+      CALL METHOD /otx/rm_cl_util=>log_exception
+        EXPORTING
+          pih_exception = lh_root_exc
+          pi_alprog     = sy-repid
+          pi_subobject  = /otx/rm_cl_util=>c_log_rm_migr
+          pi_extnumber  = c_migration_failure
+        IMPORTING
+          pe_lognumber  = l_lognumber.
+
+      " If the exception was in the make_records() call
+      " add the entries to the error queue.
+      " lt_content_ref is filled right before make_records() call.
+      LOOP AT lt_content_ref INTO lh_content_ref.
+        CALL METHOD /otx/rm_cl_util=>add_to_errq
+          EXPORTING
+            pih_content_ref = lh_content_ref
+            pi_lognumber    = l_lognumber.
+      ENDLOOP.
+* JIRA SAPRM-2448/2449 End
+
+      CLEAR ls_status.
+      ls_status-cxroot = lh_root_exc.
+      CLEAR lt_status.
+      APPEND ls_status TO lt_status.
+
+      " Writes table line.
+      ADD 1 TO g_block_num.
+      CALL METHOD /otx/rm_cl_util=>write_declare_results
+        EXPORTING
+          pit_declare_results = lt_status
+          pi_connection       = ls_toaco-connection
+          pi_block_num        = g_block_num
+        CHANGING
+          pc_count_success    = g_total_success_count
+          pc_count_ignore     = g_total_ignored_count
+          pc_count_failure    = g_total_failure_count.
+
+      " Requests an execution stop.
+      gs_monitor-jobstatus = c_jobstatus_canceled.
+
+  ENDTRY.
+
+ENDFORM.                    " DO_SOMETHING
+

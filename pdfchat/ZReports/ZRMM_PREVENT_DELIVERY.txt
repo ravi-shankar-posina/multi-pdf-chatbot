@@ -1,0 +1,97 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_PREVENT_DELIVERY
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*** Created by            : Prakash Reddy K
+*** Creation Date         : 01/23/2018
+*** Transport Request #   : DE3K983134
+*** RICEF Object No #     : RICEF1870
+*** Description           : This Report will show output if order has any Warranty Quality Notification –
+*                           notification type: Q1  in enhancement ZMM_IE_prevent_delivery
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 23-Jan-2017        | GECHG0091747     |502209589  | Object Creation
+****************************************************************************
+
+REPORT  zrmm_prevent_delivery.
+INCLUDE znmm_prevent_delivery_top                           .    " global Data
+*&---------------------------------------------------------------------*
+*&      Form  ALV_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM alv_output USING p_msg1 CHANGING p_msg TYPE c.
+  gt_msg = p_msg1.
+  PERFORM build_fieldcatalogue.
+
+  gi_layout-colwidth_optimize = 'X'.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_grid_title          = text-001
+      is_layout             = gi_layout
+      it_fieldcat           = gt_fieldcat
+      i_screen_start_column = 10
+      i_screen_start_line   = 5
+      i_screen_end_column   = 110
+      i_screen_end_line     = 15
+    TABLES
+      t_outtab              = gt_msg
+    EXCEPTIONS
+      program_error         = 1
+      OTHERS                = 2.
+  IF sy-subrc <> 0.
+ MESSAGE ID SY-MSGID TYPE 'I' NUMBER SY-MSGNO
+         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ELSE.
+    IF sy-ucomm = '&ONT' OR sy-ucomm = '&AC1' OR sy-ucomm = ' '.
+      READ TABLE gt_msg INTO gw_msg WITH KEY msgtyp = 'E'.
+      IF sy-subrc = 0.
+        p_msg = 'X'.
+      ENDIF.
+
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " ALV_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCATALOGUE
+*&---------------------------------------------------------------------*
+FORM build_fieldcatalogue .
+*fieldcatalogue for ALV dialog
+  PERFORM build_fieldcat USING :
+      '1' '1' 'ICON'  'T_MSG' ' Type ' 'X' 'C' ,
+      '2' '1' 'REMARKS'  'T_MSG' 'Type' '' '' ,
+      '3' '1' 'DOC_NUM'  'T_MSG' 'Number' '' '',
+      '4' '1' 'ITEM' 'T_MSG' 'Item' '' '',
+      '5' '1' 'MSG' 'T_MSG' 'Message Text' '' ''.
+ENDFORM.                    " BUILD_FIELDCATALOGUE
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCAT
+*&---------------------------------------------------------------------*
+FORM build_fieldcat  USING lw_col_pos TYPE lvc_colpos
+                          lw_row_pos TYPE lvc_rowpos
+                          lw_fieldname TYPE lvc_fname
+                          lw_tabname TYPE lvc_tname
+                          lw_seltext_m LIKE dd03p-scrtext_m
+                          lw_icon TYPE c
+                          lw_inttype LIKE dd03p-inttype.
+
+  gi_fieldcat-col_pos = lw_col_pos.
+  gi_fieldcat-row_pos = lw_row_pos.
+  gi_fieldcat-fieldname = lw_fieldname.
+  gi_fieldcat-tabname = lw_tabname.
+  gi_fieldcat-seltext_m = lw_seltext_m.
+  gi_fieldcat-icon = lw_icon.
+  gi_fieldcat-inttype = lw_inttype.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR gi_fieldcat.
+ENDFORM.                    " BUILD_FIELDCAT
+

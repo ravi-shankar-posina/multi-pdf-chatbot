@@ -1,0 +1,215 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNFI_APSS_SUBROUTINES_INCLUDE
+*&---------------------------------------------------------------------*
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE       | CR No.       |CHANGED BY |DESCRIPTION OF CHANGE
+* 12/09/2014   CHG0479283    502304796  |Field Catalog Outputlength inclusion
+*                                       |Transport Request : FE3K900671
+*************************************************************************
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_GT_OUTPUT_FM[]  text
+*----------------------------------------------------------------------*
+FORM display_output TABLES gt_output.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'                  "#EC CI_SUBRC
+     EXPORTING
+      is_layout                         = gi_layout
+      it_fieldcat                       = gt_fieldcat[]
+     TABLES
+       t_outtab                         = gt_output[]
+     EXCEPTIONS
+       program_error = 1
+       OTHERS        = 2.
+  .
+  IF sy-subrc <> 0.        "#EC FB_NORC     "#EC NEEDED   "#EC CI_SUBRC
+    MESSAGE e018.
+  ENDIF.
+
+ENDFORM.                    " DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_ALV_LAYOUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_alv_layout .
+  gi_layout-colwidth_optimize = gc_x.
+ENDFORM.                    " CREATE_ALV_LAYOUT
+
+*&---------------------------------------------------------------------*
+*&      Form  ADD_RECIEVERS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM add_recievers USING p_name.
+*  Get the email IDs stored in ZTFI_APSS_EMAIL to send error informations
+  SELECT person_resp
+           email_id
+      FROM ztfi_apss_email
+      INTO TABLE gt_email
+      WHERE process_name = p_name.
+  IF sy-subrc = 0.
+    SORT gt_email BY person_resp.
+  ENDIF.
+
+  LOOP AT gt_email INTO gi_email.
+    gi_receivers-receiver = gi_email-email_id.
+    gi_receivers-rec_type = gc_u.
+    gi_receivers-express = gc_x.
+    APPEND gi_receivers TO gt_receivers.
+    CLEAR gi_receivers.
+  ENDLOOP.
+ENDFORM.                    " ADD_RECIEVERS
+
+*&---------------------------------------------------------------------*
+*&      Form  SEND_MAIL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_T_MSG_BODY  text
+*----------------------------------------------------------------------*
+FORM send_mail TABLES  gt_msg_body                      "#EC PF_NO_TYPE
+             USING p_sub1 p_sub2 .
+
+  DATA: lt_mailsubject     TYPE sodocchgi1.
+
+* Subject.
+  lt_mailsubject-obj_name = p_sub1.
+  lt_mailsubject-obj_langu = sy-langu.
+  lt_mailsubject-obj_descr = p_sub2.
+* FM to send mails to indender recepients
+  CALL FUNCTION 'SO_NEW_DOCUMENT_SEND_API1'
+    EXPORTING
+      document_data              = lt_mailsubject
+      document_type              = gc_htm
+      commit_work                = gc_x
+    TABLES
+      object_content             = gt_msg_body[]
+      receivers                  = gt_receivers[]
+    EXCEPTIONS
+      too_many_receivers         = 1
+      document_not_sent          = 2
+      document_type_not_exist    = 3
+      operation_no_authorization = 4
+      parameter_error            = 5
+      x_error                    = 6
+      enqueue_error              = 7
+      OTHERS                     = 8.
+  IF sy-subrc ne 0.                             "#EC FB_NORC "#EC NEEDED
+    MESSAGE s032.
+  ENDIF.
+  CLEAR lt_mailsubject.
+ENDFORM.                    " SEND_MAIL
+
+*&---------------------------------------------------------------------*
+*&      Form  FILL_CATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_gw_SEQNO  text
+*      -->P_0487   text
+*      -->P_TEXT_036  text
+*----------------------------------------------------------------------*
+FORM fill_catalog  USING   gw_seqno                     "#EC PF_NO_TYPE
+                            p_fld
+                            p_desc.
+
+  gi_fieldcat-col_pos   = gw_seqno.
+  gi_fieldcat-fieldname = p_fld.
+  gi_fieldcat-just      = gc_l.
+  gi_fieldcat-seltext_l   = p_desc.
+  gi_fieldcat-outputlen = gc_fclen.
+  APPEND gi_fieldcat TO gt_fieldcat.
+
+  gw_seqno = gw_seqno + 1.
+
+ENDFORM.                    " FILL_CATALOG
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_APP_LOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_GC_SOBJ  text
+*      -->P_GT_ZSUBAL  text
+*----------------------------------------------------------------------*
+FORM create_app_log TABLES gt_zsubal                    "#EC PF_NO_TYPE
+                    USING    p_sobj.
+
+  gi_balhead-object    = gc_obj.
+  gi_balhead-subobject = p_sobj.
+  CONCATENATE gi_balhead-subobject sy-datum sy-uzeit INTO gi_balhead-extnumber
+  SEPARATED BY space.
+  gi_balhead-aldate    = sy-datum.
+  gi_balhead-altime    = sy-uzeit.
+  gi_balhead-aluser    = sy-uname.
+  gi_balhead-alprog    = sy-repid.
+* FM for creating application log for all error records
+  CALL FUNCTION 'ZFI_APSS_APPLOG_CREATE_FM'
+    EXPORTING
+      im_s_log                = gi_balhead
+    TABLES
+      tb_zsubal               = gt_zsubal[]
+    EXCEPTIONS
+      log_header_inconsistent = 1
+      log_not_found           = 2
+      msg_inconsistent        = 3
+      log_is_full             = 4
+      save_not_allowed        = 5
+      numbering_error         = 6
+      OTHERS                  = 7.
+  IF sy-subrc <> 0.
+     MESSAGE e018.
+  ENDIF.
+  "Insert correct name for <...>.
+
+ENDFORM.                    " CREATE_APP_LOG
+*&---------------------------------------------------------------------*
+*&      Form  GET_COMP_CODES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_comp_codes .
+
+* Get all company codes maintained for APSS
+  SELECT  *                                             "#EC CI_NOWHERE
+    FROM ztfi_apss_ccodes
+    INTO TABLE gt_ccodes.
+  IF sy-subrc = 0.
+    SORT gt_ccodes BY bukrs.
+  ENDIF.
+
+
+ENDFORM.                    " GET_COMP_CODES
+*&---------------------------------------------------------------------*
+*&      Form  CONV_DATE_FORMAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_GV_DF  text
+*----------------------------------------------------------------------*
+FORM conv_date_format  USING    gw_df .
+
+  CONSTANTS: lc_sep TYPE c VALUE '-'.
+
+  DATA: lw_date TYPE char40.
+
+  IF gw_df IS NOT INITIAL.
+    CONCATENATE  gw_df+0(4) gw_df+4(2) gw_df+6(2) INTO lw_date SEPARATED BY lc_sep.
+    MOVE lw_date TO gw_df.
+  ENDIF.
+ENDFORM.                    " CONV_DATE_FORMAT

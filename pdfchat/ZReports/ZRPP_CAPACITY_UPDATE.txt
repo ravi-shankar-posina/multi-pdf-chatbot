@@ -1,0 +1,44 @@
+*=======================================================================
+*= Copyright © 2013 GE IS                                              =
+*= ALL RIGHTS RESERVED                                                 =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRPP_CAPACITY_UPDATE
+* Created by        : Sekhar Perala, 502277866
+* Transport Request : DE3K960743
+* RICEF Object No   : RICEF1484
+* Transaction code  : ZPP016
+* Change request No : CHG1178311
+* Description       : This is a report which will update the table ztpp_capacity
+**                    this wil collect all materials capacity form mseg table for 101 and 102 movement tupes
+**                     and caluclates the average capacity and update that capcity of MRP controller in ZTPP_CAPACITY table.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+* DATE               | CR No.     |CHANGED BY |   DESCRIPTION OF CHANGE
+*29.04.2015           CHG1178311   502277866    DE3K961760 Changed logic for caluclating avg days by
+*                                               taking no of working days in a period
+*30.04.2015           CHG1178311   502277866   DE3K961796 changed sort criteria for gt_mlist
+*05.05.2015           CHG1178311   502277866   DE3K961893 Added logic for not overwriting percentage value in ztpp_capacity
+
+REPORT  zrpp_capacity_update.
+****data declaration
+INCLUDE znpp_capacity_update_top.
+***selsction screen
+INCLUDE znpp_capacity_update_scr.
+
+
+START-OF-SELECTION.
+*** Retriving capacities for all materials for a MRP controller from mseg table for 101 and 102 movement types
+  PERFORM get_data.
+***** preparing final table to update ztpp_capacity table
+  PERFORM final_data.
+**** Display Alv for all updated records.
+  PERFORM display_data.
+
+  INCLUDE znpp_capacity_update_process.
+

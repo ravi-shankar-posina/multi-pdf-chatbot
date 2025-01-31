@@ -1,0 +1,124 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_MMRV_WRAPPER_MASS_FORM
+*&---------------------------------------------------------------------*
+*** Created by            : Himanshu Gupta
+*** Creation Date         : 20th Sept 2020
+*** Transport Request #   : DE3K9A00D5
+*** RICEF Object No #     : RICEF 2198
+*** Description           : Allow Posting to Previous period
+***------------------------------------------------------------------***
+*************************************************************************
+* DATE      | CR No.       |CHANGED BY    |DESCRIPTION OF CHANGE
+*************************************************************************
+*20 Sept2020|GECHG0933737  |Himanshu gupta| Initial program
+
+*&--------------------------------------------------------------------*
+*&                            FORMS
+*&--------------------------------------------------------------------*
+
+
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_COMPANY_CODE
+*&---------------------------------------------------------------------*
+FORM validate_company_code .
+  TYPES: BEGIN OF lty_t001,
+          bukrs TYPE t001-bukrs,
+         END OF lty_t001.
+  DATA: lt_t001 TYPE TABLE OF lty_t001.
+  DATA: lw_t001 LIKE LINE  OF lt_t001.
+
+  CLEAR lt_t001.
+  SELECT bukrs
+    FROM t001
+    INTO TABLE lt_t001
+   WHERE bukrs IN s_bukrs[].
+  IF sy-subrc NE 0.
+    MESSAGE e398(00) WITH 'Invalid Company code'.
+  ENDIF.
+ENDFORM.                    " VALIDATE_COMPANY_CODE
+
+
+
+*&--------------------------------------------------------------------*
+*&      Form
+*&--------------------------------------------------------------------*
+*       text
+*---------------------------------------------------------------------*
+FORM upd_mmrv.
+
+  DATA: lw_opt LIKE ctu_params.
+
+  TYPES: BEGIN OF lty_t001,
+          bukrs TYPE t001-bukrs,
+         END OF lty_t001.
+  DATA: lt_t001 TYPE TABLE OF lty_t001.
+  DATA: lw_t001 LIKE LINE  OF lt_t001.
+
+  CLEAR lt_t001.
+  SELECT bukrs
+    FROM t001
+    INTO TABLE lt_t001
+   WHERE bukrs IN s_bukrs[].
+
+  IF sy-subrc EQ 0.
+    LOOP AT lt_t001 INTO lw_t001.
+      CLEAR gv_err.
+
+      lw_opt-dismode  = 'N'.
+      lw_opt-updmode  = 'A'.
+
+
+
+      CLEAR: gt_bdcdata, gt_bdcdata[].
+      PERFORM bdc_dynpro USING 'SAPMM03Y'               '0100'.
+      PERFORM bdc_field  USING 'MARV-BUKRS'             lw_t001-bukrs.
+      PERFORM bdc_field  USING 'BDC_OKCODE'             '/00'.
+
+      PERFORM bdc_dynpro USING 'SAPMM03Y'               '0110'.
+      PERFORM bdc_field  USING 'BDC_OKCODE'             '=BU'.
+      PERFORM bdc_field  USING 'MARV-XRUEM'             gv_xruem.
+*      PERFORM bdc_field  USING 'MARV-XRUEV'             gv_xruev.
+
+      REFRESH gt_msg.
+      CALL TRANSACTION 'MMRV' USING gt_bdcdata OPTIONS FROM lw_opt
+                                      MESSAGES INTO gt_msg.
+      IF sy-subrc NE 0.
+        MOVE gc_mark TO gv_err.
+        MESSAGE i398(00) WITH 'Error occurred for Company code' lw_t001-bukrs.
+      ELSE.
+        READ TABLE gt_msg TRANSPORTING NO FIELDS WITH KEY msgtyp  = 'S'
+                                                          msgid   = 'M3'
+                                                          msgnr   = '807'.
+        IF sy-subrc EQ 0.
+          MESSAGE i398(00) WITH 'Executed successfully for' lw_t001-bukrs.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.             " _CUSTOMIZING
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  BDC_DYNPRO
+*&---------------------------------------------------------------------*
+FORM bdc_dynpro USING program dynpro.
+  CLEAR gt_bdcdata.
+  gt_bdcdata-program  = program.
+  gt_bdcdata-dynpro   = dynpro.
+  gt_bdcdata-dynbegin = 'X'.
+  APPEND gt_bdcdata.
+ENDFORM.                    " BDC_DYNPRO
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  BDC_FIELD
+*&---------------------------------------------------------------------*
+FORM bdc_field USING fnam fval.
+  CLEAR gt_bdcdata.
+  gt_bdcdata-fnam = fnam.
+  gt_bdcdata-fval = fval.
+  APPEND gt_bdcdata.
+ENDFORM.                                                    " BDC_FIELD
+

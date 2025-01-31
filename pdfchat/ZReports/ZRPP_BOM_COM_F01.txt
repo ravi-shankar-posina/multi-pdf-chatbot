@@ -1,0 +1,481 @@
+*&---------------------------------------------------------------------*
+* Name                          : ZRPP_BOM_COM
+* Tcode                         : ZBOM_COM
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 22 Feb 2023
+* Transport Request #           : DE3K9A0I78
+* RICEF Object No #             : RICEF2614
+* Description                   : Report to display info record details
+*                                 along with price of components
+*----------------------------------------------------------------------*
+*&--------------------------------------------------------------------------------------------*
+* 14-Mar-2023 | RICEF2614 | DE3K9A0JDS |USSOSUB1  |Quality bug fix
+*&--------------------------------------------------------------------------------------------*
+FORM validate_screen .
+  IF sy-ucomm EQ 'ONLI'.
+    IF s_matnr[] IS INITIAL OR
+       s_werks[] IS INITIAL.
+
+      MESSAGE e055(00).
+
+    ENDIF.
+  ENDIF.
+ENDFORM.
+
+FORM validate_output .
+  LOOP AT SCREEN.
+
+    IF screen-name EQ 'S_MATNR-LOW'.
+      screen-required = 2.
+      MODIFY SCREEN.
+    ENDIF.
+    IF screen-name EQ 'S_WERKS-LOW'.
+      screen-required = 2.
+      MODIFY SCREEN.
+    ENDIF.
+
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+
+  SELECT   matnr                                   "#EC CI_NO_TRANSFORM
+           werks
+           stlan
+           stlnr
+           FROM mast
+           INTO TABLE gt_mast
+           WHERE matnr IN s_matnr
+           AND   werks IN s_werks
+           AND   stlan IN s_bomus.
+  IF sy-subrc EQ 0.
+
+    SELECT matnr                                   "#EC CI_NO_TRANSFORM
+           maktx
+      FROM makt
+      INTO TABLE gt_makt
+      FOR ALL ENTRIES IN gt_mast
+      WHERE matnr = gt_mast-matnr.
+    IF sy-subrc EQ 0.
+      SORT gt_makt BY matnr.
+    ENDIF.
+
+    SELECT stlty                                   "#EC CI_NO_TRANSFORM
+           stlnr
+           postp
+      FROM stpo
+      INTO TABLE gt_stpo
+      FOR ALL ENTRIES IN gt_mast
+      WHERE stlnr = gt_mast-stlnr.                      "#EC CI_NOFIRST
+    IF sy-subrc EQ 0.
+      SORT gt_stpo BY stlnr.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_data .
+  REFRESH:gt_final.
+
+  LOOP AT gt_mast INTO DATA(gi_mast).
+
+    READ TABLE gt_stpo INTO gs_stpo WITH KEY stlnr = gi_mast-stlnr BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gs_final-postp = gs_stpo-postp.
+    ENDIF.
+
+    READ TABLE gt_makt INTO gs_makt WITH KEY matnr = gi_mast-matnr BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gs_final-maktx = gs_makt-maktx.
+    ENDIF.
+
+    gs_final-idnrk = gi_mast-matnr.
+    gs_final1-matnr = gi_mast-matnr.
+    gs_final-stufe = lc_value.
+    gs_final-matnr = gi_mast-matnr.
+    gs_final-fg_matnr = gi_mast-matnr.
+    gs_final-werks = s_werks-low.
+    gs_final-stlnr = gi_mast-stlnr.
+
+    APPEND gs_final TO gt_final.
+
+    CLEAR gs_final.
+    REFRESH:gt_stb,gt_matcat,gt_selpool.
+
+    CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+      EXPORTING
+        altvo                 = pm_altvo
+        aufsw                 = ' '
+        auskz                 = pm_ausch
+        bagrp                 = pm_bagrp
+        beikz                 = pm_beikz
+        bessl                 = pm_bessl
+        brems                 = pm_brems
+        capid                 = 'BEST'
+        datuv                 = sy-datum
+        ehndl                 = pm_ehndl
+        emeng                 = pm_emeng
+        erskz                 = pm_erskz
+        erssl                 = pm_erssl
+        mbwls                 = ' '
+        mtnrv                 = gi_mast-matnr
+        mehrs                 = 'X'
+        mmory                 = mem_mngmt
+        postp                 = pm_postp
+        sanko                 = pm_sanko
+        sanfr                 = pm_sanfe
+        sanka                 = pm_sanka
+        sanin                 = pm_sanin
+        sanvs                 = pm_sanvs
+        rndkz                 = tcspr-amekz
+        rvrel                 = pm_rvrel
+        schgt                 = pm_schgt
+        stkkz                 = pm_stkkz
+        stlal                 = pm_stlal
+        stlan                 = s_bomus-low
+        werks                 = s_werks-low
+      IMPORTING
+        topmat                = gi_selpool
+        dstst                 = dstst_flg
+      TABLES
+        stb                   = gt_stb
+        matcat                = gt_matcat
+      EXCEPTIONS
+        material_not_found    = 4
+        no_plant_data         = 8
+        no_bom_found          = 12
+        no_suitable_bom_found = 16
+        alt_not_found         = 24
+        missing_authorization = 28.
+
+
+
+    LOOP AT gt_stb INTO gi_stb.
+
+      MOVE-CORRESPONDING gi_stb TO gs_final.
+      MOVE : gi_selpool-matnr TO gs_final-fg_matnr,
+             gi_stb-idnrk TO gs_final-matnr,
+             gi_stb-werks TO gs_final-werks,
+             gi_stb-ojtxp TO gs_final-maktx.
+      APPEND gs_final TO gt_final.
+
+      CLEAR: gs_final,gs_eord,gs_eina,gs_eine,gs_stpo,gi_stb.
+    ENDLOOP.
+
+    CLEAR :gi_mast, gs_stpo,gs_makt,lc_value,gi_selpool,gs_final.
+  ENDLOOP.
+
+
+  IF gt_final IS NOT INITIAL.
+    IF s_vendor IS NOT INITIAL.
+      SELECT matnr
+            werks
+            lifnr
+            flifn
+       FROM eord
+       INTO TABLE gt_eord
+       FOR ALL ENTRIES IN gt_final
+       WHERE matnr = gt_final-matnr
+       AND flifn = s_vendor
+       AND werks IN s_werks.
+      IF sy-subrc EQ 0.
+        SORT gt_eord BY matnr werks.
+      ENDIF.
+    ELSE.
+      SELECT matnr
+          werks
+          lifnr
+          flifn
+     FROM eord
+     INTO TABLE gt_eord
+     FOR ALL ENTRIES IN gt_final
+     WHERE matnr = gt_final-matnr
+     AND flifn = 'X'
+     AND werks IN s_werks.
+      IF sy-subrc EQ 0.
+        SORT gt_eord BY matnr werks.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+  IF gt_eord IS NOT INITIAL.
+
+    SELECT infnr
+           matnr
+           lifnr
+      FROM eina
+      INTO TABLE gt_eina
+      FOR ALL ENTRIES IN gt_eord
+      WHERE matnr = gt_eord-matnr
+      AND lifnr = gt_eord-lifnr.
+    IF sy-subrc EQ 0.
+      SORT gt_eina BY matnr lifnr.
+    ENDIF.
+
+    IF gt_eina IS NOT INITIAL.
+      SELECT infnr
+             werks
+             netpr
+             peinh
+        FROM eine
+        INTO TABLE gt_eine
+        FOR ALL ENTRIES IN gt_eina
+        WHERE infnr = gt_eina-infnr
+        AND werks IN s_werks.
+      IF sy-subrc EQ 0.
+        SORT gt_eine BY infnr werks.
+      ENDIF.
+    ENDIF.
+
+  ENDIF.
+
+  CLEAR:gs_final.
+  REFRESH:gt_final_mat,gt_sum.
+  SORT gt_final_mat BY matnr stufe .
+  LOOP AT gt_final INTO gs_final.
+    MOVE-CORRESPONDING gs_final TO gw_final.
+
+    gs_final1-stlnr = gs_final-stlnr.
+    gs_final1-fg_matnr = gs_final-fg_matnr.
+    gs_sum-fg_matnr = gs_final-fg_matnr.
+
+    READ TABLE gt_eord INTO gs_eord WITH KEY matnr = gs_final-matnr
+                                             werks = s_werks-low
+                                             BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gw_final-lifnr = gs_eord-lifnr.
+      ""SOC by USSOSUB1
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+        EXPORTING
+          input  = gw_final-lifnr
+        IMPORTING
+          output = gw_final-lifnr.
+      "EOC by USSOSUB1
+
+      READ TABLE gt_makt INTO gs_makt WITH KEY matnr = gs_final-matnr
+                                               BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gw_final-maktx = gs_makt-maktx.
+      ENDIF.
+      READ TABLE gt_eina INTO gs_eina WITH KEY matnr = gs_final-matnr
+                                               lifnr = gs_eord-lifnr
+                                               BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        READ TABLE gt_eine INTO gs_eine WITH KEY infnr = gs_eina-infnr
+                                                 werks = s_werks-low
+                                                 BINARY SEARCH .
+        IF sy-subrc EQ 0.
+          gw_final-infnr = gs_eine-infnr.
+          gw_final-net_price = gs_eine-netpr.
+          gw_final-price_unit = gs_eine-peinh.
+          IF gs_final-matnr NE gs_final-fg_matnr.
+            IF gs_eine-peinh IS NOT INITIAL.
+              gw_final-price = ( gs_eine-netpr / gs_eine-peinh ).
+              gs_sum-price = ( gs_eine-netpr / gs_eine-peinh ).
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    APPEND gw_final TO gt_final_mat.
+    COLLECT gs_sum INTO gt_sum.
+
+    CLEAR :gs_final,gw_final,gs_eord,gs_eina,gs_eine,gs_makt,gs_sum.
+  ENDLOOP.
+
+  SORT gt_final_mat BY matnr.
+  LOOP AT gt_sum INTO gs_sum.
+
+    READ TABLE gt_final_mat INTO gw_final WITH KEY matnr = gs_sum-fg_matnr BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gs_final1-price = gs_sum-price.
+      MODIFY gt_final_mat FROM gs_final1 TRANSPORTING price
+       WHERE matnr = gw_final-fg_matnr.
+    ENDIF.
+
+  ENDLOOP.
+
+  SORT gt_final_mat BY fg_matnr stufe .
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_cat .
+
+  DATA: lw_fcat  TYPE slis_fieldcat_alv.
+  DATA: lv_count TYPE sy-index.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'STUFE'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Level'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'FG_MATNR'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Father Material'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'MATNR'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Material'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'MAKTX'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Material Description'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'WERKS'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT' .
+  lw_fcat-seltext_m   = 'Plant'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'MENGE'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Quantity'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'INFNR'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT' .
+  lw_fcat-seltext_m   = 'Info record'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'PRICE'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Price'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'NET_PRICE'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Net Price '.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'PRICE_UNIT'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Price Unit'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'POSTP'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Item Category' .
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+  lv_count            = lv_count + 1.
+  lw_fcat-fieldname   = 'LIFNR'.
+  lw_fcat-tabname     = 'GT_FINAL_MAT'.
+  lw_fcat-seltext_m   = 'Vendor'.
+  lw_fcat-col_pos     = lv_count.
+  APPEND lw_fcat TO it_fcat.
+  CLEAR  lw_fcat.
+
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+*     I_INTERFACE_CHECK  = ' '
+*     I_BYPASSING_BUFFER = ' '
+*     I_BUFFER_ACTIVE    = ' '
+      i_callback_program = sy-repid
+*     I_CALLBACK_PF_STATUS_SET          = ' '
+*     I_CALLBACK_USER_COMMAND           = ' '
+*     I_CALLBACK_TOP_OF_PAGE            = ' '
+*     I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*     I_CALLBACK_HTML_END_OF_LIST       = ' '
+*     I_STRUCTURE_NAME   =
+*     I_BACKGROUND_ID    = ' '
+*     I_GRID_TITLE       =
+*     I_GRID_SETTINGS    =
+*     IS_LAYOUT          =
+      it_fieldcat        = it_fcat
+*     IT_EXCLUDING       =
+*     IT_SPECIAL_GROUPS  =
+*     IT_SORT            =
+*     IT_FILTER          =
+*     IS_SEL_HIDE        =
+*     I_DEFAULT          = 'X'
+*     I_SAVE             = ' '
+*     IS_VARIANT         =
+*     IT_EVENTS          =
+*     IT_EVENT_EXIT      =
+*     IS_PRINT           =
+*     IS_REPREP_ID       =
+*     I_SCREEN_START_COLUMN             = 0
+*     I_SCREEN_START_LINE               = 0
+*     I_SCREEN_END_COLUMN               = 0
+*     I_SCREEN_END_LINE  = 0
+*     I_HTML_HEIGHT_TOP  = 0
+*     I_HTML_HEIGHT_END  = 0
+*     IT_ALV_GRAPHICS    =
+*     IT_HYPERLINK       =
+*     IT_ADD_FIELDCAT    =
+*     IT_EXCEPT_QINFO    =
+*     IR_SALV_FULLSCREEN_ADAPTER        =
+* IMPORTING
+*     E_EXIT_CAUSED_BY_CALLER           =
+*     ES_EXIT_CAUSED_BY_USER            =
+    TABLES
+      t_outtab           = gt_final_mat
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+
+ENDFORM.
+

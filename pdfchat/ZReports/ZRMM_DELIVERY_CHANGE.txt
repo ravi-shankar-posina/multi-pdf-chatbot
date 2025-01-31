@@ -1,0 +1,129 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_DELIVERY_CHANGE
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*** Created by            : Prakash
+*** Creation Date         : 13.05.2021
+*** Transport Request #   : DE3K9A077O
+*** RICEF Object No #     : RICEF2189
+*** Change request No     : CHG0158498
+*** Description           : Removing billing block for child deliveries
+***                         for MARC DC plants
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE               | CR No.          |TR NO.           |CHANGED BY |DESCRIPTION OF CHANGE
+* 13-05-2021         |CHG0158498       |DE3K9A077O       | Initial Development
+*****************************************************************************************
+
+REPORT  zrmm_delivery_change.
+TYPES: BEGIN OF ty_likp,
+       vbeln TYPE vbeln,
+       faksk TYPE faksk,
+       END OF ty_likp.
+DATA:li_header TYPE bapiobdlvhdrchg,
+        li_header_control TYPE bapiobdlvhdrctrlchg,
+        lv_vbeln TYPE bapiobdlvhdrchg-deliv_numb,
+        lv_main_deli TYPE vbelv,
+        lt_return TYPE TABLE OF bapiret2,
+        lt_return1 TYPE TABLE OF bapiret2,
+        lw_flag VALUE 'X',
+        li_return TYPE bapiret2,
+        lt_likp TYPE TABLE OF ty_likp,
+        gw_message  TYPE bapi_msg,
+        li_likp TYPE ty_likp.
+DATA: li_techn_control TYPE bapidlvcontrol.
+DATA: lt_del TYPE TABLE OF ledspd_flow,
+      li_del TYPE  ledspd_flow.
+PARAMETERS : p_del TYPE vbeln.
+IF p_del IS INITIAL.
+  MESSAGE text-001 TYPE 'S'.
+  EXIT.
+ENDIF.
+* Fetch child deliveries in  ledspd_flow Table
+SELECT * FROM ledspd_flow INTO TABLE lt_del
+          WHERE vbeln = p_del
+          AND   resno = 1.
+IF sy-subrc = 0.
+  SORT lt_del BY vbeln_new.
+  DELETE ADJACENT DUPLICATES FROM lt_del COMPARING vbeln_new.
+  IF lt_del  IS NOT INITIAL.
+    SELECT vbeln faksk INTO TABLE lt_likp FROM likp
+                       FOR ALL ENTRIES IN lt_del
+                       WHERE vbeln = lt_del-vbeln_new.
+    IF sy-subrc = 0.
+      SORT lt_likp BY vbeln.
+    ENDIF.
+  ENDIF.
+
+  FREE MEMORY ID  'ZPPP_DELV_COMP'.
+  FREE MEMORY ID  'ZPPP_DELV_COMP_MAIN_DELI'.
+  CLEAR:lv_main_deli.
+  lw_flag = 'X'.
+  LOOP AT lt_del INTO li_del.
+    REFRESH lt_return[].
+    CLEAR li_return.
+    READ TABLE lt_likp INTO li_likp WITH KEY vbeln = li_del-vbeln_new BINARY SEARCH.
+    IF sy-subrc = 0 AND li_likp-faksk <> ' '.
+      li_header-deliv_numb = li_del-vbeln_new.
+      li_header_control-deliv_numb = li_del-vbeln_new.
+      lv_vbeln = li_del-vbeln_new.
+      lv_main_deli = li_del-vbeln.
+*     Exporting flag to  ZNSD_DELIVERY_BILLING_BLK_UPD include in MV50AFZ1
+      DO 2 TIMES.
+        WAIT UP TO 3 SECONDS.
+        EXPORT lw_flag FROM lw_flag TO MEMORY ID 'ZPPP_DELV_COMP'.
+        EXPORT lv_main_deli TO MEMORY ID 'ZPPP_DELV_COMP_MAIN_DELI'.
+        CALL FUNCTION 'BAPI_OUTB_DELIVERY_CHANGE'
+          EXPORTING
+            header_data    = li_header
+            header_control = li_header_control
+            delivery       = lv_vbeln
+            techn_control  = li_techn_control
+          TABLES
+            return         = lt_return.
+        LOOP AT lt_return INTO li_return WHERE type = 'E'.
+          CALL FUNCTION 'BAPI_MESSAGE_GETDETAIL'
+            EXPORTING
+              id         = li_return-id
+              number     = li_return-number
+              language   = sy-langu
+              textformat = space
+              message_v1 = li_return-message_v1
+              message_v2 = li_return-message_v2
+              message_v3 = li_return-message_v3
+              message_v4 = li_return-message_v4
+            IMPORTING
+              message    = gw_message.
+          li_return-message = gw_message.
+          APPEND li_return TO lt_return1.
+        ENDLOOP.
+        READ TABLE lt_return INTO li_return WITH KEY type = 'E'.
+        IF sy-subrc <> 0.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'.
+          EXIT.
+        ELSE.
+          CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+        ENDIF.
+        FREE lt_return[].
+      ENDDO.
+      CLEAR:lv_main_deli.
+    ENDIF.
+  ENDLOOP.
+
+  SORT lt_return1.
+  DELETE ADJACENT DUPLICATES FROM lt_return1 COMPARING message.
+
+  LOOP AT lt_return1 INTO li_return.
+    WRITE : / li_return-message.
+    IF li_return-message IS INITIAL.
+      WRITE : / 'Billing block removal failed'.
+    ENDIF.
+  ENDLOOP.
+
+ENDIF.
+

@@ -1,0 +1,94 @@
+*=========================================================================*
+*= Copyright © 2013 GE IS                                              ===*
+*= ALL RIGHTS RESERVED                                                 ===*
+*=========================================================================*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+* Name             : ZRMM_DELIVERY_NOTE                                 *
+* Created by       : Kalyani Julakanti    , 502214016                     *
+* Transport Request: DE3K916777                                          *
+* CR No            : CHG0479115                                           *
+* RICEF Object No  : RICEF872                                             *
+* Transaction code : ZMM872                                         *
+* Description      : Sales data should be track based on the deliveries
+*                    created and issued . The reason to follow           *
+*                    on the open deliveries is that when a delivery is    *
+*                    created it is assumed to be shippable and the sales  *
+*                    can be generated. The report needs to be with        *
+*                    live data,coming from SAP directly, as the report    *
+*                    will be run during the day especially                *
+*                    using period closing and has to be  displayed the    *
+**                   summary of  the report.                              *
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE       |  TR NO.      | CR No.     |CHANGED BY  |DESCRIPTION OF CHANGE
+*************************************************************************
+*01/03/2014  | DE3K916777   | CHG0479115  |502214016   | Object creation
+*21/03/2014  | DE3K921495   | CHG0479115  |502214016   | added NETWR field
+*10/06/2014  | DE3K938329   | CHG0479115  |502237354   | added summary part
+*30/06/2014  | DE3K941380   | CHG0479115  |502237354   | corrected sorting issue
+*08/07/2014  | DE3K941845   | CHG0479115  |502237354   | ITC logic value changes
+*11/07/2014  | DE3K942601   | CHG0479115  |502237354   | Other shipment type logic added
+*18/07/2014  | DE3K943222   | CHG0479115  |502237354   | Field cataogue attibute changes
+*************************************************************************
+REPORT  zrmm_delivery_note NO STANDARD PAGE HEADING.
+********top include
+INCLUDE  znmm_delivery_note_top.
+******** selcetion screen
+INCLUDE znmm_delivery_note_sel.
+****data processing.
+INCLUDE  znmm_delivery_note_form.
+
+START-OF-SELECTION.
+*****Fecthing the data
+  PERFORM clear_refresh.
+  PERFORM populate_ranges.
+  PERFORM get_lips.
+  PERFORM get_likp.
+  PERFORM get_vttp.
+  PERFORM get_vbup.
+  PERFORM get_vttk.
+**** CHG0479115 DE3K941845 modification starts by 502237354 08/07/2014
+  PERFORM get_ekko.
+  PERFORM get_ekpo.
+  PERFORM get_tvro.
+**** CHG0479115 DE3K941845 modification ends by 502237354 08/07/2014
+  PERFORM get_t173t.
+  PERFORM get_kna1.
+  PERFORM get_vbfa.
+  PERFORM get_vbak.
+  PERFORM get_knvv.
+  PERFORM get_vbpa.
+  PERFORM get_ltak.
+  PERFORM get_vbap.
+  PERFORM get_vbuk.
+  PERFORM hardcode_entries.
+
+************ grid display
+  IF  p_sap_wm = 'X'.
+    PERFORM populate_wmtable.
+    IF p_pick = 'X'.
+      PERFORM sort_table.
+    ENDIF.
+    PERFORM build_fieldcatalog.
+    PERFORM display_output.
+**---------FOR SUMMARY------------
+  ELSEIF p_resum = 'X'.
+    PERFORM populate_ftable.
+    IF p_pick = 'X'.
+      PERFORM sort_table.
+    ENDIF.
+    PERFORM calculations.
+    PERFORM write_data.
+  ELSE.
+    PERFORM populate_ftable.
+    IF p_pick = 'X'.
+      PERFORM sort_table.
+    ENDIF.
+    PERFORM build_fieldcatalog.
+    PERFORM display_output.
+  ENDIF.
+

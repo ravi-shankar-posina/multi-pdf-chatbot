@@ -1,0 +1,30 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_CAT_CLEAR_TOP
+*&---------------------------------------------------------------------*
+TYPES : BEGIN OF ty_aufk,
+        aufnr TYPE aufnr,
+        objnr TYPE j_objnr,
+        END OF ty_aufk,
+        BEGIN OF ty_jest,
+       objnr TYPE j_objnr,
+       stat TYPE j_status,
+         END OF ty_jest.
+
+
+
+DATA : gt_table  TYPE TABLE OF ztpp_cart_pwo,
+       gt_table1 TYPE TABLE OF ztpp_cart_pwo,
+       gi_table  TYPE ztpp_cart_pwo,
+       gt_aufk TYPE TABLE OF ty_aufk,
+       gi_aufk TYPE ty_aufk,
+       gt_jest TYPE TABLE OF ty_jest,
+       gi_jest TYPE ty_jest.
+DATA: gt_alv TYPE REF TO cl_salv_table .
+DATA :  gc_msg TYPE REF TO cx_salv_msg.
+DATA: go_cols TYPE REF TO cl_salv_columns,
+      gi_key TYPE salv_s_layout_key ,
+      go_layout TYPE REF TO cl_salv_layout,
+     go_column TYPE REF TO cl_salv_column_table,
+     go_display TYPE REF TO cl_salv_display_settings,
+     go_function TYPE REF TO cl_salv_functions_list.
+

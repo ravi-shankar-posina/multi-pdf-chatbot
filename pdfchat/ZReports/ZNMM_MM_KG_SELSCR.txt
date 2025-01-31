@@ -1,0 +1,88 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZNMM_MM_KG_SELSCR .
+*----------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+
+SELECT-OPTIONS: s_werks FOR gw_werks OBLIGATORY NO INTERVALS,
+                s_matnr FOR gw_matnr,
+                s_zlclid FOR gw_zlclid,
+                s_labor FOR gw_labor,
+                s_ekgrp FOR gw_ekgrp,
+                s_dispo FOR gw_dispo,
+                s_beskz FOR gw_beskz,
+                s_sobsl FOR gw_sobsl,
+                s_lgpro FOR gw_lgpro,
+                s_lgfsb FOR gw_lgfsb,
+                s_sbdkz FOR gw_sbdkz,
+                s_mmsta FOR gw_mmsta,
+                s_ncost FOR gw_ncost,
+                s_bwkey FOR gw_bwkey,
+                s_spras FOR gw_spras.
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK settings WITH FRAME TITLE text-002.
+PARAMETER: p_disvar   LIKE  disvariant-variant.
+SELECTION-SCREEN COMMENT 47(40) varname FOR FIELD p_disvar.
+SELECTION-SCREEN END OF BLOCK settings.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-003.
+PARAMETER:
+*Begin of changes by 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+           p_alv RADIOBUTTON GROUP r01,
+           p_excel RADIOBUTTON GROUP r01,
+           p_exfile LIKE rlgrap-filename,
+           p_appl RADIOBUTTON GROUP r01,
+           p_fname TYPE eps2filnam,
+           p_ftp RADIOBUTTON GROUP r01,
+*End of changes by 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+           p_count(5) TYPE n,
+           p_file(50) TYPE c. " OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b2.
+
+AT SELECTION-SCREEN ON BLOCK settings.
+*----------------------------------------------------------------------*
+  CLEAR: g_display_variant.
+  g_display_variant-variant   = p_disvar.
+  g_display_variant-report    = sy-repid.
+  PERFORM get_display_variant CHANGING g_display_variant.
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_disvar.
+*----------------------------------------------------------------------*
+  PERFORM f4_display_var CHANGING g_display_variant.
+  p_disvar = g_display_variant-variant.
+  varname = g_display_variant-text.
+*Begin of changes by 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+**----------------------------------------------------------------------*
+*AT SELECTION-SCREEN ON BLOCK b2.
+**----------------------------------------------------------------------*
+*  SPLIT p_file AT '.' INTO gw_file1 gw_file2.
+*  IF gw_file2 <> text-060.
+*    MESSAGE e000(zcc_c) WITH text-059.
+*    EXIT.
+*  ENDIF.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_exfile.
+  PERFORM f4_fileselect.
+*----------------------------------------------------------------------*
+*  selection screen                                        *
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN.
+
+  IF p_exfile IS INITIAL AND p_excel = 'X'.
+    MESSAGE e090(zsd) WITH text-028.
+    EXIT.
+  ENDIF.
+*&---------------------------------------------------------------------*
+*&      Form  F4_FILESELECT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f4_fileselect .
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+    IMPORTING
+      file_name     = p_exfile.
+ENDFORM.                    "F4_FILESELECT
+*End of changes by 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+

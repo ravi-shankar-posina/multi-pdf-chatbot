@@ -1,0 +1,91 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_BILLOFMAT_SELSCR
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+
+SELECT-OPTIONS: s_andat FOR gw_andat,
+                s_matnr FOR gw_matnr,
+                s_werks FOR gw_werks,
+                s_stlan FOR gw_stlan,
+                s_stlal FOR gw_stalt,
+                s_spras FOR gw_spras,
+                s_idnrk FOR gw_idnrk,
+                s_stlty FOR gw_stlty,
+                s_stlst FOR gw_stlst,
+*Begin of changes done by 502765654 GECHG0273801 15.02.2019
+                s_datuv FOR gw_datuv,
+                s_annam FOR gw_annam,
+                s_aedat FOR gw_aedat,
+                s_aenam FOR gw_aenam,
+                s_aennr FOR gw_aennr.
+*End of changes done by 502765654 GECHG0273801 15.02.2019
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK settings WITH FRAME TITLE text-002.
+PARAMETER: p_disvar   LIKE  disvariant-variant.
+SELECTION-SCREEN COMMENT 47(40) varname FOR FIELD p_disvar.
+SELECTION-SCREEN END OF BLOCK settings.
+* Begin of 09-JAN-2015  | CHG0995297 | DE3K957985 | RITM3672125 | 502347739
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-035.
+PARAMETER:
+*Begin of changes by 19-JAN-2015  | CHG0995297 | DE3K958357 | RITM3672125 | 502347739
+          p_alv RADIOBUTTON GROUP r01,
+          p_excel RADIOBUTTON GROUP r01,
+          p_exfile LIKE rlgrap-filename,
+          p_appl RADIOBUTTON GROUP r01,
+          p_fname TYPE eps2filnam,
+          p_ftp RADIOBUTTON GROUP r01,
+*End of changes by 19-JAN-2015  | CHG0995297 | DE3K958357 | RITM3672125 | 502347739
+          p_count(5) TYPE n,
+           p_file(50) TYPE c.
+SELECTION-SCREEN END OF BLOCK b2.
+* End of 09-JAN-2015  | CHG0995297 | DE3K957985 | RITM3672125 | 502347739
+AT SELECTION-SCREEN ON BLOCK settings.
+*----------------------------------------------------------------------*
+  CLEAR: g_display_variant.
+  g_display_variant-variant   = p_disvar.
+  g_display_variant-report    = sy-repid.
+  PERFORM get_display_variant CHANGING g_display_variant.
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_disvar.
+*----------------------------------------------------------------------*
+  PERFORM f4_display_var CHANGING g_display_variant.
+  p_disvar = g_display_variant-variant.
+  varname = g_display_variant-text.
+*Begin of changes by 19-JAN-2015  | CHG0995297 | DE3K958357 | RITM3672125 | 502347739
+* Begin of 09-JAN-2015  | CHG0995297 | DE3K957985 | RITM3672125 | 502347739
+**----------------------------------------------------------------------*
+*AT SELECTION-SCREEN ON BLOCK b2.
+**----------------------------------------------------------------------*
+*  SPLIT p_file AT '.' INTO gw_file1 gw_file2.
+*  IF gw_file2 <> text-037.
+*    MESSAGE e000(zcc_c) WITH text-038.
+*    EXIT.
+*  ENDIF.
+* End of 09-JAN-2015  | CHG0995297 | DE3K957985 | RITM3672125 | 502347739
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_exfile.
+  PERFORM f4_fileselect.
+*----------------------------------------------------------------------*
+*  selection screen                                        *
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN.
+
+  IF p_exfile IS INITIAL AND p_excel = 'X'.
+    MESSAGE e000 WITH text-066.
+    EXIT.
+  ENDIF.
+*&---------------------------------------------------------------------*
+*&      Form  F4_FILESELECT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f4_fileselect .
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+    IMPORTING
+      file_name     = p_exfile.
+ENDFORM.                    "F4_FILESELECT
+*End of changes by 19-JAN-2015  | CHG0995297 | DE3K958357 | RITM3672125 | 502347739
+

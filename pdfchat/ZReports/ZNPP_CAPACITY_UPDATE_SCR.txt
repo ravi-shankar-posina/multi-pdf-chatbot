@@ -1,0 +1,9 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_CAPACITY_UPDATE_SCR
+*&---------------------------------------------------------------------*
+
+SELECT-OPTIONS :
+                    s_mrp FOR gw_mrp, " mRP CONTROLLER
+                    s_plant FOR gw_plant, " PLANT
+                    s_date FOR sy-datum NO INTERVALS. " PAST DATE
+

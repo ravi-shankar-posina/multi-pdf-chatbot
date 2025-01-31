@@ -1,0 +1,369 @@
+*=================================================================
+*= Copyright ©  2000 GE ENERGY  =
+*= ALL RIGHTS RESERVED =
+*=================================================================
+******************************************************************************************
+* Created by          : Ravi chandra karnam(502295730)
+* Creation Date       : 08/05/2014
+* Transport Request # : FE3K900439
+* RICEF Object No #   : 1311
+* Change request No   : CHG0479115
+* Transaction code    : ZMM312
+* Description         : Report to download the Shipment historical data.
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+**19/06/2014           CHG0479115        502295730 | Change in date format for all date fields
+*                                                  | TR : FE3K900512
+**03/09/2014           CHG0479283        502304796 | Output Structure Change
+*                                                  | TR : FE3K900661
+**11/09/2014           CHG0479283        502304796 | Concatenate Ship line id in Ship line number
+*                                                  | TR : FE3K900666
+*****************************************************************************************
+
+
+REPORT  zrmm_apss_shp_hist_data NO STANDARD PAGE HEADING MESSAGE-ID zfi_apss_msg_cl LINE-COUNT 1023.
+************************************************************************
+* T A B L E S
+************************************************************************
+INCLUDE : znfi_apss_top_include,
+          znfi_apss_subroutines_include.
+************************************************************************
+* S T R U C T U R E   D E C L A R A T I O N S
+************************************************************************
+TYPES : BEGIN OF type_lips,
+        vbeln TYPE vbeln_vl,
+        posnr TYPE posnr_vl,
+        lfimg TYPE lfimg,
+        vgbel TYPE vgbel,
+        vgpos TYPE vgpos,
+        END OF type_lips.
+
+TYPES : BEGIN OF type_lips1,
+        vbeln TYPE vbeln_vl,
+        posnr TYPE posnr_vl,
+        lfimg TYPE lfimg,
+        vgbel TYPE vgbel,
+        vgpos TYPE ebelp,
+        END OF type_lips1.
+
+TYPES : BEGIN OF type_eket,
+        ebeln TYPE ebeln,
+        ebelp TYPE ebelp,
+        eindt TYPE eindt,
+        END OF type_eket.
+
+TYPES : BEGIN OF type_output,
+        sor_id(2)     TYPE c,
+        vbeln         TYPE char40, "Shipment Number
+        posnr         TYPE char10,"posnr_vl, "Shipment line number
+        lfimg         TYPE lfimg, "Shipment Quantity
+        eindt(10)     TYPE c, "Delivery Date
+        vgpos         TYPE char10,"ebelp, "PO line number
+        vgbel         TYPE vgbel, "PO NUMBER
+        vgpps         TYPE char10,"Release Number
+*        vgbel         TYPE vgbel, "PO NUMBER
+        del_ind       TYPE c,     "Delete indicator
+        load_date     TYPE char40,
+        END OF type_output.
+
+TYPES : BEGIN OF type_likp,
+         vbeln     TYPE vbeln_vl,
+         spe_loekz TYPE loekz_bk,
+       END OF type_likp.
+
+TYPES :BEGIN OF type_fields,
+           field TYPE char40,
+        END OF type_fields.
+
+************************************************************************
+* I N T E R N A L    T A B L E
+************************************************************************
+DATA : gt_lips        TYPE STANDARD TABLE OF type_lips    , "#EC NEEDED
+       gt_eket        TYPE STANDARD TABLE OF type_eket    , "#EC NEEDED
+       gt_output      TYPE STANDARD TABLE OF type_output ,
+       gt_lips1       TYPE STANDARD TABLE OF type_lips1   , "#EC NEEDED
+       gt_output_fm   TYPE  zpi_dt_shipment_req_shipme_tab,
+       gt_likp        TYPE STANDARD TABLE OF type_likp,     "#EC NEEDED
+       gt_fields      TYPE TABLE OF type_fields.
+
+************************************************************************
+* W O R K   A R E A
+************************************************************************
+DATA : gi_lips         TYPE type_lips,                      "#EC NEEDED
+       gi_eket         TYPE type_eket,                      "#EC NEEDED
+       gi_output       TYPE type_output,
+       gi_output_fm    TYPE zpi_dt_shipment_req_shpmnt_req,
+       gi_lips1        TYPE type_lips1,                     "#EC NEEDED
+       gi_likp         TYPE type_likp  ,                    "#EC NEEDED
+       gi_fields       TYPE type_fields.
+
+************************************************************************
+* G L O B A L   D A T A
+************************************************************************
+DATA : gw_erdat      TYPE erdat,
+       gw_bukrs      TYPE bukrs.
+
+************************************************************************
+* C O N S T A N T S
+************************************************************************
+CONSTANTS : gc_pstyv(3)  TYPE c VALUE 'ELN'.                "#EC NEEDED
+
+*************************************************************************
+** S E L E C T  O P T I O N S
+*************************************************************************
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+
+SELECT-OPTIONS : s_date FOR gw_erdat NO-EXTENSION OBLIGATORY,
+                 s_bukrs FOR gw_bukrs NO INTERVALS .
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-002.
+PARAMETERS :p_file1 TYPE rlgrap-filename OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b3.
+
+************************************************************************
+* I N I T I A L I Z A T I O N
+************************************************************************
+INITIALIZATION.
+
+  s_date-low = sy-datum.
+  s_date-high = sy-datum.
+  s_date-option = gc_bt.
+  s_date-sign = gc_i1.
+  APPEND s_date.
+  PERFORM get_comp_codes.
+
+
+*  ************************************************************************
+* S E L E C T I O N   S C R E E N   E V E N T S
+************************************************************************
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file1.
+
+  CALL FUNCTION 'KD_GET_FILENAME_ON_F4'
+    EXPORTING
+      field_name    = p_file1
+    CHANGING
+      file_name     = p_file1
+    EXCEPTIONS
+      mask_too_long = 1
+      OTHERS        = 2.
+  IF sy-subrc <> 0.
+    MESSAGE e026.
+  ENDIF.
+
+
+************************************************************************
+* S T A R T - O F - S E L E C T I O N
+************************************************************************
+START-OF-SELECTION.
+
+*Getting all the data into internal table
+  PERFORM data_fetch_fm.
+
+END-OF-SELECTION.
+
+  PERFORM output_alv.
+
+*&---------------------------------------------------------------------*
+*&      Form  OUTPUT_ALV
+*&---------------------------------------------------------------------*
+*       ALV DISPLAY
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM output_alv .
+
+  PERFORM fill_field_names.
+  PERFORM download_file.
+  PERFORM create_field_catalog.
+  PERFORM create_alv_layout.
+  PERFORM call_alv.
+
+ENDFORM.                    " OUTPUT_ALV
+*&------------------------------------------------------------------------------------*
+*&      Form  data_fetch_fm
+*&------------------------------------------------------------------------------------*
+*   This Subroutine is used to get the required data and putting into internal table
+*-------------------------------------------------------------------------------------*
+FORM data_fetch_fm.
+
+  LOOP AT gt_ccodes INTO gi_ccodes.
+    IF gi_ccodes-bukrs NOT IN s_bukrs[].
+      gi_ccodes-bukrs = ' '.
+      MODIFY gt_ccodes FROM gi_ccodes.
+    ENDIF.
+  ENDLOOP.
+
+  DELETE gt_ccodes WHERE bukrs = ' '.
+
+  CALL FUNCTION 'ZMM_SHIPMENT_SAP2APSS_FM'
+    EXPORTING
+      im_datefrom   = s_date-low
+      im_dateto     = s_date-high
+      im_hist       = gc_x
+    IMPORTING
+      ex_output_fm  = gt_output_fm
+    TABLES
+      tb_ccodes     = gt_ccodes[]
+    EXCEPTIONS
+      program_error = 1
+      OTHERS        = 2.
+
+  IF sy-subrc NE 0.                                       "#EC CI_SUBRC
+    MESSAGE s018.
+  ENDIF.
+
+  LOOP AT gt_output_fm INTO gi_output_fm.                   "#EC FB_RC
+
+    gw_df            = gi_output_fm-promise_date .
+    PERFORM conv_date_format USING gw_df.
+    gi_output-sor_id = gi_output_fm-po_sor_id .
+    gi_output-vbeln  = gi_output_fm-shipment_line_id .
+    gi_output-posnr  = gi_output_fm-ship_line_number .
+    gi_output-lfimg  = gi_output_fm-ship_qty .
+    gi_output-eindt  = gw_df .
+    gi_output-vgpos  = gi_output_fm-po_line_number .
+    gi_output-vgpps  = gi_output_fm-release_number .
+    gi_output-vgbel  = gi_output_fm-po_number .
+    gi_output-del_ind = gi_output_fm-del_ind .
+    gw_df = sy-datum.
+    PERFORM conv_date_format USING gw_df.
+    gi_output-load_date = gw_df.
+    APPEND gi_output TO gt_output.
+
+  ENDLOOP.
+
+ENDFORM.                    " SUB_GET_DATA_TABLE
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_field_catalog .
+  PERFORM: fill_catalog USING gw_seqno 'SOR_ID'    text-003,
+           fill_catalog USING gw_seqno 'VBELN'     text-004,
+           fill_catalog USING gw_seqno 'POSNR'     text-005,
+           fill_catalog USING gw_seqno 'LFIMG'     text-006,
+           fill_catalog USING gw_seqno 'EINDT'     text-007,
+           fill_catalog USING gw_seqno 'VGPOS'     text-008,
+*           fill_catalog USING gw_seqno 'VGPPS'     text-009,
+           fill_catalog USING gw_seqno 'VGBEL'     text-010,
+           fill_catalog USING gw_seqno 'VGPPS'     text-009,
+           fill_catalog USING gw_seqno 'DEL_IND'   text-011,
+           fill_catalog USING gw_seqno 'LOAD_DATE' text-012.
+ENDFORM.                    " CREATE_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*&      Form  CALL_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM call_alv .
+  IF gt_output_fm IS NOT INITIAL.
+    PERFORM display_output TABLES gt_output[].
+  ELSE.
+    MESSAGE s030.
+  ENDIF.
+ENDFORM.                    " CALL_ALV
+*&---------------------------------------------------------------------*
+*&      Form  DOWNLD_FILE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM download_file .
+  DATA : lw_filename_ds TYPE string,
+         lw_filetype TYPE char10.
+
+  lw_filename_ds = p_file1.
+  lw_filetype = gc_asc.
+  IF p_file1 IS NOT INITIAL.
+    IF lw_filename_ds IS NOT INITIAL.
+
+      CALL FUNCTION 'GUI_DOWNLOAD'
+        EXPORTING
+          filename                = lw_filename_ds
+          filetype                = lw_filetype
+          write_field_separator   = gc_x
+          trunc_trailing_blanks   = gc_x
+          codepage                = space
+          write_bom               = gc_x
+        TABLES
+          data_tab                = gt_output
+          fieldnames              = gt_fields
+        EXCEPTIONS
+          file_write_error        = 1
+          no_batch                = 2
+          gui_refuse_filetransfer = 3
+          invalid_type            = 4
+          no_authority            = 5
+          unknown_error           = 6
+          header_not_allowed      = 7
+          separator_not_allowed   = 8
+          filesize_not_allowed    = 9
+          header_too_long         = 10
+          dp_error_create         = 11
+          dp_error_send           = 12
+          dp_error_write          = 13
+          unknown_dp_error        = 14
+          access_denied           = 15
+          dp_out_of_memory        = 16
+          disk_full               = 17
+          dp_timeout              = 18
+          file_not_found          = 19
+          dataprovider_exception  = 20
+          control_flush_error     = 21
+          OTHERS                  = 22.
+      IF sy-subrc = 0.
+        MESSAGE s028.
+      ENDIF.
+    ENDIF.
+  ELSE.
+    MESSAGE s029.
+  ENDIF.
+ENDFORM.                    " DOWNLD_FILE
+*&---------------------------------------------------------------------*
+*&      Form  FILL_FIELD_NAMES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fill_field_names .
+  gi_fields-field = text-003.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-004.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-005.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-006.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-007.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-008.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-010.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-009.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-011.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-012.
+  APPEND gi_fields TO gt_fields.
+
+
+ENDFORM.                    " FILL_FIELD_NAMES

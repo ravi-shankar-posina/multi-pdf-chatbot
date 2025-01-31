@@ -1,0 +1,68 @@
+*&---------------------------------------------------------------------*
+*=================================================================
+*= Copyright ©  2000 GE ENERGY  =
+*= ALL RIGHTS RESERVED =
+*=================================================================
+*****************************************************************************************
+* PROGRAM DOCUMENTATION
+******************************************************************************************
+*** Created by             : Sheenu Arora & 502237352
+*** Creation Date          : 10-Mar-2014
+*** Transport Request #    : DE3K920286
+*** RICEF Object No #      : RICEF1155
+*** Transaction Code       : ZMM1155
+***Change request No       : CHG0479115
+*** Description            : Report to display GR Stock and Consignment Stock
+*****************************************************************************************
+***********************************************************************************************************
+*  DATE       | CR No          |TRNO            | CHANGED BY           | DESCRIPTION OF CHANGE
+***********************************************************************************************************
+*10/03/2014    |CHG0479115                       | 502237352            | Object Creation
+*07/04/2014    |CHG0479115     |DE3K923798         502277866            | Change the logic for grblockedstock
+*                                                                         and blocked consignment stock.Retrived
+*                                                                         hardcore entries for movement type
+*28.06.2014     |CHG0479115    |DE3K940883        |502277866             | changed grstock quantity .
+*03.08.2015     |CHG1371882    |DE3K965104        |502277866             | changed ekbe striucture to capture missing records.
+*20.02.2017     |CHG2480080    |DE3K977157        |502327509             | Added two fields material document number (MBLNR)and text(MKPF-BKTXT )
+*06.03.2017     |CHG2480080    |DE3K977394        |502327509             | added Po creation doc date
+***********************************************************************************************************
+
+
+REPORT  zrmm_gr_blocked_con  MESSAGE-ID zmm.
+
+INCLUDE znmm_gr_blocked_con_top."TOP DECLARATIONS
+
+INCLUDE znmm_gr_blocked_con_ssr."SELECTION SCREEN
+
+INCLUDE znmm_gr_blocked_con_forms."SUBROUTINES.
+
+AT SELECTION-SCREEN.
+
+**For vendor number validation**
+  PERFORM validate_vendor_num .
+
+**For Material Number Validation**
+  PERFORM validate_mat_num.
+
+**For Purchase Order Va;idation**
+  PERFORM validate_purnum.
+
+**for PO Line Validation**
+  PERFORM validate_poline.
+
+**For movement Type validation**
+*  PERFORM validate_mov.
+
+
+START-OF-SELECTION.
+**** CHG0479115 Start of changes DE3K923798  by 502277866
+  PERFORM harcocre_entries.
+****CHG0479115 end of changes DE3K923798  by 502277866
+  PERFORM get_data.
+
+END-OF-SELECTION.
+
+  PERFORM build_fieldcatalog."Display
+
+  PERFORM display_output.
+

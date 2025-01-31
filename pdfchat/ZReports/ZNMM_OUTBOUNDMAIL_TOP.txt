@@ -1,0 +1,112 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_OUTBOUNDMAIL_TOP
+*&---------------------------------------------------------------------
+
+TYPES: BEGIN OF ty_likp,
+       vbeln TYPE vbeln_vl,
+       ernam TYPE ernam,
+       lfart TYPE lfart,
+       wadat TYPE wadat_ist,
+       werks TYPE empfw,
+       END OF ty_likp.
+TYPES: BEGIN OF ty_lips,
+       vbeln  TYPE vbeln_vl,
+       posnr  TYPE posnr_vl,
+       matnr  TYPE matnr,
+       werks  TYPE werks,           "Added by 502683007   on 03/02/2017.
+       lfimg  TYPE lfimg,
+       arktx  TYPE arktx,
+       vgbel  TYPE vgbel,
+       vgpos  TYPE vgpos,
+       uecha  TYPE uecha,
+       wadat  TYPE wadat_ist,
+       END OF ty_lips.
+TYPES: BEGIN OF ty_adr6,
+       addrnumber TYPE ad_addrnum,
+       persnumber TYPE ad_persnum,
+       smtp_addr  TYPE ad_smtpadr,
+       END OF ty_adr6.
+TYPES: BEGIN OF  ty_user,
+       bname TYPE xubname,
+       persnumber TYPE ad_persnum,
+       addrnumber TYPE ad_addrnum,
+       END OF ty_user.
+*Begin of change 502683007    on 31/01/2017
+TYPES: BEGIN OF ty_ekko,
+       ebeln TYPE ebeln,
+       reswk TYPE reswk,
+       END OF ty_ekko.
+*End of change 502683007    on 31/01/2017
+
+DATA: gw_retcode     TYPE sy-subrc,
+      gw_retval      TYPE c,
+      gw_wbstk       TYPE wbstk,
+      gw_lines       TYPE char2,
+      gw_qty         TYPE char18,
+      gw_posnr       TYPE posnr_vl,
+      gw_sender_addr TYPE somlreci1-receiver,
+      gw_receiver    TYPE somlreci1-receiver,
+      gi_likp        TYPE ty_likp,
+      gi_lips        TYPE ty_lips,
+      gt_lips        TYPE TABLE OF ty_lips,
+      gt_lips_final  TYPE TABLE OF ty_lips,
+      gi_user        TYPE ty_user,
+      gi_sender      TYPE ty_adr6.
+DATA: gi_docdata       TYPE sodocchgi1,
+      gi_receivers     TYPE somlreci1,
+      gt_receivers     TYPE STANDARD TABLE OF  somlreci1,
+      gi_packlist      TYPE sopcklsti1,
+      gt_packlist      TYPE TABLE OF sopcklsti1,
+      gi_objtext       TYPE solisti1,
+      gt_objtext       TYPE TABLE OF solisti1,
+      gi_ztuhcd1       TYPE ztuhcd1,
+      gt_ztuhcd1       TYPE TABLE OF ztuhcd1,
+*Begin of changes by 502199780 CHG2527291
+*      gr_werks         TYPE RANGE OF likp-werks,
+*      gi_werks         LIKE LINE OF gr_werks,
+*End of changes by 502199780 CHG2527291
+*Begin of change 502683007    on 31/01/2017
+      gr_reswk         TYPE RANGE OF ekko-reswk,
+      gi_reswk         LIKE LINE OF gr_reswk,
+      gi_ekko          TYPE ty_ekko,
+      gi_lips1         TYPE ty_lips.
+*End of change 502683007   on 31/01/2017
+
+*Begin of changes by 502199780 CHG2527291
+*      gr_lfart         TYPE RANGE OF likp-lfart,
+*      gi_lfart         LIKE LINE OF gr_lfart.
+TYPES: BEGIN OF ty_reswk_mail,
+       reswk LIKE LINE OF gr_reswk,
+       mailid TYPE zhvltx,
+       END OF ty_reswk_mail.
+DATA: gi_reswk_mail_ds TYPE ty_reswk_mail,
+      gt_reswk_mail TYPE STANDARD TABLE OF ty_reswk_mail.
+*End of changes by 502199780 CHG2527291
+
+CONSTANTS: gc_pname  TYPE char30 VALUE 'ZPMM_STO_MAIL',
+*Begin of changes by 502199780 CHG2527291
+*           gc_werks  TYPE zkey1 VALUE 'WERK',
+*           gc_lfart  TYPE zkey1 VALUE 'LFAR',
+*           gc_mail   TYPE zkey1 VALUE 'SEND',
+*End of changes by 502199780 CHG2527291
+
+*Begin of change 502683007   on 31/01/2017
+           gc_reswk  TYPE zkey1 VALUE 'RESW',
+*Begin of changes by 502199780 CHG2527291
+           gc_u TYPE so_escape VALUE 'U',
+*           gc_mxw2   TYPE char4 VALUE 'MXW2',
+*           gc_mxs2   TYPE char4 VALUE 'MXS2',
+*           gc_mx04   TYPE char4 VALUE 'MX04',
+*           gc_us11   TYPE char4 VALUE 'US11',                           "CR#CHG2527291  BY 502683007   on  10/04/2017
+*           gc_dl1    TYPE char20 VALUE 'ZSTOM_MXW2',
+*           gc_dl2    TYPE char20 VALUE 'ZSTOM_MXS2',
+*           gc_dl3    TYPE char20 VALUE 'ZSTOM_MX04',
+*           gc_dl4    TYPE char20 VALUE 'ZSTOU_US11',                    "CR#CHG2527291  BY 502683007   on  10/04/2017
+*End of changes by 502199780 CHG2527291
+*End of change 502683007   on 31/01/2017
+           gc_wbstk  TYPE wbstk VALUE 'C',
+           gc_i      TYPE char1 VALUE 'I',
+           gc_eq     TYPE char2 VALUE 'EQ',
+           gc_x      TYPE c VALUE 'X',
+           gc_int TYPE soextreci1-adr_typ VALUE 'INT'.
+

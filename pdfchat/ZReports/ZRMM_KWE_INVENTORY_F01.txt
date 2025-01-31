@@ -1,0 +1,896 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZRMM_KWE_INVENTORY_F01 .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  F1000_FILE_SELECT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--CH_FILE  text
+*----------------------------------------------------------------------*
+FORM f1000_file_select  CHANGING ch_file.
+  ds_windowtext = text-w01.
+  REFRESH t_rsselread[].
+  CLEAR w_rsselread.
+  w_rsselread-name = c_fieldname_pfile.
+  w_rsselread-kind = c_fieldname_kind.
+  APPEND w_rsselread TO t_rsselread.
+
+  CALL FUNCTION 'RS_SELECTIONSCREEN_READ'
+    EXPORTING
+      program     = sy-repid
+    TABLES
+      fieldvalues = t_rsselread.
+  CLEAR w_rsselread.
+  READ TABLE t_rsselread INTO w_rsselread INDEX 1.
+  IF sy-subrc EQ 0.
+    ds_filename = w_rsselread-fieldvalue.
+  ENDIF.
+  CALL METHOD cl_gui_frontend_services=>file_open_dialog
+    EXPORTING
+      window_title            = ds_windowtext
+      default_extension       = c_extension_xls
+      default_filename        = ds_filename
+*     file_filter             =
+*     initial_directory       =
+    CHANGING
+      file_table              = t_filename
+      rc                      = int_rc
+      user_action             = int_action
+    EXCEPTIONS
+      file_open_dialog_failed = 1
+      cntl_error              = 2
+      error_no_gui            = 3
+      not_supported_by_gui    = 4
+      OTHERS                  = 5.
+  IF  int_rc     GT 0
+  AND int_action EQ cl_gui_frontend_services=>action_ok.
+    CLEAR w_filename.
+    READ TABLE t_filename INTO w_filename INDEX 1.
+    IF sy-subrc EQ 0.
+      p_file = w_filename-filename.
+    ENDIF.
+  ELSE.
+    p_file = ds_filename.
+  ENDIF.
+ENDFORM.                    " F1000_FILE_SELECT
+*&---------------------------------------------------------------------*
+*&      Form  F2000_MATERIAL_SELECTION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2000_material_selection .
+  SELECT matnr
+         werks
+         lgort
+    INTO TABLE t_mard
+    FROM mard
+   WHERE matnr IN s_matnr
+     AND werks EQ p_werks
+     AND lgort IN s_lgort
+     AND lvorm NE c_x.
+  IF  sy-subrc EQ 0
+  AND t_mard[] IS NOT INITIAL.
+    SELECT matnr
+           maktx
+      INTO TABLE t_makt
+      FROM makt
+      FOR ALL ENTRIES IN t_mard
+     WHERE matnr EQ t_mard-matnr
+       AND spras EQ sy-langu.
+    IF sy-subrc EQ 0.
+    ENDIF.
+*Begin of defect
+*  ELSE.
+*    MESSAGE s050(zmm) DISPLAY LIKE c_e.
+*    LEAVE LIST-PROCESSING.
+*End of defect
+  ENDIF.
+ENDFORM.                    " F2000_MATERIAL_SELECTION
+*&---------------------------------------------------------------------*
+*&      Form  F2200_MATERIAL_DOC_SELECTION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2200_material_doc_selection .
+  SELECT mblnr
+         mjahr
+         budat
+    INTO TABLE t_mkpf
+    FROM mkpf
+   WHERE budat IN s_budat.
+  IF  sy-subrc EQ 0
+  AND t_mkpf[] IS NOT INITIAL.
+    SELECT mblnr
+           mjahr
+           zeile
+           matnr
+           werks
+           lgort
+           insmk
+           shkzg
+           menge
+      INTO CORRESPONDING FIELDS OF TABLE t_mseg
+      FROM mseg
+      FOR ALL ENTRIES IN t_mkpf
+     WHERE mblnr EQ t_mkpf-mblnr
+       AND mjahr EQ t_mkpf-mjahr
+       AND matnr IN s_matnr
+       AND werks EQ p_werks
+       AND lgort IN s_lgort.
+    IF sy-subrc EQ 0.
+      LOOP AT t_mseg
+        ASSIGNING <fs_mseg>.
+        READ TABLE t_mard INTO w_mard WITH KEY matnr = <fs_mseg>-matnr
+                                               werks = <fs_mseg>-werks
+                                               lgort = <fs_mseg>-lgort TRANSPORTING NO FIELDS.
+        IF sy-subrc EQ 0.
+          CASE <fs_mseg>-insmk.
+            WHEN c_insmk_f
+              OR space.
+              <fs_mseg>-insmk = c_insmk_f.
+            WHEN c_insmk_s
+              OR c_insmk_3.
+              <fs_mseg>-insmk = c_insmk_s.
+            WHEN c_insmk_x
+              OR c_insmk_2.
+              <fs_mseg>-insmk = c_insmk_x.
+            WHEN OTHERS.
+          ENDCASE.
+        ELSE.
+          <fs_mseg>-del = c_x.
+        ENDIF.
+      ENDLOOP.
+      DELETE t_mseg WHERE del = c_x.
+    ENDIF.
+  ENDIF.
+  " get the material document which posting date is between
+  " the first day of posting month and the day before posting date
+  IF  g_flag EQ c_x
+  AND r_budat[] IS NOT INITIAL.
+    SELECT mblnr
+           mjahr
+           budat
+      INTO TABLE t_mkpf1
+      FROM mkpf
+     WHERE budat IN r_budat.
+    IF  sy-subrc EQ 0
+    AND t_mkpf1[] IS NOT INITIAL.
+      SELECT mblnr
+             mjahr
+             zeile
+             matnr
+             werks
+             lgort
+             insmk
+             shkzg
+             menge
+        INTO CORRESPONDING FIELDS OF TABLE t_mseg1
+        FROM mseg
+        FOR ALL ENTRIES IN t_mkpf1
+       WHERE mblnr EQ t_mkpf1-mblnr
+         AND mjahr EQ t_mkpf1-mjahr
+         AND matnr IN s_matnr
+         AND werks EQ p_werks
+         AND lgort IN s_lgort.
+      IF sy-subrc EQ 0.
+        LOOP AT t_mseg1
+          ASSIGNING <fs_mseg>.
+          READ TABLE t_mard INTO w_mard WITH KEY matnr = <fs_mseg>-matnr
+                                                 werks = <fs_mseg>-werks
+                                                 lgort = <fs_mseg>-lgort TRANSPORTING NO FIELDS.
+          IF sy-subrc EQ 0.
+            CASE <fs_mseg>-insmk.
+              WHEN c_insmk_f
+                OR space.
+                <fs_mseg>-insmk = c_insmk_f.
+              WHEN c_insmk_s
+                OR c_insmk_3.
+                <fs_mseg>-insmk = c_insmk_s.
+              WHEN c_insmk_x
+                OR c_insmk_2.
+                <fs_mseg>-insmk = c_insmk_x.
+              WHEN OTHERS.
+            ENDCASE.
+          ELSE.
+            <fs_mseg>-del = c_x.
+          ENDIF.
+        ENDLOOP.
+        DELETE t_mseg1 WHERE del = c_x.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " F2200_MATERIAL_DOC_SELECTION
+*&---------------------------------------------------------------------*
+*&      Form  F2100_MATERIAL_HISTORY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2100_material_history .
+  " get normal stock history
+  IF t_mard[] IS NOT INITIAL.
+    SELECT matnr
+           werks
+           lgort
+           lfgja
+           lfmon
+           labst
+           insme
+           speme
+      INTO TABLE t_mardh
+      FROM mardh
+      FOR ALL ENTRIES IN t_mard
+     WHERE matnr = t_mard-matnr
+       AND werks = t_mard-werks
+       AND lgort = t_mard-lgort
+       AND lfgja = nb_last_year
+       AND lfmon = nb_last_month.
+    " get project stock history
+    SELECT matnr
+           werks
+           lgort
+           charg
+           sobkz
+           pspnr
+           lfgja
+           lfmon
+           prlab
+           prins
+           prspe
+      INTO TABLE t_msprh
+      FROM msprh
+      FOR ALL ENTRIES IN t_mard
+     WHERE matnr = t_mard-matnr
+       AND werks = t_mard-werks
+       AND lgort = t_mard-lgort
+       AND sobkz = c_sobkz_q
+       AND lfgja = nb_last_year
+       AND lfmon = nb_last_month.
+    " get sales stock history
+    SELECT matnr
+           werks
+           lgort
+           charg
+           sobkz
+           vbeln
+           posnr
+           lfgja
+           lfmon
+           kalab
+           kains
+           kaspe
+      INTO TABLE t_mskah
+      FROM mskah
+      FOR ALL ENTRIES IN t_mard
+     WHERE matnr = t_mard-matnr
+       AND werks = t_mard-werks
+       AND lgort = t_mard-lgort
+       AND sobkz = c_sobkz_e
+       AND lfgja = nb_last_year
+       AND lfmon = nb_last_month.
+  ENDIF.
+ENDFORM.                    " F2100_MATERIAL_HISTORY
+*&---------------------------------------------------------------------*
+*&      Form  F1100_DATA_CHECK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f1100_data_check .
+  CLEAR: dt_post_date,
+         dt_post_endd,
+         dt_last_date,
+         nb_last_year,
+         nb_last_month.
+  IF s_budat[] IS NOT INITIAL.
+    CLEAR s_budat.
+    READ TABLE s_budat INDEX 1.
+    dt_post_date = s_budat-low.
+    dt_post_endd = s_budat-high.
+*Begin of defect
+    IF dt_post_endd IS INITIAL.
+      dt_post_endd = dt_post_date.
+    ENDIF.
+*End of defect
+    " get first day of that month
+    CALL FUNCTION 'OIL_MONTH_GET_FIRST_LAST'
+      EXPORTING
+        i_date      = s_budat-low
+      IMPORTING
+        e_first_day = dt_date1.
+    IF s_budat-low EQ dt_date1.
+      CLEAR: g_flag,
+             r_budat.
+      REFRESH r_budat[].
+    ELSE.
+      g_flag = c_x.
+      " get the day before post day
+      CALL FUNCTION 'RP_CALC_DATE_IN_INTERVAL'
+        EXPORTING
+          date      = s_budat-low
+          days      = 01
+          months    = 00
+          signum    = '-'
+          years     = 00
+        IMPORTING
+          calc_date = dt_date2.
+      CLEAR r_budat.
+      r_budat-sign = c_i.
+      r_budat-option = c_bt.
+      r_budat-low = dt_date1.
+      r_budat-high = dt_date2.
+      APPEND r_budat.
+    ENDIF.
+
+    CALL FUNCTION 'CCM_GO_BACK_MONTHS'
+      EXPORTING
+        currdate   = s_budat-low
+        backmonths = 001
+      IMPORTING
+        newdate    = dt_last_date.
+
+    MOVE: dt_last_date+0(4) TO nb_last_year,
+          dt_last_date+4(2) TO nb_last_month.
+  ENDIF.
+ENDFORM.                    " F1100_DATA_CHECK
+*&---------------------------------------------------------------------*
+*&      Form  F2300_KWE_INVENTORY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM  f2300_kwe_inventory .
+  nm_file = p_file.
+  CALL FUNCTION 'ALSM_EXCEL_TO_INTERNAL_TABLE'
+    EXPORTING
+      filename                = nm_file
+      i_begin_col             = 1
+      i_begin_row             = 1
+      i_end_col               = 10
+      i_end_row               = 50000
+    TABLES
+      intern                  = t_kwefile
+    EXCEPTIONS
+      inconsistent_parameters = 1
+      upload_ole              = 2
+      OTHERS                  = 3.
+  IF sy-subrc EQ 0.
+*Begin of defect
+*    SORT t_kwefile BY row DESCENDING.
+*    CLEAR: w_kwefile,
+*           nm_lines.
+*    READ TABLE t_kwefile INTO w_kwefile INDEX 1.
+*    IF sy-subrc EQ 0.
+*      MOVE w_kwefile-row TO nm_lines.
+*    ENDIF.
+*    REFRESH t_kwe[].
+*    DO nm_lines TIMES.
+*      CLEAR w_kwe.
+*      nm_col = 1.
+*      DO 10 TIMES.
+*        READ TABLE t_kwefile INTO w_kwefile WITH KEY row = nm_row
+*                                                     col = nm_col.
+*        IF sy-subrc EQ 0.
+*          UNASSIGN <fs_field>.
+*          ASSIGN COMPONENT nm_col OF STRUCTURE w_kwe TO <fs_field>.
+*          <fs_field> = w_kwefile-value.
+*        ENDIF.
+*        nm_col = nm_col + 1.
+*      ENDDO.
+*      IF w_kwe IS NOT INITIAL.
+*        APPEND w_kwe TO t_kwe.
+*      ENDIF.
+*      nm_row = nm_row + 1.
+*    ENDDO.
+*End of defect
+    SORT t_kwefile BY row col.
+    DELETE t_kwefile WHERE row EQ '0001'." ignore the header line
+    LOOP AT t_kwefile
+      INTO w_kwefile.
+      CASE w_kwefile-col.
+        WHEN '0001'.
+          IF w_kwefile-value CO '0123456789 '.
+            w_kwe-kdate = w_kwefile-value.
+          ELSE.
+            MESSAGE s053(zmm) WITH text-e02 w_kwefile-row text-e04 DISPLAY LIKE c_e.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+        WHEN '0002'.
+          w_kwe-matnr = w_kwefile-value.
+          CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+            EXPORTING
+              input              = w_kwe-matnr
+            IMPORTING
+              output             = w_kwe-matnr.
+        WHEN '0003'.
+          w_kwe-maktx = w_kwefile-value.
+        WHEN '0004'.
+          w_kwe-werks = w_kwefile-value.
+        WHEN '0005'.
+          w_kwe-lgort = w_kwefile-value.
+        WHEN '0006'.
+          w_kwe-insmk = w_kwefile-value.
+        WHEN '0007'.
+          IF w_kwefile-value CO '0123456789. '.
+            w_kwe-kwe_begin = w_kwefile-value.
+          ELSE.
+            MESSAGE s053(zmm) WITH text-e02 w_kwefile-row text-e04 DISPLAY LIKE c_e.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+        WHEN '0008'.
+          IF w_kwefile-value CO '0123456789. '.
+            w_kwe-kwe_in = w_kwefile-value.
+          ELSE.
+            MESSAGE s053(zmm) WITH text-e02 w_kwefile-row text-e04 DISPLAY LIKE c_e.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+        WHEN '0009'.
+          IF w_kwefile-value CO '0123456789. '.
+            w_kwe-kwe_out = w_kwefile-value.
+          ELSE.
+            MESSAGE s053(zmm) WITH text-e02 w_kwefile-row text-e04 DISPLAY LIKE c_e.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+        WHEN '0010'.
+          IF w_kwefile-value CO '0123456789. '.
+            w_kwe-kwe_end = w_kwefile-value.
+          ELSE.
+            MESSAGE s053(zmm) WITH text-e02 w_kwefile-row text-e04 DISPLAY LIKE c_e.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+      ENDCASE.
+      AT END OF row.
+        IF w_kwe IS NOT INITIAL.
+          IF w_kwe-werks NE p_werks.
+            MESSAGE s053(zmm) WITH text-E01 DISPLAY LIKE c_e.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+          CLEAR w_kwe_tmp.
+          READ TABLE t_kwe INTO w_kwe_tmp WITH KEY kdate = w_kwe-kdate
+                                                   matnr = w_kwe-matnr
+                                                   werks = w_kwe-werks
+                                                   lgort = w_kwe-lgort
+                                                   insmk = w_kwe-insmk TRANSPORTING NO FIELDS.
+          IF sy-subrc EQ 0.
+            MESSAGE s053(zmm) WITH text-e02 w_kwefile-row text-e03 DISPLAY LIKE c_e.
+            LEAVE LIST-PROCESSING.
+          ELSE.
+            APPEND w_kwe TO t_kwe.
+          ENDIF.
+        ENDIF.
+      ENDAT.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.                    " F2300_KWE_INVENTORY
+*&---------------------------------------------------------------------*
+*&      Form  F3000_MAIN_PROCESSING
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f3000_main_processing .
+*Begin of defect
+  REFRESH t_mard_total[].
+  MOVE: t_mard[]     TO t_mard_total[].
+  LOOP AT t_kwe
+    INTO w_kwe WHERE matnr IN s_matnr
+                 AND werks EQ p_werks
+                 AND lgort IN s_lgort.
+    CLEAR w_mard.
+    MOVE: w_kwe-matnr   TO w_mard-matnr,
+          w_kwe-werks   TO w_mard-werks,
+          w_kwe-lgort   TO w_mard-lgort.
+    APPEND w_mard TO t_mard_total.
+  ENDLOOP.
+  SORT t_mard_total BY matnr werks lgort.
+  DELETE ADJACENT DUPLICATES FROM t_mard_total COMPARING ALL FIELDS.
+  IF t_mard_total[] IS INITIAL.
+    MESSAGE s050(zmm) DISPLAY LIKE c_e.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+*  LOOP AT t_mard
+  LOOP AT t_mard_total
+*End of defect
+    INTO w_mard.
+    CLEAR: w_header,
+           w_extend,
+           w_report.
+    " matnr lgort
+    MOVE-CORRESPONDING w_mard   TO w_header.
+    " maktx
+    CLEAR w_makt.
+    READ TABLE t_makt INTO w_makt WITH KEY matnr = w_mard-matnr TRANSPORTING maktx.
+    IF sy-subrc EQ 0.
+      w_header-maktx = w_makt-maktx.
+*Begin of defect
+    ELSE.
+      CLEAR w_kwe.
+      READ TABLE t_kwe INTO w_kwe WITH KEY matnr = w_mard-matnr TRANSPORTING maktx.
+      IF sy-subrc EQ 0.
+        w_header-maktx = w_kwe-maktx.
+      ENDIF.
+*End of defect
+    ENDIF.
+    w_header-flag = g_flag.
+    w_header-start = dt_post_date.
+    w_header-end = dt_post_endd.
+    " INSMK_TX = UU = 'F'
+    w_header-insmk = c_insmk_f.
+    w_header-insmk_tx = c_insmk_uu.
+    PERFORM f3600_line_processing.
+    " BLOCKED = 'S'
+    w_header-insmk = c_insmk_s.
+    w_header-insmk_tx = c_insmk_blocked.
+    PERFORM f3600_line_processing.
+    " QI = 'X'
+    w_header-insmk = c_insmk_x.
+    w_header-insmk_tx = c_insmk_qi.
+    PERFORM f3600_line_processing.
+  ENDLOOP.
+  IF t_report IS INITIAL.
+    MESSAGE s050(zmm) DISPLAY LIKE c_e.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+ENDFORM.                    " F3000_MAIN_PROCESSING
+*&---------------------------------------------------------------------*
+*&      Form  F3100_OPEN_STOCK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_G_FLAG  text
+*      -->P_C_INSMK_F  text
+*      <--P_W_EXTEND_OPEN_SAP  text
+*      <--P_W_EXTEND_OPEN_KWE  text
+*      <--P_W_EXTEND_OPEN_DIFF  text
+*----------------------------------------------------------------------*
+FORM f3100_open_stock  USING    us_flag
+                                us_header STRUCTURE w_header
+                       CHANGING ch_extend STRUCTURE w_extend.
+  LOOP AT t_mardh
+    INTO w_mardh WHERE matnr = us_header-matnr
+                   AND werks = us_header-werks
+                   AND lgort = us_header-lgort.
+    CASE us_header-insmk.
+      WHEN c_insmk_f.
+        ch_extend-open_sap = ch_extend-open_sap + w_mardh-labst.
+      WHEN c_insmk_x.
+        ch_extend-open_sap = ch_extend-open_sap + w_mardh-insme.
+      WHEN c_insmk_s.
+        ch_extend-open_sap = ch_extend-open_sap + w_mardh-speme.
+      WHEN OTHERS.
+    ENDCASE.
+  ENDLOOP.
+  LOOP AT t_msprh
+    INTO w_msprh WHERE matnr = us_header-matnr
+                   AND werks = us_header-werks
+                   AND lgort = us_header-lgort
+                   AND sobkz = c_sobkz_q.
+    CASE us_header-insmk.
+      WHEN c_insmk_f.
+        ch_extend-open_sap = ch_extend-open_sap + w_msprh-prlab.
+      WHEN c_insmk_x.
+        ch_extend-open_sap = ch_extend-open_sap + w_msprh-prins.
+      WHEN c_insmk_s.
+        ch_extend-open_sap = ch_extend-open_sap + w_msprh-prspe.
+      WHEN OTHERS.
+    ENDCASE.
+  ENDLOOP.
+  LOOP AT t_mskah
+    INTO w_mskah WHERE matnr = us_header-matnr
+                   AND werks = us_header-werks
+                   AND lgort = us_header-lgort
+                   AND sobkz = c_sobkz_e.
+    CASE us_header-insmk.
+      WHEN c_insmk_f.
+        ch_extend-open_sap = ch_extend-open_sap + w_mskah-kalab.
+      WHEN c_insmk_x.
+        ch_extend-open_sap = ch_extend-open_sap + w_mskah-kains.
+      WHEN c_insmk_s.
+        ch_extend-open_sap = ch_extend-open_sap + w_mskah-kaspe.
+      WHEN OTHERS.
+    ENDCASE.
+  ENDLOOP.
+  IF us_flag EQ c_x.
+    LOOP AT t_mseg1
+      INTO w_mseg WHERE matnr = us_header-matnr
+                    AND werks = us_header-werks
+                    AND lgort = us_header-lgort
+                    AND insmk = us_header-insmk.
+      CASE w_mseg-shkzg.
+        WHEN c_shkzg_s.
+          ch_extend-open_sap = ch_extend-open_sap + w_mseg-menge. " received quantity
+        WHEN c_shkzg_h.
+          ch_extend-open_sap = ch_extend-open_sap - w_mseg-menge. " issued quantity
+        WHEN OTHERS.
+      ENDCASE.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.                    " F3100_OPEN_STOCK
+*&---------------------------------------------------------------------*
+*&      Form  F3200_OPEN_KWE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_DT_POST_DATE  text
+*      -->P_W_HEADER  text
+*      <--P_W_EXTEND  text
+*----------------------------------------------------------------------*
+FORM f3200_open_kwe  USING    us_post_date LIKE sy-datum
+                              us_header STRUCTURE w_header
+                     CHANGING ch_extend STRUCTURE w_extend.
+  CLEAR w_kwe.
+  READ TABLE t_kwe INTO w_kwe WITH KEY kdate = us_post_date
+                                       matnr = us_header-matnr
+                                       werks = us_header-werks
+                                       lgort = us_header-lgort
+                                       insmk = us_header-insmk_tx.
+  IF sy-subrc EQ 0.
+    ch_extend-open_kwe = w_kwe-kwe_begin.
+  ENDIF.
+ENDFORM.                    " F3200_OPEN_KWE
+*&---------------------------------------------------------------------*
+*&      Form  F3300_INBOUND_STOCK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_W_HEADER  text
+*      <--P_W_EXTEND  text
+*----------------------------------------------------------------------*
+FORM f3300_inbound_outbound  USING    us_header STRUCTURE w_header
+                             CHANGING ch_extend STRUCTURE w_extend.
+  LOOP AT t_mseg
+    INTO w_mseg
+    WHERE matnr EQ us_header-matnr
+      AND werks EQ us_header-werks
+      AND lgort EQ us_header-lgort
+      AND insmk EQ us_header-insmk.
+    IF w_mseg-shkzg EQ c_shkzg_s.
+      ch_extend-inbd_sap = ch_extend-inbd_sap + w_mseg-menge.
+    ENDIF.
+    IF w_mseg-shkzg EQ c_shkzg_h.
+      ch_extend-oubd_sap = ch_extend-oubd_sap + w_mseg-menge.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.                    " F3300_INBOUND_STOCK
+*&---------------------------------------------------------------------*
+*&      Form  F3400_INBOUND_OUTBOUND_KWE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_S_BUDAT  text
+*      -->P_W_HEADER  text
+*      <--P_W_EXTEND  text
+*----------------------------------------------------------------------*
+FORM f3400_inbound_outbound_kwe  USING    us_post_date LIKE sy-datum
+                                          us_post_endd LIKE sy-datum
+                                          us_header STRUCTURE w_header
+                                 CHANGING ch_extend STRUCTURE w_extend.
+  LOOP AT t_kwe
+    INTO w_kwe
+    WHERE kdate GE us_post_date
+      AND kdate LE us_post_endd
+      AND matnr EQ w_header-matnr
+      AND werks EQ w_header-werks
+      AND lgort EQ w_header-lgort
+      AND insmk EQ w_header-insmk_tx.
+    ch_extend-inbd_kwe = ch_extend-inbd_kwe + w_kwe-kwe_in.
+    ch_extend-oubd_kwe = ch_extend-oubd_kwe + w_kwe-kwe_out.
+  ENDLOOP.
+ENDFORM.                    " F3400_INBOUND_OUTBOUND_KWE
+*&---------------------------------------------------------------------*
+*&      Form  F3500_CLOSE_KWE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_DT_POST_ENDD  text
+*      -->P_W_HEADER  text
+*      <--P_W_EXTEND  text
+*----------------------------------------------------------------------*
+FORM f3500_close_kwe  USING    us_post_endd LIKE sy-datum
+                               us_header STRUCTURE w_header
+                      CHANGING ch_extend STRUCTURE w_extend.
+  CLEAR w_kwe.
+  READ TABLE t_kwe INTO w_kwe WITH KEY kdate = us_post_endd
+                                       matnr = us_header-matnr
+                                       werks = us_header-werks
+                                       lgort = us_header-lgort
+                                       insmk = us_header-insmk_tx.
+  IF sy-subrc EQ 0.
+    ch_extend-clos_kwe = w_kwe-kwe_end.
+  ENDIF.
+ENDFORM.                    " F3500_CLOSE_KWE
+*&---------------------------------------------------------------------*
+*&      Form  F3600_LINE_PROCESSING
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_W_HEADER  text
+*----------------------------------------------------------------------*
+FORM f3600_line_processing.
+  CLEAR w_extend.
+  "get open stock in sap
+  PERFORM f3100_open_stock USING    w_header-flag
+                                    w_header
+                           CHANGING w_extend.
+  " get open stock in kwe
+  PERFORM f3200_open_kwe   USING    w_header-start
+                                    w_header
+                           CHANGING w_extend.
+  "get difference between sap and kwe open stock
+  w_extend-open_dif = w_extend-open_sap - w_extend-open_kwe.
+  " get sap inbound and sap outbound during posting period
+  PERFORM f3300_inbound_outbound USING w_header
+                              CHANGING w_extend.
+  " get kwe inbound and sap outbound during posting period
+  PERFORM f3400_inbound_outbound_kwe USING  w_header-start
+                                            w_header-end
+                                            w_header
+                                     CHANGING w_extend.
+  " get diff between sap and kwe inbound
+  w_extend-inbd_dif = w_extend-inbd_sap - w_extend-inbd_kwe.
+  " get diff between sap and kwe outbound
+  w_extend-oubd_dif = w_extend-oubd_sap - w_extend-oubd_kwe.
+  " get close stock in sap
+  w_extend-clos_sap = w_extend-open_sap + w_extend-inbd_sap - w_extend-oubd_sap.
+  " get close stock in kwe
+  PERFORM f3500_close_kwe    USING w_header-end
+                                   w_header
+                             CHANGING w_extend.
+  " get close stock diff between sap and kwe
+  w_extend-clos_dif = w_extend-clos_sap - w_extend-clos_kwe.
+  IF w_extend IS NOT INITIAL.
+    CLEAR w_report.
+    MOVE-CORRESPONDING: w_header  TO w_report,
+                        w_extend  TO w_report.
+    APPEND w_report TO t_report.
+  ENDIF.
+  CLEAR: w_extend.
+ENDFORM.                    " F3600_LINE_PROCESSING
+*&---------------------------------------------------------------------*
+*&      Form  F4000_FIELDCAT_BUILD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4000_fieldcat_build .
+  fieldcat: 'MATNR' text-a01 c_x space,
+            'MAKTX' text-a02 c_x space,
+            'LGORT' text-a03 c_x space,
+         'INSMK_TX' text-a04 c_x space,
+         'OPEN_SAP' text-a05 space 'C500',
+         'OPEN_KWE' text-a06 space 'C500',
+         'OPEN_DIF' text-a07 space 'C500',
+         'INBD_SAP' text-a08 space 'C600',
+         'INBD_KWE' text-a09 space 'C600',
+         'INBD_DIF' text-a10 space 'C600',
+         'OUBD_SAP' text-a11 space 'C700',
+         'OUBD_KWE' text-a12 space 'C700',
+         'OUBD_DIF' text-a13 space 'C700',
+         'CLOS_SAP' text-a14 space 'C800',
+         'CLOS_KWE' text-a15 space 'C800',
+         'CLOS_DIF' text-a16 space 'C800'.
+
+  w_layout-colwidth_optimize = c_x.
+  w_layout-zebra = c_x.
+  w_layout-detail_popup = c_x.
+ENDFORM.                    " F4000_FIELDCAT_BUILD
+*&---------------------------------------------------------------------*
+*&      Form  F4100_ALV_DISPLAY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4100_alv_display .
+  MOVE sy-repid TO g_repid.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer     = c_x
+      i_buffer_active        = space
+      i_callback_program     = g_repid
+      i_callback_top_of_page = 'F_CALLBACK_TOP_OF_PAGE'
+      is_layout              = w_layout
+      it_fieldcat            = t_fieldcat
+    TABLES
+      t_outtab               = t_report.
+  IF sy-subrc <> 0.
+  ENDIF.
+ENDFORM.                    " F4100_ALV_DISPLAY
+*&---------------------------------------------------------------------*
+*&      Form  f_callback_top_of_page
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_callback_top_of_page.
+  REFRESH t_commentary[].
+  CLEAR w_commentary.
+  w_commentary-typ = c_h.
+  w_commentary-info = text-k01.
+  APPEND w_commentary TO t_commentary.
+  CLEAR: w_commentary,
+         tx_info.
+  w_commentary-typ = c_s.
+  w_commentary-key = text-k02.
+  CONCATENATE dt_post_date
+              '----'
+              dt_post_endd
+         INTO tx_info.
+  w_commentary-info = tx_info.
+  APPEND w_commentary TO t_commentary.
+
+  CLEAR: w_commentary,
+         tx_info.
+  w_commentary-typ = c_s.
+  w_commentary-key = text-k03.
+  CONCATENATE p_werks
+              '/'
+              nm_werks
+         INTO tx_info.
+  w_commentary-info = tx_info.
+  APPEND w_commentary TO t_commentary.
+  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+    EXPORTING
+      it_list_commentary = t_commentary.
+ENDFORM.                    "f4000_alv_display
+*&---------------------------------------------------------------------*
+*&      Form  F2400_WERKS_DESC
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2400_werks_desc .
+  SELECT SINGLE name1
+    INTO nm_werks
+    FROM t001w
+   WHERE werks = p_werks.
+  IF sy-subrc EQ 0.
+  ENDIF.
+ENDFORM.                    " F2400_WERKS_DESC
+*&---------------------------------------------------------------------*
+*&      Form  F1200_FILE_EXISTING_CHECK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+form F1200_FILE_EXISTING_CHECK USING us_file.
+  CALL METHOD cl_gui_frontend_services=>file_exist
+    EXPORTING
+      file                 = us_file
+    RECEIVING
+      result               = g_result
+    EXCEPTIONS
+      cntl_error           = 1
+      error_no_gui         = 2
+      wrong_parameter      = 3
+      not_supported_by_gui = 4
+      OTHERS               = 5.
+  IF sy-subrc NE 0
+  OR g_result NE c_x.
+    MESSAGE e004(zfi) WITH text-e00.
+*    MESSAGE s004(zfi) WITH text-e00 DISPLAY LIKE c_e.
+*    LEAVE TO LIST-PROCESSING.
+  ENDIF.
+endform.                    " F1200_FILE_EXISTING_CHECK
+

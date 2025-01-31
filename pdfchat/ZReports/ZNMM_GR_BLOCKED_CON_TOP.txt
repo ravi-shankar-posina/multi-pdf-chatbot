@@ -1,0 +1,160 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_OUTBOUND_PROCESSING_TOP
+*&---------------------------------------------------------------------*
+
+TYPES: BEGIN OF ty_final_ds,
+      lifnr TYPE elifn, "Vendor Number
+      name1 TYPE name1_gp,"Vendor Name
+      ebeln TYPE ebeln, "PO
+      ebelp TYPE ebelp, "PO Line Item
+      matnr TYPE matnr, "Material
+      maktx TYPE maktx, "Material Description
+      bwart TYPE bwart, "Movement type
+      speme TYPE speme, "Quantity in Vendor Blocked Stock
+      wespb TYPE wespb, "GR Blocked Stock
+      kspem TYPE kspem, "Blocked Consignment Stock
+      stprs TYPE p DECIMALS 3, "Standard Cost of item"added for 28.06.2014 CHG0479115 DE3K940883 502277866
+      salk3 TYPE salk3, "Line Value
+      werks TYPE werks_d,
+*Start of change by Santosh DE3K977157 20/02/2017
+      belnr TYPE mblnr,  "Material Document
+      bktxt TYPE bktxt,  "Material document text
+*End of change by Santosh DE3K977157 20/02/2017
+*Start of change by Santosh DE3K977394 06/03/2017
+      aedat TYPE aedat,
+*end of change by Santosh DE3K977394 06/03/2017
+     END OF ty_final_ds,
+
+     BEGIN OF ty_ekko_ds,
+      ebeln TYPE ebeln, "PO
+*Start of change by Santosh DE3K977394 06/03/2017
+      aedat TYPE aedat,
+*end of change by Santosh DE3K977394 06/03/2017
+      lifnr TYPE elifn, "Vendor Number
+     END OF ty_ekko_ds,
+
+     BEGIN OF ty_ekpo_ds,
+      ebeln TYPE ebeln, "PO
+      ebelp TYPE ebelp, "PO Line Item
+      matnr TYPE matnr, "Material
+      werks TYPE werks_d,
+      lgort TYPE lgort_d,"Storage location
+      bwtar TYPE bwtar_d," Valution type
+      END OF ty_ekpo_ds,
+
+    BEGIN OF ty_mbew_ds,
+      matnr TYPE matnr, "Material
+      bwkey TYPE bwkey,
+      bwtar TYPE bwtar_d,
+      salk3 TYPE salk3, "Line Value
+      stprs TYPE stprs, "Standard Cost of item
+     peinh TYPE peinh,
+      END OF ty_mbew_ds,
+
+      BEGIN OF ty_lfa1_ds,
+      name1 TYPE name1_gp, "Vendor Name
+      lifnr TYPE lifnr, "Vendor Number
+     END OF ty_lfa1_ds,
+
+     BEGIN OF ty_makt_ds,
+      maktx TYPE maktx, "Material Description
+      matnr TYPE matnr, "Material
+     END OF ty_makt_ds,
+
+    BEGIN OF ty_ekbe_ds,
+      ebeln TYPE ebeln,
+      ebelp TYPE ebelp,
+*Start of change by Santosh DE3K977157 20/02/2017
+      gjahr TYPE mjahr,  "Material Docuemnt year
+*End of change by Santosh DE3K977157 20/02/2017
+      belnr TYPE mblnr,
+      buzei TYPE mblpo," added on 03.08.2015 for CHG1371882 DE3K965104 by 502277866
+      menge TYPE menge_d,
+      bpwes TYPE bpwes,
+      bwart TYPE bwart,
+      matnr TYPE matnr,
+      werks TYPE werks_d,
+      END OF ty_ekbe_ds,
+
+*Start of change by Santosh DE3K977157 20/02/2017
+    BEGIN OF ty_mkpf,
+      mblnr TYPE mblnr,
+      mjahr TYPE mjahr,
+      bktxt TYPE bktxt,
+      END OF ty_mkpf,
+*End of change by Santosh DE3K977157 20/02/2017
+
+    BEGIN OF ty_mvrd_ds,
+      matnr TYPE matnr, "Material
+      werks TYPE werks_d, "plant
+      lgort TYPE lgort_d, "Storage Location
+      kspem TYPE kspem, "Blocked Consignment Stock
+      speme TYPE speme, "Quantity in Vendor Blocked Stock
+      END OF ty_mvrd_ds.
+
+DATA: gt_ekko_ds TYPE STANDARD TABLE OF ty_ekko_ds,
+      gi_ekko_ds TYPE ty_ekko_ds,
+      gt_ekpo_ds TYPE STANDARD TABLE OF ty_ekpo_ds,
+      gi_ekpo_ds TYPE ty_ekpo_ds,
+      gt_mbew_ds TYPE STANDARD TABLE OF ty_mbew_ds,
+      gi_mbew_ds TYPE ty_mbew_ds,
+      gt_lfa1_ds TYPE STANDARD TABLE OF ty_lfa1_ds,
+      gi_lfa1_ds TYPE ty_lfa1_ds,
+      gt_makt_ds TYPE STANDARD TABLE OF ty_makt_ds,
+      gi_makt_ds TYPE ty_makt_ds,
+     gt_ekbe_ds TYPE STANDARD TABLE OF ty_ekbe_ds,
+     gi_ekbe_ds TYPE ty_ekbe_ds,
+      gt_mvrd_ds TYPE STANDARD TABLE OF ty_mvrd_ds,
+      gi_mvrd_ds TYPE ty_mvrd_ds,
+      gt_final_ds TYPE STANDARD TABLE OF ty_final_ds,
+      gi_final_ds TYPE ty_final_ds,
+*Start of change by Santosh DE3K977157 20/02/2017
+      gt_mkpf    TYPE TABLE OF ty_mkpf,
+      gi_mkpf    TYPE ty_mkpf,
+*End of change by Santosh DE3K977157 20/02/2017
+      gt_ztuhcd1 TYPE STANDARD TABLE OF ztuhcd1,
+      gi_ztuhcd1 TYPE ztuhcd1.
+
+DATA: gt_fldcat_ds TYPE TABLE OF slis_fieldcat_alv.
+
+DATA: gv_vnum TYPE elifn,
+      gv_mat TYPE  matnr,
+      gv_purnum TYPE ebeln,
+      gv_poline TYPE ebelp,
+      gv_mov TYPE bwart,
+*Start of change by Santosh DE3K977394 06/03/2017
+      gv_plant TYPE werks_d,
+      gv_aedat TYPE aedat.
+*End of change by Santosh DE3K977394 06/03/2017
+****CHG0479115 start of changes DE3K923798  by 502277866 19.04.2014
+CONSTANTS : gc_prgname_nm TYPE progname VALUE 'ZRMM_GR_BLOCKED_CON',
+            gc_sign_tx TYPE char1 VALUE 'I',
+            gc_option_tx TYPE char2 VALUE 'EQ',
+            gc_key(4) VALUE 'MTYP',
+            gc_104(3) VALUE '104',"added for 28.06.2014 CHG0479115 DE3K940883 502277866
+            gc_105(3) VALUE '105',"added for 28.06.2014 CHG0479115 DE3K940883 502277866
+            gc_103(3) VALUE '103',"added for 28.06.2014 CHG0479115 DE3K940883 502277866
+            gc_106(3) VALUE '106',"added for 28.06.2014 CHG0479115 DE3K940883 502277866
+            gc_bwart(5) VALUE 'BWART'.
+DATA : gr_bwart TYPE RANGE OF bwart,
+       gi_bwart LIKE LINE OF gr_bwart.
+TYPES : BEGIN OF ty_grstock,
+         ebeln TYPE ebeln,
+         ebelp TYPE ebelp,
+         matnr TYPE matnr,
+         bpwes TYPE bpwes,
+         END OF ty_grstock,
+         BEGIN OF ty_mard,
+         matnr TYPE matnr,
+         werks TYPE werks_d,
+         lgort TYPE lgort_d,
+         kspem TYPE kspem,
+        END OF ty_mard.
+DATA : gt_grstock TYPE TABLE OF ty_grstock,
+       gt_grstock1 TYPE TABLE OF ty_grstock,
+       gi_grstock TYPE ty_grstock,
+       gi_grstock1 TYPE ty_grstock,
+       gt_mard TYPE TABLE OF ty_mard,
+       gi_mard TYPE ty_mard.
+****CHG0479115 end of changes DE3K923798  by 502277866 19.04.2014
+

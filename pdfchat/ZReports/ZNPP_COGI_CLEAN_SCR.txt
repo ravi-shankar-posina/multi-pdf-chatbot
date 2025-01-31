@@ -1,0 +1,20 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_COGI_CLEAN_SCR
+*&---------------------------------------------------------------------*
+SELECT-OPTIONS : s_plant FOR gw_werks OBLIGATORY ,
+                 s_lgort FOR gw_lgort,
+                 s_aufnr FOR gw_aufnr,
+                 s_matnr FOR gw_matnr,
+                 s_dispo FOR gw_dispo,
+                 s_bwart FOR gw_bwart,
+                 s_msgid FOR gw_msgid,
+                 s_msgno FOR gw_msgno,
+                 s_sobkz FOR gw_sobkz.
+
+AT SELECTION-SCREEN ON s_bwart.
+
+  SELECT * FROM t156 INTO TABLE gt_bwart WHERE bwart IN s_bwart.
+  IF sy-subrc NE 0.
+    MESSAGE 'Please provide valide Movement type '(001) TYPE 'E'.
+  ENDIF.
+

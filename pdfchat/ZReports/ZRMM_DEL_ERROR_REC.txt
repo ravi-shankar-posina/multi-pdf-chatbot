@@ -1,0 +1,62 @@
+*=======================================================================
+*= Copyright © 2013 GE IS                                              =
+*= ALL RIGHTS RESERVED                                                 =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZIMM_DEL_ERROR_REC
+* Created by        : Rajendra Kumar Singh, 503167886
+* Transport Request :
+* RICEF Object No   : RICEF2064
+* Transaction code  :
+* Change request No : GECHG0700048
+* Description       : This program will delete the unwanted records from Custom table manually.
+*****----------------------------------------------------------------***
+
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 15-Jan-2020       | GECHG0700048    |503167886 | Initial Development
+*
+*-----------------------------------------------------------------------------------------
+* DATE               | TR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*-----------------------------------------------------------------------------------------
+
+REPORT  ZRMM_DEL_ERROR_REC.
+
+* data declarations.
+ DATA : gt_zcustom TYPE STANDARD TABLE OF ztmm_infodet,
+        gi_zcustom type ztmm_infodet.
+
+
+* Selection screen.
+SELECTION-SCREEN BEGIN OF BLOCK b1 with FRAME.
+  SELECT-OPTIONS : s_vbeln for gi_zcustom-vbeln OBLIGATORY NO-EXTENSION NO INTERVALS,
+                   s_posnr for gi_zcustom-posnr OBLIGATORY NO-EXTENSION NO INTERVALS,
+                   s_idnlf FOR gi_zcustom-idnlf NO-EXTENSION NO INTERVALS.
+
+SELECTION-SCREEN END OF BLOCK b1.
+
+* Logic to delete the records as per selection screen.
+  SELECT SINGLE *
+     from ztmm_infodet
+     INTO  gi_zcustom
+     WHERE vbeln in s_vbeln and
+           posnr in s_posnr and
+           idnlf in s_idnlf.
+
+  IF sy-subrc = 0.
+
+   DELETE ztmm_infodet from  gi_zcustom.
+    IF sy-subrc eq 0.
+     MESSAGE i060(zmm)." MESSAGE ZMM 'The Record entry is deleted' TYPE 'I'.
+    ENDIF.
+
+  ELSE.
+    MESSAGE i072(zmm). "MESSAGE 'The Record entry was not found for Deletion' TYPE 'I'.
+  ENDIF.
+

@@ -1,0 +1,225 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_PI_SUMMARY_REPORT_TOP
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name             : ZRMM_PI_SUMMARY_REPORT_TOP
+* Created by       : Anil Kumar
+* Transport Request: DE3K9A0M72
+* RICEF Object No  : RICEF2684
+* Description      : PI Summary report and Phantom explosion programs.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*========================================================================================
+*** Change History                                                                  ***
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*****************************************************************************************
+*  DATE      |  TR NO.    |  CR No.    | Changed by  |  DESCRIPTION OF CHANG
+*****************************************************************************************
+*11/15/2023  |  DE3K9A0NN9|SCM-2684    | USANBOD11  |Physical_inventory Changes
+****************************************************************************************
+*09/05/2024  | DE3K9A0QXS | SCM-2684   | USANBOD11   | card lock-Get from PICT_1 table
+******************************************************************************************
+* CHANGED BY | DATE        | TR #       | CR No(   INCUM).  | DESCRIPTION OF CHANGE
+******************************************************************************
+* CHTAMUR     | 08/Nov/2024 | DE3K9A0U0J | 87274 | PICT Minor issue fixes
+*****************************************************************************************
+
+TYPE-POOLS: slis .
+
+TYPES: BEGIN OF ty_picc,
+         piyear  TYPE zde_piyear,
+         werks   TYPE werks_d,
+         version TYPE zde_version,
+       END OF ty_picc.
+
+TYPES: BEGIN OF ty_date,
+         piyear TYPE zde_piyear,
+         werks  TYPE werks_d,
+         pidate TYPE zde_pidate,
+       END OF ty_date.
+
+TYPES : BEGIN OF ty_pict.
+*          zcount TYPE zpict,
+*          werks  TYPE werks_d,
+*          gjahr  TYPE gjahr,
+*          INCCD  type ZPICT4 ,
+*          lgort  TYPE lgort_d,
+*          matnr  TYPE matnr,
+*          sobkz  TYPE sobkz,
+*          bstar  TYPE bstar,
+*          pspnr  TYPE ps_posnr,
+*          vbeln  TYPE vbeln_va,
+*          posnr  TYPE posnr_va,
+*          lifnr  TYPE elifn,
+*          IBLNR  TYPE IBLNR ,
+*          ZEILI  TYPE DZEILE ,
+*          alqty  TYPE erfmg,
+*          bsqty  TYPE menge_d,
+*          bkqty  TYPE zpict7,
+*          vbkqty TYPE zpict8,
+*          ECOUNT type ZPICT9 ,
+*          STPRS TYPE  ZDE_STPRS ,
+          INCLUDE STRUCTURE ztmm_pict_1 . " DE3K9A0QXS        USANBOD11
+        TYPES:       END OF  ty_pict .
+
+TYPES : BEGIN OF ty_final,
+          sel      TYPE flag,
+          werks    TYPE werks_d,
+          gjahr    TYPE gjahr,
+          lgort    TYPE lgort_d,
+* Start of Change for DE3K9A0U0J by CHTAMUR
+          prctr    TYPE ztmm_pict-prctr,
+          pcdesc   TYPE ztmm_pict-pcdesc,
+* End of Change for DE3K9A0U0J by CHTAMUR
+          matnr    TYPE matnr,
+          sobkz    TYPE sobkz,
+          bstar    TYPE bstar,
+          pspnr    TYPE ps_posnr,
+          vbeln    TYPE vbeln_va,
+          posnr    TYPE posnr_va,
+          lifnr    TYPE elifn,
+          alqty    TYPE erfmg,
+          bsqty    TYPE menge_d,
+          bkqty    TYPE zpict7,
+          vbkqty   TYPE zpict8,
+          iblnr    TYPE iblnr,
+          zeili    TYPE dzeile,
+          ecount   TYPE zpict9,
+          stprs    TYPE  zde_stprs,
+          dif_qty  TYPE zpict7,
+          dif_val  TYPE zpict8,
+          bk_flag  TYPE c,
+          flag_mnc TYPE c,
+          flag_cal TYPE c,
+*          CNT    TYPE I ,
+        END OF  ty_final .
+
+DATA: it_picc     TYPE TABLE OF ty_picc,                    "#EC NEEDED
+      wa_picc     TYPE ty_picc,                             "#EC NEEDED
+      it_date     TYPE TABLE OF ty_date,                    "#EC NEEDED
+      wa_date     TYPE ty_date,                             "#EC NEEDED
+      it_pict     TYPE STANDARD TABLE OF ty_pict , "ZTMM_PICT.  "#EC NEEDED
+      wa_pict     TYPE ty_pict,                             "#EC NEEDED
+      it_pict_dtl TYPE TABLE OF ty_pict,                    "#EC NEEDED
+      wa_pict_dtl TYPE ty_pict      .                       "#EC NEEDED
+
+DATA: it_final     TYPE STANDARD TABLE OF ty_final,         "#EC NEEDED
+      wa_final     TYPE ty_final,                           "#EC NEEDED
+      it_final_tmp TYPE STANDARD TABLE OF ty_final,         "#EC NEEDED
+      wa_final_tmp TYPE ty_final,                           "#EC NEEDED
+      it_final1    TYPE STANDARD TABLE OF ty_final,         "#EC NEEDED
+      wa_final1    TYPE ty_final.                           "#EC NEEDED
+
+DATA : lv_lines1 TYPE i .                                   "#EC NEEDED
+
+DATA : lv_flg_fcat TYPE c.                                  "#EC NEEDED
+
+DATA: gt_fcat        TYPE TABLE OF slis_fieldcat_alv.       "#EC NEEDED
+DATA: gw_fcat        LIKE LINE  OF gt_fcat.                 "#EC NEEDED
+DATA: gw_layo        TYPE          slis_layout_alv.         "#EC NEEDED
+DATA : gt_fieldcat TYPE slis_t_fieldcat_alv,
+       gi_fieldcat TYPE slis_fieldcat_alv.
+
+*** boc DE3K9A0NN9 SCM-2684  USANBOD11  Material not counted logic
+TYPES: BEGIN OF ty_mspr,
+         matnr TYPE matnr,
+         werks TYPE werks_d,
+         lgort TYPE lgort_d,
+         charg TYPE charg_d,
+         sobkz TYPE sobkz,
+         prlab TYPE labst,
+         prins TYPE labst,
+         prspe TYPE labst,
+       END OF ty_mspr .
+TYPES :
+  BEGIN OF ty_mska,
+    matnr TYPE matnr,
+    werks TYPE werks_d,
+    lgort TYPE lgort_d,
+    charg TYPE charg_d,
+    sobkz TYPE sobkz,
+    kalab TYPE labst,
+    kains TYPE labst,
+    kaspe TYPE labst,
+  END OF ty_mska .
+
+TYPES:
+  BEGIN OF ty_mard,
+    matnr TYPE matnr,
+    werks TYPE werks_d,
+    lgort TYPE lgort_d,
+*      CHARG TYPE CHARG,
+*      SOBKZ TYPE SOBKZ,
+    labst TYPE labst,
+    insme TYPE labst,
+    speme TYPE labst,
+  END OF ty_mard .
+
+DATA :       gw_labst     TYPE labst .
+
+DATA : gi_mspr      TYPE STANDARD TABLE OF ty_mspr WITH HEADER LINE.
+DATA :       gi_mska      TYPE STANDARD TABLE OF ty_mska WITH HEADER LINE .
+DATA :        gi_mssl      TYPE STANDARD TABLE OF mssl WITH HEADER LINE .
+DATA :       gi_mard      TYPE  STANDARD TABLE OF ty_mard WITH HEADER LINE..
+
+TYPES:BEGIN OF ty_iseg,
+        iblnr      TYPE iseg-iblnr,
+        gjahr      TYPE iseg-gjahr,
+        zeili      TYPE iseg-zeili,
+        matnr      TYPE iseg-matnr,
+        werks      TYPE iseg-werks,
+        lgort      TYPE iseg-lgort,
+        charg      TYPE iseg-charg,
+        sobkz      TYPE iseg-sobkz,
+        bstar      TYPE iseg-bstar,
+        kdauf      TYPE iseg-kdauf,
+        kdpos      TYPE iseg-kdpos,
+        lifnr      TYPE iseg-lifnr,
+        buchm      TYPE iseg-buchm,
+        dmbtr      TYPE iseg-dmbtr,
+        ps_psp_pnr TYPE iseg-ps_psp_pnr,
+        wrtzl      TYPE iseg-wrtzl,
+        wrtbm      TYPE iseg-wrtbm,
+        buchw      TYPE iseg-buchw,
+*        KDAUF      TYPE ISEG-KDAUF,
+*        KDPOS      TYPE ISEG-KDPOS,
+      END OF ty_iseg.
+
+DATA: gt_iseg         TYPE  TABLE OF ty_iseg,
+      ls_iseg         TYPE ty_iseg,
+      gt_no_mat_count TYPE TABLE OF ty_iseg,
+      it_pict1        TYPE STANDARD TABLE OF ty_pict . "ZTMM_PICT.  "#EC NEEDED
+TYPES : BEGIN OF ty_pict_mnc.
+          INCLUDE STRUCTURE ztmm_pict .
+          TYPES : flag_mnc TYPE c,
+          flag_cal TYPE c.
+TYPES:       END OF  ty_pict_mnc .
+DATA : it_pict_mnc TYPE  STANDARD TABLE OF ty_pict_mnc,
+       wa_pict_mnc TYPE ty_pict_mnc.
+TYPES:BEGIN OF ty_iseg_mnc,
+        iblnr      TYPE iseg-iblnr,
+        gjahr      TYPE iseg-gjahr,
+        zeili      TYPE iseg-zeili,
+        matnr      TYPE iseg-matnr,
+        werks      TYPE iseg-werks,
+        lgort      TYPE iseg-lgort,
+        charg      TYPE iseg-charg,
+        sobkz      TYPE iseg-sobkz,
+        bstar      TYPE iseg-bstar,
+        kdauf      TYPE iseg-kdauf,
+        kdpos      TYPE iseg-kdpos,
+        lifnr      TYPE iseg-lifnr,
+        buchm      TYPE iseg-buchm,
+        dmbtr      TYPE iseg-dmbtr,
+        ps_psp_pnr TYPE iseg-ps_psp_pnr,
+        wrtzl      TYPE iseg-wrtzl,
+        wrtbm      TYPE iseg-wrtbm,
+        buchw      TYPE iseg-buchw,
+        flag_mnc   TYPE c,
+        flag_cal   TYPE c,
+      END OF ty_iseg_mnc.
+DATA: gt_iseg_mnc TYPE  TABLE OF ty_iseg_mnc,
+      ls_iseg_mnc TYPE ty_iseg_mnc.
+*** eoc DE3K9A0NN9 SCM-2684  USANBOD11  Material not counted logic
+

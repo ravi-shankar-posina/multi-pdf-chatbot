@@ -1,0 +1,8 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_REPROCES_EXPORTBROKER_SEL
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1.
+SELECT-OPTIONS: s_date FOR ztmm_exp_cls_log-run_date OBLIGATORY,
+                s_matnr FOR ztmm_exp_cls_log-objectkey.
+SELECTION-SCREEN END OF BLOCK b1.
+

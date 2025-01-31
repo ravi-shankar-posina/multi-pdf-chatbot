@@ -1,0 +1,930 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_REALTIME_SHPDATA_FORM
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  SELECT_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM select_data .
+*Select Sales order related data
+*  SELECT a~vbeln
+*         a~lifsk
+*         a~vdatu
+*         a~kunnr
+*         a~autlf
+*         b~posnr
+*         b~matnr
+*         b~posex
+*         b~lprio
+*         b~werks
+*   INTO TABLE gt_vbak_vbap_ds
+*    FROM vbak AS a
+*    INNER JOIN vbap AS b
+*    ON a~vbeln = b~vbeln
+*    WHERE b~werks IN gs_werks
+*      AND a~lifsk IN gs_lifsk
+*      AND a~kunnr IN gs_kunnr
+*      AND a~vdatu IN gs_vdatu.
+*  IF sy-subrc IS INITIAL.
+*    gt_vbak_vbap_ds1[] = gt_vbak_vbap_ds[].
+*    SORT gt_vbak_vbap_ds BY vbeln posnr.
+*    SORT gt_vbak_vbap_ds1 BY werks matnr.
+*    DELETE ADJACENT DUPLICATES FROM gt_vbak_vbap_ds1 COMPARING werks matnr.
+*Select Prodeuction Order details based on Sales order
+  SELECT a~aufnr
+         a~objnr
+         a~kdauf
+         a~kdpos
+         b~stat
+         b~chgnr
+         b~usnam
+         b~udate
+         b~utime
+    INTO TABLE gt_aufk_jcds_ds
+    FROM aufk AS a
+    INNER JOIN jcds AS b
+    ON a~objnr = b~objnr
+    WHERE a~werks IN gs_werks
+      AND b~udate IN gs_udate
+      AND b~stat  = gc_stat.
+  IF sy-subrc IS INITIAL.
+*      SORT gt_aufk_ds BY kdauf kdpos.
+    SORT gt_aufk_jcds_ds BY objnr stat ASCENDING chgnr DESCENDING.
+    SELECT aufnr
+           psmng
+      FROM afpo
+      INTO TABLE gt_afpo_ds
+      FOR ALL ENTRIES IN gt_aufk_jcds_ds
+      WHERE aufnr = gt_aufk_jcds_ds-aufnr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_afpo_ds BY aufnr.
+    ENDIF.
+
+*Select Sales order related data
+    SELECT vbeln
+           auart     "Added by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+           lifsk
+           vdatu
+           kunnr
+           autlf
+      FROM vbak
+      INTO TABLE gt_vbak_ds
+      FOR ALL ENTRIES IN gt_aufk_jcds_ds
+      WHERE ( vbeln = gt_aufk_jcds_ds-kdauf
+      AND vbeln IN gs_vbeln ). " Changed by 502287934  CHG1407193   DE3K964959
+
+    IF sy-subrc IS INITIAL.
+      SORT gt_vbak_ds BY vbeln.
+      SELECT vbeln
+             posnr
+             matnr
+             posex
+             lprio
+             werks
+             zwadat   "Added by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+        FROM vbap
+        INTO TABLE gt_vbap_ds
+        FOR ALL ENTRIES IN gt_vbak_ds
+        WHERE vbeln = gt_vbak_ds-vbeln
+          AND werks IN gs_werks
+          AND zwadat IN gs_wadat.     "Added by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+      IF sy-subrc IS INITIAL.
+        gt_vbap_ds1[] = gt_vbap_ds[].
+        SORT gt_vbap_ds BY vbeln posnr.
+        SORT gt_vbap_ds1 BY werks matnr.
+        DELETE ADJACENT DUPLICATES FROM gt_vbap_ds1 COMPARING werks matnr.
+*Begin of changes done by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+        SELECT vbeln
+               posnr
+               fkdat
+          FROM vbkd
+          INTO TABLE gt_vbkd_ds
+          FOR ALL ENTRIES IN gt_vbap_ds
+          WHERE vbeln = gt_vbap_ds-vbeln
+          AND fkdat IN gs_vdatu.  "Added by Vijay Kumar N CHG1440132  DE3K966010  08/09/2015
+        IF sy-subrc = 0.
+          SORT gt_vbkd_ds BY vbeln.
+        ENDIF.
+        SELECT vbeln
+               posnr
+               etenr
+               edatu
+          FROM vbep
+          INTO TABLE gt_vbep_ds
+          FOR ALL ENTRIES IN gt_vbap_ds
+          WHERE vbeln = gt_vbap_ds-vbeln
+          AND edatu IN gs_vdatu.  "Added by Vijay Kumar N CHG1440132 DE3K966010  08/09/2015
+        IF sy-subrc = 0.
+          SORT gt_vbep_ds BY vbeln.
+        ENDIF.
+*End of changes done by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+*Select plant based material details
+        SELECT matnr
+               werks
+               dispo
+          FROM marc
+          INTO TABLE gt_marc_ds
+          FOR ALL ENTRIES IN gt_vbap_ds1
+          WHERE matnr = gt_vbap_ds1-matnr
+           AND  werks = gt_vbap_ds1-werks
+           AND  dispo IN gs_dispo. " Changed by 502287934  CHG1407193      DE3K964959
+        IF sy-subrc IS INITIAL.
+          SORT gt_marc_ds BY matnr werks.
+        ENDIF.
+
+*select document flow data relating sales order and deliveries
+        SELECT vbelv
+               posnv
+               vbeln
+               vbtyp_n
+               rfmng
+               erdat
+               erzet
+          FROM vbfa
+          INTO TABLE gt_vbfa_ds
+          FOR ALL ENTRIES IN gt_vbap_ds
+          WHERE vbelv = gt_vbap_ds-vbeln
+            AND posnv = gt_vbap_ds-posnr.
+        IF sy-subrc IS INITIAL.
+*Begin of changs done by Vijay Kumar N CHG1440132 DE3K966010 08/09/2015
+*          SORT gt_vbfa_ds BY vbeln vbtyp_n.
+          SORT gt_vbfa_ds BY vbeln posnv vbtyp_n.
+*Select Deliveries realted details
+*          SELECT vbeln
+*                 lddat
+*                 tddat
+*                 kodat
+*                 expkz
+*                 wadat_ist
+*                 kouhr
+*                 tduhr
+*                 lduhr
+*                 spe_wauhr_ist
+**             vbeln
+*            FROM likp
+*            INTO TABLE gt_likp_ds
+*            FOR ALL ENTRIES IN gt_vbfa_ds
+*            WHERE vbeln = gt_vbfa_ds-vbeln
+**Begin of code Commented by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+**              AND wadat IN  gs_pgidt " Changed by 502287934  CHG1407193   DE3K964959
+**End of code Commented by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+*              AND wadat_ist IN gs_pgidt. "gs_wadat.
+          OPEN CURSOR c1 FOR
+           SELECT a~vbeln
+                  b~posnr
+                  b~posnv
+                  a~lddat
+                  a~tddat
+                  a~kodat
+                  a~expkz
+                  a~wadat_ist
+                  a~kouhr
+                  a~tduhr
+                  a~lduhr
+                  a~spe_wauhr_ist
+* Start of changes by 502431892 GERITM2887400 28/05/2019
+                  a~erdat
+                  a~erzet
+* End of changes by 502431892 GERITM2887400 28/05/2019
+            FROM likp AS a INNER JOIN
+                 lips AS b ON a~vbeln = b~vbeln
+            FOR ALL ENTRIES IN gt_vbfa_ds
+            WHERE a~vbeln = gt_vbfa_ds-vbeln
+            AND b~posnv = gt_vbfa_ds-posnv
+            AND wadat_ist IN gs_pgidt.
+          FETCH NEXT CURSOR c1
+          INTO TABLE gt_likp_ds.
+          CLOSE CURSOR c1.
+*End of chanes done by Vijay Kumar N CHG1440132 DE3K966010  08/09/2015
+          IF sy-subrc IS INITIAL.
+*Select Handling Unit details
+            SELECT exidv
+                   exidv2
+                   vpobjkey
+              FROM vekp
+              INTO TABLE gt_vekp_ds
+              FOR ALL ENTRIES IN gt_likp_ds
+              WHERE vpobjkey = gt_likp_ds-vbeln."vpobjkey.
+            IF sy-subrc IS INITIAL.
+              SORT gt_vekp_ds BY vpobjkey.
+            ENDIF.
+          ENDIF.
+*Select Shipment details based on deliveries
+          SELECT vbeln
+                 tknum
+            FROM vttp
+            INTO TABLE gt_vttp_ds
+            FOR ALL ENTRIES IN gt_likp_ds
+            WHERE vbeln = gt_likp_ds-vbeln+0(10).
+          IF sy-subrc IS INITIAL.
+            SORT gt_vttp_ds BY vbeln.
+            SELECT tknum
+                   tdlnr
+              FROM vttk
+              INTO TABLE gt_vttk_ds
+              FOR ALL ENTRIES IN gt_vttp_ds
+              WHERE tknum = gt_vttp_ds-tknum.
+            IF sy-subrc IS INITIAL.
+              SORT gt_vttk_ds BY tknum.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+*Select Change Documents for System/User Statuses details based on Production order number
+*      SELECT objnr
+*             stat
+*             chgnr
+*             usnam
+*             udate
+*             utime
+*        FROM jcds
+*        INTO TABLE gt_jcds_ds
+*        FOR ALL ENTRIES IN gt_aufk_ds
+*        WHERE objnr = gt_aufk_ds-objnr
+*          AND stat  = gc_stat                              "'I0009'.
+*          AND udate IN gs_udate.
+*      IF sy-subrc IS INITIAL.
+*        SORT gt_jcds_ds BY objnr stat ASCENDING chgnr DESCENDING.
+  ENDIF.
+*  ENDIF.
+ENDFORM.                    " SELECT_DATA
+*&---------------------------------------------------------------------*
+*&      Form  PREPARE_FINAL_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM prepare_final_data .
+*Looping at deliveries details
+* Start of changes by 502431892 GERITM2887400 28/05/2019
+  SORT gt_aufk_jcds_ds BY kdauf kdpos.
+  SORT gt_vbap_ds BY vbeln.
+* End of changes by 502431892 GERITM2887400 28/05/2019
+  LOOP AT gt_likp_ds INTO gi_likp_ds.
+* Start of changes by 502431892 GERITM2887400 28/05/2019
+    gw_count = gw_count + 1.
+* End of changes by 502431892 GERITM2887400 28/05/2019
+*Populating Sales Order details
+    READ TABLE gt_vbfa_ds INTO gi_vbfa_ds WITH KEY vbeln = gi_likp_ds-vbeln
+                                                   posnv = gi_likp_ds-posnv   "Added by Vijay Kumar N CHG1440132 DE3K966010 08/09/2015
+                                                   vbtyp_n = 'J' BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      CONCATENATE gi_vbfa_ds-erdat+4(2) gi_vbfa_ds-erdat+6(2)
+      gi_vbfa_ds-erdat+0(4) INTO gi_final_ds-erdat SEPARATED BY '/'.
+
+      CONCATENATE gi_vbfa_ds-erzet+0(2) gi_vbfa_ds-erzet+2(2)
+      INTO gi_final_ds-erzet SEPARATED BY ':'.
+
+      CONCATENATE gi_final_ds-erdat gi_final_ds-erzet
+      INTO gi_final_ds-del_stamp SEPARATED BY ','.
+
+      READ TABLE gt_vbap_ds INTO gi_vbap_ds WITH KEY vbeln = gi_vbfa_ds-vbelv
+                                                     posnr = gi_vbfa_ds-posnv
+                                                     BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_final_ds-vbeln_s = gi_vbap_ds-vbeln.
+        gi_final_ds-posnr_s = gi_vbap_ds-posnr.
+*        gi_final_ds-posnr   = gi_vbap_ds-posnr.
+        gi_final_ds-posex   = gi_vbap_ds-posex.
+        gi_final_ds-matnr   = gi_vbap_ds-matnr.
+        gi_final_ds-werks   = gi_vbap_ds-werks.
+        gi_final_ds-lprio   = gi_vbap_ds-lprio.
+        gi_final_ds-zwadat  = gi_vbap_ds-zwadat.  "Added by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+
+        READ TABLE gt_vbak_ds INTO gi_vbak_ds WITH KEY vbeln = gi_vbap_ds-vbeln BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-lifsk   = gi_vbak_ds-lifsk.
+*Begin of changes done by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+          IF gi_vbak_ds-auart = 'ZLV1' OR gi_vbak_ds-auart = 'ZLV2'.
+            READ TABLE gt_vbkd_ds INTO gi_vbkd_ds WITH KEY vbeln = gi_vbak_ds-vbeln.
+            IF sy-subrc = 0.
+              gi_final_ds-vdatu   = gi_vbkd_ds-fkdat.
+            ENDIF.
+          ELSE.
+*Begin of changes done by Vijay Kumar N CHG1440132 DE3K966010  08/09/2015
+*            READ TABLE gt_vbep_ds INTO gi_vbep_ds WITH KEY vbeln = gi_vbak_ds-vbeln
+            READ TABLE gt_vbep_ds INTO gi_vbep_ds WITH KEY vbeln = gi_vbap_ds-vbeln
+                                                           posnr = gi_vbap_ds-posnr
+*End of changes done by Vijay Kumar N  CHG1440132 DE3K966010  08/09/2015
+                                                           etenr = '1'.
+            IF sy-subrc = 0.
+              gi_final_ds-vdatu   = gi_vbep_ds-edatu.
+*Begin of changes done by Vijay Kumar N CHG1440132 DE3K966010  08/09/2015
+            ELSE.
+              IF NOT gs_vdatu IS INITIAL.
+                CONTINUE.
+              ENDIF.
+*End of changes done by Vijay Kumar N CHG1440132 DE3K966010  08/09/2015
+            ENDIF.
+          ENDIF.
+*Begin of changes done by Vijay Kumar N CHG1440132 DE3K966010  08/09/2015
+*          IF gi_final_ds-vdatu IS INITIAL.
+**End of changes done by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+*            gi_final_ds-vdatu   = gi_vbak_ds-vdatu.
+*          ENDIF.  "Added by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+*End of changes done by Vijay Kumar N CHG1440132 DE3K966010  08/09/2015
+          gi_final_ds-autlf   = gi_vbak_ds-autlf.
+        ENDIF.
+
+*Populating Production Order number details
+        READ TABLE gt_aufk_jcds_ds INTO gi_aufk_jcds_ds WITH KEY kdauf = gi_vbap_ds-vbeln
+                                                                 kdpos = gi_vbap_ds-posnr.   " changes started by 502287934 for CRNO CHG1350046
+* Start of changes by 502431892 GERITM2887400 28/05/2019
+* End of changes by 502431892 GERITM2887400 28/05/2019
+        IF sy-subrc IS INITIAL.
+* Start of changes by 502431892 GERITM2887400 28/05/2019
+*          gi_final_ds-aufnr = gi_aufk_jcds_ds-aufnr.
+          gw_index = sy-tabix.
+          IF gi_vbap_ds-vbeln <> gw_order.
+            gw_count = 1.
+            gw_order = gi_vbap_ds-vbeln.
+          ENDIF.
+          LOOP AT gt_aufk_jcds_ds INTO gi_aufk_jcds_ds FROM gw_index." WHERE udate LE gi_likp_ds-erdat
+            "AND   utime LE gi_likp_ds-erzet.
+            IF gi_aufk_jcds_ds-kdauf <> gi_vbap_ds-vbeln.
+              EXIT.
+            ENDIF.
+*            gw_count1 = gw_count1 + 1.
+*            IF gw_count <> gw_count1.
+**              CONTINUE.
+*            ENDIF.
+*          ENDLOOP.
+            gi_final_ds-aufnr = gi_aufk_jcds_ds-aufnr.
+* End of changes by 502431892 GERITM2887400 28/05/2019
+            gi_final_ds-kdauf = gi_aufk_jcds_ds-kdauf.
+            gi_final_ds-kdpos = gi_aufk_jcds_ds-kdpos.
+            gi_final_ds-objnr = gi_aufk_jcds_ds-objnr.
+            gi_final_ds-usnam = gi_aufk_jcds_ds-usnam.
+            CONCATENATE gi_aufk_jcds_ds-udate+4(2) gi_aufk_jcds_ds-udate+6(2)
+            gi_aufk_jcds_ds-udate+0(4) INTO gi_final_ds-udate SEPARATED BY '/'.
+            CONCATENATE gi_aufk_jcds_ds-utime+0(2) gi_aufk_jcds_ds-utime+2(2)
+            INTO gi_final_ds-utime SEPARATED BY ':'.
+            CONCATENATE gi_final_ds-udate gi_final_ds-utime gi_final_ds-usnam
+            INTO gi_final_ds-conf_stamp SEPARATED BY ','.
+
+            READ TABLE gt_vbfa_ds INTO gi_vbfa_ds WITH KEY vbelv = gi_vbap_ds-vbeln
+                                                           vbeln = gi_likp_ds-vbeln  " Code added by 502287934   CHG1407193    DE3K964959
+                                                           posnv = gi_vbap_ds-posnr
+                                                           vbtyp_n = 'R'.
+*          IF sy-subrc IS INITIAL. " code commented by 502287934  CHG1407193   DE3K964959
+            gi_final_ds-rfmng = gi_vbfa_ds-rfmng.
+*          ENDIF.                  " code commented by 502287934  CHG1407193   DE3K964959
+
+            READ TABLE gt_marc_ds INTO gi_marc_ds WITH KEY matnr = gi_vbap_ds-matnr
+                                                           werks = gi_vbap_ds-werks
+                                                           BINARY SEARCH.
+            IF sy-subrc IS INITIAL.
+              gi_final_ds-dispo = gi_marc_ds-dispo.
+* Start of changes 502287934  CHG1407193    DE3K964959
+            ELSE.
+              CLEAR gi_final_ds.
+              CONTINUE.
+* End of changes 502287934  CHG1407193    DE3K964959
+            ENDIF.
+
+            READ TABLE gt_afpo_ds INTO gi_afpo_ds WITH KEY aufnr = gi_aufk_jcds_ds-aufnr
+                                                                    BINARY SEARCH.
+            IF sy-subrc IS INITIAL.
+              gi_final_ds-psmng = gi_afpo_ds-psmng.
+              IF gi_final_ds-rfmng = 0 AND gi_final_ds-psmng <> 0.
+                CONCATENATE '0' gc_sep gi_final_ds-psmng INTO gi_final_ds-service SEPARATED BY space.
+              ELSEIF gi_final_ds-rfmng <> 0 AND gi_final_ds-psmng <> 0.
+                CONCATENATE gi_final_ds-rfmng gc_sep gi_final_ds-psmng INTO gi_final_ds-service SEPARATED BY space.
+              ELSEIF  gi_final_ds-rfmng <> 0 AND gi_final_ds-psmng = 0.
+                CONCATENATE gi_final_ds-rfmng gc_sep '0'  INTO gi_final_ds-service SEPARATED BY space.
+              ELSEIF  gi_final_ds-rfmng = 0 AND gi_final_ds-psmng = 0.
+                CONCATENATE '0' gc_sep '0'  INTO gi_final_ds-service SEPARATED BY space.
+              ENDIF.
+            ENDIF.
+
+            gi_final_ds-expkz     = gi_likp_ds-expkz.
+            gi_final_ds-vbeln_d   = gi_likp_ds-vbeln.
+*COnverting Timestamps into readable format
+            CONCATENATE gi_likp_ds-kodat+4(2) gi_likp_ds-kodat+6(2)
+             gi_likp_ds-kodat+0(4) INTO gi_final_ds-kodat SEPARATED BY '/'.
+            CONCATENATE gi_likp_ds-kouhr+0(2) gi_likp_ds-kouhr+2(2)
+             INTO gi_final_ds-kouhr SEPARATED BY ':'.
+            CONCATENATE gi_final_ds-kodat gi_final_ds-kouhr
+             INTO gi_final_ds-pick_stamp SEPARATED BY ','.
+
+            CONCATENATE gi_likp_ds-lddat+4(2) gi_likp_ds-lddat+6(2)
+             gi_likp_ds-lddat+0(4) INTO gi_final_ds-lddat SEPARATED BY '/'.
+            CONCATENATE gi_likp_ds-lduhr+0(2) gi_likp_ds-lduhr+2(2)
+             INTO gi_final_ds-lduhr SEPARATED BY ':'.
+            CONCATENATE gi_final_ds-lddat gi_final_ds-lduhr
+             INTO gi_final_ds-pack_stamp SEPARATED BY ','.
+
+            CONCATENATE gi_likp_ds-tddat+4(2) gi_likp_ds-tddat+6(2)
+             gi_likp_ds-tddat+0(4) INTO gi_final_ds-tddat SEPARATED BY '/'.
+            CONCATENATE gi_likp_ds-tduhr+0(2) gi_likp_ds-tduhr+2(2)
+             INTO gi_final_ds-tduhr SEPARATED BY ':'.
+            CONCATENATE gi_final_ds-tddat gi_final_ds-tduhr
+             INTO gi_final_ds-ship_stamp SEPARATED BY ','.
+
+            CONCATENATE gi_likp_ds-wadat_ist+4(2) gi_likp_ds-wadat_ist+6(2)
+             gi_likp_ds-wadat_ist+0(4) INTO gi_final_ds-wadat_ist SEPARATED BY '/'.
+            CONCATENATE gi_likp_ds-spe_wauhr_ist+0(2) gi_likp_ds-spe_wauhr_ist+2(2)
+             INTO gi_final_ds-spe_wauhr SEPARATED BY ':'.
+            CONCATENATE gi_final_ds-wadat_ist gi_final_ds-spe_wauhr
+             INTO gi_final_ds-pgi_stamp SEPARATED BY ','.
+*populating handling unit details
+            READ TABLE gt_vekp_ds INTO gi_vekp_ds WITH KEY vpobjkey = gi_likp_ds-vbeln
+                                                                      BINARY SEARCH.
+            IF sy-subrc IS INITIAL.
+              gi_final_ds-exidv  = gi_vekp_ds-exidv.
+              gi_final_ds-exidv2 = gi_vekp_ds-exidv2.
+            ENDIF.
+*Populating shipment details
+            READ TABLE gt_vttp_ds INTO gi_vttp_ds WITH KEY vbeln = gi_likp_ds-vbeln
+                                                                     BINARY SEARCH.
+            IF sy-subrc IS INITIAL.
+              gi_final_ds-tknum  = gi_vttp_ds-tknum.
+              READ TABLE gt_vttk_ds INTO gi_vttk_ds WITH KEY tknum = gi_vttp_ds-tknum
+                                                                     BINARY SEARCH.
+              IF sy-subrc IS INITIAL.
+                gi_final_ds-tdlnr = gi_vttk_ds-tdlnr.
+              ENDIF.
+            ENDIF.
+
+*          READ TABLE gt_jcds_ds INTO gi_jcds_ds WITH KEY objnr = gi_aufk_ds-objnr
+*                                                         stat = gc_stat. "'I0009'.
+*          IF sy-subrc IS INITIAL.
+*            gi_final_ds-usnam = gi_jcds_ds-usnam.
+*            CONCATENATE gi_jcds_ds-udate+4(2) gi_jcds_ds-udate+6(2)
+*            gi_jcds_ds-udate+0(4) INTO gi_final_ds-udate SEPARATED BY '/'.
+*            CONCATENATE gi_jcds_ds-utime+0(2) gi_jcds_ds-utime+2(2)
+*             INTO gi_final_ds-utime SEPARATED BY ':'.
+*            CONCATENATE gi_final_ds-udate gi_final_ds-utime gi_final_ds-usnam
+*             INTO gi_final_ds-conf_stamp SEPARATED BY ','.
+*          ENDIF.
+*Appending if Production Order details exists
+            APPEND gi_final_ds TO gt_final_ds.
+* Start of changes by 502431892 GERITM2887400 28/05/2019
+          ENDLOOP.
+          gw_count1 = 0.
+* End of changes by 502431892 GERITM2887400 28/05/2019
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    CLEAR: gi_final_ds , gi_marc_ds, gi_likp_ds, gi_jcds_ds, gi_vbfa_ds, gi_vbak_vbap_ds, gi_vekp_ds, gi_vttk_ds,
+           gi_vttp_ds, gi_aufk_ds, gi_afpo_ds, gi_vbak_ds, gi_vbap_ds, gi_vbap_ds1, gi_aufk_jcds_ds.
+  ENDLOOP.
+* Start of changes by 502431892 GERITM2887400 28/05/2019
+*  SORT gt_final_ds BY aufnr.
+  gw_count = 0.
+  PERFORM delete_duplicates.
+*  DELETE ADJACENT DUPLICATES FROM gt_final_ds COMPARING aufnr.
+* End of changes by 502431892 GERITM2887400 28/05/2019
+ENDFORM.                    " PREPARE_FINAL_DATA
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_fieldcatalog .
+  REFRESH gt_fldcat_ds.
+  CONSTANTS : lc_tabname(30) TYPE c VALUE 'GT_FINAL_DS'.
+  PERFORM popu_fcatf USING:
+            lc_tabname  'UDATE'      text-b01    ,
+            lc_tabname  'VBELN_S'    text-b02    ,
+            lc_tabname  'POSNR_S'    text-b03    ,
+            lc_tabname  'POSEX'      text-b04    ,
+            lc_tabname  'DISPO'      text-b05    ,
+            lc_tabname  'MATNR'      text-b06    ,
+            lc_tabname  'LIFSK'      text-b07     ,
+            lc_tabname  'AUTLF'      text-b08     ,
+            lc_tabname  'EXPKZ'      text-b09    ,
+            lc_tabname  'LPRIO'      text-b10   ,
+            lc_tabname  'AUFNR'      text-b11   ,
+*Begin of changes done by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+*            lc_tabname  'WADAT_IST'  text-b12   ,
+            lc_tabname  'ZWADAT'  text-b12   ,
+            lc_tabname  'VDATU'      text-b24   ,
+*End of changes done by Vijay Kumar N CHG1427209 DE3K965854  01/09/2015
+            lc_tabname  'CONF_STAMP' text-b13    ,
+            lc_tabname  'DEL_STAMP'  text-b14     ,
+            lc_tabname  'VBELN_D'    text-b15    ,
+            lc_tabname  'PICK_STAMP' text-b16    ,
+            lc_tabname  'SERVICE'    text-b17     ,
+            lc_tabname  'PACK_STAMP' text-b18     ,
+            lc_tabname  'EXIDV'      text-b19    ,
+            lc_tabname  'SHIP_STAMP' text-b20    ,
+            lc_tabname  'TDLNR'      text-b21    ,
+            lc_tabname  'EXIDV2'     text-b22    ,
+            lc_tabname  'PGI_STAMP'  text-b23 .
+ENDFORM.                    " BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  POPU_FCATF
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM popu_fcatf USING   lp_tabname_ds       TYPE slis_tabname
+                        lp_fieldname_ds     TYPE slis_fieldname
+                        lp_reptext_ddic_ds  TYPE reptext.
+
+  gw_col_pos = gw_col_pos + 1.
+
+  gi_fld_ds-col_pos       = gw_col_pos.
+  gi_fld_ds-tabname       = lp_tabname_ds.
+  gi_fld_ds-fieldname     = lp_fieldname_ds.
+  gi_fld_ds-reptext_ddic  = lp_reptext_ddic_ds.
+
+  APPEND gi_fld_ds TO gt_fldcat_ds.
+  CLEAR gi_fld_ds.
+  SORT gt_fldcat_ds BY col_pos.
+ENDFORM.                    "popu_fcatf
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output .
+  DATA     : li_layout_ds TYPE slis_layout_alv.
+  CONSTANTS: gc_x         TYPE c VALUE 'X'.
+
+  li_layout_ds-colwidth_optimize = gc_x.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer = 'X'
+      i_buffer_active    = space
+      i_save             = 'A'
+      i_callback_program = sy-repid
+      is_layout          = li_layout_ds
+      it_fieldcat        = gt_fldcat_ds
+    TABLES
+      t_outtab           = gt_final_ds
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE 'I'  NUMBER sy-msgno
+       WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+ENDFORM.                    "display_output
+*&---------------------------------------------------------------------*
+*&      Form  FTP_SERVER
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+***Start of comments on 12-Apr-2017   for CHG2532220 DE3K974944
+*FORM  ftp_server .
+***Start of comm
+*  DATA:
+*    lv_user(30) TYPE c,
+*    lv_pass(30) TYPE c,
+*    lv_host(64) TYPE c,
+*    lv_slen TYPE i,
+*    lv_key  TYPE i VALUE 26101957,
+*    lv_handle TYPE i,
+*    lv_dest LIKE rfcdes-rfcdest VALUE 'SAPFTPA',
+*    lv_message(200) TYPE c,
+*    lt_result TYPE TABLE OF text WITH HEADER LINE,
+*    lv_fname(200) TYPE c VALUE 'REALTIME_SHPDATA_XXXX',
+*    lv_ptext TYPE symsgv.
+*
+*  TYPES: BEGIN OF ty_file,
+*          text(1000) TYPE c,
+*         END OF ty_file.
+*
+*  DATA: gt_file TYPE TABLE OF ty_file,
+*        gi_file TYPE ty_file.
+*
+*  CONCATENATE text-b01
+*              text-b02
+*              text-b03
+*              text-b04
+*              text-b05
+*              text-b06
+*              text-b07
+*              text-b08
+*              text-b09
+*              text-b10
+*              text-b11
+*              text-b12
+*              text-b24
+*              text-b13
+*              text-b14
+*              text-b15
+*              text-b16
+*              text-b17
+*              text-b18
+*              text-b19
+*              text-b20
+*              text-b21
+*              text-b22
+*              text-b23
+*              INTO gi_file SEPARATED BY ','.
+*  APPEND gi_file TO gt_file.
+*  CLEAR : gi_file.
+*
+*  LOOP AT  gt_final_ds INTO gi_final_ds.
+*
+*    REPLACE ALL OCCURRENCES OF ',' IN gi_final_ds-conf_stamp WITH '|'.
+*    REPLACE ALL OCCURRENCES OF ',' IN gi_final_ds-del_stamp  WITH '|'.
+*    REPLACE ALL OCCURRENCES OF ',' IN gi_final_ds-pick_stamp WITH '|'.
+*    REPLACE ALL OCCURRENCES OF ',' IN gi_final_ds-pack_stamp WITH '|'.
+*    REPLACE ALL OCCURRENCES OF ',' IN gi_final_ds-ship_stamp WITH '|'.
+*    REPLACE ALL OCCURRENCES OF ',' IN gi_final_ds-pgi_stamp  WITH '|'.
+*
+*    CONCATENATE gi_final_ds-udate
+*                gi_final_ds-vbeln_s
+*                gi_final_ds-posnr_s
+*                gi_final_ds-posex
+*                gi_final_ds-dispo
+*                gi_final_ds-matnr
+*                gi_final_ds-lifsk
+*                gi_final_ds-autlf
+*                gi_final_ds-expkz
+*                gi_final_ds-lprio
+*                gi_final_ds-aufnr
+*                gi_final_ds-zwadat
+*                gi_final_ds-vdatu
+*                gi_final_ds-conf_stamp
+*                gi_final_ds-del_stamp
+*                gi_final_ds-vbeln_d
+*                gi_final_ds-pick_stamp
+*                gi_final_ds-service
+*                gi_final_ds-pack_stamp
+*                gi_final_ds-exidv
+*                gi_final_ds-ship_stamp
+*                gi_final_ds-tdlnr
+*                gi_final_ds-exidv2
+*                gi_final_ds-pgi_stamp
+*               INTO gi_file SEPARATED BY ','.
+*    APPEND gi_file TO gt_file.
+*    CLEAR : gi_file, gi_final_ds.
+*  ENDLOOP.
+*
+*  READ TABLE gs_werks INDEX 1.
+*  REPLACE ALL OCCURRENCES OF 'XXXX'
+*    IN lv_fname WITH gs_werks-low.
+*  CONCATENATE p_ftpf lv_fname '_' sy-datum '_' sy-uzeit '.CSV' INTO lv_fname.
+*
+** HTTP_SCRAMBLE: used to scramble the password provided into a format,
+** which is been recognized by SAP
+*  lv_pass = p_pass.
+*  lv_slen = strlen( p_pass ).
+*
+*  CALL FUNCTION 'HTTP_SCRAMBLE'
+*    EXPORTING
+*      source      = lv_pass
+*      sourcelen   = lv_slen
+*      key         = lv_key
+*    IMPORTING
+*      destination = lv_pass.
+*
+** To Connect to the Server using FTP
+*  lv_user = p_user.
+*  lv_host = p_host.
+*
+*  CALL FUNCTION 'FTP_CONNECT'
+*    EXPORTING
+*      user            = lv_user
+*      password        = lv_pass
+*      host            = lv_host
+*      rfc_destination = lv_dest
+*    IMPORTING
+*      handle          = lv_handle
+*    EXCEPTIONS
+*      OTHERS          = 1.
+*  IF sy-subrc <> 0.
+*    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4
+*      INTO lv_message.
+*    WRITE: / lv_message.
+*    EXIT.
+*  ENDIF.
+*
+*  CALL FUNCTION 'FTP_R3_TO_SERVER'
+*    EXPORTING
+*      handle         = lv_handle
+*      fname          = lv_fname
+*      character_mode = 'X'
+*    TABLES
+*      text           = gt_file "gt_final_ds
+*    EXCEPTIONS
+*      tcpip_error    = 1
+*      command_error  = 2
+*      data_error     = 3
+*      OTHERS         = 4.
+*  IF sy-subrc EQ 0.
+*    MESSAGE i090(zmm) WITH text-b35.
+*  ENDIF.
+*
+** Disconnect the connection between SAP and other system
+** Disconnect the FTP
+*  CALL FUNCTION 'FTP_DISCONNECT'
+*    EXPORTING
+*      handle = lv_handle.
+*
+** Disconnect the RFC connection between SAP and other system.
+*  CALL FUNCTION 'RFC_CONNECTION_CLOSE'
+*    EXPORTING
+*      destination = lv_dest
+*    EXCEPTIONS
+*      OTHERS      = 1.
+
+*ENDFORM.                    " FTP_SERVER
+***End of comments  on 12-Apr-2017   for CHG2532220 DE3K974944
+*&---------------------------------------------------------------------*
+*&      Form  SEND_DATA_PROXY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM send_data_proxy .
+***Start of changes on 12-Apr-2017   for CHG2532220 DE3K974944
+  DATA: gi_record TYPE zmmdt_shipping_data_row,
+
+        gt_record TYPE zmmdt_shipping_data_row_tab,
+
+        gt_output TYPE  zmmmt_shipping_data,
+        go_proxy       TYPE REF TO zmmco_si_shipping_data_out,
+         gw_fault      TYPE REF TO cx_ai_system_fault..
+
+
+  LOOP AT  gt_final_ds INTO gi_final_ds.
+
+    gi_record-effective_date     =   gi_final_ds-udate .
+    gi_record-sales_order_number =   gi_final_ds-vbeln_s .
+    gi_record-sales_order_line   =   gi_final_ds-posnr_s .
+    gi_record-po_item            =  gi_final_ds-posex .
+    gi_record-mrp_controller     =  gi_final_ds-dispo .
+    gi_record-material_number    =  gi_final_ds-matnr .
+    gi_record-blocked            =  gi_final_ds-lifsk .
+    gi_record-unit_ship          =  gi_final_ds-autlf .
+    gi_record-export             =  gi_final_ds-expkz.
+    gi_record-delivery_priority  =  gi_final_ds-lprio.
+    gi_record-production_order_number = gi_final_ds-aufnr.
+    gi_record-gid_of_rdd        = gi_final_ds-zwadat.
+    gi_record-confirmation_stamps = gi_final_ds-conf_stamp.
+    gi_record-delivery_stamps   = gi_final_ds-del_stamp.
+    gi_record-delivery_number = gi_final_ds-vbeln_d.
+    gi_record-picking_stamps = gi_final_ds-pick_stamp.
+    gi_record-service = gi_final_ds-service.
+    gi_record-packing_stamps = gi_final_ds-pack_stamp.
+    gi_record-hu1 =  gi_final_ds-exidv.
+    gi_record-shipping_stamps =  gi_final_ds-ship_stamp.
+    gi_record-carrier =  gi_final_ds-tdlnr.
+    gi_record-hu2 =  gi_final_ds-exidv2.
+    gi_record-pgi_stamps = gi_final_ds-pgi_stamp.
+*                gi_record-plant
+
+    APPEND gi_record TO gt_record.
+    CLEAR : gi_record, gi_final_ds.
+  ENDLOOP.
+  gt_output-mt_shipping_data-row = gt_record.
+*   READ TABLE gs_werks INDEX 1.
+*  DATA : lw_werks TYPE ZMMSTRING_TAB.
+*
+*  lw_werks = gs_werks-low.
+  gt_output-mt_shipping_data-plant =  gs_werks-low .
+
+
+
+  IF gt_output IS NOT INITIAL.
+    TRY.
+*// Create proxy (Constructor)
+        CREATE OBJECT go_proxy.
+
+*// Call proxy method (Sending final data to PI Through Proxy)
+        CALL METHOD go_proxy->si_shipping_data_out
+          EXPORTING
+            output = gt_output.
+
+*// Commit the changes at data base level.
+        COMMIT WORK.
+        MESSAGE i081(zmm) WITH'File Successfully generated'(003).
+
+*// Catch Exception
+      CATCH cx_ai_system_fault.
+*// Create object for error handling
+        CREATE OBJECT gw_fault.
+
+        WRITE :/ gw_fault->errortext.
+
+
+
+    ENDTRY.
+  ELSE.
+    MESSAGE i081(zmm) WITH 'No data avilable for selection criteria'(002).
+  ENDIF.
+ENDFORM.                    " SEND_DATA_TO_PROXY
+***End of changes on 12-Apr-2017   for CHG2532220 DE3K974944
+* Start of changes by 502431892 GERITM2887400 28/05/2019
+
+FORM delete_duplicates.
+***Begin of changes by Rajesh Kumar Regonda on 21st Aug 2019GECHG0572145 DE3K993221
+  DATA : gw_delv TYPE vbeln_vl,
+         gw_index TYPE i.
+  gt_final_ds1    = gt_final_ds.
+  gt_final_del_ds = gt_final_ds.
+  SORT gt_final_del_ds BY vbeln_d.
+  DELETE ADJACENT DUPLICATES FROM gt_final_del_ds COMPARING vbeln_d.
+*  gt_final_ds2 = gt_final_ds.
+*  SORT gt_final_ds1 BY aufnr.
+*  DELETE ADJACENT DUPLICATES FROM gt_final_ds1 COMPARING aufnr.
+*  gt_final_ds2 = gt_final_ds1.
+*  SORT gt_final_ds1 BY vbeln_d.
+  DATA:lw_count(3)   TYPE c,
+       lw_count1(3)  TYPE c,
+       lw_vbeln_d TYPE vbeln_vl.
+  CLEAR:lw_count,lw_count1.
+  CLEAR gi_final_del_ds.
+  LOOP AT gt_final_del_ds INTO gi_final_del_ds.
+    CLEAR lw_count.
+    SPLIT gi_final_del_ds-rfmng AT '.' INTO lw_count lw_count1.
+    gi_final_ds3 = gi_final_del_ds.
+    CLEAR gw_delv.
+    gw_delv = gi_final_del_ds-vbeln_d.
+    CLEAR gi_final_ds.
+    gt_final_ds1 = gt_final_ds.
+    SORT gt_final_ds1 BY vbeln_d.
+    DELETE gt_final_ds1 WHERE vbeln_d NE gw_delv.
+    LOOP AT gt_final_ds1 INTO gi_final_ds
+                         WHERE vbeln_d EQ gi_final_del_ds-vbeln_d.
+      IF sy-tabix LE lw_count.
+        gi_final_ds3 = gi_final_ds.
+        APPEND gi_final_ds3 TO gt_final_ds3.
+        DELETE gt_final_ds WHERE aufnr = gi_final_ds-aufnr.
+      ENDIF.
+      CLEAR: gi_final_ds3,gi_final_ds.
+    ENDLOOP.
+    CLEAR: gi_final_ds3,gi_final_ds.
+    CLEAR:  lw_count, lw_count1.
+  ENDLOOP.
+*****  DELETE ADJACENT DUPLICATES FROM gt_final_ds1 COMPARING vbeln_d.
+*****  LOOP AT gt_final_ds2 INTO gi_final_ds2.
+*****    READ TABLE gt_final_ds1 INTO gi_final_ds1 WITH KEY aufnr = gi_final_ds2-aufnr
+*****                                                       vbeln_d = gi_final_ds2-vbeln_d.
+*****    IF sy-subrc = 0.
+*****      gi_final_ds3 = gi_final_ds1.
+*****      APPEND gi_final_ds3 TO gt_final_ds3.
+*****      CONTINUE.
+*****    ENDIF.
+******    READ TABLE gt_final_ds INTO gi_final_ds WITH KEY aufnr = gi_final_ds2-aufnr
+******                                                     vbeln_d <>
+*****    LOOP AT gt_final_ds INTO gi_final_ds WHERE aufnr = gi_final_ds2-aufnr
+*****                                         AND   vbeln_d = gi_final_ds2-vbeln_d.
+*****      DELETE gt_final_ds INDEX sy-tabix.
+*****      EXIT.
+*****    ENDLOOP.
+******    DELETE gt_final_ds FROM gi_final_ds.
+*****    IF gw_delv IS NOT INITIAL.
+*****      LOOP AT gt_final_ds INTO gi_final_ds WHERE aufnr = gi_final_ds2-aufnr.
+******                                         AND   vbeln_d = gw_delv.
+*****        gw_index = sy-tabix.
+*****        READ TABLE gt_final_ds3 INTO gi_final_ds4 WITH KEY vbeln_d = gi_final_ds-vbeln_d.
+*****        IF sy-subrc = 0.
+*****          DELETE gt_final_ds INDEX gw_index.
+*****        ELSE.
+*****          EXIT.
+*****        ENDIF.
+******        EXIT.
+*****      ENDLOOP.
+******      DELETE gt_final_ds FROM gi_final_ds.
+*****    ENDIF.
+******    IF gi_final_ds IS INITIAL.
+*****    READ TABLE gt_final_ds INTO gi_final_ds WITH KEY aufnr = gi_final_ds2-aufnr.
+*****    IF sy-subrc = 0.
+*****      gw_delv = gi_final_ds-vbeln_d.
+*****      gi_final_ds3 = gi_final_ds.
+*****      APPEND gi_final_ds3 TO gt_final_ds3.
+******      ENDIF.
+*****    ELSE.
+*****      gi_final_ds3 = gi_final_ds.
+*****      APPEND gi_final_ds3 TO gt_final_ds3.
+*****    ENDIF.
+*****  ENDLOOP.
+
+  REFRESH : gt_final_ds.
+  CLEAR : gi_final_ds, gi_final_ds1, gi_final_ds2, gi_final_ds3.
+  gt_final_ds = gt_final_ds3.
+***End of changes by Rajesh Kumar Regonda on 21st Aug 2019GECHG0572145 DE3K993221
+ENDFORM.                    "delete_duplicates
+
+* End of changes by 502431892 GERITM2887400 28/05/2019
+

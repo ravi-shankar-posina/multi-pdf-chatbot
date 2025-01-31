@@ -1,0 +1,43 @@
+*&-------------------------------------------------------------------*
+*& Report  ZRMM_ITRADE_PO_ANALYZER
+*&-------------------------------------------------------------------*
+*&-------------------------------------------------------------------*
+* Name                          : ZRMM_ITRADE_PO_ANALYZER
+* Created by                    : Vijaya Laxmi (503146489)
+* Creation Date                 : 31.10.2019
+* Transport Request             : DE3K993962
+* RICEF Object No               : RICEF2018
+* Description                   : Report program to analyze PO IDOC
+*                                 messages
+*---------------------------------------------------------------------*
+*** Change History                                                    *
+*---------------------------------------------------------------------*
+* DATE         | CR No.      |TR         |CHANGED BY | DESC OF CHANGE
+*---------------------------------------------------------------------*
+* 31.10.2019   | GECHG0648088|DE3K993962 |Vijaya Laxmi|Int Version
+*---------------------------------------------------------------------*
+* 08.11.2019   | GECHG0648088|DE3K994578 |Vijaya Laxmi|Removed unwanted
+*                                                      SubRoutine
+*---------------------------------------------------------------------*
+* 27.11.2019   | GECHG0657413|DE3K994936 |Vijaya Laxmi|Added new field
+*                                                      in sel screen
+*---------------------------------------------------------------------*
+
+REPORT  zrmm_itrade_po_analyzer.
+
+INCLUDE znsd_itrade_po_analyzer_top.
+
+INCLUDE znsd_itrade_po_analyzer_sel.
+
+INCLUDE znsd_itrade_po_analyzer_sub.
+
+START-OF-SELECTION.
+
+* Read IDOC status
+  PERFORM get_idoc_status.
+
+* Fetch PO data from EKKO and related tables
+  PERFORM extract_data_po.
+
+  CALL SCREEN 100.
+

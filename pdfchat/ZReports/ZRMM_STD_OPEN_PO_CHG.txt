@@ -1,0 +1,88 @@
+***------------------------------------------------------------------***
+*** Created by            : Prakash reddy
+*** Creation Date         : 01/02/2019
+*** Transport Request #   : DE3K990369
+*** RICEF Object No #     : RICEF1946
+*** Description           : Conversion program to update open PO'S
+***                         Data would be uploaded via  a file from PC
+***                         and posted to SAP using ME22N.
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 01-Feb-2019        | GECHG0251732    |502209589 | Initial development
+***------------------------------------------------------------------****
+* 22-Feb-2019        | GECHG0251732    |502209589 | passing orders which are not exists in SAP
+*                                                   to error log
+*24-APR-2019         |GECHG0435576     |502277866 | Added name2 and changed length for street for charlie
+***------------------------------------------------------------------****
+REPORT  zrmm_std_open_po_chg  LINE-SIZE 255
+                                  LINE-COUNT 58
+                                  NO STANDARD PAGE HEADING
+                                  MESSAGE-ID zcc_c.
+*&----------------------------------------------------------------------*
+*&  INCLUDE PROGRAMS
+*&----------------------------------------------------------------------*
+INCLUDE znmm_std_open_po_chg_top."znmm_po_rchg_top.
+
+INCLUDE zncc_email_top.  " Email related data declaration global program
+INCLUDE znmm_std_open_po_chg_scr.
+
+INCLUDE znmm_std_open_po_chg_frm.
+*&----------------------------------------------------------------------*
+*& A T   S E L E C T I O N    S C R E E N
+*&----------------------------------------------------------------------*
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_infile.
+  PERFORM f1000_get_file_name CHANGING p_infile.
+
+AT SELECTION-SCREEN.
+  PERFORM validate_data.
+************************************************************************
+******************************** MAIN PROGRAM **************************
+************************************************************************
+*&----------------------------------------------------------------------*
+*& S T A R T    O F    S E L E C T I O N
+*&----------------------------------------------------------------------*
+START-OF-SELECTION.
+* To down load  data into internal table*
+  PERFORM data_load.
+*  To validate the input data
+  PERFORM sub_validate_data.
+* updating the database tables.
+  PERFORM sub_cretae_po.
+*&----------------------------------------------------------------------*
+*& END O F  S E L E C T I O N
+*&----------------------------------------------------------------------*
+END-OF-SELECTION.
+
+*displaying the error records
+  IF NOT gt_error[] IS INITIAL AND g_err_cnt GE 1.
+    PERFORM sub_disp_alv.
+  ENDIF.
+
+*  E-Mail the error records
+  IF NOT s_email[] IS INITIAL AND NOT gt_error[] IS INITIAL AND
+    g_err_cnt > 1.
+    PERFORM f4000_send_mail TABLES it_attach
+                            USING  text-004.
+  ENDIF.
+
+* Download error file
+
+  IF NOT gt_error[] IS INITIAL  AND g_err_cnt GE 1 AND sy-batch NE 'X'.
+
+    PERFORM sub_download_error TABLES  gt_error
+                                USING  p_infile
+                                       text-016.
+  ENDIF.
+
+* Down load the success records
+
+  IF NOT gt_success[] IS INITIAL AND g_succ_cnt GE 1 AND sy-batch NE 'X'.
+
+    PERFORM sub_download_error TABLES  gt_success
+                                 USING  p_infile
+                                        text-015.
+  ENDIF.
+
+  INCLUDE zncc_send_email.
+

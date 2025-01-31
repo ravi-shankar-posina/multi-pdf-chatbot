@@ -1,0 +1,520 @@
+
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_DEL_DUE_LIST
+*&
+*&---------------------------------------------------------------------*
+*&*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Name             : ZRMM_DEL_DUE_LIST                                 *
+* Created by       : Santosh Reddy Sirigiri (502327509)
+* Transport Request: DE3K972377                                        *
+* RICEF Object No  : RICEF-1740 (RITM7556126)                          *
+* Transaction code : ZMM1740                                           *
+* Description:      This is a Report program provides Dellivery
+*                   due list error log as a ALV in foreground and when *
+*                    background selected an excel file will be sent in *
+*                      an email to GE Box email.                       *
+*•             Development     : DE3.5c4zytas1w79t1l5@u.box.com        *
+*•             Quality         : QE3.e2b2u5o9tu0ykg0v@u.box.com        *
+*•             Production      : PE3.2mvl58p94j0q8mcp@u.box.com        *
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+************************************************************************
+* DATE               | CR No.        |CHANGED BY |DESCRIPTION OF CHANGE
+************************************************************************
+* 14-june-2016        | CHG2149184   |502327509  | Initial Development *
+* 01-july-2016        | CHG2170872   |502327509  |sending mail RITM7720709 *
+
+REPORT  zrmm_del_due_list MESSAGE-ID zmm .
+
+INCLUDE  zrmm_del_due_list_top.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001 .
+PARAMETERS:p_selset LIKE gw_selset OBLIGATORY,
+           p_ernam  LIKE gw_ernam ,
+*begin of changes by 502327509 cr-CHG2170872 30/07/2016
+           p_time   LIKE gw_ftime .
+*end of changes by 502327509 cr-CHG2170872 30/07/2016
+SELECT-OPTIONS:s_erdat  FOR gw_erdat  NO-EXTENSION OBLIGATORY .
+*begin of changes by 502327509 cr-CHG2170872 30/07/2016
+*               s_uzeit FOR gw_uzeit NO-EXTENSION  OBLIGATORY .
+*end of changes by 502327509 cr-CHG2170872 30/07/2016
+PARAMETERS:r_fg RADIOBUTTON GROUP one USER-COMMAND test DEFAULT 'X',
+           r_bg RADIOBUTTON GROUP one.
+SELECTION-SCREEN END OF BLOCK b1 .
+
+START-OF-SELECTION.
+  PERFORM get_ztuhcd1.
+
+  REFRESH:gt_vbsk,
+          gt_vbfs,
+          gt_final.
+  CLEAR: gi_vbfs,
+         gi_final,
+         gi_vbsk.
+*begin of changes by 502327509 cr-CHG2170872 30/07/2016
+**  picking the time for every 6 hours runnnig in background mode
+  IF r_bg IS NOT INITIAL.
+    PERFORM get_time.
+  ENDIF.
+*end of changes by 502327509 cr-CHG2170872 30/07/2016
+***picking the header data from vbsk
+  IF p_ernam IS NOT INITIAL.
+    SELECT sammg
+           ernam
+           erdat
+           uzeit
+           vstel
+           vtext FROM vbsk INTO TABLE gt_vbsk
+           WHERE ernam EQ p_ernam  " As per the FDD not processing primary keys
+           AND   erdat IN s_erdat
+*begin of changes by 502327509 cr-CHG2170872 30/07/2016
+           AND   uzeit IN gt_uzeit "s_uzeit
+*end of changes by 502327509 cr-CHG2170872 30/07/2016
+           AND  selset EQ p_selset.
+  ELSE.
+    SELECT sammg
+           ernam
+           erdat
+           uzeit
+           vstel
+           vtext FROM vbsk INTO TABLE gt_vbsk
+           WHERE erdat IN s_erdat "As per the FDD not processing primary keys
+*begin of changes by 502327509 cr-CHG2170872 30/07/2016
+           AND   uzeit IN gt_uzeit "s_uzeit
+*end of changes by 502327509 cr-CHG2170872 30/07/2016
+           AND  selset EQ p_selset.
+  ENDIF.
+  IF  gt_vbsk IS NOT INITIAL.
+*picking the item data from vbfs
+    SELECT * FROM vbfs             " IN THIS QUERY WE HAVE ONLY 14FILEDS IN DATA BASE WE need
+             INTO TABLE  gt_vbfs    " most of the fileds
+             FOR ALL ENTRIES IN gt_vbsk
+             WHERE sammg = gt_vbsk-sammg
+             AND   vbeln NE ' '
+             AND   msgno NOT IN  gr_msgno ."('029' ,'114',291).
+    IF sy-subrc IS INITIAL AND gt_vbfs IS NOT INITIAL .
+      SORT gt_vbfs BY sammg vbeln  zaehl ASCENDING.
+    ENDIF.
+  ENDIF.
+
+
+
+  CLEAR:lw_grpnum.
+  IF gt_vbfs IS NOT INITIAL .
+    SORT gt_vbsk BY sammg.
+    LOOP AT gt_vbfs INTO gi_vbfs.
+      CLEAR:gi_vbsk.
+      READ TABLE gt_vbsk INTO gi_vbsk
+                       WITH KEY sammg = gi_vbfs-sammg BINARY SEARCH.
+      IF sy-subrc IS INITIAL .
+        IF lw_grpnum NE gi_vbsk-sammg.
+          lw_grpnum  =  gi_vbsk-sammg.
+          CONCATENATE gi_vbsk-vstel
+                      gi_vbsk-vtext
+                      gi_vbsk-sammg
+                      gi_vbsk-ernam
+                      gi_vbsk-erdat
+                      gi_vbsk-uzeit  INTO gi_final-text SEPARATED BY '/ '.
+          gi_final-sammg = gi_vbfs-sammg.
+          APPEND gi_final TO gt_final.
+          CLEAR:gi_final.
+        ENDIF.
+      ENDIF.
+
+      CLEAR:gw_msg.
+      sy-msgid = gi_vbfs-msgid.
+      sy-msgno = gi_vbfs-msgno.
+      sy-msgv1 = gi_vbfs-msgv1.
+      sy-msgv2 = gi_vbfs-msgv2.
+      sy-msgv3 = gi_vbfs-msgv3.
+      sy-msgv4 = gi_vbfs-msgv4.
+
+      CALL FUNCTION 'FORMAT_MESSAGE'
+        EXPORTING
+          id        = sy-msgid
+          lang      = 'EN'
+          no        = sy-msgno
+          v1        = sy-msgv1
+          v2        = sy-msgv2
+          v3        = sy-msgv3
+          v4        = sy-msgv4
+        IMPORTING
+          msg       = gw_msg
+        EXCEPTIONS
+          not_found = 1
+          OTHERS    = 2.
+      IF sy-subrc IS NOT INITIAL.
+        CLEAR:gw_msg.
+      ENDIF.
+
+      CONCATENATE gi_vbfs-msgty
+                  gi_vbfs-msgno
+                  gi_vbfs-vbeln
+                  gi_vbfs-posnr
+                  gw_msg   INTO gi_final-text  SEPARATED BY '   '.
+
+      gi_final-sammg = gi_vbfs-sammg.
+      APPEND gi_final TO gt_final.
+
+      CLEAR:gi_vbfs,gi_final.
+    ENDLOOP.
+
+  ENDIF.
+
+***   foreground mode displaying data
+
+  IF r_fg IS  NOT INITIAL .
+    IF gt_final IS NOT INITIAL.
+      gi_fieldcat-fieldname   = gc_sammg .
+      gi_fieldcat-seltext_m   = text-002 .
+      gi_fieldcat-outputlen   = gc_10.
+      APPEND gi_fieldcat TO gt_fieldcat .
+      CLEAR  gi_fieldcat .
+
+      gi_fieldcat-fieldname   = gc_text .
+      gi_fieldcat-seltext_m   = text-003 .
+      gi_fieldcat-outputlen   = gc_300.
+      APPEND gi_fieldcat TO gt_fieldcat .
+      CLEAR  gi_fieldcat .
+
+**Display the Output in a List Display
+      CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+        EXPORTING
+          i_callback_program = sy-repid
+          it_fieldcat        = gt_fieldcat
+        TABLES
+          t_outtab           = gt_final
+        EXCEPTIONS
+          program_error      = 1
+          OTHERS             = 2.
+      IF sy-subrc <> 0.
+        CLEAR : gt_final[].
+      ENDIF.
+    ELSE.
+      MESSAGE s072 DISPLAY LIKE 'E'."'S' ZMM072 TYPE 'S' DISPLAY LIKE 'E'.
+      LEAVE TO LIST-PROCESSING.
+    ENDIF.
+
+  ELSEIF r_bg IS NOT INITIAL.
+
+    IF gt_final[] IS NOT INITIAL.
+*begin of changes by 502327509 cr-CHG2170872 30/07/2016
+**Perform for populating mail body
+      PERFORM populate_message.
+**Perform for populating file attachment
+      PERFORM populate_attachment.
+**Perform for populating mail characteristic info
+      PERFORM populate_pack.
+**Perform for populating receivers
+      PERFORM populate_receivers.
+      PERFORM send_email.
+*      IF p_path IS INITIAL.
+*        sort gt_ztuhcd1 by name zkey field.
+*        READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1
+*                    WITH KEY name = gc_name
+*                             zkey = sy-sysid
+*                             field = gc_ob  BINARY SEARCH.
+*        IF sy-subrc IS INITIAL .
+*          gw_dir = gi_ztuhcd1-low.
+*        ENDIF.
+*      ELSE.
+*        gw_dir = p_path.
+*      ENDIF.
+*      CLEAR:gi_final,gi_write.
+*      LOOP AT gt_final INTO gi_final.
+*        gi_write = gi_final.
+*
+*        AT NEW sammg.
+*          CLEAR:gi_vbsk.
+*          READ TABLE gt_vbsk INTO gi_vbsk
+*                      WITH KEY sammg = gi_write-sammg BINARY SEARCH.
+*          IF sy-subrc IS INITIAL .
+*            CONCATENATE gi_vbsk-erdat
+*                        gi_vbsk-uzeit
+*                        gc_el
+*                        gi_vbsk-sammg
+*                        gi_vbsk-vstel
+*                        p_selset INTO gw_filename SEPARATED BY '-'.
+*            CLEAR:gi_vbsk.
+*          ENDIF.
+*
+*          CONCATENATE gw_dir
+*                      '/'
+*                      gw_filename  INTO gw_dsn_tx.
+*
+*          OPEN DATASET gw_dsn_tx FOR OUTPUT IN TEXT MODE ENCODING DEFAULT.
+*          IF sy-subrc IS INITIAL.
+*            gw_flag = 'X'.
+*          ENDIF.
+*        ENDAT.
+*
+*        IF gw_flag EQ 'X'.
+*          TRANSFER gi_write-text TO gw_dsn_tx.
+*        ENDIF.
+*
+*        AT  END OF sammg.
+*          CLOSE DATASET gw_dsn_tx.
+*          CLEAR:gw_flag.
+*        ENDAT.
+*
+*        CLEAR:gi_final.
+*      ENDLOOP.
+*end of changes by 502327509 cr-CHG2170872 30/07/2016
+    ENDIF.
+
+  ENDIF.
+
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_ZTUHCD1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_ztuhcd1 .
+  gi_ztuhcd1-name = gc_name.
+  APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF gt_ztuhcd1 IS NOT INITIAL.
+    CLEAR:gi_ztuhcd1.
+    LOOP AT gt_ztuhcd1 INTO gi_ztuhcd1.
+      CASE gi_ztuhcd1-field.
+        WHEN 'MSGNO'.
+          gi_msgno-low    = gi_ztuhcd1-low.
+          gi_msgno-option = 'EQ'.
+          gi_msgno-sign = 'I'.
+          CLEAR:gi_msgno-high.
+          APPEND gi_msgno  TO gr_msgno.
+          CLEAR:gi_msgno.
+      ENDCASE.
+
+      CLEAR:gi_ztuhcd1.
+    ENDLOOP.
+
+  ENDIF.
+
+ENDFORM.                    " GET_ZTUHCD1
+*&---------------------------------------------------------------------*
+*&      Form  SEND_EMAIL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM send_email .
+
+*Function Module to send mail
+  CALL FUNCTION 'SO_NEW_DOCUMENT_ATT_SEND_API1'
+    EXPORTING
+      document_data              = gw_doc_data
+      put_in_outbox              = 'X'
+      commit_work                = 'X'
+    TABLES
+      packing_list               = gt_packing_list
+      contents_bin               = gt_attachment
+      contents_txt               = gt_message
+      receivers                  = gt_receivers
+    EXCEPTIONS
+      too_many_receivers         = 1
+      document_not_sent          = 2
+      document_type_not_exist    = 3
+      operation_no_authorization = 4
+      parameter_error            = 5
+      x_error                    = 6
+      enqueue_error              = 7
+      OTHERS                     = 8.
+
+ENDFORM.                    " SEND_EMAIL
+*&---------------------------------------------------------------------*
+*&      Form  POPULATE_MESSAGE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_message .
+
+  gw_fname = sy-datum && '_' && sy-uzeit && '_' &&  text-004. "'DDLErrorLog'(004).
+*  **Populating the body
+  gw_message = gw_fname ."'Sample mail for testing purpose.'.
+  APPEND gw_message TO gt_message.
+
+ENDFORM.                    " POPULATE_MESSAGE
+*&---------------------------------------------------------------------*
+*&      Form  POPULATE_ATTACHMENT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_attachment .
+
+  CLEAR :gi_final,gi_write.
+  LOOP AT gt_final INTO gi_final.
+
+    AT NEW sammg.
+      IF gt_attachment[] IS NOT INITIAL.
+*  filling blank vaues for the new group
+    gi_write-text = text-005.
+        CONCATENATE gi_write-text ' ' INTO
+                          gi_attachment SEPARATED BY gc_con_tab.
+
+        CONCATENATE gc_con_cret gi_attachment  INTO gi_attachment.
+*****mail attachment sending 2 star * for easily finding purpose
+         APPEND gi_attachment to gt_attachment.
+         APPEND gi_attachment to gt_attachment.
+         CLEAR:gi_write.
+      ENDIF.
+    ENDAT.
+
+    CONCATENATE gi_final-text ' ' INTO
+                       gi_attachment SEPARATED BY gc_con_tab.
+
+    CONCATENATE gc_con_cret gi_attachment  INTO gi_attachment.
+*  gt_attachment = gi_final-text .
+    APPEND gi_attachment to gt_attachment.
+    CLEAR gi_final.
+  ENDLOOP.
+
+ENDFORM.                    " POPULATE_ATTACHMENT
+*begin of changes by 502327509 cr-CHG2170872 30/07/2016
+*&---------------------------------------------------------------------*
+*&      Form  POPULATE_PACK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_pack .
+
+**File Type
+  gw_format = gc_xls.  "'XLS' .
+**File Name
+
+  gw_attfilename = gw_fname  ."'FileNAME'.
+* Fill the document data.
+  gw_doc_data-doc_size = 1.
+* Populate the subject/generic message attributes
+  gw_doc_data-obj_langu = sy-langu.
+  gw_doc_data-obj_name = gc_saprpt."'SAPRPT'.
+  gw_doc_data-obj_descr = text-007.".gc_psubject .
+  gw_doc_data-sensitivty = gc_f."'F'.
+* Fill the document data and get size of attachment
+  CLEAR gw_doc_data.
+* Populate the subject/generic message attributes
+  gw_doc_data-obj_langu = sy-langu.
+  READ TABLE gt_attachment INTO gi_attachment INDEX gw_cnt.
+  gw_doc_data-doc_size = ( gw_cnt - 1 ) * 255 + strlen( gi_attachment ).
+  gw_doc_data-obj_name  = gc_saprpt."'SAPRPT'.
+  gw_doc_data-obj_descr = text-007."gc_psubject.
+  gw_doc_data-sensitivty = gc_f ."'F'.
+* Describe the body of the message
+  CLEAR gi_packing_list.
+  REFRESH gt_packing_list.
+  gi_packing_list-transf_bin = space.
+  gi_packing_list-head_start = 1.
+  gi_packing_list-head_num = 0.
+  gi_packing_list-body_start = 1.
+  DESCRIBE TABLE gt_message LINES gi_packing_list-body_num.
+  gi_packing_list-doc_type = gc_raw ."'RAW'.
+  APPEND gi_packing_list to gt_packing_list.
+**Describe the attachment info
+  gi_packing_list-transf_bin = gc_x ."'X'.
+  gi_packing_list-head_start = 1.
+  gi_packing_list-head_num = 1.
+  gi_packing_list-body_start = 1.
+  DESCRIBE TABLE gt_attachment LINES  gi_packing_list-body_num.
+  gi_packing_list-doc_type = gw_format.
+  gi_packing_list-obj_name = gw_attfilename.
+  gi_packing_list-obj_descr = gw_attfilename.
+  gi_packing_list-doc_size = gi_packing_list-body_num * 255.
+  APPEND gi_packing_list to gt_packing_list.
+  clear:gi_packing_list.
+ENDFORM.                    " POPULATE_PACK
+*&---------------------------------------------------------------------*
+*&      Form  POPULATE_RECEIVERS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_receivers .
+**Populating Mail Recepients
+**If there are more than one mail recepient then loop and append them to gt_receivers
+  SORT gt_ztuhcd1 BY name zkey field.
+  CLEAR gi_ztuhcd1.
+  READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1
+              WITH KEY name = gc_name
+                       zkey = sy-sysid
+                       field = gc_mailid  BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    gi_receivers-receiver =  gi_ztuhcd1-low.  "Mail-id of the receiER
+*  gt_receivers-receiver = 'santhoshreddy.sirigiri@ge.com'.""Mail-id of the receiER
+    CLEAR:gi_ztuhcd1.
+  ENDIF.
+  gi_receivers-rec_type   = gc_u.   "'U'.
+  gi_receivers-com_type   = gc_int. "'INT'.
+  gi_receivers-notif_del  = gc_x . "'X'.
+  gi_receivers-notif_ndel = gc_x ."'X'.
+  gi_receivers-express    =  gc_x .   "'X'.
+  APPEND gi_receivers to gt_receivers.
+  clear:gi_receivers.
+ENDFORM.                    " POPULATE_RECEIVERS
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_TIME
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_time .
+  CLEAR:gw_restime,gw_resdate.
+  CALL FUNCTION 'IGN_TIMESTAMP_PLUSMINUS'
+    EXPORTING
+      start_date      = sy-datum
+      start_time      = sy-uzeit
+      forward         = ' '
+      backward        = 'X'
+      days            = '0'
+      hours           = p_time "'6'
+      minutes         = '0'
+      seconds         = '0'
+    IMPORTING
+      result_date     = gw_resdate
+      result_time     = gw_restime
+    EXCEPTIONS
+      parameter_error = 1
+      OTHERS          = 2.
+
+  IF sy-subrc IS  INITIAL.
+    CLEAR:gi_uzeit.
+    REFRESH:gt_uzeit.
+*  gw_uzeit = sy-uzeit - '060000'.
+    gi_uzeit-sign   = 'I'.
+    gi_uzeit-option = 'BT'.
+    gi_uzeit-low    = gw_restime.
+    gi_uzeit-high   =  sy-uzeit.
+    APPEND gi_uzeit TO gt_uzeit.
+  ENDIF.
+ENDFORM.                    " GET_TIME
+*end of changes by 502327509 cr-CHG2170872 30/07/2016
+

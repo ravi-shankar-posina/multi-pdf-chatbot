@@ -1,0 +1,92 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_SET_LIKP_VLSTK_STATUS
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Name             : ZRMM_SET_LIKP_VLSTK_STATUS                            *
+* Created by       : Saroj Kumar Pradhan(212585401)                        *
+* Transport Request: DE3K995113                                            *
+* CR No            : GECHG0659189                                          *
+* RICEF Object No  : RICEF2060                                             *
+* Description      : This enhancement is used for setting the flag         *
+*                  : LIKP-VLSTK from B to D                                *
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - *
+***----------------------------------------------------------------------***
+*** Change History                                                       ***
+****************************************************************************
+* DATE      |  TR NO.    | CR No.     |CHANGED BY  |DESCRIPTION OF CHANGE  *
+****************************************************************************
+* 06/12/2019| DE3K995113 |GECHG0659189| 212585401  | Initial Development   *
+****************************************************************************
+
+REPORT  zrmm_set_likp_vlstk_status.
+
+DATA: lt_likp TYPE STANDARD TABLE OF likp.
+
+FIELD-SYMBOLS: <lfs_likp> TYPE likp.
+
+SELECT-OPTIONS: date     FOR <lfs_likp>-erdat DEFAULT '20130505',
+                time     FOR <lfs_likp>-erzet,
+                delivery FOR <lfs_likp>-vbeln.
+
+PARAMETERS: test TYPE xfeld DEFAULT 'X'.         "Test or Update
+
+START-OF-SELECTION.
+
+  SELECT * INTO TABLE lt_likp FROM  likp
+                              WHERE vbeln IN delivery
+                              AND   erdat IN date
+                              AND   erzet IN time
+                              AND ( vlstk EQ 'B' OR
+                                    vlstk EQ 'C' ).
+
+  IF NOT sy-subrc IS INITIAL.
+    FORMAT COLOR COL_NEGATIVE.
+    WRITE:/ 'No delivery could be found!'.
+    FORMAT RESET.
+  ELSE.
+    LOOP AT lt_likp ASSIGNING <lfs_likp>.
+      IF NOT test IS INITIAL.
+        IF <lfs_likp>-vlstk = 'B'.
+          FORMAT RESET.
+          FORMAT COLOR COL_POSITIVE.
+          WRITE:/ <lfs_likp>-vbeln, 'to be changed!'.
+          FORMAT RESET.
+        ELSE.
+          FORMAT RESET.
+          FORMAT COLOR COL_NEGATIVE.
+          WRITE:/ 'Delivery GR/GI posted:', <lfs_likp>-vbeln.
+          FORMAT RESET.
+        ENDIF.
+      ELSE.  "Update database
+*         Update distribution status
+        IF <lfs_likp>-vlstk = 'B'.
+          UPDATE likp SET   vlstk = 'D'
+                      WHERE vbeln = <lfs_likp>-vbeln.
+          IF NOT sy-subrc IS INITIAL.
+            FORMAT RESET.
+            FORMAT COLOR COL_NEGATIVE.
+            WRITE:/ 'Problem with delivery update occured:',
+                   <lfs_likp>-vbeln.
+            FORMAT RESET.
+            ROLLBACK WORK.
+          ELSE.
+*           No problem occured for this item
+            COMMIT WORK.
+            FORMAT RESET.
+            FORMAT COLOR COL_POSITIVE.
+            WRITE:/ <lfs_likp>-vbeln, 'changed successfully!'.
+            FORMAT RESET.
+          ENDIF.
+        ELSE.
+          FORMAT RESET.
+          FORMAT COLOR COL_NEGATIVE.
+          WRITE:/ 'Delivery GR/GI posted:', <lfs_likp>-vbeln.
+          FORMAT RESET.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+

@@ -1,0 +1,406 @@
+*&---------------------------------------------------------------------*
+*& Report                 ZRMM_SCM_DELIVERY_LIST
+*&
+*&---------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Created by            : Laxma Reddy Keesari
+*** Creation Date         : 05-May-2014
+*** Transport Request #   : DE3K920067
+*** RICEF Object No #     : RICEF1017
+*** Description           : Report for displaying delivery list used
+***                         when doing PGI for deliveries in transaction
+***                         code zmm_truck_t06.
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+*******************************************************************************
+* DATE              | CR No.     | TR No.    |CHANGED BY |DESCRIPTION OF CHANGE
+*******************************************************************************
+* 05-May-2014         CHG0479115   DE3K920067 502199780   OBJECT CREATION
+*******************************************************************************
+
+REPORT  zrmm_scm_delivery_list.
+
+*&---------------------------------------------------------------------*
+*& Type pools declarations
+*&---------------------------------------------------------------------*
+TYPE-POOLS : slis.
+
+*&---------------------------------------------------------------------*
+*& Types declarations
+*&---------------------------------------------------------------------*
+TYPES: BEGIN OF ty_final,
+    iconid TYPE icon_text,
+    vbeln TYPE vbeln,
+    wbstk TYPE wbstk,
+    vstel TYPE vstel,
+    route TYPE route,
+    werks TYPE werks_d,
+    mblnr TYPE mblnr,
+    proc TYPE char80,
+  END OF ty_final.
+
+*&---------------------------------------------------------------------*
+*& Internal table declarations
+*&---------------------------------------------------------------------*
+DATA: lt_final TYPE STANDARD TABLE OF ty_final,
+      gt_fieldcat TYPE slis_t_fieldcat_alv.
+
+*&---------------------------------------------------------------------*
+*& Workarea declarations
+*&---------------------------------------------------------------------*
+DATA: gi_final_ds    TYPE ty_final,
+      gi_fieldcat_ds TYPE slis_fieldcat_alv,
+      gi_reftruck_ds TYPE ztmm_trkid,
+      gi_layout_ds   TYPE slis_layout_alv.
+
+*&---------------------------------------------------------------------*
+*& Variable declarations
+*&---------------------------------------------------------------------*
+DATA: gw_hubid TYPE zhubid,
+      gw_count TYPE i.
+
+*&---------------------------------------------------------------------*
+*& Constant declarations
+*&---------------------------------------------------------------------*
+CONSTANTS: gc_x     TYPE c VALUE 'X',
+           gc_j     TYPE vbtyp VALUE 'J',
+           gc_r     TYPE vbtyp_n VALUE 'R',
+           gc_c     TYPE wbstk VALUE 'C',
+           gc_s     TYPE c VALUE 'S',
+           gc_green TYPE icon_text VALUE '@08@',
+           gc_red   TYPE icon_text VALUE '@0A@',
+           gc_e     TYPE c VALUE 'E',
+           gc_1     TYPE c VALUE '1',
+           gc_baup  TYPE char4 VALUE 'BAUP',
+           gc_psgi  TYPE char4 VALUE 'PSGI',
+           gc_disp  TYPE char4 VALUE 'DISP',
+           gc_all   TYPE char3 VALUE 'ALL',
+           gc_blank TYPE c VALUE ' ',
+           gc_i     TYPE c VALUE 'I'.
+
+
+DEFINE fieldcat.
+  clear gi_fieldcat_ds.
+  gi_fieldcat_ds-fieldname = &1.
+  gi_fieldcat_ds-seltext_l = &2.
+  append gi_fieldcat_ds to gt_fieldcat.
+END-OF-DEFINITION.
+
+START-OF-SELECTION.
+***Exported in include MZMM_05_MODF_N_DISPAT_TRUCKI01 for Tcode zmm_truck_t06
+***meant for dipatching transport
+  IMPORT lt_final FROM MEMORY ID 'TANDT'.
+
+***Populating field catalog for rid
+  fieldcat: 'ICONID' text-003,
+            'VBELN' text-004,
+            'WBSTK' text-005,
+            'VSTEL' text-006,
+            'WERKS' text-007,
+            'MBLNR' text-008,
+            'PROC' text-009.
+
+***Populating layout attributes for rid
+  gi_layout_ds-colwidth_optimize = gc_x.
+
+***Calling ALV Grid
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program       = sy-repid
+      i_callback_pf_status_set = 'MY_STATUS'
+      i_callback_user_command  = 'MY_USER_COMMAND'
+      is_layout                = gi_layout_ds
+      it_fieldcat              = gt_fieldcat
+    TABLES
+      t_outtab                 = lt_final
+    EXCEPTIONS
+      program_error            = 1
+      OTHERS                   = 2.
+  IF sy-subrc <> 0.
+    MESSAGE text-017 TYPE gc_e. "Error in report display
+  ENDIF.
+
+
+*&---------------------------------------------------------------------*
+*&      Form  MY_STATUS
+*&---------------------------------------------------------------------*
+* For setting PF-Status
+*----------------------------------------------------------------------*
+FORM my_status USING rt_extab TYPE slis_t_extab.
+  SET PF-STATUS 'MY_STATUS' EXCLUDING rt_extab.
+ENDFORM.                    "MY_STATUS
+
+
+*&---------------------------------------------------------------------*
+*&      Form  MY_USER_COMMAND
+*&---------------------------------------------------------------------*
+* Subroutine for handling function codes
+*----------------------------------------------------------------------*
+FORM my_user_command USING r_ucomm TYPE sy-ucomm
+                           rs_selfield TYPE slis_selfield.
+
+  DATA: li_vbkok_ds TYPE vbkok,
+        lt_prot TYPE STANDARD TABLE OF prott,
+        li_prot_ds TYPE prott,
+        li_t100_ds TYPE t100,
+        lw_vbeln TYPE vbeln,
+        lt_final_temp TYPE STANDARD TABLE OF ty_final.
+
+  CASE r_ucomm.
+
+    WHEN 'BACK'.
+      LEAVE TO TRANSACTION 'ZMM_TRUCK_T06'.
+    WHEN gc_baup.
+      CALL TRANSACTION 'SESSION_MANAGER'.
+
+    WHEN gc_psgi.
+      IF lt_final[] IS INITIAL.
+        MESSAGE text-016 TYPE gc_e DISPLAY LIKE gc_s.  "No deliveries for GI
+      ELSE.
+        REFRESH lt_final_temp[].
+        CLEAR gw_count.
+        lt_final_temp[] = lt_final[].
+        DELETE lt_final_temp WHERE wbstk EQ gc_c.
+        DESCRIBE TABLE lt_final_temp LINES gw_count.
+        IF gw_count IS INITIAL.
+          MESSAGE text-014 TYPE gc_e DISPLAY LIKE gc_s. "All deliveries are already goods issued
+        ENDIF.
+      ENDIF.
+
+      LOOP AT lt_final INTO gi_final_ds.
+        li_vbkok_ds-vbeln_vl = gi_final_ds-vbeln.
+        li_vbkok_ds-vbtyp_vl = gc_j.
+        li_vbkok_ds-wabuc    = gc_x.
+***For doing the goods issue
+        CALL FUNCTION 'WS_DELIVERY_UPDATE'
+          EXPORTING
+            vbkok_wa                 = li_vbkok_ds
+            delivery                 = gi_final_ds-vbeln
+            if_database_update       = gc_1
+            if_error_messages_send_0 = gc_x
+          TABLES
+            prot                     = lt_prot.
+
+        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+          EXPORTING
+            wait = gc_x.
+
+        SELECT SINGLE wbstk
+                      FROM vbuk
+                      INTO gi_final_ds-wbstk
+                      WHERE vbeln = gi_final_ds-vbeln.
+        IF gi_final_ds-wbstk = gc_c.
+          CLEAR lw_vbeln.
+          SELECT SINGLE vbeln
+                        FROM vbfa
+                        INTO lw_vbeln
+                        WHERE vbelv = gi_final_ds-vbeln AND
+                        vbtyp_n = gc_r AND
+                        rfmng GT 0.
+          IF lw_vbeln IS NOT INITIAL.
+            gi_final_ds-mblnr = lw_vbeln.
+            gi_final_ds-iconid = gc_green.
+            gi_final_ds-proc = text-001. "GI done successfully.
+          ENDIF.
+          MODIFY lt_final FROM gi_final_ds TRANSPORTING iconid mblnr proc wbstk.
+
+        ELSE.
+          CLEAR li_prot_ds.
+          READ TABLE lt_prot INTO li_prot_ds INDEX 1.
+          IF sy-subrc IS INITIAL.
+            SELECT SINGLE *
+                          FROM t100
+                          INTO li_t100_ds
+                          WHERE sprsl  EQ sy-langu AND
+                                arbgb  EQ li_prot_ds-msgid AND
+                                msgnr  EQ li_prot_ds-msgno.
+            IF sy-subrc IS INITIAL.
+              gi_final_ds-proc = li_t100_ds-text.
+              IF li_prot_ds-msgty EQ gc_s.
+                gi_final_ds-iconid  = gc_green.
+              ELSEIF li_prot_ds-msgty EQ gc_e.
+                gi_final_ds-iconid  = gc_red.
+              ENDIF.
+            ENDIF.
+            MODIFY lt_final FROM gi_final_ds TRANSPORTING iconid proc wbstk.
+          ENDIF.
+        ENDIF.
+        CLEAR gi_final_ds.
+      ENDLOOP.
+      SET SCREEN 0.
+      CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+        EXPORTING
+          i_callback_program       = sy-repid
+          i_callback_pf_status_set = 'MY_STATUS'
+          i_callback_user_command  = 'MY_USER_COMMAND'
+          is_layout                = gi_layout_ds
+          it_fieldcat              = gt_fieldcat
+        TABLES
+          t_outtab                 = lt_final
+        EXCEPTIONS
+          program_error            = 1
+          OTHERS                   = 2.
+      IF sy-subrc <> 0.
+        MESSAGE text-017 TYPE gc_e. "Error in report display
+      ENDIF.
+
+    WHEN gc_disp.
+***Check whether PGI done for all the deliveries
+      REFRESH lt_final_temp[].
+      CLEAR gw_count.
+      lt_final_temp[] = lt_final[].
+      DELETE lt_final_temp WHERE wbstk EQ gc_c.
+      DESCRIBE TABLE lt_final_temp LINES gw_count.
+      IF gw_count GE 1.
+        MESSAGE text-002 TYPE gc_e. "For dispatch all deliveries need to be PGI'ed
+      ELSE.
+***Subroutine call for dispatch
+        PERFORM dispatch.
+      ENDIF.
+  ENDCASE.
+ENDFORM.                    "MY_USER_COMMAND
+
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPATCH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM dispatch .
+  TABLES ztmm_trkid.
+
+  DATA: lt_ztrkcol2 TYPE STANDARD TABLE OF ztmm_trkcol,
+        lt_colli TYPE STANDARD TABLE OF ztmm_colli,
+        li_ztrkcol_ds TYPE ztmm_trkcol,
+        li_colli_ds TYPE ztmm_colli.
+
+***Exported in include MZMM_05_MODF_N_DISPAT_TRUCKI01 for zmm_truck_t06
+***meant for dipatching transport
+  IMPORT gi_reftruck_ds FROM MEMORY ID 'WA_REFTRUCK'.
+  IMPORT ztmm_trkid FROM MEMORY ID 'ZTMM_TRKID'.
+  IMPORT gw_hubid FROM MEMORY ID 'WA_HUBID'.
+  IF gi_reftruck_ds-zstatusid = gc_i.
+    MESSAGE text-015 TYPE gc_e DISPLAY LIKE gc_s. "Transport is already dispatched.
+  ENDIF.
+  IF   gi_reftruck_ds-zreftrk  = ztmm_trkid-zreftrk AND
+         gi_reftruck_ds-zfrwrder = ztmm_trkid-zfrwrder AND
+         gi_reftruck_ds-zrechub  = ztmm_trkid-zrechub AND
+         gi_reftruck_ds-zrefshp  = ztmm_trkid-zrefshp AND
+         gi_reftruck_ds-zreftrid  = ztmm_trkid-zreftrid AND
+         gi_reftruck_ds-znxthbdt = ztmm_trkid-znxthbdt AND
+         gi_reftruck_ds-zldm     = ztmm_trkid-zldm AND
+         gi_reftruck_ds-zsealnr  = ztmm_trkid-zsealnr AND
+         gi_reftruck_ds-zcomment = ztmm_trkid-zcomment.
+
+    IF gw_hubid NE gc_all AND gw_hubid NE ztmm_trkid-zhubid.
+      MESSAGE text-013 TYPE gc_e. "Not authorized to dispatch transport in current hub.
+    ELSE.
+      gi_reftruck_ds-zstatusid = gc_i.
+      gi_reftruck_ds-zdispdt = sy-datum.
+      gi_reftruck_ds-zdisptm = sy-uzeit.
+
+* Update records in ztrkcol
+      REFRESH lt_ztrkcol2.
+      SELECT *
+             FROM ztmm_trkcol
+             INTO TABLE lt_ztrkcol2
+             WHERE ztrukid EQ gi_reftruck_ds-ztrukid.
+      IF sy-subrc IS INITIAL.
+        LOOP AT lt_ztrkcol2 INTO li_ztrkcol_ds.
+          li_ztrkcol_ds-zstatus = gc_i.
+          li_ztrkcol_ds-zdisphub = ztmm_trkid-zhubid.
+          li_ztrkcol_ds-zrechub = ztmm_trkid-zrechub.
+          MODIFY lt_ztrkcol2 FROM li_ztrkcol_ds TRANSPORTING zstatus zdisphub zrechub.
+        ENDLOOP.
+      ENDIF.
+      IF NOT lt_ztrkcol2[] IS INITIAL.
+*** Update record for each colli on the truck
+        SELECT *
+               FROM ztmm_colli
+               INTO TABLE lt_colli
+               FOR ALL ENTRIES IN lt_ztrkcol2
+               WHERE zcolliid EQ lt_ztrkcol2-zcolliid.
+        IF sy-subrc IS INITIAL.
+          LOOP AT lt_colli INTO li_colli_ds.
+            li_colli_ds-zcurtruck = ztmm_trkid-ztrukid.
+            li_colli_ds-znexthub = gi_reftruck_ds-zrechub.
+            li_colli_ds-zcurhub = gc_blank.
+            li_colli_ds-zstatus = gc_i.
+            MODIFY lt_colli FROM li_colli_ds TRANSPORTING zcurtruck znexthub zcurhub zstatus.
+            CLEAR li_colli_ds.
+          ENDLOOP.
+        ENDIF.
+      ELSE.
+        MESSAGE text-010 TYPE gc_e.
+        EXIT.
+      ENDIF.
+      IF NOT lt_ztrkcol2[] IS INITIAL.
+        MODIFY ztmm_trkcol FROM TABLE lt_ztrkcol2.
+      ENDIF.
+      IF NOT lt_colli[] IS INITIAL.
+        MODIFY ztmm_colli FROM TABLE lt_colli.
+      ENDIF.
+      IF NOT gi_reftruck_ds IS INITIAL.
+        MODIFY ztmm_trkid FROM gi_reftruck_ds.
+      ENDIF.
+      COMMIT WORK.
+      MESSAGE text-011 TYPE gc_s.
+    ENDIF.
+  ELSE.
+    IF gw_hubid NE gc_all AND gw_hubid NE ztmm_trkid-zhubid.
+      MESSAGE text-012 TYPE gc_e.
+    ELSE.
+      gi_reftruck_ds-zdispdt = sy-datum.
+      gi_reftruck_ds-zdisptm = sy-uzeit.
+      ztmm_trkid-zdispdt = sy-datum.
+* Update records in ztrkcol
+      REFRESH lt_ztrkcol2.
+      SELECT *
+             FROM ztmm_trkcol
+             INTO TABLE lt_ztrkcol2
+             WHERE ztrukid EQ gi_reftruck_ds-ztrukid.
+      IF sy-subrc IS INITIAL.
+        LOOP AT lt_ztrkcol2 INTO li_ztrkcol_ds.
+          li_ztrkcol_ds-zstatus = gc_i.
+          li_ztrkcol_ds-zdisphub = ztmm_trkid-zhubid.
+          li_ztrkcol_ds-zrechub = ztmm_trkid-zrechub.
+          MODIFY lt_ztrkcol2 FROM li_ztrkcol_ds TRANSPORTING zstatus zdisphub zrechub.
+        ENDLOOP.
+      ENDIF.
+      IF NOT lt_ztrkcol2[] IS INITIAL.
+*** Update record for each colli on the truck
+        SELECT *
+               FROM ztmm_colli
+               INTO TABLE lt_colli
+               FOR ALL ENTRIES IN lt_ztrkcol2
+               WHERE zcolliid EQ lt_ztrkcol2-zcolliid.
+        IF sy-subrc IS INITIAL.
+          LOOP AT lt_colli INTO li_colli_ds.
+            li_colli_ds-zcurtruck = ztmm_trkid-ztrukid.
+            li_colli_ds-znexthub = gi_reftruck_ds-zrechub.
+            li_colli_ds-zcurhub = gc_blank.
+            li_colli_ds-zstatus = gc_i.    " Dispatched
+            MODIFY lt_colli FROM li_colli_ds TRANSPORTING zcurtruck znexthub zcurhub zstatus.
+            CLEAR li_colli_ds.
+          ENDLOOP.
+        ENDIF.
+      ELSE.
+        MESSAGE text-010 TYPE gc_e.
+        EXIT.
+      ENDIF.
+      IF NOT lt_ztrkcol2[] IS INITIAL.
+        MODIFY ztmm_trkcol FROM TABLE lt_ztrkcol2.
+      ENDIF.
+      IF NOT lt_colli[] IS INITIAL.
+        MODIFY ztmm_colli FROM TABLE lt_colli.
+      ENDIF.
+      IF NOT gi_reftruck_ds IS INITIAL.
+        MODIFY ztmm_trkid FROM gi_reftruck_ds.
+      ENDIF.
+      COMMIT WORK.
+      MESSAGE text-011 TYPE gc_s.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " DISPATCH
+

@@ -1,0 +1,80 @@
+*&---------------------------------------------------------------------*
+*& Report ZRMM_SA_MAINTENANCE_SPK_CNG
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name             : ZRMM_SA_MAINTENANCE_SPK_CNG                       *
+* Created by       : Shweta Satle USSHSAT1                             *
+* Transport Request: DE3K9A0MPX                                        *
+* RICEF Object No  : RICEF2679                                         *
+* Transaction code : ZMM993                                            *
+* Description      : Report designed to change/maintained/delete the   *
+*                    Scheduling agreements which are created with the  *
+*                    older SPK configuration                           *
+***------------------------------------------------------------------***
+***                     Change History                               ***
+***------------------------------------------------------------------***
+************************************************************************
+*TR #       |DATE        |CHANGED BY   |CR #        |DESCRIPTION OF CHANGE
+************************************************************************
+*DE3K9A0NJ7 | 18-12-2023 |USSHSAT1     |            | Source list deletion when SA is deleted
+************************************************************************
+************************************************************************
+* Change History
+*********************************************************************************************************
+* CHANGED BY | DATE         | TR #       |CR No(INCUM).| DESCRIPTION OF CHANG
+*********************************************************************************************************
+* USSHSAT1    | 26-SEP-2024  | DE3K9A0TG7 |             | Changes for defect no.
+*********************************************************************************************************
+REPORT zrmm_sa_maintenance_spk_cng MESSAGE-ID zmm.
+***Include for declarations
+INCLUDE zrmm_sa_mntspk_top.
+***Include for selection screen
+INCLUDE zrmm_sa_mntspk_ss.
+***Include for forms
+INCLUDE zrmm_sa_mntspk_forms.
+
+************************************************************************
+*INITIALIZATION Event
+************************************************************************
+INITIALIZATION.
+***Get harcode entries
+  PERFORM fetch_hardcode_entries.
+  PERFORM fetch_spk.
+
+************************************************************************
+*AT SELECTION-SCREEN Event
+************************************************************************
+AT SELECTION-SCREEN.
+  PERFORM validate_selection_screen.
+
+************************************************************************
+*AT SELECTION-SCREEN ON VALUE-REQUEST Event
+************************************************************************
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gp_plant.
+  PERFORM f4_plant.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_sobsl-low.
+  PERFORM f4_spk USING 'GS_SOBSL-LOW'.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_sobsl-high.
+  PERFORM f4_spk USING 'GS_SOBSL-HIGH'.
+
+************************************************************************
+*START-OF-SELECTION Event
+************************************************************************
+START-OF-SELECTION.
+***Get prerequisite data
+  PERFORM fetch_initial_data.
+**Fetch Data
+  PERFORM fetch_material_data.
+************************************************************************
+*END-OF-SELECTION Event
+************************************************************************
+END-OF-SELECTION.
+**Deleting older SPK SA
+  PERFORM delete_sa.
+

@@ -1,0 +1,500 @@
+*&---------------------------------------------------------------------*
+*&      Form  status_temp
+*&---------------------------------------------------------------------*
+************************************************************************
+* DATE       |  TR No    |  CHANGED BY  | DESCRIPTION OF change
+************************************************************************
+* 26/04/2022    DE3K9A0CY3    USDEJAI     EHP8 Defect - E1ED4 - SDATA field
+************************************************************************
+FORM status_temp .
+
+*  DATA: ls_status_temp TYPE zidoc_status_ack,
+
+*        lt_status_temp TYPE STANDARD TABLE OF zidoc_status_ack. "
+  DATA: ls_status_temp TYPE ztmm_idoc_ack, "DE3K9A09AK,
+        lt_status_temp TYPE STANDARD TABLE OF ztmm_idoc_ack . "DE3K9A09AK
+
+  CLEAR lt_status_temp[].
+
+  SELECT *                                              "#EC CI_NOWHERE
+*    FROM zidoc_status_ack "DE3K9A09AK
+    FROM ztmm_idoc_ack
+    INTO TABLE lt_status_temp.
+
+  IF sy-subrc = 0.
+    SORT lt_status_temp  DESCENDING BY job_start_date
+                                       job_start_time
+                                       job_end_date
+                                       job_end_time.
+    CLEAR ls_status_temp.
+    READ TABLE lt_status_temp INTO ls_status_temp INDEX 1.
+    IF sy-subrc = 0.
+**      p_dat = ls_status_temp-job_start_date.
+**      p_tim = ls_status_temp-job_start_time.
+*******************************************
+*      gv_dat  = ls_status_temp-job_start_date.
+*      gv_dat1 = ls_status_temp-job_end_date.
+*      gv_tim  = ls_status_temp-job_start_time.
+*      gv_tim1 = ls_status_temp-job_end_time.
+*Begin of changes by USBABEG TR DE3K9A06UD CR CHG0181553
+*Begin of changes by USSACHI4 TR DE3K9A0AIA CR CHG0181553
+*      gv_dat  = ls_status_temp-job_start_date.
+      gv_dat  = ls_status_temp-job_end_date.
+*End of changes by USSACHI4 TR DE3K9A0AIA CR CHG0181553
+      gv_dat1 = sy-datum.
+      gv_tim  = ls_status_temp-job_start_time.
+      gv_tim1 = sy-uzeit.
+    ELSE.
+      gv_dat = sy-datum.
+      gv_dat1 = sy-datum.
+      gv_tim = sy-uzeit.
+      gv_tim1 = sy-uzeit.
+    ENDIF.
+*End of changes by USBABEG TR DE3K9A06UD CR CHG0181553
+  ENDIF.
+*  gv_start_time = sy-uzeit.
+*  gv_start_date = sy-datum.
+
+  s_credat-sign   = 'I'.
+*  s_credat-option = 'EQ'.
+  s_credat-option = 'BT'.
+*  s_credat-low    = p_dat."gv_crdate.
+*Begin of changes by USSACHI4 TR DE3K9A0AIA CR CHG0181553
+*  s_credat-low    = gv_dat."gv_crdate.
+**  s_credat-high    = gv_start_date."gv_crdate.
+*  s_credat-high   = gv_dat1."gv_crdate.
+  IF gv_dat IS INITIAL.
+    s_credat-low      = sy-datum.
+  ELSE.
+    s_credat-low      = gv_dat. .
+  ENDIF.
+  IF gv_dat1 IS INITIAL.
+    s_credat-high    = sy-datum.
+  ELSE.
+    s_credat-high     = gv_dat1.
+  ENDIF.
+*End of changes by USSACHI4 TR DE3K9A0AIA CR CHG0181553
+  APPEND s_credat.
+
+  s_cretim-sign   = 'I'.
+*  s_cretim-option = 'EQ'.
+  s_cretim-option = 'BT'.
+*  s_cretim-option = 'IN'.
+*Begin of changes by USSACHI4 TR DE3K9A0AIA CR CHG0181553
+*  s_cretim-high   = gv_tim1."gv_crdate.
+*   s_cretim-low    = gv_tim."gv_crdate.
+  IF gv_tim IS INITIAL.
+    s_cretim-low     = '000001'. "sy-uzeit.
+  ELSE.
+    s_cretim-low    = gv_tim."gv_crdate.
+  ENDIF.
+  IF gv_tim1 IS INITIAL.
+    s_cretim-high    = sy-uzeit. "gv_tim1."gv_crdate.
+  ELSE.
+    s_cretim-high      = gv_tim1."gv_crdate.
+  ENDIF.
+*End of changes by USSACHI4 TR DE3K9A0AIA CR CHG0181553
+
+  APPEND s_cretim.
+
+ENDFORM.                    " STATUS_TEMP
+*&---------------------------------------------------------------------*
+*&      Form  get_ztuhcd1
+*&---------------------------------------------------------------------*
+FORM get_ztuhcd1 .
+  CLEAR:   gi_ztuhcd1.
+  REFRESH: gt_ztuhcd1.
+  gi_ztuhcd1-name  = gc_name.
+  APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+  CLEAR  gi_ztuhcd1.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+    SORT  gt_ztuhcd1 BY name zkey field index_no.
+    CLEAR gi_ztuhcd1.
+  ENDIF.
+ENDFORM.                    " GET_ZTUHCD1
+
+
+*&---------------------------------------------------------------------*
+*&      Form  get_idoc_data
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_idoc_data .
+****Begin of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+****Begin of Changes by 503162060 on Dated 13/08/2021 TR: DE3K9A0907.
+***  CLEAR: gv_flag.
+***  IF  s_credat-low EQ gv_dat AND s_credat-high EQ gv_dat1.
+***    gv_flag = 'X'.
+****End of Changes by 503162060 on Dated 13/08/2021 TR: DE3K9A0907.
+****End of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+  SELECT docnum      " IDoc number
+         status      " Status of IDoc
+         doctyp      " IDoc Type
+         direct      " Direction for IDoc
+         rcvpor      " Receiver port
+         rcvprt      " Partner Type of Receiver
+         rcvprn      " Partner Number of Receiver
+         sndpor      " Sender port
+         sndprt      " Partner type of sender
+         sndprn      " Partner Number of Sender
+         sndlad      " Logical address of sender
+*Begin of changes by USBABEG TR DE3K9A09OH CR CHG0181553
+         refint
+*End of changes by USBABEG TR DE3K9A09OH CR CHG0181553
+         refgrp      " Reference to message group
+         credat      " IDoc Created On
+         cretim      " IDoc Created at
+         mestyp      " Message Type
+         idoctp      " Basic type
+    FROM edidc
+    INTO TABLE gt_edidc
+    WHERE status  IN s_status
+    AND direct    IN s_direct
+    AND mestyp    IN s_mestyp
+    AND docnum    IN s_docnum
+    AND credat    IN s_credat
+    AND cretim    IN s_cretim.
+
+  IF sy-subrc = 0.
+    SELECT docnum     " IDoc Number
+           credat     " IDoc Created On
+           cretim     " IDoc Created at
+           countr     " IDoc status counter
+           status     " Status of IDoc
+           statxt     " Text for status code
+           segnum     " Number of SAP segment
+           segfld     " Field Name in SAP Segment
+           stamid     " Status message ID             "#EC CI_NOWHERE
+           stamno     " Status message number
+           stapa1     " Parameter 1
+           stapa2     " Parameter 2
+           stapa3     " Parameter 3
+           stapa4     " Parameter 4
+      FROM edids
+      INTO TABLE gt_edids
+      FOR ALL ENTRIES IN gt_edidc
+      WHERE docnum EQ gt_edidc-docnum
+      AND status   EQ gt_edidc-status
+      AND credat   EQ gt_edidc-credat
+      AND stamno   IN s_stamno.
+
+    IF sy-subrc = 0.
+      SELECT docnum   " IDoc number                              "#EC CI_NOORDER
+             counter  " Counter in cluster table
+             segnam   " Number of SAP segment
+             dtint2   " USDEJAI for  DE3K9A0CY3
+             sdata    " Application data
+       FROM edid4
+       INTO TABLE gt_edid4
+       FOR ALL ENTRIES IN gt_edids
+       WHERE docnum EQ gt_edids-docnum
+       AND   segnam EQ gc_segnm.
+      IF sy-subrc = 0.
+        DELETE gt_edid4 WHERE segnam NE 'E1EDL41'.
+        LOOP AT gt_edid4 INTO gi_edid4 WHERE segnam EQ 'E1EDL41'.
+          gi_e1edl41           = gi_edid4-sdata.
+          gi_edid4_fin-docnum  = gi_edid4-docnum.
+          gi_edid4_fin-bstnr   = gi_e1edl41-bstnr.
+          gi_edid4_fin-posex   = gi_e1edl41-posex.
+          gi_edid4_fin-segnam  = gi_edid4-segnam.
+
+          CLEAR gi_edidc.
+          READ TABLE gt_edidc INTO gi_edidc WITH KEY docnum  = gi_edid4-docnum.
+          IF sy-subrc = 0.
+            gi_edid4_fin-mestyp = gi_edidc-mestyp.
+          ENDIF.
+          APPEND gi_edid4_fin TO gt_edid4_fin.
+          CLEAR: gi_edid4_fin,gi_edidc.
+        ENDLOOP.
+
+        SELECT ebeln  " Purchasing Document Number
+               ernam  " Name of Person who Created the Object
+               lifnr  " Vendor Account Number
+          FROM ekko
+          INTO TABLE gt_ekko
+          FOR ALL ENTRIES IN gt_edid4_fin
+          WHERE ebeln EQ gt_edid4_fin-bstnr+0(10).
+      ENDIF.
+      PERFORM build_final.
+    ENDIF.
+  ENDIF.
+****Begin of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+*******Begin of Changes by 503162060 on Dated 13/08/2021.
+***  ELSE.
+***    MESSAGE 'Job start date is not matched with the Ztable Job start Date & Job end Date' TYPE 'E' DISPLAY LIKE 'S'.
+***  ENDIF.
+*******End of Changes by 503162060 on Dated 13/08/2021.
+****End of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+ENDFORM.                    " GET_IDOC_DATA
+
+
+*&---------------------------------------------------------------------*
+*&      Form  build_final
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM build_final .
+
+  LOOP AT gt_edidc INTO gi_edidc.
+    gt_edids1[] = gt_edids[].
+    DELETE gt_edids1 WHERE docnum NE gi_edidc-docnum.
+    SORT gt_edids1 BY countr DESCENDING.
+
+    READ TABLE gt_edids1 INTO gi_edids1 INDEX 1.
+    MOVE-CORRESPONDING gi_edidc TO gi_final.
+
+    READ TABLE gt_edid4_fin INTO gi_edid4_fin WITH KEY docnum = gi_edidc-docnum.
+    IF gi_edid4_fin-mestyp = gi_edidc-mestyp."  'DESADV'.
+
+      READ TABLE gt_ekko INTO gi_ekko WITH KEY ebeln = gi_edid4_fin-bstnr+0(10).
+      IF sy-subrc = 0.
+        gi_final-sndprn = gi_ekko-lifnr.
+      ENDIF.
+    ENDIF.
+    MOVE-CORRESPONDING gi_edids1 TO gi_final.
+    APPEND gi_final TO gt_final.
+    CLEAR gi_final.
+  ENDLOOP.
+ENDFORM.                    " BUILD_FINAL
+*&---------------------------------------------------------------------*
+*&      Form  send_idoc
+*&---------------------------------------------------------------------*
+FORM send_idoc .
+* Changes begin by USSACHI4 06-09-2021 DE3K9A09HG CHG0181553
+  CONSTANTS: lc_port    TYPE ztuhcd1-field VALUE 'PORT_ACK',
+             lc_partype TYPE ztuhcd1-field VALUE 'PART_TYPE_ACK',
+             lc_partnr  TYPE ztuhcd1-field VALUE 'PARTNR_ACK'.
+  DATA: lw_sysid TYPE sy-sysid.
+  lw_sysid = sy-sysid.
+  CONDENSE lw_sysid NO-GAPS.
+* Changes end by USSACHI4 06-09-2021 DE3K9A09HG CHG0181553
+  CLEAR:  gi_e1stats,gi_int_edidd_st.
+  LOOP AT gt_final INTO gi_final.
+    READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY low = gi_final-sndprn.
+    IF sy-subrc = 0.
+* Control Record
+      gi_control_record_out_st-idoctp  = gc_idoctp.        "SYSTAT01
+      gi_control_record_out_st-mestyp  = gc_mestyp.        "STATUS¨
+* The receiver values for this idoc, are the sender values from the original one
+* Changes begin by USSACHI4 06-09-2021 DE3K9A09HG CHG0181553
+*      gi_control_record_out_st-rcvpor  = gi_final-sndpor.  "Receiver port
+*      gi_control_record_out_st-rcvprt  = gi_final-sndprt.  "Receiver Partner Type
+*      gi_control_record_out_st-rcvprn  = gi_final-sndprn.  "Receiver partner no.
+      READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY zkey = lw_sysid
+      field = lc_port.
+      IF sy-subrc = 0.
+        gi_control_record_out_st-rcvpor = gi_ztuhcd1-low.
+      ENDIF.
+      READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY zkey = lw_sysid
+      field = lc_partype.
+      IF sy-subrc = 0.
+        gi_control_record_out_st-rcvprt = gi_ztuhcd1-low."Receiver partner type.
+      ENDIF.
+      READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY zkey = lw_sysid
+      field = lc_partnr.
+      IF sy-subrc = 0.
+        gi_control_record_out_st-rcvprn = gi_ztuhcd1-low."Receiver partner no.
+      ENDIF.
+* Changes end by USSACHI4 06-09-2021 DE3K9A09HG CHG0181553
+* The sender values for this idoc, are the receiver values from the original one
+      gi_control_record_out_st-sndpor  = gi_final-rcvpor.  "Sender port
+      gi_control_record_out_st-sndprt  = gi_final-rcvprt.  "Sender Partner Type
+      gi_control_record_out_st-sndprn  = gi_final-rcvprn.  "Sender partner no.
+* Data segment - Status information
+      gi_int_edidd_st-segnam           = gc_segnam.        "E1STATS
+*Begin of changes by USBABEG for CR CHG0181553 TR DE3K9A09OH
+*      gi_e1stats-docnum                = gi_final-sndlad.  "Partner Idoc
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+        EXPORTING
+          input  = gi_final-refint
+        IMPORTING
+          output = gi_e1stats-docnum.
+
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = gi_e1stats-docnum
+        IMPORTING
+          output = gi_e1stats-docnum.
+*End of changes by USBABEG for CR CHG0181553 TR DE3K9A09OH
+*Changes Begin by USSACHI4 16-09-2021 DE3K9A09NH CHG0181553
+      gi_e1stats-status                = gi_final-status.
+*Changes end by USSACHI4 16-09-2021 DE3K9A09NH CHG0181553
+      gi_e1stats-stacod                = gi_final-status.  "Status code
+      gi_e1stats-logdat                = gi_final-credat.  "Creation Date
+      gi_e1stats-logtim                = gi_final-cretim.  "Creation Time
+      gi_e1stats-stapa1                = gi_final-refgrp.  "Partner PO
+      gi_e1stats-stapa2                = gi_final-docnum.  "Original Idoc
+
+      IF gi_e1stats-stapa2 IS INITIAL.
+        gi_e1stats-stapa2 = 'test text'.
+      ENDIF.
+
+      CALL FUNCTION 'MESSAGE_TEXT_BUILD'
+        EXPORTING
+          msgid               = gi_final-stamid
+          msgnr               = gi_final-stamno
+          msgv1               = gi_final-stapa1
+          msgv2               = gi_final-stapa2
+          msgv3               = gi_final-stapa3
+          msgv4               = gi_final-stapa4
+        IMPORTING
+          message_text_output = gi_e1stats-statxt.
+
+      MOVE gi_e1stats TO gi_int_edidd_st-sdata.
+      APPEND gi_int_edidd_st TO gt_int_edidd_st.
+
+* Generate and send data Idoc
+      CALL FUNCTION 'MASTER_IDOC_DISTRIBUTE'
+        EXPORTING
+          master_idoc_control            = gi_control_record_out_st
+        TABLES
+          communication_idoc_control     = gt_control_record_in_st
+          master_idoc_data               = gt_int_edidd_st
+        EXCEPTIONS
+          error_in_idoc_control          = 1
+          error_writing_idoc_status      = 2
+          error_in_idoc_data             = 3
+          sending_logical_system_unknown = 4
+          OTHERS                         = 5.
+      IF sy-subrc = 0.
+* Refresh necessary to get the data sent to receiver via
+* function EDI_OUTPUT_NEW
+        REFRESH gt_int_edidd_st.
+        CALL FUNCTION 'EDI_OUTPUT_NEW'
+          EXPORTING
+            onl_option = 'B'
+          TABLES
+            i_edidc    = gt_control_record_in_st
+            i_edidd    = gt_int_edidd_st.
+*  Commit necessary to get the data sent to receiver
+        COMMIT WORK.
+        CLEAR: gi_control_record_help.
+* Store number of generated idoc
+        READ TABLE gt_control_record_in_st INTO gi_control_record_help INDEX 1.
+        IF sy-subrc = 0.
+*****Begin of Changes by 503162060 on Dated 10/08/2021 TR: DE3K9A0907.
+**          gi_status-idoc_numebr    = gi_control_record_help-docnum.
+**          gi_status-credat         = gi_control_record_help-credat.
+**          gi_status-cretim         = gi_control_record_help-cretim.
+**          gi_status-status         = gi_control_record_help-status.
+**          gi_status-job_start_date = gv_start_date.
+**          gi_status-job_start_time = gv_start_time.
+**          gi_status-job_end_date   = sy-datum.
+**          gi_status-job_end_time   = sy-uzeit.
+**          gi_status-partner_idoc   = gi_final-sndlad.
+          gi_status-idoc_number_in  = gi_final-docnum.
+          gi_status-credat_in       = gi_final-credat.
+          gi_status-cretim_in       = gi_final-cretim.
+          gi_status-idoc_numebr_out = gi_control_record_help-docnum.
+          gi_status-credat          = gi_control_record_help-credat.
+          gi_status-cretim          = gi_control_record_help-cretim.
+*          gi_status-idoctp          = gc_idoctp.
+          gi_status-idoctp          = gi_final-idoctp.
+*          gi_status-status          = gi_control_record_help-status.
+          gi_status-status          = gi_final-status.
+*Begin of changes by USBABEG for CR CHG0181553 TR DE3K9A09OH
+*          gi_status-partner_idoc    = gi_final-sndlad.
+          CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+            EXPORTING
+              input  = gi_final-refint
+            IMPORTING
+              output = gi_status-partner_idoc.
+
+          CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+            EXPORTING
+              input  = gi_status-partner_idoc
+            IMPORTING
+              output = gi_status-partner_idoc.
+*End of changes by USBABEG for CR CHG0181553 TR DE3K9A09OH
+**          gi_status-msg_typ         = gc_mestyp.
+          gi_status-msg_typ         = gi_final-mestyp.
+          gi_status-sndprn          = gi_final-sndprn.
+          gi_status-job_start_date  = gv_start_date.
+          gi_status-job_start_time  = gv_start_time.
+          gi_status-job_end_date    = sy-datum.
+          gi_status-job_end_time    = sy-uzeit.
+*****End of Changes by 503162060 on Dated 10/08/2021 TR: DE3K9A0907.
+          APPEND gi_status TO gt_status.
+        ENDIF.
+      ELSE.
+*when idoc sending fails need to log the details
+*****Begin of Changes by 503162060 on Dated 10/08/2021 TR: DE3K9A0907.
+        gi_status-idoc_number_in  = gi_final-docnum.
+        gi_status-credat_in       = gi_final-credat.
+        gi_status-cretim_in       = gi_final-cretim.
+        gi_status-idoc_numebr_out = gi_control_record_help-docnum.
+        gi_status-credat          = gi_control_record_help-credat.
+        gi_status-cretim          = gi_control_record_help-cretim.
+**        gi_status-idoctp          = gc_idoctp.
+        gi_status-idoctp          = gi_final-idoctp.
+*        gi_status-status          = gi_control_record_help-status.
+        gi_status-status          = gi_final-status.
+        gi_status-partner_idoc    = gi_final-sndlad.
+**        gi_status-msg_typ         = gc_mestyp.
+        gi_status-msg_typ         = gi_final-mestyp.
+        gi_status-sndprn          = gi_final-sndprn.
+        gi_status-job_start_date  = gv_start_date.
+        gi_status-job_start_time  = gv_start_time.
+        gi_status-job_end_date    = sy-datum.
+        gi_status-job_end_time    = sy-uzeit.
+        APPEND gi_status TO gt_status.
+*****End of Changes by 503162060 on Dated 10/08/2021 TR: DE3K9A0907.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.                    " SEND_IDOC
+*&---------------------------------------------------------------------*
+*&      Form  update_table
+*&---------------------------------------------------------------------*
+FORM update_table .
+****Begin of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+******Begin of Changes by 503162060 on Dated 13/08/2021 TR: DE3K9A0907.
+***  IF gv_flag = 'X'.
+***    MODIFY ztmm_status_idoc FROM TABLE gt_status.
+***  ENDIF.
+******End of Changes by 503162060 on Dated 13/08/2021 TR: DE3K9A0907.
+  IF p_chk = 'X'.
+***    do not update the custom table due to it is manual run.
+    PERFORM alv_display. "changes done by USSACHI4 DE3K9A09F8 CHG0181553 01/09/2021
+  ELSE.
+*    MODIFY zidoc_status_ack FROM TABLE gt_status.
+    MODIFY ztmm_idoc_ack FROM TABLE gt_status.              "DE3K9A09AK
+* Begin of changes done by USSACHI4 DE3K9A09F8 CHG0181553 01/09/2021
+    IF sy-subrc = 0.
+      MESSAGE 'Records updated successfully'(002) TYPE 'S'.
+    ENDIF.
+*End of changes done by USSACHI4 DE3K9A09F8 CHG0181553 01/09/2021
+  ENDIF.
+****End of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+ENDFORM.                    " UPDATE_TABLE
+" Begin of changes done by USSACHI4 DE3K9A09F8 CHG0181553 01/09/2021
+*&---------------------------------------------------------------------*
+*&      Form  ALV_DISPLAY
+*&---------------------------------------------------------------------*
+FORM alv_display .
+  DATA :lv_repid TYPE sy-repid.
+  lv_repid = sy-repid.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = lv_repid
+      i_structure_name   = 'ZIDOC_STATUS_ACK'
+    TABLES
+      t_outtab           = gt_status[]
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+
+  IF sy-subrc NE 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                    " ALV_DISPLAY
+" End of changes done by USSACHI4 DE3K9A09F8 CHG0181553 01/09/2021
+

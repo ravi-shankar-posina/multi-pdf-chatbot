@@ -1,0 +1,34 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PAYROLL_PROCESS_SSC
+*&---------------------------------------------------------------------*
+
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_PAYROLL_PROCESS_SSC
+*&---------------------------------------------------------------------*
+
+*Selection-screen declration
+
+DATA : gw_ersda_ds TYPE afru-ersda,
+       gw_werks TYPE afru-werks,
+       gw_rueck TYPE afru-rueck,
+       gw_iedz TYPE afru-iedz,
+       gw_dispo TYPE afko-dispo.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001."Enter
+SELECT-OPTIONS : gs_ersda FOR gw_ersda_ds OBLIGATORY,"Confirmation date
+                 gs_werks FOR gw_werks OBLIGATORY, "Plant
+                 gs_rueck FOR gw_rueck." Confirmation number
+SELECT-OPTIONS : gs_iedz  FOR gw_iedz, " Confirmation finish time
+                 gs_dispo FOR gw_dispo." MRP controller
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-002."Download format
+PARAMETERS :rx_1 RADIOBUTTON GROUP r1 DEFAULT 'X',
+            rx_2 RADIOBUTTON GROUP r1.
+SELECTION-SCREEN END OF BLOCK b3.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-003."Download
+PARAMETERS:
+            p_excel  AS CHECKBOX DEFAULT 'X',
+            p_exfile TYPE rlgrap-filename.
+SELECTION-SCREEN END OF BLOCK b2.
+

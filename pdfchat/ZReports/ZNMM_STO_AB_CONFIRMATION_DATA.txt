@@ -1,0 +1,139 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_STO_AB_CONFIRMATION_DATA
+*&---------------------------------------------------------------------*
+
+DATA: v_ponum TYPE ekko-ebeln,
+      v_bsart TYPE ekko-bsart,
+      v_aedat TYPE ekko-aedat,
+      v_plant TYPE werks_d,
+      gv_date TYPE sy-datum.
+TYPES: BEGIN OF typ_po,
+       ebeln TYPE ekko-ebeln,
+       werks TYPE werks_d,
+       END OF typ_po,
+       BEGIN OF ty_threshold,
+       reswk TYPE reswk,
+       threshold TYPE /bcv/fnd_int1,
+       END OF ty_threshold.
+DATA: wa_cdhdr TYPE typ_po,
+      it_cdhdr TYPE TABLE OF typ_po,
+      gt_threshold TYPE TABLE OF ty_threshold,
+      gs_threshold TYPE ty_threshold.
+
+
+DATA : gw_ponumber TYPE bapimepoheader-po_number,
+       gs_header TYPE bapimepoheader,
+       gs_item TYPE bapimepoitem,
+       gt_item TYPE TABLE OF bapimepoitem,
+       gs_schedule TYPE bapimeposchedule,
+       gt_schedule TYPE TABLE OF bapimeposchedule,
+       gt_schedule1 TYPE TABLE OF bapimeposchedule,
+       gs_confirm_line TYPE bapiekes,
+       gt_confirm_line TYPE TABLE OF bapiekes,
+       gt_confirm_line1 TYPE TABLE OF bapiekes,
+       gs_return TYPE bapiret2,
+       gt_return TYPE TABLE OF bapiret2,
+       gt_confirm  TYPE TABLE OF bapimeconfdetail,
+       gt_confirm1 TYPE TABLE OF bapimeconfdetail,
+       gs_confirm TYPE bapimeconfdetail.
+DATA :   gt_con_item TYPE TABLE OF bapimeconfitem,
+         gs_con_item TYPE bapimeconfitem,
+         gt_conf TYPE TABLE OF bapimeconfdetail,
+         gs_conf TYPE bapimeconfdetail,
+         gt_con_itemx  TYPE TABLE OF bapimeconfitemx,
+*         gt_con_itemx1 TYPE TABLE OF BAPIMECONFITEMX,
+         gs_con_itemx TYPE bapimeconfitemx,
+         gt_confx TYPE TABLE OF bapimeconfdetailx,
+         gt_confx1 TYPE TABLE OF bapimeconfdetailx,
+         gs_confx TYPE bapimeconfdetailx,
+         gt_confr TYPE TABLE OF bapiret2,
+         gs_confr TYPE bapiret2.
+TYPES : BEGIN OF ty_final,
+        ebeln TYPE ebeln,
+        ebelp TYPE ebelp,
+        mess_typ TYPE bapi_mtype,
+        message TYPE bapi_msg,
+        END OF ty_final.
+DATA : gt_final TYPE TABLE OF ty_final,
+       gs_final TYPE ty_final.
+DATA : lw_diff1  LIKE  vtbbewe-atage,"TYPE atage,
+          lw_diff2 LIKE  vtbbewe-atage,"TYPE atage,
+          lw_diff3 LIKE  vtbbewe-atage."TYPE atage.
+DATA : lw_date1 TYPE dbervon,
+       lw_date2 TYPE dbervon.
+DATA:
+*       wa_cdhdr type typ_po,
+*      it_cdhdr type table of typ_po WITH HEADER LINE,
+      gt_cdhdr_tmp TYPE TABLE OF cdhdr,
+      gs_cdhdr_tmp TYPE cdhdr,
+      gt_cdpos_tmp TYPE TABLE OF cdpos,
+      gs_cdpos_tmp TYPE cdpos.
+*      it_cdhdr_tmp TYPE STANDARD TABLE OF cdhdr WITH HEADER LINE,
+*      it_cdpos_tmp TYPE STANDARD TABLE OF cdpos WITH HEADER LINE.
+DATA : gw_ibtyp TYPE ibtyp,
+       gt_ekes1 TYPE TABLE OF uekes,
+        gs_ekes1 TYPE uekes,
+        gt_err1 TYPE TABLE OF wuebs,
+        gs_err1 TYPE wuebs,
+     wa_ztmm_abconf TYPE ztmm_abconf,
+      it_ztmm_abconf TYPE TABLE OF ztmm_abconf.
+TYPE-POOLS:slis.
+DATA: gt_alv TYPE REF TO cl_salv_table .
+TYPES : BEGIN OF ty_ekes,
+       ebeln TYPE ebeln,
+       ebelp TYPE ebelp,
+       etens TYPE etens,
+       ebtyp TYPE ebtyp,
+       eindt TYPE eindt,
+       menge TYPE bbmng,  " Changes by 502287934 for RITM RITM4668448 for CR CHG1249876
+       dabmg  TYPE dabmg, " Changes by 502287934 for RITM RITM4668448 for CR CHG1249876
+       charg TYPE charg_d,
+       erdat TYPE bberd,
+       END OF ty_ekes.
+DATA : gt_ekes TYPE TABLE OF ty_ekes,
+       gs_ekes TYPE ty_ekes.
+TYPES : BEGIN OF ty_eket2,
+      ebeln TYPE ebeln,
+      ebelp TYPE eket-ebelp,
+      etenr TYPE eket-etenr,
+      menge TYPE eket-menge,
+      wamng TYPE eket-wamng,
+      END OF ty_eket2.
+DATA : gt_eket2 TYPE TABLE OF ty_eket2,
+       gt_eket21 TYPE TABLE OF ty_eket2,
+       gs_eket2 TYPE ty_eket2.
+DATA : lw_menge TYPE menge_d,
+   lw_wemng TYPE menge_d,
+   lw_wemng1 TYPE menge_d,
+   lw_flag ,
+   lw_flag1 .
+DATA : lw_count TYPE i.
+DATA : lw_date(8) TYPE c.
+DATA : lw_value TYPE i,
+                   lw_diff TYPE i.
+DATA :lw_x TYPE i,
+                   lw_count1 TYPE i.
+TYPES : BEGIN OF ty_cdpos,
+        ebeln TYPE ebeln,
+        ebelp TYPE ebelp,
+        END OF ty_cdpos,
+        BEGIN OF ty_ebeln,
+        ebeln TYPE ebeln,
+        reswk TYPE werks_d,
+        END OF ty_ebeln,
+        BEGIN OF ty_cdhdr1,
+        ebeln TYPE ebeln,
+        ebelp TYPE ebelp,
+        reswk TYPE werks_d,
+        END OF ty_cdhdr1.
+DATA : gt_cdpos TYPE TABLE OF ty_cdpos,
+       gs_cdpos TYPE ty_cdpos,
+       gt_ebeln TYPE TABLE OF ty_ebeln,
+       gs_ebeln TYPE ty_ebeln,
+       gt_cdhdr1 TYPE TABLE OF  ty_cdhdr1,
+       gt_cdhdr2 TYPE TABLE OF  ty_cdhdr1,
+       gt_cdhdr TYPE TABLE OF  ty_cdhdr1,
+       gs_cdhdr1 TYPE ty_cdhdr1,
+       gs_cdhdr TYPE ty_cdhdr1,
+       gw_flag.
+

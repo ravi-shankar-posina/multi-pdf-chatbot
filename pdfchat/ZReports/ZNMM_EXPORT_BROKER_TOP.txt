@@ -1,0 +1,12 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_REPROCES_EXPORTBROKER_TOP
+*&---------------------------------------------------------------------*
+TABLES: ztmm_exp_cls_log.
+** Global data declaration
+DATA: gt_exp_cls_log  TYPE STANDARD TABLE OF ztmm_exp_cls_log,
+      gi_exp_cls_log  TYPE ztmm_exp_cls_log,
+      gi_export_tab   TYPE zmm_mt_flat_filefor_exportbrok,
+      go_exportbroker TYPE REF TO zmm_cl_si_flat_filefor_exportb,
+      gt_records      TYPE STANDARD TABLE OF zmm_dt_flat_filefor_exportbrok,
+      gi_records      TYPE zmm_dt_flat_filefor_exportbrok.
+

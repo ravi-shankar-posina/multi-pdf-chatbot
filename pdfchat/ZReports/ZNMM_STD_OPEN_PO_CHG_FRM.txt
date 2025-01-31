@@ -1,0 +1,486 @@
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 08-Apr-2019        | GECHG0455669    |502098305  | passing data to Street2 instead of district
+***------------------------------------------------------------------***
+
+*&---------------------------------------------------------------------*
+*&      Form  F1000_GET_FILE_NAME
+*&---------------------------------------------------------------------*
+*& Form used for F4 functionality which fetches file path from
+*& Presentation Server
+*----------------------------------------------------------------------*
+FORM f1000_get_file_name CHANGING p_infile.
+
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+    IMPORTING
+      file_name     = p_infile.
+
+ENDFORM.                    " F1000_GET_FILE_NAME
+
+*&---------------------------------------------------------------------*
+*&      Form  DATA_LOAD
+*&---------------------------------------------------------------------*
+FORM data_load .
+  DATA: l_infile TYPE string.
+  l_infile = p_infile.
+  CALL FUNCTION 'GUI_UPLOAD'
+    EXPORTING
+      filename                = l_infile
+      filetype                = 'DAT'
+    TABLES
+      data_tab                = gt_input_data
+    EXCEPTIONS
+      file_open_error         = 1
+      file_read_error         = 2
+      no_batch                = 3
+      gui_refuse_filetransfer = 4
+      invalid_type            = 5
+      no_authority            = 6
+      unknown_error           = 7
+      bad_data_format         = 8
+      header_not_allowed      = 9
+      separator_not_allowed   = 10
+      header_too_long         = 11
+      unknown_dp_error        = 12
+      access_denied           = 13
+      dp_out_of_memory        = 14
+      disk_full               = 15
+      dp_timeout              = 16
+      OTHERS                  = 17.
+  IF sy-subrc <> 0.
+    CASE sy-subrc.
+      WHEN '1'.
+        MESSAGE i000(zcc_c) WITH text-d23.
+        EXIT.
+      WHEN '2'.
+        MESSAGE i000(zcc_c) WITH text-d24.
+        EXIT.
+      WHEN '3'.
+        MESSAGE i000(zcc_c) WITH text-d02.
+        EXIT.
+      WHEN '4'.
+        MESSAGE i000(zcc_c) WITH text-d03.
+        EXIT.
+      WHEN '5'.
+        MESSAGE i000(zcc_c) WITH text-d04.
+        EXIT.
+      WHEN '6'.
+        MESSAGE i000(zcc_c) WITH text-d05.
+        EXIT.
+      WHEN '7'.
+        MESSAGE i000(zcc_c) WITH text-d06.
+        EXIT.
+      WHEN '8'.
+        MESSAGE i000(zcc_c) WITH text-d22.
+        EXIT.
+      WHEN '9'.
+        MESSAGE i000(zcc_c) WITH text-d07.
+        EXIT.
+      WHEN '10'.
+        MESSAGE i000(zcc_c) WITH text-d08.
+        EXIT.
+      WHEN '11'.
+        MESSAGE i000(zcc_c) WITH text-d14.
+        EXIT.
+      WHEN '12'.
+        MESSAGE i000(zcc_c) WITH text-d06.
+        EXIT.
+      WHEN '13'.
+        MESSAGE i000(zcc_c) WITH text-d15.
+        EXIT.
+      WHEN '14'.
+        MESSAGE i000(zcc_c) WITH text-d16.
+        EXIT.
+      WHEN '15'.
+        MESSAGE i000(zcc_c) WITH text-d17.
+        EXIT.
+      WHEN '16'.
+        MESSAGE i000(zcc_c) WITH text-d18.
+        EXIT.
+      WHEN '17'.
+        MESSAGE i000(zcc_c) WITH text-d06.
+        EXIT.
+    ENDCASE.
+  ENDIF.
+  READ TABLE gt_input_data INTO gi_input_data INDEX 1.
+  IF sy-subrc = 0.
+    gi_success-ebeln      = gi_input_data-ebeln.
+    gi_success-msg    =   text-014.
+    APPEND gi_success TO gt_error.
+    APPEND gi_success TO gt_success.
+    CLEAR gi_success.
+  ENDIF.
+  DELETE gt_input_data INDEX 1.
+ENDFORM.                    " DATA_LOAD
+*&---------------------------------------------------------------------*
+*&      Form  SUB_VALIDATE_DATA
+*&---------------------------------------------------------------------*
+FORM sub_validate_data .
+  LOOP AT gt_input_data INTO gi_input_data.
+    IF gi_input_data-ebeln IS NOT INITIAL.
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = gi_input_data-ebeln
+        IMPORTING
+          output = gi_input_data-ebeln.
+    ENDIF.
+
+    APPEND gi_input_data TO gt_input_data1.
+
+    CLEAR gi_input_data.
+  ENDLOOP.
+  IF gt_input_data1 IS NOT INITIAL." Modified by 502209589 GECHG0251732 DE3K990598 22-Feb-2019
+    SELECT ebeln
+           ebelp
+           bukrs
+           FROM ekpo
+           INTO TABLE gt_ekpo
+           FOR ALL ENTRIES IN gt_input_data1
+           WHERE ebeln = gt_input_data1-ebeln.
+    IF sy-subrc <> 0.
+      MESSAGE i000(zcc_c) WITH text-i01.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " SUB_VALIDATE_DATA
+*&---------------------------------------------------------------------*
+*&      Form  SUB_CRETAE_PO
+*&---------------------------------------------------------------------*
+
+FORM sub_cretae_po .
+  DATA : v_ebeln TYPE ekko-ebeln,
+        lw_index TYPE sy-tabix.
+  PERFORM get_version_details.
+  SORT gt_input_data1 BY ebeln.
+  SORT gt_ekpo BY ebeln.
+  LOOP AT gt_input_data1 INTO gi_input_data2.
+    READ TABLE gt_input_data1 INTO gi_input_data1 WITH KEY ebeln = gi_input_data2-ebeln.
+    IF sy-subrc = 0.
+      g_tot_cnt = g_tot_cnt + 1 .
+      v_ebeln = gi_input_data1-ebeln.
+      gi_poheader-po_number = gi_input_data1-ebeln .
+      gi_poheaderx-po_number = gc_x .
+      READ TABLE gt_ekpo INTO gi_ekpo WITH KEY ebeln = gi_input_data2-ebeln BINARY SEARCH.
+      IF sy-subrc = 0.
+        lw_index = sy-tabix.
+        IF gi_ekpo-bukrs <> p_bukrs.
+          MOVE  gi_ekpo-ebeln TO gi_error-ebeln.
+          MOVE: text-e12 TO gi_error-field1.
+          APPEND gi_error TO gt_error.
+          EXIT.
+        ENDIF.
+        LOOP AT gt_ekpo INTO gi_ekpo FROM lw_index.
+          IF gi_ekpo-ebeln <> gi_input_data1-ebeln. "This checks whether to exit out of loop
+            EXIT.
+          ENDIF.
+          gi_poadd-po_item = gi_ekpo-ebelp.
+          gi_poadd-name   = gi_input_data1-name.
+          gi_poadd-name_2   = gi_input_data1-name2.  "" Added on 24-APR-2019 for GECHG0435576 by 502277866
+          gi_poadd-street = gi_input_data1-street.
+* GECHG0455669  DE3K991303 modification starts by 502209589 08/04/2019
+          gi_poadd-str_suppl1 = gi_input_data1-district.
+* GECHG0455669  DE3K991303 modification end by 502209589 08/04/2019
+          gi_poadd-postl_cod1 = gi_input_data1-postl_cod1.
+          gi_poadd-city  =  gi_input_data1-city.
+          gi_poadd-country = gi_input_data1-country.
+          gi_poadd-region = gi_input_data1-region.
+          APPEND gi_poadd TO gt_poadd.
+          gi_poitem-po_item = gi_ekpo-ebelp.
+
+          gi_poitemx-po_item = gi_ekpo-ebelp.
+          gi_poitemx-po_itemx = gc_x.
+
+          APPEND gi_poitem TO gt_poitem .
+          APPEND gi_poitemx TO gt_poitemx .
+        ENDLOOP.
+* Start changes of 502209589 GECHG0251732 DE3K990598 22-Feb-2019
+      ELSE.
+        MOVE  gi_input_data2-ebeln TO gi_error-ebeln.
+        MOVE: text-e13 TO gi_error-field1.
+        APPEND gi_error TO gt_error.
+        CONTINUE.
+* End changes of 502209589 GECHG0251732 DE3K990598 22-Feb-2019
+      ENDIF.
+      AT END OF ebeln.
+
+        CALL FUNCTION 'BAPI_PO_CHANGE'
+          EXPORTING
+            purchaseorder  = v_ebeln
+            versions       = gi_version
+          TABLES
+            return         = gt_return
+            poitem         = gt_poitem
+            poitemx        = gt_poitemx
+            poaddrdelivery = gt_poadd.
+
+        READ TABLE gt_return  INTO gi_return WITH KEY type = gc_s .
+        IF sy-subrc = 0 .
+          IF p_test <> gc_x.     "Commit Work only when 'Test Run' is not marked
+**If no Error messages are returned by the BAPI
+
+            CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+              EXPORTING
+                wait = gc_x.
+          ENDIF.
+
+          MOVE  gi_input_data1-ebeln TO gi_success-ebeln.
+          gi_success-msg  = gc_s.
+          CONCATENATE text-007 v_ebeln text-010
+                            INTO gi_success-field1 SEPARATED BY space.
+          APPEND  gi_success TO gt_success.
+          CLEAR gi_success.
+
+        ELSE.
+          MOVE  gi_input_data1-ebeln TO gi_error-ebeln.
+          READ TABLE gt_return INTO gi_return WITH KEY type = gc_e.
+          IF sy-subrc = 0 .
+
+            MOVE: gi_return-message TO gi_error-field1.
+            APPEND gi_error TO gt_error.
+          ENDIF .
+          CLEAR: gi_return,gi_input_data2.
+        ENDIF.
+        CLEAR : gi_poheader , gi_poheaderx .
+        FREE :gt_return ,gt_poitem,gt_poitemx,gt_poadd.
+      ENDAT.
+
+    ENDIF.
+  ENDLOOP.
+
+  DESCRIBE TABLE gt_input_data1 LINES g_tot_cnt. " total records
+  DESCRIBE TABLE gt_success LINES g_succ_cnt.   " Success records
+  DESCRIBE TABLE gt_error LINES g_err_cnt.      " Error Records
+  g_succ_cnt = g_succ_cnt - 1.
+  g_err_cnt  = g_err_cnt - 1.
+  PERFORM format_mail_table.
+ENDFORM.                    " SUB_CRETAE_PO
+*&---------------------------------------------------------------------*
+*&      Form  FORMAT_MAIL_TABLE
+*&---------------------------------------------------------------------*
+FORM format_mail_table .
+  DATA: lw_tabix TYPE sy-tabix.
+  LOOP AT gt_error INTO gi_error.
+    lw_tabix = sy-tabix.
+    CONCATENATE
+            gi_error-ebeln         "Po number
+            gi_error-msg            " Message
+            gi_error-field1         " error message
+                  INTO wa_attach
+                      SEPARATED BY gc_htab.
+    IF lw_tabix > 1.
+      CONCATENATE gc_cret wa_attach INTO wa_attach.
+    ENDIF.
+    APPEND wa_attach TO it_attach.
+    CLEAR:  gi_error.
+  ENDLOOP.
+
+ENDFORM.                    " FORMAT_MAIL_TABLE
+*&---------------------------------------------------------------------*
+*&      Form  SUB_DISP_ALV
+*&---------------------------------------------------------------------*
+
+FORM sub_disp_alv .
+  WRITE:/ sy-uline.
+  WRITE:/50 text-001 COLOR 1.
+  WRITE:/ sy-uline.
+  SKIP 1.
+  WRITE:/15 text-002 COLOR 3,
+         60 g_tot_cnt,
+        /15 text-003 COLOR 3,
+         60 g_succ_cnt,
+        /15 text-030 COLOR 3,
+         60 g_err_cnt.
+  WRITE:/ sy-uline.
+  WRITE:/10 text-006 COLOR 6.
+  LOOP AT gt_error INTO gi_error.
+
+    WRITE:/5 gi_error-ebeln,
+             gi_error-msg,
+             gi_error-field1.
+  ENDLOOP.
+
+ENDFORM.                    " SUB_DISP_ALV
+
+*&---------------------------------------------------------------------*
+*&      Form  SUB_DOWNLOAD_ERROR
+*&---------------------------------------------------------------------*
+
+FORM sub_download_error  TABLES   gt_succ_err STRUCTURE gi_error
+                         USING    p_file
+                                  p_msgtyp.
+
+  DATA: l_file TYPE string,
+         l_len TYPE i,
+         c_dat TYPE char10 VALUE 'DAT'.  "File format for Upload.
+
+  IF p_msgtyp = text-015.
+    l_len = strlen( p_file ).
+    l_len = l_len - 4.
+    CONCATENATE p_file+0(l_len) '_' text-015 text-012 INTO l_file.
+  ELSEIF p_msgtyp = text-016.
+    l_len = strlen( p_file ).
+    l_len = l_len - 4.
+    CONCATENATE p_file+0(l_len) '_' text-016 text-012 INTO l_file.
+  ENDIF.
+
+*    Download the error log file to pres server
+
+
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename                = l_file
+      filetype                = c_dat
+      write_field_separator   = c_x
+    TABLES
+      data_tab                = gt_succ_err
+    EXCEPTIONS
+      file_write_error        = 1
+      no_batch                = 2
+      gui_refuse_filetransfer = 3
+      invalid_type            = 4
+      no_authority            = 5
+      unknown_error           = 6
+      header_not_allowed      = 7
+      separator_not_allowed   = 8
+      filesize_not_allowed    = 9
+      header_too_long         = 10
+      dp_error_create         = 11
+      dp_error_send           = 12
+      dp_error_write          = 13
+      unknown_dp_error        = 14
+      access_denied           = 15
+      dp_out_of_memory        = 16
+      disk_full               = 17
+      dp_timeout              = 18
+      file_not_found          = 19
+      dataprovider_exception  = 20
+      control_flush_error     = 21
+      OTHERS                  = 22.
+
+
+
+  IF sy-subrc = 0.
+    SKIP.
+    IF p_msgtyp = text-015.
+      SKIP.
+      WRITE:/10 text-028 COLOR 1.
+      SKIP.
+      WRITE:/30 text-031, l_file.
+    ELSEIF p_msgtyp = text-016.
+      SKIP.
+      WRITE:/10 text-028 COLOR 1.
+      SKIP.
+      WRITE:/30 text-032, l_file.
+    ENDIF.
+  ELSE.
+    SKIP.
+    WRITE:/ text-028.
+    CASE sy-subrc.
+      WHEN '1'.
+        WRITE:/15 text-d01.
+      WHEN '2'.
+        WRITE:/15 text-d02.
+      WHEN '3'.
+        WRITE:/15 text-d03.
+      WHEN '4'.
+        WRITE:/15 text-d04.
+      WHEN '5'.
+        WRITE:/15 text-d05.
+      WHEN '6'.
+        WRITE:/15 text-d06.
+      WHEN '7'.
+        WRITE:/15 text-d07.
+      WHEN '8'.
+        WRITE:/15 text-d08.
+      WHEN '9'.
+        WRITE:/15 text-d09.
+      WHEN '10'.
+        WRITE:/15 text-d10.
+      WHEN '11'.
+        WRITE:/15 text-d11.
+      WHEN '12'.
+        WRITE:/15 text-d12.
+      WHEN '13'.
+        WRITE:/15 text-d13.
+      WHEN '14'.
+        WRITE:/15 text-d06.
+      WHEN '15'.
+        WRITE:/15 text-d15.
+      WHEN '16'.
+        WRITE:/15 text-d16.
+      WHEN '17'.
+        WRITE:/15 text-d17.
+      WHEN '18'.
+        WRITE:/15 text-d18.
+      WHEN '19'.
+        WRITE:/15 text-d19.
+      WHEN '20'.
+        WRITE:/15 text-d20.
+      WHEN '21'.
+        WRITE:/15 text-d21.
+      WHEN '22'.
+        WRITE:/15 text-d06.
+    ENDCASE.
+  ENDIF.
+
+ENDFORM.                    " SUB_DOWNLOAD_ERROR
+*&---------------------------------------------------------------------*
+*&      Form  GET_VERSION_DETAILS
+*&---------------------------------------------------------------------*
+FORM get_version_details .
+  CLEAR: gi_ztuhcd1_ds.
+  FREE : gt_ztuhcd1_ds.
+  gi_ztuhcd1_ds-name  = gc_program.
+  APPEND gi_ztuhcd1_ds TO gt_ztuhcd1_ds.
+  CLEAR  gi_ztuhcd1_ds.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1_ds
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+    SORT  gt_ztuhcd1_ds BY name field index_no.
+    CLEAR gi_ztuhcd1_ds.
+  ENDIF.
+
+  READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name  = gc_program
+                                                       field = gc_completed.
+  IF sy-subrc = 0.
+    gi_version-completed = gi_ztuhcd1_ds-low.
+  ENDIF.
+  READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name  = gc_program
+                                                       field = gc_reason.
+  IF sy-subrc = 0.
+    gi_version-reason = gi_ztuhcd1_ds-low.
+  ENDIF.
+  READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name  = gc_program
+                                                       field = gc_description.
+  IF sy-subrc = 0.
+    gi_version-description = gi_ztuhcd1_ds-low.
+  ENDIF.
+
+ENDFORM.                    " GET_VERSION_DETAILS
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_data .
+  DATA lw_bukrs TYPE bukrs.
+  SELECT SINGLE bukrs
+                FROM t001
+                INTO lw_bukrs
+                WHERE bukrs = p_bukrs.
+  IF sy-subrc <> 0.
+    MESSAGE e000(zcc_c) WITH text-e10.
+  ENDIF.
+ENDFORM.                    " VALIDATE_DATA
+

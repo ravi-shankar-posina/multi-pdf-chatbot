@@ -1,0 +1,32 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_DISPLAY
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+* Modified by         : Arti Kothule                                   *
+* Modification Date   : 18/07/2022                                     *
+* RITM / APT Number   : RITM5237188                                    *
+* CR Number           : CHG0214269                                     *
+* Transport Request   : DE3K9A0ELW                                     *
+* Transaction Code    : ZMM_ME2N                                       *
+* Purpose             : Include Info record PO text and buyer          *
+*                       description                                    *
+*&---------------------------------------------------------------------*
+
+DATA: li_layout_ds TYPE slis_layout_alv.
+
+*  li_layout_ds-colwidth_optimize = 'X'.    --CHG0214269 (USARKOT)
+CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+  EXPORTING
+    i_bypassing_buffer = 'X'
+    i_buffer_active    = space
+    i_save             = 'A'
+    i_callback_program = sy-repid
+    is_layout          = li_layout_ds
+    is_variant         = g_display_variant
+    it_fieldcat        = gt_fcat
+  TABLES
+    t_outtab           = gt_final1
+  EXCEPTIONS
+    program_error      = 1
+    OTHERS             = 2.
+

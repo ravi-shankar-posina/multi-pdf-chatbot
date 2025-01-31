@@ -1,0 +1,67 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_REPROCES_EXPORTBROKER_F01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_get_data .
+** Get error records from Log table
+  SELECT * FROM ztmm_exp_cls_log
+    INTO TABLE gt_exp_cls_log
+     WHERE run_date IN s_date
+       AND objectkey IN s_matnr
+       AND msgty = 'E'.
+  IF sy-subrc IS INITIAL.
+** Begin of changes by USPRADI DE3K9A08FX CHG0158498 on 02-07-2021
+** Should not be sorted because correct combination of count H followed by I
+** is neede for each set
+*    SORT gt_exp_cls_log .
+** End of changes by USPRADI DE3K9A08FX CHG0158498 on 02-07-2021
+  ELSE.
+    MESSAGE 'No Data found'(001) TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+ENDFORM.                    " F_GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  F_PROCESS_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_process_data .
+
+** Fill the internal table to call exportbroker method
+  LOOP AT gt_exp_cls_log INTO gi_exp_cls_log.
+    gi_records-count = gi_exp_cls_log-zcount.
+    gi_records-objectkey = gi_exp_cls_log-objectkey.
+    gi_records-classtype = gi_exp_cls_log-classtype.
+    gi_records-classnum  = gi_exp_cls_log-classnum.
+    gi_records-charact   = gi_exp_cls_log-charact.
+    gi_records-valu_charact = gi_exp_cls_log-valu_charact.
+    APPEND gi_records TO gt_records.
+    CLEAR: gi_records.
+  ENDLOOP.
+  gi_export_tab-mt_flat_filefor_exportbroker-records[] = gt_records[].
+
+  IF gi_export_tab IS NOT INITIAL.
+    CREATE OBJECT go_exportbroker.
+    TRY.
+      CALL METHOD go_exportbroker->zmm_ii_si_flat_filefor_exportb~si_flat_filefor_exportbroker_i
+        EXPORTING
+          input = gi_export_tab.
+    ENDTRY.
+  ENDIF.
+
+** Message after reprocessing
+  MESSAGE 'Refer Log table for reprocessed records details'(002) TYPE 'S'.
+
+ENDFORM.                    " F_PROCESS_DATA
+

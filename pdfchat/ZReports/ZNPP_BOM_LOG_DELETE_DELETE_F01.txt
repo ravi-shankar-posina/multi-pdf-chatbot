@@ -1,0 +1,89 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZNPP_BOM_LOG_DELETE_DELETE_F01 .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  DELETE_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+form DELETE_DATA .
+*  DELETE FROM ztpp_prodbom_log WHERE date1 LE s_date
+*                                 AND  werks in s_werks
+*                                 AND  aufnr in s_aufnr
+*                                 AND  pspel In  s_pspel.
+*  if sy-subrc eq 0.
+*    MESSAGE ' Deleted Successfully '(002)  TYPE 'I'.
+*    ELSE.
+*    MESSAGE ' No Data Found '(003) TYPE 'I'.
+*    ENDIF.
+**                                 AND  .
+* SOC by USALNAR1 - DE3K9A0KUV
+  DATA: gt_delete TYPE TABLE OF ztpp_prodbom_log,
+        gw_delete TYPE ztpp_prodbom_log,
+        lv_count TYPE i,
+        lv_count1 TYPE i,
+        lv_total TYPE string,
+        lv_msg TYPE char50,
+        lv_date TYPE dats,
+        idx TYPE sy-tabix.
+
+  LOOP AT s_date.
+   idx = sy-tabix.
+   lv_date = s_date-low.
+   s_date-sign = 'I'.
+   s_date-option = 'BT'.
+   s_date-low = '00000000'.
+   s_date-high = lv_date.
+   MODIFY s_date FROM s_date INDEX idx TRANSPORTING sign option low high.
+  ENDLOOP.
+
+  SELECT * FROM ztpp_prodbom_log
+  INTO TABLE gt_delete.
+
+  IF sy-subrc EQ 0.
+  SORT gt_delete BY date1 ASCENDING werks ASCENDING.
+
+  DESCRIBE TABLE gt_delete LINES lv_count.
+
+  IF s_aufnr IS INITIAL OR s_pspel IS INITIAL.
+  DELETE gt_delete WHERE date1 IN s_date
+                   AND  werks IN s_werks.
+
+  DELETE FROM ztpp_prodbom_log WHERE date1 IN s_date
+                               AND  werks IN s_werks.
+  ELSE.
+  DELETE gt_delete WHERE date1 IN s_date
+                   AND  werks IN s_werks
+                   AND  aufnr IN s_aufnr
+                   AND  pspel IN s_pspel.
+
+  DELETE FROM ztpp_prodbom_log WHERE date1 IN s_date
+                               AND  werks IN s_werks
+                               AND  aufnr IN s_aufnr
+                               AND  pspel IN s_pspel.
+  ENDIF.
+
+  DESCRIBE TABLE gt_delete LINES lv_count1.
+
+  lv_total = lv_count - lv_count1.
+  CONCATENATE TEXT-002 ' ' lv_total INTO lv_msg.
+
+  MODIFY ztpp_prodbom_log FROM TABLE gt_delete.
+  IF sy-subrc EQ 0.
+    COMMIT WORK.
+    REFRESH: gt_delete.
+    MESSAGE lv_msg TYPE 'I'.
+  ELSE.
+    ROLLBACK WORK.
+    MESSAGE TEXT-003 TYPE 'I'.
+  ENDIF.
+
+   ENDIF.
+* EOC by USALNAR1 - DE3K9A0KUV
+
+
+endform.                    " DELETE_DATA
+

@@ -1,0 +1,43 @@
+******************************************************************************************
+* PROGRAM DOCUMENTATION
+******************************************************************************************
+*** Report  ZRMM_LP_BP_DETAILS
+*** Created by             : Mallikarjun vaja
+*** Creation Date          : 01-sep-2018
+*** Transport Request #    : DE3K988125
+*** RICEF Object No #      : RICEF1918
+*** Transaction Code       : ZMM988
+***Change request No       :GECHG0286963
+*** Description            :The requirement is to display  the PO/SO/Customer number for
+*                           the Po’s,which has been raised from GEED Vendor with respect
+*                           to the WBS Element or network order.
+******************************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+******************************************************************************************
+*20-SEP-2018         | GECHG0286963    |502683007  |Added Sort statement for Binary Search
+
+REPORT  zrmm_lp_bp_details MESSAGE-ID zmm.
+
+INCLUDE zrmm_lp_bp_details_top.
+INCLUDE zrmm_lp_bp_details_ss.
+
+******************************************************************************************
+* START-OF-SELECTION
+******************************************************************************************
+START-OF-SELECTION .
+  PERFORM get_data.
+
+END-OF-SELECTION .
+******************************************************************************************
+* END-OF-SELECTION
+******************************************************************************************
+
+  IF gt_final IS INITIAL.
+    MESSAGE i050.
+  ELSE.
+    PERFORM create_fcat.
+    PERFORM disp_alv .
+  ENDIF.
+
+INCLUDE  zrmm_lp_bp_details_f01.
+

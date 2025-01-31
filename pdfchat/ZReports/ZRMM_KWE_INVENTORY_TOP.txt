@@ -1,0 +1,222 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_KWE_INVENTORY_TOP
+*&---------------------------------------------------------------------*
+TYPES: BEGIN OF y_mard,
+  matnr     LIKE mard-matnr,
+  werks     LIKE mard-werks,
+  lgort     LIKE mard-lgort,
+  END OF y_mard.
+TYPES: BEGIN OF y_makt,
+  matnr     LIKE makt-matnr,
+  maktx     LIKE makt-maktx,
+  END OF y_makt.
+TYPES: BEGIN OF y_mkpf,
+  mblnr     LIKE mkpf-mblnr,
+  mjahr     LIKE mkpf-mjahr,
+  budat     LIKE mkpf-budat,
+  END OF y_mkpf.
+TYPES: BEGIN OF y_mseg,
+  mblnr     LIKE mseg-mblnr,
+  mjahr     LIKE mseg-mjahr,
+  zeile     LIKE mseg-zeile,
+  matnr     LIKE mseg-matnr,
+  werks     LIKE mseg-werks,
+  lgort     LIKE mseg-lgort,
+  insmk     LIKE mseg-insmk,
+  shkzg     LIKE mseg-shkzg,
+  menge     LIKE mseg-menge,
+  del(1)    TYPE c,
+  END OF y_mseg.
+TYPES: BEGIN OF y_mardh,
+  matnr     LIKE mardh-matnr,
+  werks     LIKE mardh-werks,
+  lgort     LIKE mardh-lgort,
+  lfgja     LIKE mardh-lfgja,
+  lfmon     LIKE mardh-lfmon,
+  labst     LIKE mardh-labst,
+  insme     LIKE mardh-insme,
+  speme     LIKE mardh-speme,
+  END OF y_mardh.
+TYPES: BEGIN OF y_msprh,
+  matnr     LIKE msprh-matnr,
+  werks     LIKE msprh-werks,
+  lgort     LIKE msprh-lgort,
+  charg     LIKE msprh-charg,
+  sobkz     LIKE msprh-sobkz,
+  pspnr     LIKE msprh-pspnr,
+  lfgja     LIKE msprh-lfgja,
+  lfmon     LIKE msprh-lfmon,
+  prlab     LIKE msprh-prlab,
+  prins     LIKE msprh-prins,
+  prspe     LIKE msprh-prspe,
+  END OF y_msprh.
+TYPES: BEGIN OF y_mskah,
+  matnr     LIKE mskah-matnr,
+  werks     LIKE mskah-werks,
+  lgort     LIKE mskah-lgort,
+  charg     LIKE mskah-charg,
+  sobkz     LIKE mskah-sobkz,
+  vbeln     LIKE mskah-vbeln,
+  posnr     LIKE mskah-posnr,
+  lfgja     LIKE mskah-lfgja,
+  lfmon     LIKE mskah-lfmon,
+  kalab     LIKE mskah-kalab,
+  kains     LIKE mskah-kains,
+  kaspe     LIKE mskah-kaspe,
+  END OF y_mskah.
+TYPES: BEGIN OF y_kwe,
+  kdate     LIKE sy-datum,
+  matnr     LIKE mard-matnr,
+  maktx     LIKE makt-maktx,
+  werks     LIKE mard-werks,
+  lgort     LIKE mard-lgort,
+  insmk     TYPE string, " UU, BLOCKED, QI
+  kwe_begin LIKE mard-labst,
+  kwe_in    LIKE mard-labst,
+  kwe_out   LIKE mard-labst,
+  kwe_end   LIKE mard-labst,
+  END OF y_kwe.
+TYPES: BEGIN OF y_report,
+  matnr     LIKE mard-matnr,
+  maktx     LIKE makt-maktx,
+  lgort     LIKE mard-lgort,
+  insmk     LIKE mseg-insmk,
+  insmk_tx  TYPE string,
+  open_sap  LIKE mard-labst,
+  open_kwe  LIKE mard-labst,
+  open_dif  LIKE mard-labst,
+  inbd_sap  LIKE mard-labst,
+  inbd_kwe  LIKE mard-labst,
+  inbd_dif  LIKE mard-labst,
+  oubd_sap  LIKE mard-labst,
+  oubd_kwe  LIKE mard-labst,
+  oubd_dif  LIKE mard-labst,
+  clos_sap  LIKE mard-labst,
+  clos_kwe  LIKE mard-labst,
+  clos_dif  LIKE mard-labst,
+  END OF y_report.
+TYPES: BEGIN OF y_report_header,
+  matnr     LIKE mard-matnr,
+  maktx     LIKE makt-maktx,
+  werks     LIKE mard-werks,
+  lgort     LIKE mard-lgort,
+  insmk     LIKE mseg-insmk,
+  insmk_tx  TYPE string,
+  flag(1)   TYPE c,
+  start     LIKE sy-datum,
+  end       LIKE sy-datum,
+  END OF y_report_header.
+TYPES: BEGIN OF y_report_ext,
+  open_sap  LIKE mard-labst,
+  open_kwe  LIKE mard-labst,
+  open_dif  LIKE mard-labst,
+  inbd_sap  LIKE mard-labst,
+  inbd_kwe  LIKE mard-labst,
+  inbd_dif  LIKE mard-labst,
+  oubd_sap  LIKE mard-labst,
+  oubd_kwe  LIKE mard-labst,
+  oubd_dif  LIKE mard-labst,
+  clos_sap  LIKE mard-labst,
+  clos_kwe  LIKE mard-labst,
+  clos_dif  LIKE mard-labst,
+  END OF y_report_ext.
+DATA: w_mard                  TYPE y_mard,
+      w_makt                  TYPE y_makt,
+      w_mkpf                  TYPE y_mkpf,
+      w_mseg                  TYPE y_mseg,
+      w_mardh                 TYPE y_mardh,
+      w_msprh                 TYPE y_msprh,
+      w_mskah                 TYPE y_mskah,
+      w_kwefile               LIKE alsmex_tabline,
+      w_kwe                   TYPE y_kwe,
+      w_kwe_tmp               TYPE y_kwe,
+      w_report                TYPE y_report,
+      w_header                TYPE y_report_header,
+      w_extend                TYPE y_report_ext,
+      w_fieldcat              TYPE slis_fieldcat_alv,
+      w_layout                TYPE slis_layout_alv,
+      w_commentary            TYPE slis_listheader.
+
+DATA: t_mard                  TYPE STANDARD TABLE OF y_mard,
+*Begin of defect
+      t_mard_total            TYPE STANDARD TABLE OF y_mard,
+*End of defect
+      t_makt                  TYPE STANDARD TABLE OF y_makt,
+      t_mkpf                  TYPE STANDARD TABLE OF y_mkpf,
+      t_mkpf1                 TYPE STANDARD TABLE OF y_mkpf,
+      t_mseg                  TYPE STANDARD TABLE OF y_mseg,
+      t_mseg1                 TYPE STANDARD TABLE OF y_mseg,
+      t_mardh                 TYPE STANDARD TABLE OF y_mardh,
+      t_msprh                 TYPE STANDARD TABLE OF y_msprh,
+      t_mskah                 TYPE STANDARD TABLE OF y_mskah,
+      t_kwefile               LIKE STANDARD TABLE OF alsmex_tabline,
+      t_kwe                   TYPE STANDARD TABLE OF y_kwe,
+      t_report                TYPE STANDARD TABLE OF y_report,
+      t_fieldcat              TYPE slis_t_fieldcat_alv,
+      t_commentary            TYPE slis_t_listheader.
+
+DATA: t_filename              TYPE filetable,
+      t_rsselread             LIKE STANDARD TABLE OF rsselread.
+
+DATA: w_filename              TYPE LINE OF filetable,
+      w_rsselread             LIKE rsselread,
+      g_repid                 LIKE sy-repid.
+
+DATA: ds_filename             TYPE string,
+      nm_file                 LIKE rlgrap-filename,
+      ds_windowtext           TYPE string,
+      int_rc                  TYPE i,
+      int_action              TYPE i,
+      nm_row(4)               TYPE n VALUE 2,
+      nm_col(4)               TYPE n VALUE 1,
+      nm_lines(4)             TYPE n,
+      nm_werks                LIKE t001w-name1,
+      dt_post_date            LIKE sy-datum,
+      dt_post_endd            LIKE sy-datum,
+      dt_last_date            LIKE sy-datum,
+      dt_date1                LIKE sy-datum,
+      dt_date2                LIKE sy-datum,
+      nb_last_year(4)         TYPE n,
+      nb_last_month(2)        TYPE n,
+      g_flag(1)               TYPE c,
+      tx_info(60)             TYPE c,
+      g_result(1)             TYPE c.
+
+CONSTANTS: c_extension_xls      TYPE string           VALUE 'XLS',
+           c_fieldname_pfile    TYPE string           VALUE 'P_FILE',
+           c_fieldname_kind     TYPE string           VALUE 'P',
+           c_x(1)               TYPE c                VALUE 'X',
+           c_e(1)               TYPE c                VALUE 'E',
+           c_i(1)               TYPE c                VALUE 'I',
+           c_bt(2)              TYPE c                VALUE 'BT',
+           c_s(1)               TYPE c                VALUE 'S',
+           c_h(1)               TYPE c                VALUE 'H',
+           c_lang_zh            LIKE makt-spras       VALUE '1', "ZH
+           c_sobkz_q            LIKE msprh-sobkz      VALUE 'Q',
+           c_sobkz_e            LIKE msprh-sobkz      VALUE 'E',
+           c_insmk_f            LIKE mseg-insmk       VALUE 'F',
+           c_insmk_uu           TYPE string           VALUE 'UU',
+           c_insmk_blocked      TYPE string           VALUE 'BLOCKED',
+           c_insmk_3            TYPE string           VALUE '3',
+           c_insmk_2            TYPE string           VALUE '2',
+           c_insmk_qi           TYPE string           VALUE 'QI',
+           c_insmk_s            LIKE mseg-insmk       VALUE 'S',
+           c_insmk_x            LIKE mseg-insmk       VALUE 'X',
+           c_shkzg_s            LIKE mseg-shkzg       VALUE 'S',
+           c_shkzg_h            LIKE mseg-shkzg       VALUE 'H'.
+RANGES: r_budat                FOR mkpf-budat.
+FIELD-SYMBOLS: <fs_mseg>       LIKE w_mseg,
+*Begin of defect
+               <fs_kwe>        LIKE w_kwe,
+*End of defect
+               <fs_field>      TYPE any.
+DEFINE fieldcat.
+  clear w_fieldcat.
+  w_fieldcat-fieldname = &1.
+  w_fieldcat-seltext_l = &2.
+  w_fieldcat-ddictxt = 'L'.
+  w_fieldcat-key = &3.
+  w_fieldcat-emphasize = &4.
+  append w_fieldcat to t_fieldcat.
+END-OF-DEFINITION.
+

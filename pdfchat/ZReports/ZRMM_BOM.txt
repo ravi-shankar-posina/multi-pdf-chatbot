@@ -1,0 +1,88 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_BOM
+*==========================================================================================
+*= Copyright ©  2000 GE ENERGY                                                            =
+*= ALL RIGHTS RESERVED                                                                    =
+*==========================================================================================
+*==========================================================================================
+* PROGRAM DOCUMENTATION                                                                   *
+*==========================================================================================
+*Created by             : Dachepalli Sreelatha                                             *
+*Creation Date          : 24-DEC-2014
+*CR number              : CHG0995297                                                              *
+*Transport Request #    : DE3K957567                                                       *
+*RICEF Object No #      : RICEF1453
+*T-code                 : ZPP1453                                                          *
+*Description            : Extracting the Bill of Materials ( REF: Z_BOM Query)             *
+*==========================================================================================
+* MODIFICATION LOG
+*---------------------------------------------------------------------------------------
+* Date        |CR number | TR Desc    |Changed By  |Description of change
+************************************************************************************
+*24-DEC-2014  | CHG0995297 | DE3K957566 | RITM3672125 | 502347739 | Initial Version
+************************************************************************************
+************************************************************************************
+*09-JAN-2015  | CHG0995297 | DE3K957985 | RITM3672125 | 502347739 | Calling same proxy for multiple times for split count
+************************************************************************************
+************************************************************************************
+*19-JAN-2015  | CHG0995297 | DE3K958357 | RITM3672125 | 502347739 | Radio Buttons options for ALV,PC download, Application Server
+************************************************************************************
+************************************************************************************
+*27-JAN-2015  | CHG0995297 | DE3K958654  | RITM3672125 | 502347739 | Same sequence of fields as in SQ01 and sending proxy through queues
+************************************************************************************
+************************************************************************************
+*03-FEB-2015  | CHG0995297 | DE3K958981  | RITM3672125 | 502347739 | for FTP file, quantity fields should contain the comma as delimiter
+************************************************************************************
+* 21-Sep-2015       | CHG1459249      |502209589  | Time stap incorporated to the proxy file name
+************************************************************************************
+* 09-mar-2016       |  CHG1902666     |502277866  | Added wait statement after every  file
+************************************************************************************
+* 15-Feb-2019       | GECHG0273801    |502765654  | Modified to allow specific selections.
+************************************************************************************
+* 14-June-2022       | CHG0211367 | DE3K9A0E1T  |502765654  | Added Logic to Get the Active BOM Components
+************************************************************************************
+************************************************************************************
+* 27-June-2022       | CHG0212541 |  DE3K9A0EA4  |503103496  | Performance Optimisation for Existing Logic
+************************************************************************************
+
+REPORT  zrmm_bom
+        NO STANDARD PAGE HEADING
+        LINE-SIZE 300
+        LINE-COUNT 65(0)
+        MESSAGE-ID zcc_c.
+*&----------------------------------------------------------------------*
+*&  INCLUDE PROGRAMS
+*&----------------------------------------------------------------------*
+INCLUDE znmm_billofmat_top.
+INCLUDE znmm_billofmat_selscr.
+INCLUDE zrmm_billofmat_forms.
+*Begin of 27-JAN-2015  | CHG0995297 | DE3K958654  | RITM3672125 | 502347739
+INITIALIZATION.
+
+  CONCATENATE gc_rep_name sy-sysid gc_rep_name1 gc_fname sy-datum gc_fname1 sy-uzeit gc_fname2 INTO p_fname.
+*End of 27-JAN-2015  | CHG0995297 | DE3K958654  | RITM3672125 | 502347739
+*&---------------------------------------------------------------------*
+*&  START-OF-SELECTION
+*&---------------------------------------------------------------------*
+START-OF-SELECTION.
+  PERFORM get_data.
+  PERFORM process_data.
+  PERFORM fieldcat.
+*Begin of changes by 19-JAN-2015  | CHG0995297 | DE3K958357 | RITM3672125 | 502347739
+  IF  p_ftp EQ gc_x.
+    PERFORM proxy_send_data.
+
+* Begin of 09-JAN-2015  | CHG0995297 | DE3K957985 | RITM3672125 | 502347739
+*MESSAGE s000(zcc_c) WITH text-036.
+* End of 09-JAN-2015  | CHG0995297 | DE3K957985 | RITM3672125 | 502347739
+  ENDIF.
+  IF p_excel EQ 'X'.
+    PERFORM f_excel_download.
+  ELSEIF p_appl EQ 'X'.
+    PERFORM f_appserver_download.
+  ENDIF.
+  IF p_alv EQ gc_x .
+    PERFORM display_output.
+  ENDIF.
+*End of changes by 19-JAN-2015  | CHG0995297 | DE3K958357 | RITM3672125 | 502347739
+

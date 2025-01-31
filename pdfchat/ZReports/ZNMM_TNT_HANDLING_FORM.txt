@@ -1,0 +1,2823 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_TNT_HANDLING_FORM
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_COLLIID
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_colliid .
+  IF NOT gs_exidv[] IS INITIAL.
+    SELECT SINGLE zexidv2 FROM ztmm_colli
+           INTO gi_colli_ds-zexidv2
+            WHERE zexidv2 IN gs_exidv.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GS_EXIDV-LOW'.
+      MESSAGE e083(zmm) WITH text-m15.       "Enter Valid Collid
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " VALIDATE_COLLIID
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_ZTRUCKID
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_ztruckid .
+  IF NOT gs_trkid[] IS INITIAL.
+    SELECT SINGLE ztrukid FROM ztmm_trkid
+             INTO gi_trkid_ds-ztrukid
+            WHERE ztrukid IN gs_trkid.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GS_TRKID-LOW'.
+      MESSAGE e083(zmm) WITH text-m01.         "Enter a valid Truck Id
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " VALIDATE_ZTRUCKID
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_HUB
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_hub .
+* Validate Hub Final destination
+  IF NOT gp_dsthb IS INITIAL.
+    SELECT SINGLE zhubid FROM ztmm_hub
+            INTO gi_colli_ds-zhubid
+           WHERE zhubid EQ gp_dsthb.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GP_DSTHB'.
+      MESSAGE e083(zmm) WITH text-m02.   "Enter a valid destination hub
+    ENDIF.
+  ENDIF.
+* Validate Origin Hub
+  IF NOT gp_hub IS INITIAL.
+    SELECT SINGLE zhubid FROM ztmm_hub
+             INTO gi_colli_ds-zhubid
+           WHERE zhubid EQ gp_hub.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GP_HUB'.
+      MESSAGE e083(zmm) WITH text-m03.                    "Enter a valid Origin Hub
+    ENDIF.
+  ENDIF.
+* Validate Departure Hub
+  IF NOT gp_dephb IS INITIAL.
+    SELECT SINGLE zhubid FROM ztmm_hub
+           INTO gi_colli_ds-zhubid
+           WHERE zhubid EQ gp_dephb.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GP_DEPHB'.
+      MESSAGE e083(zmm) WITH text-m04.                     "Enter a valid Departure hub
+    ENDIF.
+  ENDIF.
+* Validate Current Hub
+  IF NOT gp_curhb IS INITIAL.
+    SELECT SINGLE zhubid FROM ztmm_hub
+           INTO gi_colli_ds-zhubid
+           WHERE zhubid EQ gp_curhb.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GP_CURHB'.
+      MESSAGE e083(zmm) WITH text-m05.
+    ENDIF.
+  ENDIF.
+* Validate Receiving Hub
+  IF NOT gp_rechb IS INITIAL.
+    SELECT SINGLE zhubid FROM ztmm_hub
+            INTO gi_colli_ds-zhubid
+           WHERE zhubid EQ gp_rechb.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GP_RECHB'.
+      MESSAGE e083(zmm) WITH text-m06.                    "Enter a valid receiving Hub
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " VALIDATE_HUB
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_PLANT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_plant .
+***Validate Supplying Plant
+  IF NOT gs_suply[] IS INITIAL.
+    SELECT SINGLE werks
+           FROM t001w
+           INTO gi_t001w_ds-werks
+           WHERE werks IN gs_suply.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GS_SUPLY'.
+      MESSAGE e083(zmm) WITH text-m07.                    "Enter a valid plant
+    ENDIF.
+  ENDIF.
+***Validate Receiving Plant
+  IF NOT gs_plant[] IS INITIAL.
+    SELECT SINGLE werks
+           FROM ekpo
+           INTO gi_ekpo_ds-werks
+           WHERE werks IN gs_plant.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GS_PLANT'.
+      MESSAGE e083(zmm) WITH text-m08.                    "Enter a valid plant
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " VALIDATE_PLANT
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_PO
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_po .
+*****Validating Purchase Order
+  IF NOT gs_ebeln[] IS INITIAL.
+    SELECT SINGLE ebeln
+                  FROM ekko
+                  INTO gi_ekko_ds-ebeln
+                  WHERE ebeln IN gs_ebeln.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GS_EBELN'.
+      MESSAGE e083(zmm) WITH text-m09.                    "Enter a valid PO
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " VALIDATE_PO
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_MATERIAL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_material .
+****Validating Material
+  IF NOT gs_matnr[] IS INITIAL.
+    SELECT SINGLE matnr
+                  FROM ekpo
+                  INTO gi_ekpo_ds-matnr
+                  WHERE matnr IN gs_matnr.
+    IF sy-subrc NE 0.
+      SET CURSOR FIELD 'GS_MATNR'.
+      MESSAGE e083(zmm) WITH text-m10.                    "Enter a valid PO
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " VALIDATE_MATERIAL
+*&---------------------------------------------------------------------*
+*&      Form  POPULATE_RANGES
+*&---------------------------------------------------------------------*
+*  Populate ranges for the entered selection
+*----------------------------------------------------------------------*
+FORM populate_ranges.
+  REFRESH: gr_dsthub, gr_dephub, gr_rechub, gr_shipto, gr_origin, gr_status,
+           gr_curhub ,gr_hub, gr_direct, gr_huser, gr_tuser.
+  CLEAR:   gr_dsthub, gr_dephub, gr_rechub, gr_shipto, gr_origin, gr_status,
+           gr_curhub, gr_hub, gr_direct, gr_huser, gr_tuser.
+
+  IF NOT gp_dsthb IS INITIAL.
+    gr_dsthub-sign = 'I'.
+    gr_dsthub-option = 'EQ'.
+    gr_dsthub-low = gp_dsthb.
+    APPEND gr_dsthub.
+  ENDIF.
+  IF NOT gp_shpto IS INITIAL.
+    gr_shipto-sign = 'I'.
+    gr_shipto-option = 'EQ'.
+    gr_shipto-low = gp_shpto.
+    APPEND gr_shipto.
+  ENDIF.
+  IF NOT gp_dephb IS INITIAL.
+    gr_dephub-sign = 'I'.
+    gr_dephub-option = 'EQ'.
+    gr_dephub-low = gp_dephb.
+    APPEND gr_dephub.
+  ENDIF.
+  IF NOT gp_rechb IS INITIAL.
+    gr_rechub-sign = 'I'.
+    gr_rechub-option = 'EQ'.
+    gr_rechub-low = gp_rechb.
+    APPEND gr_rechub.
+  ENDIF.
+  IF NOT gp_hub IS INITIAL.
+    gr_hub-sign = 'I'.
+    gr_hub-option = 'EQ'.
+    gr_hub-low = gp_hub.
+    APPEND gr_hub.
+  ENDIF.
+  IF NOT gp_curhb IS INITIAL.
+    gr_curhub-sign = 'I'.
+    gr_curhub-option = 'EQ'.
+    gr_curhub-low = gp_curhb.
+    APPEND gr_curhub.
+  ENDIF.
+  IF NOT gp_huser IS INITIAL.
+    gr_huser-sign = 'I'.
+    gr_huser-option = 'EQ'.
+    gr_huser-low = gp_huser.
+    APPEND gr_huser.
+  ENDIF.
+  IF NOT gp_tuser IS INITIAL.
+    gr_tuser-sign = 'I'.
+    gr_tuser-option = 'EQ'.
+    gr_tuser-low = gp_tuser.
+    APPEND gr_tuser.
+  ENDIF.
+  IF NOT gp_intrl IS INITIAL.
+    gr_origin-sign = 'I'.
+    gr_origin-option = 'EQ'.
+    gr_origin-low = gc_internal.
+    APPEND gr_origin.
+  ENDIF.
+  IF NOT gp_intrl IS INITIAL.
+    gr_origin-sign = 'I'.
+    gr_origin-option = 'EQ'.
+    gr_origin-low = text-061.
+    APPEND gr_origin.
+  ENDIF.
+  IF NOT gp_extrl IS INITIAL.
+    gr_origin-sign = 'I'.
+    gr_origin-option = 'EQ'.
+    gr_origin-low = gc_external.
+    APPEND gr_origin.
+  ENDIF.
+  IF NOT gp_extrl IS INITIAL.
+    gr_origin-sign = 'I'.
+    gr_origin-option = 'EQ'.
+    gr_origin-low = text-062.
+    APPEND gr_origin.
+  ENDIF.
+  IF NOT gp_drct IS INITIAL.
+    gr_direct-sign = 'I'.
+    gr_direct-option = 'EQ'.
+    gr_direct-low = gc_direct.
+    APPEND gr_direct.
+  ENDIF.
+  IF NOT gp_assnd IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'J'.
+    APPEND gr_status.
+  ENDIF.
+  IF NOT gp_ttrsh IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'B'.
+    APPEND gr_status.
+  ENDIF.
+  IF NOT gp_tcrsd IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'C'.
+    APPEND gr_status.
+  ENDIF.
+  IF NOT gp_crsd IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'G'.
+    APPEND gr_status.
+  ENDIF.
+  IF NOT gp_intst IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'I'.
+    APPEND gr_status.
+  ENDIF.
+  IF NOT gp_trnsh IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'F'.
+    APPEND gr_status.
+  ENDIF.
+  IF NOT gp_misng IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'E'.
+    APPEND gr_status.
+  ENDIF.
+  IF NOT gp_found IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'D'.
+    APPEND gr_status.
+  ENDIF.
+  IF NOT gp_tstay IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'A'.
+    APPEND gr_status.
+  ENDIF.
+  IF NOT gp_crtd IS INITIAL.
+    gr_status-sign = 'I'.
+    gr_status-option = 'EQ'.
+    gr_status-low = 'H'.
+    APPEND gr_status.
+  ENDIF.
+ENDFORM.                               " POPULATE_RANGES
+*&---------------------------------------------------------------------*
+*&      Form  GET_HANDLING_DETAILS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_colli_details .
+  DATA : lt_xblnr  TYPE RANGE OF ztmm_colli-zexidv2,
+         lr_xblnr  LIKE LINE OF lt_xblnr,
+         lw_xblnr  TYPE zexidv2,
+         lw_lines  TYPE i,
+         lw_lines1 TYPE i,
+         lw_lines2 TYPE i,
+         lw_lines3 TYPE i.
+
+  CLEAR : lw_lines,lw_lines1,lw_lines2,lw_lines3, gi_colli_ds, gi_trkid_ds.
+**********Fetching Data when no input in Shipment and Transport Id and inbound delivery
+  IF ( gs_trkid IS INITIAL AND gs_tknum IS INITIAL AND gs_vhilm IS INITIAL ).
+    SELECT zcolliid
+           zexidv2
+           zhubid
+           zcollint
+           zfnldsthub
+           zcurtruck
+           zcurhub
+           znexthub
+           zorigin
+           zstatus
+           zshipdest
+           zdirect
+           tknum
+           vhart
+           laeng
+           breit
+           hoehe
+           meabm
+           brgew
+           gewei
+           zcrdate
+           zuser
+           zduplicate
+           FROM ztmm_colli
+           INTO TABLE gt_colli_ds
+           WHERE  zcollint   IN gs_colit
+           AND    zcolliid   IN gs_colid
+           AND    zexidv2    IN gs_exidv
+           AND    zhubid     IN gr_hub
+           AND    zfnldsthub IN gr_dsthub
+           AND    zcurtruck  IN gs_trkid
+           AND    zcurhub    IN gr_curhub
+           AND    zshipdest  IN gr_shipto
+           AND    tknum      IN gs_tknum
+           AND    vhart      IN gs_vhart
+           AND    laeng      IN gs_laeng
+           AND    breit      IN gs_breit
+           AND    hoehe      IN gs_hoehe
+           AND    meabm      IN gs_meabm
+           AND    brgew      IN gs_brgew
+           AND    gewei      IN gs_gewei
+           AND    zcrdate    IN gs_crdat
+           AND    zuser      IN gr_huser
+           AND    zstatus    IN gr_status
+           AND    zorigin    IN gr_origin
+           AND    zdirect    IN gr_direct.
+    IF sy-subrc IS INITIAL.
+      SORT gt_colli_ds BY zexidv2.
+    ENDIF.
+  ENDIF.
+**********Fetching Data when no input in Shipment and Transport Id but input in inbound delivery
+  IF ( gs_trkid IS INITIAL AND gs_tknum IS INITIAL AND gs_vhilm IS NOT INITIAL ).
+    SELECT ztmm_colli~zcolliid
+        ztmm_colli~zexidv2
+        ztmm_colli~zhubid
+        ztmm_colli~zcollint
+        ztmm_colli~zfnldsthub
+        ztmm_colli~zcurtruck
+        ztmm_colli~zcurhub
+        ztmm_colli~znexthub
+        ztmm_colli~zorigin
+        ztmm_colli~zstatus
+        ztmm_colli~zshipdest
+        ztmm_colli~zdirect
+        ztmm_colli~vhart
+        ztmm_colli~laeng
+        ztmm_colli~breit
+        ztmm_colli~hoehe
+        ztmm_colli~meabm
+        ztmm_colli~brgew
+        ztmm_colli~gewei
+        ztmm_colli~zcrdate
+        ztmm_colli~zuser
+        ztmm_colli~zduplicate
+        vekp~venum
+        vekp~vhilm_ku
+        vekp~vpobj
+        vekp~vpobjkey
+        INTO TABLE gt_colli_vekp_ds
+        FROM ztmm_colli
+        INNER JOIN vekp
+        ON  ztmm_colli~zcollint = vekp~venum
+        WHERE  ztmm_colli~zcollint   IN gs_colit
+        AND    ztmm_colli~zcolliid   IN gs_colid
+        AND    ztmm_colli~zexidv2    IN gs_exidv
+        AND    ztmm_colli~zhubid     IN gr_hub
+        AND    ztmm_colli~zfnldsthub IN gr_dsthub
+        AND    ztmm_colli~zcurtruck  IN gs_trkid
+        AND    ztmm_colli~zcurhub    IN gr_curhub
+        AND    ztmm_colli~zshipdest  IN gr_shipto
+        AND    ztmm_colli~vhart      IN gs_vhart
+        AND    ztmm_colli~laeng      IN gs_laeng
+        AND    ztmm_colli~breit      IN gs_breit
+        AND    ztmm_colli~hoehe      IN gs_hoehe
+        AND    ztmm_colli~meabm      IN gs_meabm
+        AND    ztmm_colli~brgew      IN gs_brgew
+        AND    ztmm_colli~gewei      IN gs_gewei
+        AND    ztmm_colli~zcrdate    IN gs_crdat
+        AND    ztmm_colli~zuser      IN gr_huser
+        AND    ztmm_colli~zstatus    IN gr_status
+        AND    ztmm_colli~zorigin    IN gr_origin
+        AND    ztmm_colli~zdirect    IN gr_direct
+        AND    vekp~vpobj = '04'
+        AND    vekp~vpobjkey IN gs_tknum
+        AND    vekp~vhilm_ku IN gs_vhilm.
+    IF sy-subrc IS INITIAL.
+      SORT gt_colli_vekp_ds BY zexidv2.
+    ENDIF.
+  ENDIF.
+**********Fetching Data when  input in Shipment and and no input in Transport Id
+  IF ( gs_tknum IS NOT INITIAL AND gs_trkid IS INITIAL )  .
+    SELECT ztmm_colli~zcolliid
+        ztmm_colli~zexidv2
+        ztmm_colli~zhubid
+        ztmm_colli~zcollint
+        ztmm_colli~zfnldsthub
+        ztmm_colli~zcurtruck
+        ztmm_colli~zcurhub
+        ztmm_colli~znexthub
+        ztmm_colli~zorigin
+        ztmm_colli~zstatus
+        ztmm_colli~zshipdest
+        ztmm_colli~zdirect
+        ztmm_colli~vhart
+        ztmm_colli~laeng
+        ztmm_colli~breit
+        ztmm_colli~hoehe
+        ztmm_colli~meabm
+        ztmm_colli~brgew
+        ztmm_colli~gewei
+        ztmm_colli~zcrdate
+        ztmm_colli~zuser
+        ztmm_colli~zduplicate
+        vekp~venum
+        vekp~vhilm_ku
+        vekp~vpobj
+        vekp~vpobjkey
+        INTO TABLE gt_colli_vekp_ds
+        FROM ztmm_colli
+        INNER JOIN vekp
+        ON  ztmm_colli~zcollint = vekp~venum
+        WHERE  ztmm_colli~zcollint   IN gs_colit
+        AND    ztmm_colli~zcolliid   IN gs_colid
+        AND    ztmm_colli~zexidv2    IN gs_exidv
+        AND    ztmm_colli~zhubid     IN gr_hub
+        AND    ztmm_colli~zfnldsthub IN gr_dsthub
+        AND    ztmm_colli~zcurtruck  IN gs_trkid
+        AND    ztmm_colli~zcurhub    IN gr_curhub
+        AND    ztmm_colli~zshipdest  IN gr_shipto
+        AND    ztmm_colli~vhart      IN gs_vhart
+        AND    ztmm_colli~laeng      IN gs_laeng
+        AND    ztmm_colli~breit      IN gs_breit
+        AND    ztmm_colli~hoehe      IN gs_hoehe
+        AND    ztmm_colli~meabm      IN gs_meabm
+        AND    ztmm_colli~brgew      IN gs_brgew
+        AND    ztmm_colli~gewei      IN gs_gewei
+        AND    ztmm_colli~zcrdate    IN gs_crdat
+        AND    ztmm_colli~zuser      IN gr_huser
+        AND    ztmm_colli~zstatus    IN gr_status
+        AND    ztmm_colli~zorigin    IN gr_origin
+        AND    ztmm_colli~zdirect    IN gr_direct
+        AND    vekp~vpobj = '04'
+        AND    vekp~vpobjkey IN gs_tknum
+        AND    vekp~vhilm_ku IN gs_vhilm.
+    IF sy-subrc IS INITIAL.
+      SORT gt_colli_vekp_ds BY zexidv2.
+    ELSE.
+      SELECT
+          zcolliid
+          zexidv2
+          zhubid
+          zcollint
+          zfnldsthub
+          zcurtruck
+          zcurhub
+          znexthub
+          zorigin
+          zstatus
+          zshipdest
+          zdirect
+          tknum
+          vhart
+          laeng
+          breit
+          hoehe
+          meabm
+          brgew
+          gewei
+          zcrdate
+          zuser
+          zduplicate
+        FROM ztmm_colli
+        INTO TABLE gt_colli_ds
+        WHERE tknum IN gs_tknum.
+      IF sy-subrc IS INITIAL.
+        SORT gt_colli_ds BY zexidv2.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+**********Fetching Data when  no input in Shipment and inbound del and input in  Transport Id
+  IF ( gs_trkid IS NOT INITIAL AND gs_tknum IS INITIAL AND gs_vhilm IS INITIAL ).
+    SELECT ztmm_colli~zcolliid
+        ztmm_colli~zexidv2
+        ztmm_colli~zhubid
+        ztmm_colli~zcollint
+        ztmm_colli~zfnldsthub
+        ztmm_colli~zcurhub
+        ztmm_colli~znexthub
+        ztmm_colli~zorigin
+        ztmm_colli~zstatus
+        ztmm_colli~zshipdest
+        ztmm_colli~zdirect
+        ztmm_colli~tknum
+        ztmm_colli~vhart
+        ztmm_colli~laeng
+        ztmm_colli~breit
+        ztmm_colli~hoehe
+        ztmm_colli~meabm
+        ztmm_colli~brgew
+        ztmm_colli~gewei
+        ztmm_colli~zcrdate
+        ztmm_colli~zuser
+        ztmm_colli~zduplicate
+        ztmm_trkcol~ztrukid
+        INTO TABLE gt_colli_trkcol_ds
+        FROM ztmm_colli
+        INNER JOIN ztmm_trkcol
+        ON     ztmm_colli~zcolliid  = ztmm_trkcol~zcolliid
+        WHERE  ztmm_colli~zcolliid   IN gs_colid
+        AND    ztmm_colli~zexidv2    IN gs_exidv
+        AND    ztmm_colli~zhubid     IN gr_hub
+        AND    ztmm_colli~zcollint   IN gs_colit
+        AND    ztmm_colli~zfnldsthub IN gr_dsthub
+        AND    ztmm_colli~zcurhub    IN gr_curhub
+        AND    ztmm_colli~zshipdest  IN gr_shipto
+        AND    ztmm_colli~tknum      IN gs_tknum
+        AND    ztmm_colli~vhart      IN gs_vhart
+        AND    ztmm_colli~laeng      IN gs_laeng
+        AND    ztmm_colli~breit      IN gs_breit
+        AND    ztmm_colli~hoehe      IN gs_hoehe
+        AND    ztmm_colli~meabm      IN gs_meabm
+        AND    ztmm_colli~brgew      IN gs_brgew
+        AND    ztmm_colli~gewei      IN gs_gewei
+        AND    ztmm_colli~zcrdate    IN gs_crdat
+        AND    ztmm_colli~zuser      IN gr_huser
+        AND    ztmm_colli~zstatus    IN gr_status
+        AND    ztmm_colli~zorigin    IN gr_origin
+        AND    ztmm_colli~zdirect    IN gr_direct
+        AND    ztmm_trkcol~ztrukid   IN gs_trkid.
+    IF sy-subrc IS INITIAL.
+      SORT gt_colli_trkcol_ds BY zexidv2.
+    ENDIF.
+  ENDIF.
+**********Fetching Data when input in Inbound delivery and Transport Id
+  IF ( gs_trkid IS NOT INITIAL AND gs_tknum IS INITIAL AND gs_vhilm IS NOT INITIAL ) .
+    SELECT ztmm_colli~zcolliid
+         ztmm_colli~zexidv2
+         ztmm_colli~zhubid
+         ztmm_colli~zcollint
+         ztmm_colli~zfnldsthub
+         ztmm_colli~zcurhub
+         ztmm_colli~znexthub
+         ztmm_colli~zorigin
+         ztmm_colli~zstatus
+         ztmm_colli~zshipdest
+         ztmm_colli~zdirect
+         ztmm_colli~vhart
+         ztmm_colli~laeng
+         ztmm_colli~breit
+         ztmm_colli~hoehe
+         ztmm_colli~meabm
+         ztmm_colli~brgew
+         ztmm_colli~gewei
+         ztmm_colli~zcrdate
+         ztmm_colli~zuser
+         ztmm_colli~zduplicate
+         vekp~venum
+         vekp~vhilm_ku
+         vekp~vpobj
+         vekp~vpobjkey
+         ztmm_trkcol~ztrukid
+         INTO TABLE gt_colli_vekp_trkcol_ds
+         FROM   ztmm_colli
+         INNER JOIN vekp
+         ON     ztmm_colli~zcollint = vekp~venum
+         INNER JOIN ztmm_trkcol
+         ON     ztmm_colli~zcolliid  = ztmm_trkcol~zcolliid
+         WHERE  ztmm_colli~zcollint   IN gs_colit
+         AND    ztmm_colli~zcolliid   IN gs_colid
+         AND    ztmm_colli~zexidv2    IN gs_exidv
+         AND    ztmm_colli~zhubid     IN gr_hub
+         AND    ztmm_colli~zfnldsthub IN gr_dsthub
+         AND    ztmm_colli~zcurtruck  IN gs_trkid
+         AND    ztmm_colli~zshipdest  IN gr_shipto
+         AND    ztmm_colli~vhart      IN gs_vhart
+         AND    ztmm_colli~laeng      IN gs_laeng
+         AND    ztmm_colli~breit      IN gs_breit
+         AND    ztmm_colli~hoehe      IN gs_hoehe
+         AND    ztmm_colli~meabm      IN gs_meabm
+         AND    ztmm_colli~brgew      IN gs_brgew
+         AND    ztmm_colli~gewei      IN gs_gewei
+         AND    ztmm_colli~zcrdate    IN gs_crdat
+         AND    ztmm_colli~zuser      IN gr_huser
+         AND    ztmm_colli~zstatus    IN gr_status
+         AND    ztmm_colli~zorigin    IN gr_origin
+         AND    ztmm_colli~zdirect    IN gr_direct
+         AND    vekp~vpobj = '04'
+         AND    vekp~vpobjkey         IN gs_tknum
+         AND    vekp~vhilm_ku         IN gs_vhilm
+         AND    ztmm_trkcol~ztrukid   IN gs_trkid.
+    IF sy-subrc IS INITIAL.
+      SORT gt_colli_vekp_trkcol_ds BY zexidv2.
+    ENDIF.
+  ENDIF.
+**********Fetching Data when input in Shipment and Transport Id both
+  IF ( gs_trkid IS NOT INITIAL AND gs_tknum IS NOT INITIAL ).
+    SELECT ztmm_colli~zcolliid
+         ztmm_colli~zexidv2
+         ztmm_colli~zhubid
+         ztmm_colli~zcollint
+         ztmm_colli~zfnldsthub
+         ztmm_colli~zcurhub
+         ztmm_colli~znexthub
+         ztmm_colli~zorigin
+         ztmm_colli~zstatus
+         ztmm_colli~zshipdest
+         ztmm_colli~zdirect
+         ztmm_colli~vhart
+         ztmm_colli~laeng
+         ztmm_colli~breit
+         ztmm_colli~hoehe
+         ztmm_colli~meabm
+         ztmm_colli~brgew
+         ztmm_colli~gewei
+         ztmm_colli~zcrdate
+         ztmm_colli~zuser
+         ztmm_colli~zduplicate
+         vekp~venum
+         vekp~vhilm_ku
+         vekp~vpobj
+         vekp~vpobjkey
+         ztmm_trkcol~ztrukid
+         INTO TABLE gt_colli_vekp_trkcol_ds
+         FROM   ztmm_colli
+         INNER JOIN vekp
+         ON     ztmm_colli~zcollint = vekp~venum
+         INNER JOIN ztmm_trkcol
+         ON     ztmm_colli~zcolliid  = ztmm_trkcol~zcolliid
+         WHERE  ztmm_colli~zcollint   IN gs_colit
+         AND    ztmm_colli~zcolliid   IN gs_colid
+         AND    ztmm_colli~zexidv2    IN gs_exidv
+         AND    ztmm_colli~zhubid     IN gr_hub
+         AND    ztmm_colli~zfnldsthub IN gr_dsthub
+         AND    ztmm_colli~zcurtruck  IN gs_trkid
+         AND    ztmm_colli~zshipdest  IN gr_shipto
+         AND    ztmm_colli~vhart      IN gs_vhart
+         AND    ztmm_colli~laeng      IN gs_laeng
+         AND    ztmm_colli~breit      IN gs_breit
+         AND    ztmm_colli~hoehe      IN gs_hoehe
+         AND    ztmm_colli~meabm      IN gs_meabm
+         AND    ztmm_colli~brgew      IN gs_brgew
+         AND    ztmm_colli~gewei      IN gs_gewei
+         AND    ztmm_colli~zcrdate    IN gs_crdat
+         AND    ztmm_colli~zuser      IN gr_huser
+         AND    ztmm_colli~zstatus    IN gr_status
+         AND    ztmm_colli~zorigin    IN gr_origin
+         AND    ztmm_colli~zdirect    IN gr_direct
+         AND    vekp~vpobj = '04'
+         AND    vekp~vpobjkey         IN gs_tknum
+         AND    vekp~vhilm_ku         IN gs_vhilm
+         AND    ztmm_trkcol~ztrukid   IN gs_trkid.
+    IF sy-subrc IS INITIAL.
+      SORT gt_colli_vekp_trkcol_ds BY zexidv2.
+    ENDIF.
+  ENDIF.
+****Filtering Data on basis of Hub
+  IF gp_dephb IS NOT INITIAL OR gp_rechb IS NOT INITIAL OR gp_tuser IS NOT INITIAL.
+    SELECT ztrukid
+           zhubid
+           zrechub
+           zuser
+          FROM ztmm_trkid
+          INTO TABLE gt_trkid_ds
+          WHERE zhubid  IN gr_dephub
+          AND   zrechub IN gr_rechub
+          AND   zuser   IN gr_tuser.
+    IF gt_trkid_ds IS NOT INITIAL.
+      SELECT ztrukid
+             zcolliid
+             zrechub
+             zcrdate
+             FROM ztmm_trkcol
+             INTO TABLE gt_trkcol_ds
+             FOR ALL ENTRIES IN gt_trkid_ds
+             WHERE ztrukid = gt_trkid_ds-ztrukid.
+      IF gt_trkcol_ds IS NOT INITIAL.
+        SORT gt_trkcol_ds BY zcolliid.
+      ENDIF.
+    ENDIF.
+******Matching the data and filtering out the common entries
+    IF gt_colli_ds IS NOT INITIAL.
+      LOOP AT gt_colli_ds INTO gi_colli_ds.
+        READ TABLE gt_trkcol_ds INTO gi_trkcol_ds WITH KEY zcolliid = gi_colli_ds-zcolliid.
+        IF sy-subrc IS NOT INITIAL.
+          DELETE gt_colli_ds WHERE zcolliid = gi_colli_ds-zcolliid.
+        ENDIF.
+      ENDLOOP.
+    ELSEIF gt_colli_vekp_ds IS NOT INITIAL.
+      LOOP AT gt_colli_vekp_ds INTO gi_colli_vekp_ds.
+        READ TABLE gt_trkcol_ds INTO gi_trkcol_ds WITH KEY zcolliid = gi_colli_vekp_ds-zcolliid.
+        IF sy-subrc IS NOT INITIAL.
+          DELETE gt_colli_vekp_ds WHERE zcolliid = gi_colli_vekp_ds-zcolliid.
+        ENDIF.
+      ENDLOOP.
+    ELSEIF gt_colli_trkcol_ds IS NOT INITIAL.
+      LOOP AT gt_colli_trkcol_ds INTO gi_colli_trkcol_ds.
+        READ TABLE gt_trkcol_ds INTO gi_trkcol_ds WITH KEY zcolliid = gi_colli_trkcol_ds-zcolliid.
+        IF sy-subrc IS NOT INITIAL.
+          DELETE gt_colli_trkcol_ds WHERE zcolliid = gi_colli_trkcol_ds-zcolliid.
+        ENDIF.
+      ENDLOOP.
+    ELSEIF gt_colli_vekp_trkcol_ds IS NOT INITIAL.
+      LOOP AT gt_colli_vekp_trkcol_ds INTO gi_colli_vekp_trkcol_ds.
+        READ TABLE gt_trkcol_ds INTO gi_trkcol_ds WITH KEY zcolliid = gi_colli_vekp_trkcol_ds-zcolliid.
+        IF sy-subrc IS NOT INITIAL.
+          DELETE gt_colli_vekp_trkcol_ds WHERE zcolliid = gi_colli_vekp_trkcol_ds-zcolliid.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+  ENDIF.
+*****Fetching Data on PO Filters
+  IF gs_suply IS NOT INITIAL.
+    SELECT werks
+           lifnr
+          FROM t001w
+          INTO TABLE gt_t001w_ds
+          WHERE werks IN gs_suply
+          AND lifnr <> ' '.
+    IF sy-subrc IS INITIAL.
+      SELECT ebeln
+            FROM ekko
+            INTO TABLE gt_ekko_ds
+            FOR ALL ENTRIES IN gt_t001w_ds
+            WHERE lifnr = gt_t001w_ds-lifnr
+            AND ebeln IN gs_ebeln
+            AND aedat IN gs_bedat
+            AND bstyp = 'F'           " Purchase Document Category - Purchase Order
+            AND bsart IN ('ZB','UB'). " Purchasing Document Type - STO Cross Company or Stock Transport Order
+      IF sy-subrc IS INITIAL.
+        SELECT ebeln
+               ebelp
+               matnr
+               werks
+              FROM ekpo
+              INTO TABLE gt_ekpo_ds
+              FOR ALL ENTRIES IN gt_ekko_ds
+              WHERE ebeln = gt_ekko_ds-ebeln
+              AND werks IN gs_plant
+              AND matnr IN gs_matnr.
+        IF sy-subrc IS INITIAL.
+          SELECT ebeln
+                 ebelp
+                 xblnr
+                 vbeln
+                 FROM ekes
+                 INTO TABLE gt_ekes_ds
+                 FOR ALL ENTRIES IN gt_ekpo_ds
+                 WHERE ebeln = gt_ekpo_ds-ebeln
+                 AND   ebelp = gt_ekpo_ds-ebelp
+                 AND   xblnr NE space.
+          IF sy-subrc IS INITIAL.
+*********Adding leading zeroes to document number if required
+            LOOP AT gt_ekes_ds INTO gi_ekes_ds.
+              CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+                EXPORTING
+                  input  = gi_ekes_ds-xblnr
+                IMPORTING
+                  output = lr_xblnr-low.
+              lr_xblnr-sign = 'I'.
+              lr_xblnr-option = 'EQ'.
+              APPEND lr_xblnr TO lt_xblnr.
+              CLEAR lr_xblnr.
+            ENDLOOP.
+
+            SELECT zcolliid
+                   zexidv2
+                   zcollint
+                   FROM ztmm_colli
+                   INTO TABLE gt_colli4_ds
+                   WHERE zexidv2 IN lt_xblnr.
+
+            IF sy-subrc IS INITIAL.
+              SELECT venum
+                     vhilm_ku
+                     FROM vekp
+                     INTO TABLE gt_vekp5_ds
+                     FOR ALL ENTRIES IN gt_colli4_ds
+                     WHERE venum = gt_colli4_ds-zcollint.
+              IF sy-subrc IS INITIAL.
+                SORT gt_vekp4_ds BY venum.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+*****Matching for valid records and getting the data
+    LOOP AT gt_ekes_ds INTO gi_ekes_ds.
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = gi_ekes_ds-xblnr
+        IMPORTING
+          output = lw_xblnr.
+      READ TABLE gt_colli4_ds INTO gi_colli4_ds WITH KEY zexidv2 = lw_xblnr. "= gi_ekes_ds-xblnr.
+      IF sy-subrc IS INITIAL.
+        READ TABLE gt_vekp5_ds INTO gi_vekp5_ds WITH KEY venum = gi_colli4_ds-zcollint.
+        IF sy-subrc IS INITIAL.
+          IF gi_vekp5_ds-vhilm_ku = gi_ekes_ds-vbeln.
+            APPEND gi_colli4_ds TO gt_colli5_ds.
+            CLEAR gi_colli4_ds.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+******Matching the data and filtering out the common entries
+    IF gt_colli_ds IS NOT INITIAL.
+      LOOP AT gt_colli_ds INTO gi_colli_ds.
+        READ TABLE gt_colli5_ds INTO gi_colli5_ds WITH KEY zcolliid = gi_colli_ds-zcolliid.
+        IF sy-subrc IS NOT INITIAL.
+          DELETE gt_colli_ds WHERE zcolliid = gi_colli_ds-zcolliid.
+        ENDIF.
+      ENDLOOP.
+    ELSEIF gt_colli_vekp_ds IS NOT INITIAL.
+      LOOP AT gt_colli_ds INTO gi_colli_ds.
+        READ TABLE gt_colli5_ds INTO gi_colli5_ds WITH KEY zcolliid = gi_colli_vekp_ds-zcolliid.
+        IF sy-subrc IS NOT INITIAL.
+          DELETE gt_colli_vekp_ds WHERE zcolliid = gi_colli_ds-zcolliid.
+        ENDIF.
+      ENDLOOP.
+    ELSEIF gt_colli_trkcol_ds IS NOT INITIAL.
+      LOOP AT gt_colli_ds INTO gi_colli_ds.
+        READ TABLE gt_colli5_ds INTO gi_colli5_ds WITH KEY zcolliid = gi_colli_trkcol_ds-zcolliid.
+        IF sy-subrc IS NOT INITIAL.
+          DELETE gt_colli_trkcol_ds WHERE zcolliid = gi_colli_ds-zcolliid.
+        ENDIF.
+      ENDLOOP.
+    ELSEIF gt_colli_vekp_trkcol_ds IS NOT INITIAL.
+      LOOP AT gt_colli_ds INTO gi_colli_ds.
+        READ TABLE gt_colli5_ds INTO gi_colli5_ds WITH KEY zcolliid = gi_colli_vekp_trkcol_ds-zcolliid.
+        IF sy-subrc IS NOT INITIAL.
+          DELETE gt_colli_vekp_trkcol_ds WHERE zcolliid = gi_colli_ds-zcolliid.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+  ENDIF.
+
+*****Fetchinf data from trkocl for calculation of Date Of Arrival and Aging Days in Ouput
+  IF gt_colli_ds IS NOT INITIAL.
+    SELECT ztrukid
+           zcolliid
+           zrechub
+           zcrdate
+           FROM ztmm_trkcol
+           INTO TABLE gt_trkcol1_ds
+           FOR ALL ENTRIES IN gt_colli_ds
+           WHERE zexidv2 = gt_colli_ds-zexidv2
+           AND   zrechub = gt_colli_ds-zcurhub.
+  ELSEIF gt_colli_vekp_ds IS NOT INITIAL.
+    SELECT ztrukid
+           zcolliid
+           zrechub
+           zcrdate
+           FROM ztmm_trkcol
+           INTO TABLE gt_trkcol1_ds
+           FOR ALL ENTRIES IN gt_colli_vekp_ds
+           WHERE zexidv2 = gt_colli_vekp_ds-zexidv2
+           AND zrechub = gt_colli_vekp_ds-zcurhub.
+  ELSEIF gt_colli_trkcol_ds IS NOT INITIAL.
+    SELECT ztrukid
+           zcolliid
+           zrechub
+           zcrdate
+           FROM ztmm_trkcol
+           INTO TABLE gt_trkcol1_ds
+           FOR ALL ENTRIES IN gt_colli_trkcol_ds
+           WHERE zexidv2 = gt_colli_trkcol_ds-zexidv2
+           AND zrechub = gt_colli_trkcol_ds-zcurhub.
+  ELSEIF gt_colli_vekp_trkcol_ds IS NOT INITIAL.
+    SELECT ztrukid
+           zcolliid
+           zrechub
+           zcrdate
+           FROM ztmm_trkcol
+           INTO TABLE gt_trkcol1_ds
+           FOR ALL ENTRIES IN gt_colli_vekp_trkcol_ds
+           WHERE zexidv2 = gt_colli_vekp_trkcol_ds-zexidv2
+           AND zrechub = gt_colli_vekp_trkcol_ds-zcurhub.
+  ENDIF.
+  IF gt_trkcol1_ds IS NOT INITIAL.
+    SORT gt_trkcol1_ds BY zcrdate ztrukid  DESCENDING.
+    READ TABLE gt_trkcol1_ds INTO gi_trkcol1_ds INDEX 1.
+    IF sy-subrc IS INITIAL.
+      SELECT ztrukid
+             zstatusid
+             zrechbdt
+             FROM ztmm_trkid
+             INTO TABLE gt_trkid1_ds
+             FOR ALL ENTRIES IN gt_trkcol1_ds
+             WHERE ztrukid = gt_trkcol1_ds-ztrukid.
+      IF sy-subrc IS INITIAL.
+        SORT gt_trkid1_ds BY ztrukid.
+      ENDIF.
+    ENDIF.
+  ELSE.
+    IF gt_colli_ds IS INITIAL.
+      SELECT zcolliid
+             zhubid
+             zfndmsng
+             zactive
+             zcrdate
+             FROM ztmm_colmis
+             INTO TABLE gt_colmis_ds
+             FOR ALL ENTRIES IN gt_colli_ds
+             WHERE zcolliid = gt_colli_ds-zcolliid
+               AND zhubid   = gt_colli_ds-zcurhub
+               AND zfndmsng = 'D'  "Found
+               AND zactive  = 'Y'. "Colli is Active
+      IF sy-subrc IS INITIAL.
+        SORT gt_colmis_ds BY zcolliid.
+      ENDIF.
+    ELSEIF gt_colli_vekp_ds IS INITIAL.
+      SELECT zcolliid
+             zhubid
+             zfndmsng
+             zactive
+             zcrdate
+       FROM ztmm_colmis
+       INTO TABLE gt_colmis_ds
+       FOR ALL ENTRIES IN gt_colli_vekp_ds
+       WHERE zcolliid = gt_colli_vekp_ds-zcolliid
+         AND zhubid   = gt_colli_vekp_ds-zcurhub
+         AND zfndmsng = 'D'  "Found
+         AND zactive  = 'Y'. "Colli is Active
+      IF sy-subrc IS INITIAL.
+        SORT gt_colmis_ds BY zcolliid.
+      ENDIF.
+    ELSEIF gt_colli_trkcol_ds IS INITIAL.
+      SELECT zcolliid
+             zhubid
+             zfndmsng
+             zactive
+             zcrdate
+        FROM ztmm_colmis
+        INTO TABLE gt_colmis_ds
+        FOR ALL ENTRIES IN gt_colli_trkcol_ds
+        WHERE zcolliid = gt_colli_trkcol_ds-zcolliid
+          AND zhubid   = gt_colli_trkcol_ds-zcurhub
+          AND zfndmsng = 'D'  "Found
+          AND zactive  = 'Y'. "Colli is Active
+      IF sy-subrc IS INITIAL.
+        SORT gt_colmis_ds BY zcolliid.
+      ENDIF.
+    ELSEIF gt_colli_vekp_trkcol_ds IS INITIAL.
+      SELECT zcolliid
+             zhubid
+             zfndmsng
+             zactive
+             zcrdate
+        FROM ztmm_colmis
+        INTO TABLE gt_colmis_ds
+        FOR ALL ENTRIES IN gt_colli_vekp_trkcol_ds
+        WHERE zcolliid = gt_colli_vekp_trkcol_ds-zcolliid
+          AND zhubid   = gt_colli_vekp_trkcol_ds-zcurhub
+          AND zfndmsng = 'D'   "Found
+          AND zactive  = 'Y'.  "Colli is Active
+      IF sy-subrc IS INITIAL.
+        SORT gt_colmis_ds BY zcolliid.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+  IF gt_colli_ds IS NOT INITIAL.
+    REFRESH gt_final1_ds.
+    LOOP AT gt_colli_ds INTO gi_colli_ds.
+      gi_final1_ds-zexidv2    = gi_colli_ds-zexidv2.
+      gi_final1_ds-zcollint   = gi_colli_ds-zcollint.
+      gi_final1_ds-zcolliid   = gi_colli_ds-zcolliid.
+      gi_final1_ds-zhubid     = gi_colli_ds-zhubid.
+      gi_final1_ds-zfnldsthub = gi_colli_ds-zfnldsthub.
+      gi_final1_ds-zcrdate    = gi_colli_ds-zcrdate.
+      gi_final1_ds-zcurtruck  = gi_colli_ds-zcurtruck.
+      gi_final1_ds-zcurhub    = gi_colli_ds-zcurhub.
+      gi_final1_ds-znexthub   = gi_colli_ds-znexthub.
+
+      CASE gi_colli_ds-zstatus.
+        WHEN 'A'. "When Status is To Stay
+          gi_final1_ds-zstatus = gc_status1.
+        WHEN 'B'.  "When Status is To Tranship
+          gi_final1_ds-zstatus = gc_status2.
+        WHEN 'C'.  "When Status is To CrossDock
+          gi_final1_ds-zstatus = gc_status3.
+        WHEN 'D'.   "When Status is Found
+          gi_final1_ds-zstatus = gc_status4.
+        WHEN 'E'.  "When Status is Missing
+          gi_final1_ds-zstatus = gc_status5.
+        WHEN 'F'.  "When Status is Transhipped
+          gi_final1_ds-zstatus = gc_status6.
+        WHEN 'G'.  "When Status is Crossdocked
+          gi_final1_ds-zstatus = gc_status7.
+        WHEN 'H'.  "When Status is Created
+          gi_final1_ds-zstatus = gc_status8.
+        WHEN 'I'.  "When Status is In Transit
+          gi_final1_ds-zstatus = gc_status9.
+        WHEN 'J'.  "When Status is Assigned
+          gi_final1_ds-zstatus = gc_status10.
+        WHEN 'K'.   "When Status is Received
+          gi_final1_ds-zstatus = gc_status11.
+      ENDCASE.
+      IF gi_colli_ds-zcurhub IS NOT INITIAL.
+        READ TABLE gt_trkcol1_ds INTO gi_trkcol1_ds WITH KEY zrechub  = gi_colli_ds-zcurhub
+                                                             zcolliid = gi_colli_ds-zcolliid.    "Added by Vijay Kumar N DE3K964343  CHG1346875  16/07/2015
+        IF sy-subrc IS INITIAL.
+          READ TABLE gt_trkid1_ds INTO gi_trkid1_ds WITH KEY ztrukid = gi_trkcol1_ds-ztrukid
+                                                             zstatusid = 'K'. "Received
+          IF sy-subrc IS INITIAL.
+            gi_final1_ds-zdate = gi_trkid1_ds-zrechbdt.
+          ELSE.
+            gi_final1_ds-zdate = gi_colli_ds-zcrdate.
+          ENDIF.
+        ELSE.
+          READ TABLE gt_colmis_ds INTO gi_colmis_ds WITH KEY zcolliid = gi_colli_ds-zcolliid
+                                                             zhubid  = gi_colli_ds-zcurhub
+                                                             zfndmsng = 'D' "Found
+                                                             zactive = 'Y'. "Colli is Active
+          IF sy-subrc IS INITIAL.
+            gi_final1_ds-zdate = gi_colmis_ds-zcrdate.
+          ELSE.
+            gi_final1_ds-zdate = gi_colli_ds-zcrdate.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+*****If status is To CrossDock , To Transhp , Creted , Assigned , Found
+      IF ( gi_colli_ds-zstatus = 'B' OR gi_colli_ds-zstatus = 'C' OR gi_colli_ds-zstatus = 'H' OR gi_colli_ds-zstatus = 'D' OR gi_colli_ds-zstatus = 'J' ).
+        IF gi_final1_ds-zdate IS NOT INITIAL.
+          gi_final1_ds-zdays = sy-datum - gi_final1_ds-zdate.
+        ENDIF.
+      ENDIF.
+
+      gi_final1_ds-zuser = gi_colli_ds-zuser.
+
+      IF gi_colli_ds-zduplicate = 'X'.
+        gi_final1_ds-zduplicate = text-064."'YES'.
+      ELSE.
+        gi_final1_ds-zduplicate = text-065."'NO'.
+      ENDIF.
+
+      APPEND gi_final1_ds TO gt_final1_ds.
+      CLEAR: gi_final1_ds, gi_trkid1_ds, gi_trkcol1_ds.
+    ENDLOOP.
+  ENDIF.
+
+  IF gt_colli_vekp_ds IS NOT INITIAL.
+    REFRESH gt_final1_ds.
+    LOOP AT gt_colli_vekp_ds INTO gi_colli_vekp_ds.
+      gi_final1_ds-zexidv2    = gi_colli_vekp_ds-zexidv2.
+      gi_final1_ds-zcollint   = gi_colli_vekp_ds-zcollint.
+      gi_final1_ds-zcolliid   = gi_colli_vekp_ds-zcolliid.
+      gi_final1_ds-zhubid     = gi_colli_vekp_ds-zhubid.
+      gi_final1_ds-zfnldsthub = gi_colli_vekp_ds-zfnldsthub.
+      gi_final1_ds-zcrdate    = gi_colli_vekp_ds-zcrdate.
+      gi_final1_ds-zcurtruck  = gi_colli_vekp_ds-zcurtruck.
+      gi_final1_ds-zcurhub    = gi_colli_vekp_ds-zcurhub.
+      gi_final1_ds-znexthub   = gi_colli_vekp_ds-znexthub.
+
+      CASE gi_colli_vekp_ds-zstatus.
+        WHEN 'A'. "When Status is To Stay
+          gi_final1_ds-zstatus = gc_status1.
+        WHEN 'B'.  "When Status is To Tranship
+          gi_final1_ds-zstatus = gc_status2.
+        WHEN 'C'.  "When Status is To CrossDock
+          gi_final1_ds-zstatus = gc_status3.
+        WHEN 'D'.   "When Status is Found
+          gi_final1_ds-zstatus = gc_status4.
+        WHEN 'E'.  "When Status is Missing
+          gi_final1_ds-zstatus = gc_status5.
+        WHEN 'F'.  "When Status is Transhipped
+          gi_final1_ds-zstatus = gc_status6.
+        WHEN 'G'.  "When Status is Crossdocked
+          gi_final1_ds-zstatus = gc_status7.
+        WHEN 'H'.  "When Status is Created
+          gi_final1_ds-zstatus = gc_status8.
+        WHEN 'I'.  "When Status is In Transit
+          gi_final1_ds-zstatus = gc_status9.
+        WHEN 'J'.  "When Status is Assigned
+          gi_final1_ds-zstatus = gc_status10.
+        WHEN 'K'.   "When Status is Received
+          gi_final1_ds-zstatus = gc_status11.
+      ENDCASE.
+      IF gi_colli_vekp_ds-zcurhub IS NOT INITIAL.
+        READ TABLE gt_trkcol1_ds INTO gi_trkcol1_ds WITH KEY zrechub = gi_colli_vekp_ds-zcurhub.
+        IF sy-subrc IS INITIAL.
+          READ TABLE gt_trkid1_ds INTO gi_trkid1_ds WITH KEY ztrukid = gi_trkcol1_ds-ztrukid
+                                                             zstatusid = 'K'. "Received
+          IF sy-subrc IS INITIAL.
+            gi_final1_ds-zdate = gi_trkid1_ds-zrechbdt.
+          ELSE.
+            gi_final1_ds-zdate = gi_colli_vekp_ds-zcrdate.
+          ENDIF.
+        ELSE.
+          READ TABLE gt_colmis_ds INTO gi_colmis_ds WITH KEY zcolliid = gi_colli_vekp_ds-zcolliid
+                                                             zhubid  = gi_colli_vekp_ds-zcurhub
+                                                             zfndmsng = 'D' "Found
+                                                             zactive = 'Y'. "Colli is Active
+          IF sy-subrc IS INITIAL.
+            gi_final1_ds-zdate = gi_colmis_ds-zcrdate.
+          ELSE.
+            gi_final1_ds-zdate = gi_colli_vekp_ds-zcrdate.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+*****If status is To CrossDock , To Transhp , Creted , Assigned , Found
+      IF ( gi_colli_vekp_ds-zstatus = 'B' OR gi_colli_vekp_ds-zstatus = 'C' OR gi_colli_vekp_ds-zstatus = 'J' OR gi_colli_vekp_ds-zstatus = 'H' OR gi_colli_vekp_ds-zstatus = 'D' ).
+        IF gi_final1_ds-zdate IS NOT INITIAL.
+          gi_final1_ds-zdays = sy-datum - gi_final1_ds-zdate.
+        ENDIF.
+      ENDIF.
+
+      gi_final1_ds-zuser = gi_colli_vekp_ds-zuser.
+
+      IF gi_colli_ds-zduplicate = 'X'.
+        gi_final1_ds-zduplicate = text-064."'YES'.
+      ELSE.
+        gi_final1_ds-zduplicate = text-065."'NO'.
+      ENDIF.
+
+      APPEND gi_final1_ds TO gt_final1_ds.
+      CLEAR: gi_final1_ds, gi_trkid1_ds, gi_trkcol1_ds.
+    ENDLOOP.
+  ENDIF.
+
+  IF gt_colli_trkcol_ds IS NOT INITIAL .
+    REFRESH gt_final1_ds.
+    LOOP AT gt_colli_trkcol_ds INTO gi_colli_trkcol_ds.
+      gi_final1_ds-zexidv2    = gi_colli_trkcol_ds-zexidv2.
+      gi_final1_ds-zcollint   = gi_colli_trkcol_ds-zcollint.
+      gi_final1_ds-zcolliid   = gi_colli_trkcol_ds-zcolliid.
+      gi_final1_ds-zhubid     = gi_colli_trkcol_ds-zhubid.
+      gi_final1_ds-zfnldsthub = gi_colli_trkcol_ds-zfnldsthub.
+      gi_final1_ds-zcrdate    = gi_colli_trkcol_ds-zcrdate.
+      gi_final1_ds-zcurtruck  = gi_colli_trkcol_ds-ztrukid.
+      gi_final1_ds-zcurhub    = gi_colli_trkcol_ds-zcurhub.
+      gi_final1_ds-znexthub   = gi_colli_trkcol_ds-znexthub.
+
+      CASE gi_colli_trkcol_ds-zstatus.
+        WHEN 'A'. "When Status is To Stay
+          gi_final1_ds-zstatus = gc_status1.
+        WHEN 'B'.  "When Status is To Tranship
+          gi_final1_ds-zstatus = gc_status2.
+        WHEN 'C'.  "When Status is To CrossDock
+          gi_final1_ds-zstatus = gc_status3.
+        WHEN 'D'.   "When Status is Found
+          gi_final1_ds-zstatus = gc_status4.
+        WHEN 'E'.  "When Status is Missing
+          gi_final1_ds-zstatus = gc_status5.
+        WHEN 'F'.  "When Status is Transhipped
+          gi_final1_ds-zstatus = gc_status6.
+        WHEN 'G'.  "When Status is Crossdocked
+          gi_final1_ds-zstatus = gc_status7.
+        WHEN 'H'.  "When Status is Created
+          gi_final1_ds-zstatus = gc_status8.
+        WHEN 'I'.  "When Status is In Transit
+          gi_final1_ds-zstatus = gc_status9.
+        WHEN 'J'.  "When Status is Assigned
+          gi_final1_ds-zstatus = gc_status10.
+        WHEN 'K'.   "When Status is Received
+          gi_final1_ds-zstatus = gc_status11.
+      ENDCASE.
+      IF gi_colli_trkcol_ds-zcurhub IS NOT INITIAL.
+        READ TABLE gt_trkcol1_ds INTO gi_trkcol1_ds WITH KEY zrechub = gi_colli_trkcol_ds-zcurhub.
+        IF sy-subrc IS INITIAL.
+          READ TABLE gt_trkid1_ds INTO gi_trkid1_ds WITH KEY ztrukid = gi_trkcol1_ds-ztrukid
+                                                             zstatusid = 'K'. "Received
+          IF sy-subrc IS INITIAL.
+            gi_final1_ds-zdate = gi_trkid1_ds-zrechbdt.
+          ELSE.
+            gi_final1_ds-zdate = gi_colli_trkcol_ds-zcrdate.
+          ENDIF.
+        ELSE.
+          READ TABLE gt_colmis_ds INTO gi_colmis_ds WITH KEY zcolliid = gi_colli_trkcol_ds-zcolliid
+                                                             zhubid  = gi_colli_trkcol_ds-zcurhub
+                                                             zfndmsng = 'D'  "Found
+                                                             zactive = 'Y'.  "Colli is Active
+          IF sy-subrc IS INITIAL.
+            gi_final1_ds-zdate = gi_colmis_ds-zcrdate.
+          ELSE.
+            gi_final1_ds-zdate = gi_colli_trkcol_ds-zcrdate.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+*****If status is To CrossDock , To Transhp , Creted , Assigned , Found
+      IF ( gi_colli_trkcol_ds-zstatus = 'B' OR gi_colli_trkcol_ds-zstatus = 'C' OR gi_colli_trkcol_ds-zstatus = 'J' OR gi_colli_trkcol_ds-zstatus = 'H' OR gi_colli_trkcol_ds-zstatus = 'D' ).
+        IF gi_final1_ds-zdate IS NOT INITIAL.
+          gi_final1_ds-zdays = sy-datum - gi_final1_ds-zdate.
+        ENDIF.
+      ENDIF.
+
+      gi_final1_ds-zuser = gi_colli_trkcol_ds-zuser.
+
+      IF gi_colli_ds-zduplicate = 'X'.
+        gi_final1_ds-zduplicate = text-064."'YES'.
+      ELSE.
+        gi_final1_ds-zduplicate = text-065."'NO'.
+      ENDIF.
+
+      APPEND gi_final1_ds TO gt_final1_ds.
+      CLEAR: gi_final1_ds, gi_trkid1_ds, gi_trkcol1_ds.
+    ENDLOOP.
+  ENDIF.
+
+  IF gt_colli_vekp_trkcol_ds IS NOT INITIAL.
+    REFRESH gt_final1_ds.
+    LOOP AT gt_colli_vekp_trkcol_ds INTO gi_colli_vekp_trkcol_ds.
+      gi_final1_ds-zexidv2    = gi_colli_vekp_trkcol_ds-zexidv2.
+      gi_final1_ds-zcollint   = gi_colli_vekp_trkcol_ds-zcollint.
+      gi_final1_ds-zcolliid   = gi_colli_vekp_trkcol_ds-zcolliid.
+      gi_final1_ds-zhubid     = gi_colli_vekp_trkcol_ds-zhubid.
+      gi_final1_ds-zfnldsthub = gi_colli_vekp_trkcol_ds-zfnldsthub.
+      gi_final1_ds-zcrdate    = gi_colli_vekp_trkcol_ds-zcrdate.
+      gi_final1_ds-zcurtruck  = gi_colli_vekp_trkcol_ds-ztrukid.
+      gi_final1_ds-zcurhub    = gi_colli_vekp_trkcol_ds-zcurhub.
+      gi_final1_ds-znexthub   = gi_colli_vekp_trkcol_ds-znexthub.
+
+      CASE gi_colli_vekp_trkcol_ds-zstatus.
+        WHEN 'A'. "When Status is To Stay
+          gi_final1_ds-zstatus = gc_status1.
+        WHEN 'B'.  "When Status is To Tranship
+          gi_final1_ds-zstatus = gc_status2.
+        WHEN 'C'.  "When Status is To CrossDock
+          gi_final1_ds-zstatus = gc_status3.
+        WHEN 'D'.   "When Status is Found
+          gi_final1_ds-zstatus = gc_status4.
+        WHEN 'E'.  "When Status is Missing
+          gi_final1_ds-zstatus = gc_status5.
+        WHEN 'F'.  "When Status is Transhipped
+          gi_final1_ds-zstatus = gc_status6.
+        WHEN 'G'.  "When Status is Crossdocked
+          gi_final1_ds-zstatus = gc_status7.
+        WHEN 'H'.  "When Status is Created
+          gi_final1_ds-zstatus = gc_status8.
+        WHEN 'I'.  "When Status is In Transit
+          gi_final1_ds-zstatus = gc_status9.
+        WHEN 'J'.  "When Status is Assigned
+          gi_final1_ds-zstatus = gc_status10.
+        WHEN 'K'.   "When Status is Received
+          gi_final1_ds-zstatus = gc_status11.
+      ENDCASE.
+      IF gi_colli_vekp_trkcol_ds-zcurhub IS NOT INITIAL.
+        READ TABLE gt_trkcol1_ds INTO gi_trkcol1_ds WITH KEY zrechub = gi_colli_vekp_trkcol_ds-zcurhub.
+        IF sy-subrc IS INITIAL.
+          READ TABLE gt_trkid1_ds INTO gi_trkid1_ds WITH KEY ztrukid = gi_trkcol1_ds-ztrukid
+                                                             zstatusid = 'K'. "Received
+          IF sy-subrc IS INITIAL.
+            gi_final1_ds-zdate = gi_trkid1_ds-zrechbdt.
+          ELSE.
+            gi_final1_ds-zdate = gi_colli_vekp_trkcol_ds-zcrdate.
+          ENDIF.
+        ELSE.
+          READ TABLE gt_colmis_ds INTO gi_colmis_ds WITH KEY zcolliid = gi_colli_vekp_trkcol_ds-zcolliid
+                                                             zhubid  = gi_colli_vekp_trkcol_ds-zcurhub
+                                                             zfndmsng = 'D'  "Found
+                                                             zactive = 'Y'.  "Colli is Active
+          IF sy-subrc IS INITIAL.
+            gi_final1_ds-zdate = gi_colmis_ds-zcrdate.
+          ELSE.
+            gi_final1_ds-zdate = gi_colli_vekp_trkcol_ds-zcrdate.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+*****If status is To CrossDock , To Transhp , Creted , Assigned , Found
+      IF ( gi_colli_vekp_trkcol_ds-zstatus = 'B' OR gi_colli_vekp_trkcol_ds-zstatus = 'C' OR gi_colli_vekp_trkcol_ds-zstatus = 'J' OR gi_colli_vekp_trkcol_ds-zstatus = 'H' OR gi_colli_vekp_trkcol_ds-zstatus = 'D' ).
+        IF gi_final1_ds-zdate IS NOT INITIAL.
+          gi_final1_ds-zdays = sy-datum - gi_final1_ds-zdate.
+        ENDIF.
+      ENDIF.
+
+      gi_final1_ds-zuser = gi_colli_vekp_trkcol_ds-zuser.
+
+      IF gi_colli_ds-zduplicate = 'X'.
+        gi_final1_ds-zduplicate = text-064."'YES'.
+      ELSE.
+        gi_final1_ds-zduplicate = text-065."'NO'.
+      ENDIF.
+
+      APPEND gi_final1_ds TO gt_final1_ds.
+      CLEAR: gi_final1_ds , gi_trkcol1_ds ,gi_trkid1_ds.
+    ENDLOOP.
+  ENDIF.
+  PERFORM build_fieldcatalog.
+  PERFORM display_output .
+ENDFORM.                    " GET_HANDLING_DETAILS
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_fieldcatalog .
+  CONSTANTS: lc_tabname(30) TYPE c VALUE 'GT_FINAL1_DS'.    "Displaying Lists of Handling unit
+  REFRESH gt_fldcat_ds.
+  PERFORM  popu_fcatf USING:
+        '1'    lc_tabname  'ZEXIDV2'     text-a01   '20',
+        '2'    lc_tabname  'ZCOLLINT'    text-a02   '20',
+        '3'    lc_tabname  'ZCOLLIID'    text-a03   '22',
+        '4'    lc_tabname  'ZHUBID'      text-a04   '10',
+        '5'    lc_tabname  'ZFNLDSTHUB'  text-a05   '15',
+        '6'    lc_tabname  'ZCRDATE'     text-a06   '10',
+        '7'    lc_tabname  'ZCURTRUCK'   text-a07   '20',
+        '8'    lc_tabname  'ZCURHUB'     text-a08   '12',
+        '9'    lc_tabname  'ZNEXTHUB'    text-a09   '10',
+        '10'   lc_tabname  'ZSTATUS'     text-a10   '12',
+        '11'   lc_tabname  'ZDATE'       text-a11   '15',
+        '12'   lc_tabname  'ZDAYS'       text-a12   '10',
+        '13'   lc_tabname  'ZUSER'       text-a13   '10',
+        '14'   lc_tabname  'ZDUPLICATE'  text-a14   '10'.
+ENDFORM.                    " BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  popu_fcatf
+*&---------------------------------------------------------------------*
+FORM popu_fcatf  USING   lp_col_pos_ds       TYPE sycucol
+                         lp_tabname_ds       TYPE slis_tabname
+                         lp_fieldname_ds     TYPE slis_fieldname
+                         lp_reptext_ddic_ds  TYPE reptext
+                         lp_outputlen_ds     TYPE outputlen.
+
+  DATA: li_fld_ds TYPE slis_fieldcat_alv.
+  li_fld_ds-col_pos       = lp_col_pos_ds.
+  li_fld_ds-tabname       = lp_tabname_ds.
+  li_fld_ds-fieldname     = lp_fieldname_ds.
+  li_fld_ds-reptext_ddic  = lp_reptext_ddic_ds.
+  li_fld_ds-outputlen     = lp_outputlen_ds.
+
+  APPEND li_fld_ds TO gt_fldcat_ds.
+  CLEAR li_fld_ds.
+ENDFORM.                    "popu_fcatf
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output .
+  CALL FUNCTION 'REUSE_ALV_LIST_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer      = 'X'
+      i_buffer_active         = space
+      i_save                  = 'A'
+      i_callback_program      = sy-repid
+      it_fieldcat             = gt_fldcat_ds
+      i_callback_user_command = 'USER_COMMAND'
+    TABLES
+      t_outtab                = gt_final1_ds.
+  EXIT.
+ENDFORM.                    " DISPLAY_OUTPUT
+
+*&---------------------------------------------------------------------*
+*&      Form  user_command
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->LP_UCOMM   text
+*      -->LP_V_SLIS  text
+*----------------------------------------------------------------------*
+FORM user_command USING lp_ucomm  TYPE sy-ucomm
+                        lp_v_slis TYPE slis_selfield.
+
+  DATA :  lr_index TYPE sy-tabix.
+  REFRESH : gt_final2_ds, gt_colli1_ds, gt_trkcol2_ds.
+  CLEAR : gi_final2_ds , gi_final1_ds.
+  lr_index = lp_v_slis-tabindex.
+  IF lr_index = 0.
+    lr_index = lr_index + 1.
+  ENDIF.
+
+  READ TABLE gt_final1_ds INTO gi_final1_ds INDEX lr_index.
+  IF sy-subrc IS INITIAL.
+    SELECT zcolliid
+           zexidv2
+           zhubid
+           zcollint
+           zfnldsthub
+           zcurtruck
+           zcurhub
+           zorigin
+           zstatus
+           zdirect
+           tknum
+           vhart
+           laeng
+           breit
+           hoehe
+           meabm
+           brgew
+           gewei
+           FROM ztmm_colli
+           INTO TABLE gt_colli1_ds
+           WHERE zcolliid = gi_final1_ds-zcolliid.
+    IF gt_colli1_ds IS NOT INITIAL.
+      SELECT ztrukid
+             zcolliid
+             zstatus
+             zdisphub
+             zrechub
+             zcmntrec
+             zcmntdsp
+             zcrdate
+             zcrtime
+        FROM ztmm_trkcol
+        INTO TABLE gt_trkcol2_ds
+        FOR ALL ENTRIES IN gt_colli1_ds
+        WHERE zcolliid = gt_colli1_ds-zcolliid.
+      IF gt_trkcol2_ds  IS NOT INITIAL.
+        SELECT ztrukid
+               zdispdt
+               zdisptm
+               zrechbdt
+               zrechbtm
+               znxthbdt
+          FROM ztmm_trkid
+          INTO TABLE gt_trkid2_ds
+          FOR ALL ENTRIES IN gt_trkcol2_ds
+          WHERE ztrukid = gt_trkcol2_ds-ztrukid.
+        IF sy-subrc IS INITIAL.
+          SORT gt_trkid2_ds BY ztrukid DESCENDING.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    LOOP AT gt_trkid2_ds INTO gi_trkid2_ds.
+
+      gi_final2_ds-zdispdt   = gi_trkid2_ds-zdispdt.
+      gi_final2_ds-zdisptm   = gi_trkid2_ds-zdisptm.
+      gi_final2_ds-zrechbdt  = gi_trkid2_ds-zrechbdt.
+      gi_final2_ds-zrechbtm  = gi_trkid2_ds-zrechbtm.
+      gi_final2_ds-znxthbdt  = gi_trkid2_ds-znxthbdt.
+
+      READ TABLE gt_trkcol2_ds INTO gi_trkcol2_ds WITH KEY ztrukid = gi_trkid2_ds-ztrukid.
+      IF sy-subrc IS INITIAL.
+        gi_final2_ds-ztrukid  = gi_trkcol2_ds-ztrukid.
+        gi_final2_ds-zdisphub = gi_trkcol2_ds-zdisphub.
+        gi_final2_ds-zrechub  = gi_trkcol2_ds-zrechub.
+        gi_final2_ds-zcmntrec = gi_trkcol2_ds-zcmntrec.
+        gi_final2_ds-zcmntdsp = gi_trkcol2_ds-zcmntdsp.
+        gi_final2_ds-zcrdate  = gi_trkcol2_ds-zcrdate.
+        gi_final2_ds-zcrtime  = gi_trkcol2_ds-zcrtime.
+
+        CASE gi_trkcol2_ds-zstatus.
+          WHEN 'A'. "When Status is To Stay
+            gi_final2_ds-zstatus = gc_status1.
+          WHEN 'B'.  "When Status is To Tranship
+            gi_final2_ds-zstatus = gc_status2.
+          WHEN 'C'.  "When Status is To CrossDock
+            gi_final2_ds-zstatus = gc_status3.
+          WHEN 'D'.   "When Status is Found
+            gi_final2_ds-zstatus = gc_status4.
+          WHEN 'E'.  "When Status is Missing
+            gi_final2_ds-zstatus = gc_status5.
+          WHEN 'F'.  "When Status is Transhipped
+            gi_final2_ds-zstatus = gc_status6.
+          WHEN 'G'.  "When Status is Crossdocked
+            gi_final2_ds-zstatus = gc_status7.
+          WHEN 'H'.  "When Status is Created
+            gi_final2_ds-zstatus = gc_status8.
+          WHEN 'I'.  "When Status is In Transit
+            gi_final2_ds-zstatus = gc_status9.
+          WHEN 'J'.  "When Status is Assigned
+            gi_final2_ds-zstatus = gc_status10.
+          WHEN 'K'.   "When Status is Received
+            gi_final2_ds-zstatus = gc_status11.
+        ENDCASE.
+
+      ENDIF.
+      APPEND gi_final2_ds TO gt_final2_ds.
+      CLEAR: gi_final2_ds,  gi_trkcol2_ds.
+    ENDLOOP.
+    SORT gt_final2_ds BY zcrdate zcrtime.
+  ENDIF.
+  PERFORM build_fieldcatalog1.
+  PERFORM display_output1 .
+
+ENDFORM.                    "user_command
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCATALOG1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_fieldcatalog1 .
+  CONSTANTS: lc_tabname1(30) TYPE c VALUE 'GT_FINAL2_DS'.    "Displaying Lists of Transport
+  REFRESH gt_fldcat1_ds.
+  PERFORM  popu_fcatf1 USING:
+        '1'    lc_tabname1  'ZTRUKID'     text-b01   '14',
+        '2'    lc_tabname1  'ZDISPHUB'    text-b02   '15',
+        '3'    lc_tabname1  'ZRECHUB'     text-b03   '10',
+        '4'    lc_tabname1  'ZDISPDT'     text-b04   '15',
+        '5'    lc_tabname1  'ZDISPTM'     text-b05   '15',
+        '6'    lc_tabname1  'ZNXTHBDT'    text-b06   '16',
+        '7'    lc_tabname1  'ZRECHBDT'    text-b07   '15',
+        '8'    lc_tabname1  'ZRECHBTM'    text-b08   '15',
+        '9'    lc_tabname1  'ZSTATUS'     text-b09   '15',
+        '10'   lc_tabname1  'ZCMNTREC'    text-b10   '21',
+        '11'   lc_tabname1  'ZCMNTDSP'    text-b11   '40'.
+ENDFORM.                    " BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  popu_fcatf1
+*&---------------------------------------------------------------------*
+FORM popu_fcatf1  USING   lp_col_pos1_ds       TYPE sycucol
+                         lp_tabname1_ds       TYPE slis_tabname
+                         lp_fieldname1_ds     TYPE slis_fieldname
+                         lp_reptext_ddic1_ds  TYPE reptext
+                         lp_outputlen1_ds     TYPE outputlen.
+
+  DATA: li_fld1_ds TYPE slis_fieldcat_alv.
+  li_fld1_ds-col_pos       = lp_col_pos1_ds.
+  li_fld1_ds-tabname       = lp_tabname1_ds.
+  li_fld1_ds-fieldname     = lp_fieldname1_ds.
+  li_fld1_ds-reptext_ddic  = lp_reptext_ddic1_ds.
+  li_fld1_ds-outputlen     = lp_outputlen1_ds.
+
+  APPEND li_fld1_ds TO gt_fldcat1_ds.
+  CLEAR li_fld1_ds.
+ENDFORM.                    "popu_fcatf1
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output1 .
+  gi_events_ds-name = slis_ev_top_of_page.
+  gi_events_ds-form = 'TOP_OF_PAGE'.
+  APPEND gi_events_ds TO gt_events_ds.
+  CLEAR gi_events_ds .
+
+  CALL FUNCTION 'REUSE_ALV_LIST_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer      = 'X'
+      i_buffer_active         = space
+      i_save                  = 'A'
+      i_callback_program      = sy-repid
+      it_fieldcat             = gt_fldcat1_ds
+      i_callback_user_command = 'USER_COMMAND1'
+      it_events               = gt_events_ds
+    TABLES
+      t_outtab                = gt_final2_ds.
+  EXIT.
+ENDFORM.                    "display_output1
+*&---------------------------------------------------------------------*
+*&      Form  TOP_OF_PAGE
+*&---------------------------------------------------------------------*
+*  TOP_OF_PAGE is used to display data in Header part on second Output Screen
+*----------------------------------------------------------------------*
+FORM top_of_page.
+  PERFORM display_header.
+ENDFORM.                    "top_of_page
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_HEADER
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_header .
+  DATA : lw_int_hu_no TYPE vhilm_ku,
+         lw_venum     TYPE venum,
+         lw_count     TYPE i VALUE 0,
+         lw_grflag_fg TYPE c,
+         lw_found_fg  TYPE c,
+         lw_pgiflag_fg TYPE c,
+         lw_status(15) TYPE c,
+         lw_status1(16) TYPE c.
+  CLEAR gi_colli1_ds.
+  READ TABLE gt_colli1_ds INTO gi_colli1_ds WITH KEY zcolliid = gi_final1_ds-zcolliid.
+  IF sy-subrc EQ 0.
+    CASE gi_colli1_ds-zstatus.
+      WHEN 'A'. "When Status is To Stay
+        lw_status = gc_status1.
+      WHEN 'B'.  "When Status is To Tranship
+        lw_status = gc_status2.
+      WHEN 'C'.  "When Status is To CrossDock
+        lw_status = gc_status3.
+      WHEN 'D'.   "When Status is Found
+        lw_status = gc_status4.
+      WHEN 'E'.  "When Status is Missing
+        lw_status = gc_status5.
+      WHEN 'F'.  "When Status is Transhipped
+        lw_status = gc_status6.
+      WHEN 'G'.  "When Status is Crossdocked
+        lw_status = gc_status7.
+      WHEN 'H'.  "When Status is Created
+        lw_status = gc_status8.
+      WHEN 'I'.  "When Status is In Transit
+        lw_status = gc_status9.
+      WHEN 'J'.  "When Status is Assigned
+        lw_status = gc_status10.
+      WHEN 'K'.   "When Status is Received
+        lw_status = gc_status11.
+    ENDCASE.
+    CONCATENATE gi_colli_ds-zstatus '(' lw_status ')' INTO lw_status1.
+    WRITE /1(197) sy-uline.
+    PERFORM display_header_data USING text-022              "Shipping Unit
+            gi_colli1_ds-zexidv2  text-024
+            gi_colli1_ds-zcolliid  text-023
+            gi_colli1_ds-zdirect  text-025              "Origin Hub
+            gi_colli1_ds-zhubid    text-026              "Hub Final dest
+            gi_colli1_ds-zfnldsthub text-027             "Ship To
+            gi_colli1_ds-zorigin text-066
+            lw_status1.
+
+    PERFORM display_headerline2.
+
+    SELECT  venum
+            vhilm_ku
+            vpobj
+            vpobjkey
+      FROM  vekp
+      INTO  TABLE gt_vekp_ds
+      WHERE venum = gi_final1_ds-zcollint.
+    IF sy-subrc IS INITIAL.
+      READ TABLE gt_vekp_ds INTO gi_vekp_ds INDEX 1.
+      IF sy-subrc IS INITIAL.
+        lw_int_hu_no = gi_vekp_ds-vhilm_ku.
+      ENDIF.
+    ENDIF.
+
+    IF lw_int_hu_no IS NOT INITIAL.
+      SELECT vbelv
+             vbtyp_n
+             bwart
+        FROM vbfa
+        INTO TABLE gt_vbfa_ds
+        WHERE vbelv = lw_int_hu_no
+        AND vbtyp_n = 'R'             " Goods movement
+        AND bwart IN (101, 103).      " GR Goods Receipt or Gr into blocked stck
+      IF sy-subrc IS INITIAL.
+        lw_grflag_fg = 'X'.
+      ENDIF.
+    ENDIF.
+
+    SELECT zcolliid
+           zhubid
+           zfndmsng
+      FROM ztmm_colmis
+      INTO TABLE gt_colmis1_ds
+      WHERE zcolliid = gi_final1_ds-zcolliid
+*     AND   zhubid   = gi_final1_ds-zhubid
+      AND   zfndmsng = 'D'. "Found
+    IF sy-subrc IS INITIAL.
+      lw_found_fg = 'X'.
+    ENDIF.
+
+    SELECT SINGLE venum
+           FROM vekp
+           INTO lw_venum
+           WHERE venum = gi_final1_ds-zcollint.
+    IF sy-subrc IS INITIAL.
+      SELECT venum
+             vbeln
+             FROM vepo
+             INTO TABLE gt_vepo1_ds
+             WHERE venum = lw_venum.
+      IF sy-subrc IS INITIAL.
+        SELECT vbeln
+               FROM likp
+               INTO TABLE gt_likp2_ds
+               FOR ALL ENTRIES IN gt_vepo1_ds
+               WHERE vbeln = gt_vepo1_ds-vbeln.
+        IF sy-subrc IS INITIAL.
+          SELECT wbstk
+                 FROM vbuk
+                 INTO TABLE gt_vbuk1_ds
+                 FOR ALL ENTRIES IN gt_likp2_ds
+                 WHERE vbeln = gt_likp2_ds-vbeln.
+          IF sy-subrc IS INITIAL.
+            LOOP AT gt_vbuk1_ds INTO gi_vbuk1_ds WHERE wbstk <> 'C'. "Total goods movement status - Completely Processed
+              IF sy-subrc IS INITIAL.
+                lw_count = 1 .
+              ENDIF.
+            ENDLOOP.
+            IF lw_count = 0.
+              lw_pgiflag_fg = 'X'.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+*    if lw_count = 0.
+*      lw_pgiflag_fg = 'X'.
+*    endif.
+
+    PERFORM display_header_data USING text-028            "Current Truck
+            gi_colli1_ds-zcurtruck text-029            "Current Hub
+            gi_colli1_ds-zcurhub   text-030            "Shipment
+            gi_colli1_ds-tknum     text-031            "Shipping Unit
+            lw_int_hu_no     text-032                   "ASN
+            lw_found_fg     text-033
+            lw_grflag_fg    text-041
+            lw_pgiflag_fg.
+    WRITE: /1(197) sy-uline.
+  ENDIF.
+ENDFORM.                    " DISPLAY_HEADER
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_HEADER_DATA
+*&---------------------------------------------------------------------*
+*  Display Header Data
+*----------------------------------------------------------------------*
+FORM display_header_data USING    value(lp_hdng1)
+             value(lp_value1) value(lp_hdng2)
+             value(lp_value2) value(lp_hdng3)
+             value(lp_value3) value(lp_hdng4)
+             value(lp_value4) value(lp_hdng5)
+             value(lp_value5) value(lp_hdng6)
+             value(lp_value6) value(lp_hdng7)
+             value(lp_value7).
+
+  WRITE:/1 sy-vline.
+  WRITE 3(14) lp_hdng1 COLOR 1 INTENSIFIED ON.
+  WRITE AT 17(19) lp_value1 COLOR 2 INTENSIFIED ON.
+  WRITE AT 36(11) lp_hdng2 COLOR 1 INTENSIFIED ON.
+  WRITE AT 47(21) lp_value2 COLOR 2 INTENSIFIED ON.
+  WRITE AT 68(17) lp_hdng3 COLOR 1 INTENSIFIED ON.
+  WRITE AT 85(10) lp_value3 COLOR 2 INTENSIFIED ON.
+  WRITE AT 95(17) lp_hdng4 COLOR 1 INTENSIFIED ON.
+  WRITE AT 112(15) lp_value4 COLOR 2 INTENSIFIED ON.
+  WRITE AT 127(15) lp_hdng5 COLOR 1 INTENSIFIED ON.
+  WRITE AT 142(08) lp_value5 COLOR 2 INTENSIFIED ON.
+  WRITE AT 150(10) lp_hdng6 COLOR 1 INTENSIFIED ON.
+  WRITE AT 160(36) lp_value6 COLOR 2 INTENSIFIED ON.
+  IF NOT lp_hdng7 = space.
+    WRITE AT 172(10) lp_hdng7 COLOR 1 INTENSIFIED ON.
+    WRITE AT 182(14) lp_value7 COLOR 2 INTENSIFIED ON.
+  ENDIF.
+  WRITE:sy-vline.
+ENDFORM.                    "DISPLAY_HEADER
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_HEADERLINE2
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM display_headerline2.
+  WRITE AT /1 sy-vline.
+  WRITE AT 3(14) text-034 COLOR 1 INTENSIFIED ON.     "Box Type
+  WRITE AT 17(19) gi_colli1_ds-zvhart COLOR 2 INTENSIFIED ON.
+  WRITE AT 36(11) text-035 COLOR 1 INTENSIFIED ON.     "Length
+  WRITE AT 47(21) gi_colli1_ds-zlaeng DECIMALS 1
+                   LEFT-JUSTIFIED COLOR 2 INTENSIFIED ON.
+  WRITE AT 68(17) text-036 COLOR 1 INTENSIFIED ON.    "Width
+  WRITE AT 85(10) gi_colli1_ds-zbreit DECIMALS 1
+                     LEFT-JUSTIFIED COLOR 2 INTENSIFIED ON.
+  WRITE AT 95(17) text-037 COLOR 1 INTENSIFIED ON.    "Height
+  WRITE AT 112(15) gi_colli1_ds-zhoehe DECIMALS 1
+                    LEFT-JUSTIFIED COLOR 2 INTENSIFIED ON.
+  WRITE AT 127(15) text-038 COLOR 1 INTENSIFIED ON.          "UOM
+  WRITE AT 142(08) gi_colli1_ds-zmeabm COLOR 2 INTENSIFIED ON.
+  WRITE AT 150(10) text-039 COLOR 1 INTENSIFIED ON.     "Weight
+  WRITE AT 160(12) gi_colli1_ds-zbrgew DECIMALS 1
+                     LEFT-JUSTIFIED COLOR 2 INTENSIFIED ON.
+  WRITE AT 172(10) text-040 COLOR 1 INTENSIFIED ON.          "UOM
+  WRITE AT 182(14) gi_colli1_ds-zgewei COLOR 2 INTENSIFIED ON.
+  WRITE  sy-vline.
+
+ENDFORM.                    "DISPLAY_HEADERLINE2
+*&---------------------------------------------------------------------*
+*&      Form  USER_COMMAND1
+*&---------------------------------------------------------------------*
+** On clicking the TruckID The details of that Truck will be selected
+FORM user_command1 USING lp_ucomm  TYPE sy-ucomm
+                        lp_v_slis TYPE slis_selfield.
+  DATA :  lr_index TYPE sy-tabix,
+          lw_status(15) TYPE c.
+  REFRESH gt_xcolli_ds.
+  lr_index = lp_v_slis-tabindex.
+  IF lr_index = 0.
+    lr_index = lr_index + 1.
+  ENDIF.
+*** Reading details of selected Truckid
+  READ TABLE gt_final2_ds  INTO gi_truck_ds  INDEX lr_index.
+  IF sy-subrc IS INITIAL.
+**** Selecting Header data from table ztmm_trkid for selected truckid
+    SELECT  ztrukid
+         ztype
+         zhubid
+         zrechub
+         zreftrk
+         zreftrid
+         zfrwrder
+         zstatusid
+         zfullyrec
+         zdispdt
+         zdisptm
+         znxthbdt
+         zsealnr
+         zldm
+         zrechbdt
+         zrechbtm
+         zfullgr
+         zcomment
+         FROM ztmm_trkid
+         INTO TABLE gt_truck2_ds
+         WHERE ztrukid = gi_truck_ds-ztrukid.
+****Getting Collies Detals from table ztmm_trkcol on basis of truckid
+    IF sy-subrc IS INITIAL.
+      SELECT ztrukid
+             zcolliid
+             zexidv2
+             zcmntrec
+             zcmntdsp
+             zstatus
+             zrelgr
+             FROM ztmm_trkcol
+             INTO TABLE gt_trkcoli_ds
+             FOR ALL ENTRIES IN gt_truck2_ds
+             WHERE ztrukid = gt_truck2_ds-truckid.
+***** Getting details of Handling Unit on basis of Coollid and Label
+      IF sy-subrc IS INITIAL.
+        SELECT zcolliid
+               zexidv2
+               zhubid
+               zcollint
+               zfnldsthub
+               zcurtruck
+               zstatus
+               FROM ztmm_colli
+               INTO TABLE gt_colli2_ds
+               FOR ALL ENTRIES IN gt_trkcoli_ds
+               WHERE zcolliid = gt_trkcoli_ds-colliid
+               AND   zexidv2  = gt_trkcoli_ds-exidv2.
+        IF sy-subrc IS INITIAL.
+          SELECT venum
+                 vpobj
+                 vpobjkey
+                 vhilm_ku
+                 vbeln_gen
+                 FROM vekp
+                 INTO TABLE gt_vekp1_ds
+                 FOR ALL ENTRIES IN gt_colli2_ds
+                 WHERE venum = gt_colli2_ds-collint.
+          IF sy-subrc IS INITIAL.
+            SELECT  vbeln
+                    lifex
+                    FROM likp
+                    INTO TABLE gt_likp_ds
+                    FOR ALL ENTRIES IN gt_vekp1_ds
+                    WHERE vbeln = gt_vekp1_ds-vhilm_ku+0(10).
+            IF sy-subrc IS INITIAL.
+              SORT gt_likp_ds BY vbeln.
+            ENDIF.
+            gt_vekp2_ds[] = gt_vekp1_ds[].
+******Selecting data which are only outbound
+            DELETE  gt_vekp2_ds WHERE vpobj NE '04'.
+            SELECT tknum
+                   FROM vttk
+                   INTO TABLE gt_vttk_ds
+                   FOR ALL ENTRIES IN gt_vekp2_ds
+                   WHERE tknum = gt_vekp2_ds-vpobjkey+0(10).
+            IF sy-subrc IS INITIAL.
+              SORT gt_vttk_ds BY tknum.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+**** Looping at Handling Unit  details and populatinf xcolli internal table
+    LOOP AT gt_colli2_ds INTO gi_colli2_ds.
+      gi_xcolli_ds-colliid  = gi_colli2_ds-colliid.
+      gi_xcolli_ds-exidv2   = gi_colli2_ds-exidv2.
+      gi_xcolli_ds-hubid    = gi_colli2_ds-hubid.
+      gi_xcolli_ds-collint  = gi_colli2_ds-collint.
+      gi_xcolli_ds-fnldsthub = gi_colli2_ds-fnldsthub.
+      gi_xcolli_ds-curtruck  = gi_colli2_ds-curtruck.
+
+      READ TABLE gt_vekp1_ds INTO gi_vekp1_ds WITH KEY venum = gi_colli2_ds-collint.
+      IF sy-subrc IS INITIAL.
+        gi_xcolli_ds-vhilm_ku =  gi_vekp1_ds-vhilm_ku.
+      ENDIF.
+
+      READ TABLE gt_likp_ds INTO gi_likp_ds WITH KEY vbeln = gi_vekp1_ds-vbeln_gen.
+      IF sy-subrc IS INITIAL.
+        gi_xcolli_ds-lifex =  gi_likp_ds-lifex.
+      ENDIF.
+
+      READ TABLE gt_trkcoli_ds INTO gi_trkcoli_ds WITH  KEY  colliid = gi_colli2_ds-colliid
+                                                             exidv2 = gi_colli2_ds-exidv2.
+      IF sy-subrc IS INITIAL.
+        gi_xcolli_ds-cmntrec =  gi_trkcoli_ds-cmntrec.
+        gi_xcolli_ds-cmntdsp =  gi_trkcoli_ds-cmntdsp.
+***** Getting Status Description for the Status Ids
+        CLEAR  lw_status.
+        CASE gi_trkcoli_ds-status.
+            "When Status is To Stay
+          WHEN 'A'.
+            lw_status = gc_status1.
+            "When Status is To Tranship
+          WHEN 'B'.
+            lw_status = gc_status2.
+            "When Status is To CrossDock
+          WHEN 'C'.
+            lw_status = gc_status3.
+            "When Status is Found
+          WHEN 'D'.
+            lw_status = gc_status4.
+            "When Status is Missing
+          WHEN 'E'.
+            lw_status = gc_status5.
+            "When Status is Transhipped
+          WHEN 'F'.
+            lw_status = gc_status6.
+            "When Status is Crossdocked
+          WHEN 'G'.
+            lw_status = gc_status7.
+            "When Status is Created
+          WHEN 'H'.
+            lw_status = gc_status8.
+            "When Status is In Transit
+          WHEN 'I'.
+            lw_status = gc_status9.
+            "When Status is Assigned
+          WHEN 'J'.
+            lw_status = gc_status10.
+            "When Status is Received
+          WHEN 'K'.
+            lw_status = gc_status11.
+        ENDCASE.
+        gi_xcolli_ds-status    = lw_status.
+      ENDIF.
+
+      READ TABLE gt_vttk_ds INTO gi_vttk_ds WITH KEY tknum = gi_vekp1_ds-vpobjkey.
+      IF sy-subrc IS INITIAL.
+        gi_xcolli_ds-tknum =  gi_vttk_ds-tknum.
+      ENDIF.
+
+      APPEND gi_xcolli_ds TO gt_xcolli_ds.
+      CLEAR: gi_xcolli_ds, gi_vttk_ds, gi_trkcoli_ds , gi_likp_ds, gi_vekp1_ds .
+    ENDLOOP.
+**************Building Catalog and Displaying the output
+    PERFORM build_fieldcatalog2.
+    PERFORM display_output2.
+  ENDIF.
+ENDFORM.                    "USER_COMMAND
+*&---------------------------------------------------------------------*
+*&      Form  build_fieldcatalog2
+*&---------------------------------------------------------------------*
+FORM build_fieldcatalog2.
+  REFRESH gt_fldcat2_ds.
+  CONSTANTS: lc_tabname1(30) TYPE c VALUE 'GT_XCOLLI_DS'.    "Displaying Lists of transports
+  PERFORM  popu_fcatf2 USING:
+      '1'    lc_tabname1  'TKNUM'            text-c01  '20' ,
+      '2'    lc_tabname1  'EXIDV2'           text-c02  '20'  ,
+      '3'    lc_tabname1  'COLLINT'          text-c04  '20' ,
+      '4'    lc_tabname1  'FNLDSTHUB'        text-c05  '20' ,
+      '5'    lc_tabname1  'STATUS'           text-c07  '15',
+      '6'    lc_tabname1  'VHILM_KU'         text-c08  '35' ,
+      '7'    lc_tabname1  'LIFEX'            text-c09  '35'  ,
+      '8'    lc_tabname1  'CMNTDSP'          text-c11  '40' ,
+      '9'    lc_tabname1  'CMNTREC'          text-c10  '25' .
+ENDFORM.                    "build_fieldcatalog2
+*&---------------------------------------------------------------------*
+*&      Form  popu_fcatf2
+*&---------------------------------------------------------------------*
+FORM popu_fcatf2  USING   lp_col_pos1_ds       TYPE sycucol
+                          lp_tabname1_ds       TYPE slis_tabname
+                          lp_fieldname1_ds     TYPE slis_fieldname
+                          lp_reptext_ddic1_ds  TYPE reptext
+                          lp_outputlen1_ds     TYPE outputlen.
+
+  DATA: li_fld2_ds TYPE slis_fieldcat_alv.
+  li_fld2_ds-col_pos       = lp_col_pos1_ds.
+  li_fld2_ds-tabname       = lp_tabname1_ds.
+  li_fld2_ds-fieldname     = lp_fieldname1_ds.
+  li_fld2_ds-reptext_ddic  = lp_reptext_ddic1_ds.
+  li_fld2_ds-outputlen     = lp_outputlen1_ds.
+
+  APPEND li_fld2_ds TO gt_fldcat2_ds.
+  CLEAR li_fld2_ds.
+ENDFORM.                    "popu_fcatf2
+
+*&---------------------------------------------------------------------*
+*&      Form  display_output2
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM display_output2.
+  gi_events1_ds-name = slis_ev_top_of_page.
+  gi_events1_ds-form = 'TOP_OF_PAGE1'.
+  APPEND gi_events1_ds TO gt_events1_ds.
+  CLEAR gi_events1_ds .
+  CALL FUNCTION 'REUSE_ALV_LIST_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer      = 'X'
+      i_buffer_active         = space
+      i_callback_program      = sy-repid
+      i_callback_user_command = 'USER_COMMAND2'
+      it_fieldcat             = gt_fldcat2_ds
+      i_save                  = 'A'
+      it_events               = gt_events1_ds
+    TABLES
+      t_outtab                = gt_xcolli_ds
+    EXCEPTIONS
+      program_error           = 1
+      OTHERS                  = 2.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+  REFRESH gt_fldcat2_ds.
+  EXIT.
+ENDFORM.                  " DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  TOP_OF_PAGE
+*&---------------------------------------------------------------------*
+*  TOP_OF_PAGE is used to display data in Header part on second Output Screen
+*----------------------------------------------------------------------*
+FORM top_of_page1.
+  PERFORM display_truck_header.
+ENDFORM.                    "top-of-page
+
+***&---------------------------------------------------------------------*
+***&      Form  DISPLAY_SIDE_HEADING
+***&---------------------------------------------------------------------*
+*** Handled with Claasical type for printing the Fiels Header and Value on Screen Output
+FORM display_side_heading USING value(lp_hdng1) TYPE c
+                                value(lp_valu1)
+                                value(lp_hdng2) TYPE c
+                                value(lp_valu2)
+                                value(lp_hdng3) TYPE c
+                                value(lp_valu3).
+  FORMAT COLOR 1 INTENSIFIED ON.
+  WRITE:/1 sy-vline.
+  WRITE: 3(25) lp_hdng1 COLOR 1 INTENSIFIED ON.
+  FORMAT COLOR 2 INTENSIFIED ON.
+  WRITE AT 29(36) lp_valu1 COLOR 2 INTENSIFIED ON USING NO EDIT MASK.
+  WRITE: sy-vline.
+  FORMAT COLOR OFF.
+  WRITE AT 65(25) lp_hdng2 COLOR 1 INTENSIFIED ON.
+  FORMAT COLOR 2 INTENSIFIED ON.
+  WRITE AT 91(52) lp_valu2 LEFT-JUSTIFIED COLOR 2 INTENSIFIED ON.
+  WRITE: sy-vline.
+  FORMAT COLOR OFF.
+  IF NOT lp_hdng3 IS INITIAL.
+    WRITE AT 106(25) lp_hdng3 COLOR 1 INTENSIFIED ON.
+    FORMAT COLOR 2 INTENSIFIED ON.
+    WRITE AT 132(11) lp_valu3 COLOR 2 INTENSIFIED ON.
+    WRITE:sy-vline.
+    FORMAT COLOR OFF.
+  ENDIF.
+ENDFORM.                               " DISPLAY_SIDE_HEADING
+***&---------------------------------------------------------------------*
+***&      Form  DISPLAY_TRUCK_HEADER
+***&---------------------------------------------------------------------*
+***  Display the details of selected Truck
+***----------------------------------------------------------------------*
+FORM display_truck_header.
+  WRITE:/1(143) sy-uline.
+  DATA : lw_status(15) TYPE c,
+         lw_trantype TYPE string,
+         lw_vekp_lines TYPE i,
+         lw_vbfa_lines TYPE i,
+         li_trkid      TYPE ztmm_trkid.
+  CLEAR : lw_status, li_trkid .
+  READ TABLE gt_truck2_ds INTO gi_truck2_ds INDEX 1.
+  IF sy-subrc EQ 0.
+    IF gi_truck2_ds-zfullyrec  EQ 'Y'.
+      gw_fullyunloaded_tx = 'X'.
+    ENDIF.
+    IF gi_truck2_ds-fullgr  EQ 'Y'.
+      gw_fullygr_tx = 'X'.
+    ELSE.
+*** Getting the data whether the Transport is FULLYGR or not
+      SELECT ztrukid
+         zcolliid
+         zexidv2
+         zcmntrec
+         zcmntdsp
+         zstatus
+         zrelgr
+         FROM ztmm_trkcol INTO TABLE gt_trkcoli_ds
+         FOR ALL ENTRIES IN gt_truck2_ds
+         WHERE ztrukid = gt_truck2_ds-truckid
+         AND zstatus = 'I'
+         AND zrelgr = 'Y'."truckid
+      IF sy-subrc IS INITIAL.
+        gi_truck2_ds-fullgr = 'N'.
+      ELSE.
+**Select if all of the ZTRKCOL have been received already:
+        SELECT ztrukid
+               zcolliid
+               zexidv2
+               zcmntrec
+               zcmntdsp
+               zstatus
+               zrelgr
+               FROM ztmm_trkcol
+               INTO TABLE gt_trkcoli_ds
+               FOR ALL ENTRIES IN gt_truck2_ds
+               WHERE ztrukid = gt_truck2_ds-truckid
+               AND zrelgr = 'Y'."truckid
+        IF sy-subrc IS INITIAL.
+          SELECT zcolliid
+                 zexidv2
+                 zhubid
+                 zcollint
+                 zfnldsthub
+                 zcurtruck
+                 zstatus
+                 FROM ztmm_colli
+                 INTO TABLE gt_colli3_ds
+                 FOR ALL ENTRIES IN gt_trkcoli_ds
+                 WHERE zcolliid = gt_trkcoli_ds-colliid
+                 AND   zexidv2  = gt_trkcoli_ds-exidv2.
+          IF sy-subrc IS INITIAL.
+***For each colli that is relevant for GR get Inbound delivery number:
+            SELECT venum
+                   vpobj
+                   vpobjkey
+                   vhilm_ku
+                   vbeln_gen
+                   FROM vekp
+                   INTO TABLE gt_vekp3_ds
+                   FOR ALL ENTRIES IN gt_colli3_ds
+                   WHERE venum = gt_colli3_ds-collint.
+            IF sy-subrc IS INITIAL.
+***For each Inbound delivery Check if Inbound delivery has been GR:
+              DESCRIBE TABLE gt_vekp3_ds LINES lw_vekp_lines.
+              SELECT  vbeln
+                      erdat
+                      vbelv
+                      vbtyp_n
+                      bwart
+                      FROM vbfa
+                      INTO TABLE gt_vbfa2_ds
+                      FOR ALL ENTRIES IN gt_vekp3_ds
+                      WHERE vbelv = gt_vekp3_ds-vhilm_ku+0(10)
+                      AND vbtyp_n = 'R'       " Goods movement
+                      AND bwart IN (101,103). " GR Goods Receipt or Gr into blocked stck
+*****IF record exists Then colli has been GR.
+              IF sy-subrc IS INITIAL.
+                DESCRIBE TABLE gt_vbfa2_ds LINES lw_vbfa_lines.
+              ENDIF.
+*****Check if all collies have been GR or Not
+              IF lw_vbfa_lines = lw_vekp_lines.
+                gi_truck2_ds-fullgr = 'Y'.
+                gw_fullygr_tx = 'X'.
+                SELECT SINGLE *
+                         FROM ztmm_trkid
+                         INTO li_trkid
+                       WHERE  ztrukid = gi_truck2_ds-truckid.
+                IF sy-subrc = 0.
+                  li_trkid-zfullgr = 'Y'.
+                  UPDATE ztmm_trkid FROM li_trkid.
+                  CLEAR li_trkid.
+                ENDIF.
+              ELSE.
+                gi_truck2_ds-fullgr = 'N'.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+**** get the status description
+    CASE gi_truck2_ds-status.
+        "When Status is To Stay
+      WHEN 'A'.
+        lw_status = gc_status1.
+        "When Status is To Tranship
+      WHEN 'B'.
+        lw_status = gc_status2.
+        "When Status is To CrossDock
+      WHEN 'C'.
+        lw_status = gc_status3.
+        "When Status is Found
+      WHEN 'D'.
+        lw_status = gc_status4.
+        "When Status is Missing
+      WHEN 'E'.
+        lw_status = gc_status5.
+        "When Status is Transhipped
+      WHEN 'F'.
+        lw_status = gc_status6.
+        "When Status is Crossdocked
+      WHEN 'G'.
+        lw_status = gc_status7.
+        "When Status is Created
+      WHEN 'H'.
+        lw_status = gc_status8.
+        "When Status is In Transit
+      WHEN 'I'.
+        lw_status = gc_status9.
+        "When Status is Assigned
+      WHEN 'J'.
+        lw_status = gc_status10.
+        "When Status is Received
+      WHEN 'K'.
+        lw_status = gc_status11.
+    ENDCASE.
+    PERFORM display_side_heading USING text-042  "TruckId
+               gi_truck2_ds-truckid text-043        "Truck Status
+               lw_status space space.
+    PERFORM display_side_heading USING  text-044  "Plate Nr
+               gi_truck2_ds-reftrid text-045          "From Hub
+               gi_truck2_ds-hubid  text-046          "To Hub
+               gi_truck2_ds-rechub.
+    PERFORM display_side_heading USING text-047  "Forwarder
+               gi_truck2_ds-frwrder text-048        "Departure date
+               gi_truck2_ds-dispdt  text-049        "Departure time
+               gi_truck2_ds-disptm.
+*****Get the tran type description
+    CASE gi_truck2_ds-trantype.
+        "When Transport Type is Truck
+      WHEN '01'.
+        lw_trantype = gc_tran_type1 .
+        "When Transport Type is Train
+      WHEN '02'.
+        lw_trantype = gc_tran_type2.
+        "When Transport Type is Container
+      WHEN '03'.
+        lw_trantype = gc_tran_type3.
+        "When Transport Type is Parcel
+      WHEN '04'.
+        lw_trantype = gc_tran_type4.
+        "When Transport Type is Air
+      WHEN '05'.
+        lw_trantype = gc_tran_type5.
+        "When Transport Type is External Vendor
+      WHEN '06'.
+        lw_trantype = gc_tran_type6.
+    ENDCASE.
+    PERFORM display_side_heading USING text-050  "Driver
+               lw_trantype  text-051     "Estimated Arrival
+               gi_truck2_ds-nxthbdt   text-052     "Loading meters
+               gi_truck2_ds-ldm.
+
+    PERFORM display_side_heading USING text-053     "Transhipped truck
+                   gi_truck2_ds-reftrk text-054  "Actual Arrival date
+                   gi_truck2_ds-rechbdt text-055 "Actual Arrival time
+                   gi_truck2_ds-rechbtm.
+
+    PERFORM display_side_heading USING text-056  "Seal number
+                   gi_truck2_ds-sealnr text-057     "Estimated time
+                   gw_fullyunloaded_tx text-058  "Load
+                   gw_fullygr_tx .
+    FORMAT COLOR 1 INTENSIFIED ON.
+    WRITE:/1 sy-vline.
+    WRITE:3(25) text-059.              "Comments
+    FORMAT  COLOR 2 INTENSIFIED ON.
+    WRITE AT 29(114) gi_truck2_ds-comment .
+    WRITE: sy-vline.
+    FORMAT COLOR OFF.
+    WRITE:/1(143) sy-uline.
+  ENDIF.
+ENDFORM.                               " DISPLAY_TRUCK_HEADER
+*&---------------------------------------------------------------------*
+*&      Form  user_command1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      On clicking the Handling Unit Details , the 3rd Screen should
+*      show shipment Details
+*----------------------------------------------------------------------*
+FORM user_command2 USING lp_ucomm1  TYPE sy-ucomm
+                      lp_v_slis1 TYPE slis_selfield.
+  DATA: lw_gr_mat_doc TYPE vbeln_nach,
+        lw_year   TYPE erdat,
+        lw_gr_createdby TYPE usnam,
+        lw_status TYPE zstatusid.
+  REFRESH gt_final_ds.
+  DATA :  lr_index1 TYPE sy-tabix.
+  lr_index1 = lp_v_slis1-tabindex.
+  IF lr_index1 = 0.
+    lr_index1 = lr_index1 + 1.
+  ENDIF.
+  REFRESH: gt_vekp4_ds,gt_vbfa3_ds,gt_likp_ds,gt_likp1_ds.
+  READ TABLE gt_xcolli_ds INTO gi_xcolli_ds INDEX lr_index1.
+***** Select delivery  details on the basis of Collint
+  IF gi_xcolli_ds-collint IS NOT INITIAL.
+    SELECT    venum
+              vpobj
+              vpobjkey
+              vhilm_ku
+              vbeln_gen
+              FROM vekp
+              INTO TABLE gt_vekp4_ds
+              WHERE venum = gi_xcolli_ds-collint.
+    IF sy-subrc IS INITIAL.
+      SELECT  vbeln
+              lifex
+          FROM likp
+          INTO TABLE gt_likp_ds
+          FOR ALL ENTRIES IN gt_vekp4_ds
+          WHERE vbeln = gt_vekp4_ds-vhilm_ku+0(10).
+      IF sy-subrc IS INITIAL.
+        SORT gt_likp_ds BY vbeln.
+      ENDIF.
+****Get Material Document and Gr created Username Details
+      SELECT vbeln
+             erdat
+             vbelv
+             vbtyp_n
+             bwart
+             FROM vbfa
+             INTO TABLE gt_vbfa3_ds
+             FOR ALL ENTRIES IN gt_vekp4_ds
+             WHERE vbelv = gt_vekp4_ds-vhilm_ku+0(10)
+             AND vbtyp_n = 'R'       " Goods movement
+             AND bwart IN (101,103). " GR Goods Receipt or Gr into blocked stck
+      IF sy-subrc IS INITIAL.
+        SORT gt_vbfa3_ds BY vbeln DESCENDING.
+        READ TABLE gt_vbfa3_ds INTO gi_vbfa3_ds INDEX 1.
+        IF sy-subrc IS INITIAL.
+          lw_gr_mat_doc = gi_vbfa3_ds-vbeln.
+          lw_year       = gi_vbfa3_ds-erdat.
+          IF lw_gr_mat_doc IS NOT INITIAL.
+            SELECT mblnr
+                   mjahr
+                   usnam
+                    FROM mkpf
+                    INTO TABLE gt_mkpf_ds
+                    WHERE mblnr = lw_gr_mat_doc
+                    AND   mjahr = lw_year.
+            IF sy-subrc IS INITIAL.
+              READ TABLE gt_mkpf_ds INTO gi_mkpf_ds INDEX 1.
+              IF sy-subrc IS INITIAL.
+                lw_gr_createdby = gi_mkpf_ds-usnam.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    READ TABLE gt_vekp4_ds INTO gi_vekp4_ds INDEX 1.
+    IF sy-subrc IS INITIAL.
+      IF gi_vekp4_ds-vpobj = '04'. "Shipment
+        SELECT venum
+               matnr
+               vemng
+               vemeh
+               vbeln
+               posnr
+          FROM vepo
+          INTO TABLE gt_vepo_ds
+          WHERE venum = gi_vekp4_ds-venum.
+        IF sy-subrc IS INITIAL.
+          SELECT vbeln
+                  wbstk
+             FROM vbuk
+             INTO TABLE gt_vbuk_ds
+             FOR ALL ENTRIES IN gt_vepo_ds
+             WHERE vbeln = gt_vepo_ds-vbeln.
+          IF sy-subrc IS INITIAL.
+            SELECT vbeln
+                   erdat
+                   vbelv
+                   vbtyp_n
+                   bwart
+                   FROM vbfa
+                   INTO TABLE gt_vbfa1_ds FOR ALL ENTRIES IN gt_vepo_ds
+                   WHERE vbelv = gt_vepo_ds-vbeln
+                   AND vbtyp_n = 'R'. " Goods Movement
+            IF sy-subrc IS INITIAL.
+              SORT gt_vbfa1_ds BY vbeln DESCENDING.
+              READ TABLE gt_vbfa1_ds INTO gi_vbfa1_ds INDEX 1.
+              IF sy-subrc IS INITIAL.
+                SELECT mblnr
+                     mjahr
+                     usnam
+                     FROM mkpf
+                     INTO TABLE gt_mkpf1_ds
+                     WHERE mblnr = gi_vbfa1_ds-vbeln
+                     AND   mjahr = gi_vbfa1_ds-erdat.
+                IF sy-subrc IS INITIAL.
+                  SORT gt_mkpf1_ds BY mblnr.
+                ENDIF.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+
+          SELECT vbeln
+                vstel
+                route
+                werks
+           FROM likp
+           INTO TABLE gt_likp1_ds
+           FOR ALL ENTRIES IN gt_vepo_ds
+           WHERE vbeln = gt_vepo_ds-vbeln.
+          IF sy-subrc IS INITIAL.
+            SORT gt_likp1_ds BY vbeln.
+          ENDIF.
+
+          SELECT vbeln
+                 posnr
+                 vgbel
+                 vgpos
+            FROM lips
+            INTO TABLE gt_lips_ds
+            FOR ALL ENTRIES IN gt_vepo_ds
+            WHERE vbeln = gt_vepo_ds-vbeln
+              AND posnr = gt_vepo_ds-posnr.
+          IF sy-subrc IS INITIAL.
+            SORT gt_lips_ds BY vbeln.
+          ENDIF.
+
+        ENDIF.
+      ELSEIF ( gi_vekp4_ds-vpobj = '03' OR gi_vekp4_ds-vpobj = '12' ). "Inbound Delivery or Non-Assigned Handling Unit
+        SELECT vbeln
+               vstel
+               route
+               werks
+               FROM likp
+               INTO TABLE gt_likp1_ds
+               FOR ALL ENTRIES IN gt_vekp4_ds
+               WHERE vbeln = gt_vekp4_ds-vhilm_ku+0(10).
+        IF sy-subrc IS INITIAL.
+          SELECT vbeln
+                 posnr
+                 matnr
+                 lfimg
+                 meins
+                 vgbel
+                 vgpos
+                 FROM lips
+                 INTO TABLE gt_lips1_ds
+                 FOR ALL ENTRIES IN gt_likp1_ds
+                 WHERE vbeln = gt_likp1_ds-vbeln.
+          IF sy-subrc IS INITIAL.
+            SORT gt_lips1_ds BY vbeln.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    " IF Shipment
+    IF gi_vekp4_ds-vpobj = '04'.
+      LOOP AT gt_lips_ds INTO gi_lips_ds.
+        gi_final_ds-vgbel = gi_lips_ds-vgbel.
+        gi_final_ds-vgpos = gi_lips_ds-vgpos.
+        gi_final_ds-posnr = gi_lips_ds-posnr.
+
+        READ TABLE gt_likp1_ds INTO gi_likp1_ds WITH KEY vbeln = gi_lips_ds-vbeln.
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-vstel = gi_likp1_ds-vstel.
+          gi_final_ds-route = gi_likp1_ds-route.
+          gi_final_ds-werks = gi_likp1_ds-werks.
+          gi_final_ds-vbeln = gi_likp1_ds-vbeln.
+        ENDIF.
+
+        READ TABLE gt_vepo_ds INTO gi_vepo_ds WITH KEY vbeln = gi_lips_ds-vbeln
+                                                       posnr = gi_lips_ds-posnr.
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-mat_no = gi_vepo_ds-matnr.
+          gi_final_ds-quant  = gi_vepo_ds-vemng.
+          gi_final_ds-uom    = gi_vepo_ds-vemeh.
+        ENDIF.
+
+        READ TABLE gt_vbuk_ds INTO gi_vbuk_ds WITH KEY vbeln = gi_vepo_ds-vbeln.
+        IF sy-subrc IS  INITIAL.
+          gi_final_ds-wbstk = gi_vbuk_ds-wbstk.
+        ENDIF.
+
+        READ TABLE gt_vekp4_ds INTO gi_vekp4_ds WITH KEY venum = gi_vepo_ds-venum.
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-vhilm_ku = gi_vekp4_ds-vhilm_ku.
+        ENDIF.
+
+        READ TABLE gt_likp_ds INTO gi_likp_ds WITH KEY vbeln = gi_vekp4_ds-vhilm_ku+0(10).
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-ext_del_no = gi_likp_ds-lifex.
+        ENDIF.
+
+        IF gi_vbuk_ds-wbstk = 'C'. "Total goods movement status - Completely Processed
+          READ TABLE gt_vbfa1_ds INTO gi_vbfa1_ds WITH KEY vbelv = gi_vepo_ds-vbeln.
+          IF sy-subrc IS INITIAL.
+            READ TABLE gt_vbfa1_ds INTO gi_vbfa1_ds INDEX 1.
+            IF sy-subrc IS INITIAL.
+              READ TABLE gt_mkpf1_ds INTO gi_mkpf1_ds WITH KEY mblnr = gi_vbfa1_ds-vbeln
+                                                             mjahr = gi_vbfa1_ds-erdat.
+              IF sy-subrc IS INITIAL.
+                gi_final_ds-gi_created_by = gi_mkpf1_ds-usnam.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+
+        gi_final_ds-gr_mat_doc_no = lw_gr_mat_doc.
+        gi_final_ds-gr_created_by = lw_gr_createdby.
+
+        APPEND gi_final_ds TO gt_final_ds.
+        CLEAR: gi_final_ds, gi_mkpf1_ds , gi_vbfa1_ds, gi_likp_ds , gi_vekp4_ds, gi_vbuk_ds , gi_vepo_ds, gi_likp1_ds.
+      ENDLOOP.
+******If Inbound Delivery or Non-Assigned Handling Unit
+    ELSEIF ( gi_vekp4_ds-vpobj = '03' OR gi_vekp4_ds-vpobj = '12' ).
+      LOOP AT gt_lips1_ds INTO gi_lips1_ds.
+        gi_final_ds-mat_no = gi_lips1_ds-matnr.
+        gi_final_ds-quant  = gi_lips1_ds-lfimg.
+        gi_final_ds-uom    = gi_lips1_ds-meins.
+        gi_final_ds-vgbel  = gi_lips1_ds-vgbel.
+        gi_final_ds-vgpos  = gi_lips1_ds-vgpos.
+        gi_final_ds-vbeln  = ''.
+        gi_final_ds-posnr  = ''.
+        gi_final_ds-wbstk  = ''.
+        gi_final_ds-vstel  = ''.
+        gi_final_ds-route  = ''.
+        gi_final_ds-werks  = ''.
+        gi_final_ds-gi_created_by = ''.
+        gi_final_ds-gr_mat_doc_no = lw_gr_mat_doc.
+        gi_final_ds-gr_created_by = lw_gr_createdby.
+
+        READ TABLE gt_vekp4_ds INTO gi_vekp4_ds WITH KEY vbeln_gen = gi_lips1_ds-vgbel.
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-vhilm_ku = gi_vekp4_ds-vhilm_ku.
+        ENDIF.
+
+        READ TABLE gt_likp_ds INTO gi_likp_ds WITH KEY vbeln = gi_vekp4_ds-vhilm_ku+0(10).
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-ext_del_no = gi_likp_ds-lifex.
+        ENDIF.
+        APPEND gi_final_ds TO gt_final_ds.
+        CLEAR: gi_final_ds , gi_likp_ds, gi_vekp4_ds .
+      ENDLOOP.
+    ENDIF.
+***************************************************************88
+    PERFORM build_fieldcatalog3.
+    PERFORM display_output3.
+  ENDIF.
+ENDFORM.                    "user_command1
+
+*        *&---------------------------------------------------------------------*
+**&      Form  build_fieldcatalog
+**&---------------------------------------------------------------------*
+**       text
+**----------------------------------------------------------------------*
+FORM build_fieldcatalog3.
+  REFRESH gt_fldcat3_ds.
+  CONSTANTS: lc_tabname2(30) TYPE c VALUE 'GT_FINAL_DS'.    "Displaying Lists of transports
+  PERFORM  popu_fcatf3 USING:
+'1'    lc_tabname2  'MAT_NO'            text-d01   '20' ,
+'2'    lc_tabname2  'QUANT'             text-d02   '15'  ,
+'3'    lc_tabname2  'UOM'               text-d03   '04'  ,
+'4'    lc_tabname2  'VGBEL'             text-d04   '10' ,
+'5'    lc_tabname2  'VGPOS'             text-d05   '08' ,
+'6'    lc_tabname2  'VBELN'             text-d06   '10',
+'7'    lc_tabname2  'POSNR'             text-d07   '11',
+'8'    lc_tabname2  'WBSTK'             text-d08   '10',
+'9'    lc_tabname2  'VSTEL'             text-d09   '11' ,
+'10'   lc_tabname2  'ROUTE'             text-d10   '06'  ,
+'11'   lc_tabname2  'WERKS'             text-d11   '06' ,
+'12'   lc_tabname2  'GI_CREATED_BY'     text-d12   '14',
+'13'   lc_tabname2  'VHILM_KU'          text-d13   '35',
+'14'   lc_tabname2  'EXT_DEL_NO'        text-d14   '35',
+'15'   lc_tabname2  'GR_MAT_DOC_NO'     text-d15   '10' ,
+'16'   lc_tabname2  'GR_CREATED_BY'     text-d16   '14'  .
+ENDFORM.                    "build_fieldcatalog
+
+*&---------------------------------------------------------------------*
+*&      Form  popu_fcatf
+*&---------------------------------------------------------------------*
+FORM popu_fcatf3  USING  lp_col_pos2_ds       TYPE sycucol
+                         lp_tabname2_ds       TYPE slis_tabname
+                         lp_fieldname2_ds     TYPE slis_fieldname
+                         lp_reptext_ddic2_ds  TYPE reptext
+                         lp_outputlen2_ds     TYPE outputlen.
+
+  DATA: li_fld3_ds TYPE slis_fieldcat_alv.
+  li_fld3_ds-col_pos       = lp_col_pos2_ds.
+  li_fld3_ds-tabname       = lp_tabname2_ds.
+  li_fld3_ds-fieldname     = lp_fieldname2_ds.
+  li_fld3_ds-reptext_ddic  = lp_reptext_ddic2_ds.
+  li_fld3_ds-outputlen     = lp_outputlen2_ds.
+
+  APPEND li_fld3_ds TO gt_fldcat3_ds.
+  CLEAR li_fld3_ds.
+ENDFORM.                    "popu_fcatf
+*&---------------------------------------------------------------------*
+*&      Form  display_output
+*&---------------------------------------------------------------------*
+FORM display_output3 .
+  CALL FUNCTION 'REUSE_ALV_LIST_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer = 'X'
+      i_buffer_active    = space
+      i_save             = 'A'
+      i_callback_program = sy-repid
+      it_fieldcat        = gt_fldcat3_ds
+    TABLES
+      t_outtab           = gt_final_ds.
+
+  REFRESH gt_fldcat3_ds.
+ENDFORM.                    "display_output
+*&---------------------------------------------------------------------*
+*&      Form  F4_HUSER
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_huser .
+  TYPES : BEGIN OF ty_user,
+           zuser TYPE zuser,
+           END OF ty_user.
+  DATA : gt_user TYPE TABLE OF ty_user.
+  REFRESH gt_user.
+
+  SELECT DISTINCT zuser
+         FROM ztmm_colli INTO TABLE gt_user.
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'ZUSER'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GP_HUSER'
+      value_org       = 'S'
+    TABLES
+      value_tab       = gt_user
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc IS INITIAL.
+    SORT gt_user BY zuser.
+  ENDIF.
+ENDFORM.                    " F4_USER
+*&---------------------------------------------------------------------*
+*&      Form  F4_TUSER
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_tuser .
+  TYPES : BEGIN OF ty_user,
+           zuser TYPE zuser,
+           END OF ty_user.
+  DATA : gt_user TYPE TABLE OF ty_user.
+  REFRESH gt_user.
+
+  SELECT DISTINCT zuser
+         FROM ztmm_trkid INTO TABLE gt_user.
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'ZUSER'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GP_TUSER'
+      value_org       = 'S'
+    TABLES
+      value_tab       = gt_user
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc IS INITIAL.
+    SORT gt_user BY zuser.
+  ENDIF.
+ENDFORM.                    "F4_TUSER
+*&---------------------------------------------------------------------*
+*&      Form  F4_COLIT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_colit .
+  TYPES : BEGIN OF ty_collint,
+           zcollint TYPE venum,
+           END OF ty_collint.
+  DATA : gt_collint TYPE TABLE OF ty_collint.
+  REFRESH gt_collint.
+
+  SELECT DISTINCT zcollint
+         FROM ztmm_colli INTO TABLE gt_collint.
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'ZCOLLINT'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GS_COLIT'
+      value_org       = 'S'
+    TABLES
+      value_tab       = gt_collint
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc IS INITIAL.
+    SORT gt_collint BY zcollint.
+  ENDIF.
+ENDFORM.                    " F4_COLIT
+*&---------------------------------------------------------------------*
+*&      Form  F4_VHART
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_vhart .
+  TYPES : BEGIN OF ty_vhart,
+           vhart TYPE zboxtype,
+           END OF ty_vhart.
+  DATA : gt_vhart TYPE TABLE OF ty_vhart.
+  REFRESH gt_vhart.
+
+  SELECT DISTINCT vhart
+         FROM ztmm_colli INTO TABLE gt_vhart.
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'VHART'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GS_VHART'
+      value_org       = 'S'
+    TABLES
+      value_tab       = gt_vhart
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc IS INITIAL.
+    SORT gt_vhart BY vhart.
+  ENDIF.
+ENDFORM.                    " F4_VHART
+*&---------------------------------------------------------------------*
+*&      Form  F4_INBDEL
+*&---------------------------------------------------------------------*
+FORM f4_inbdel .
+  TYPES : BEGIN OF ty_inbdel,
+           inbdel TYPE vbeln_vl,
+           END OF ty_inbdel.
+  DATA : gt_inbdel TYPE TABLE OF ty_inbdel.
+  REFRESH gt_inbdel.
+
+  SELECT DISTINCT vbeln
+         FROM likp INTO TABLE gt_inbdel
+         WHERE lfart = 'EL'.
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'INBDEL'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GS_VHILM'
+      value_org       = 'S'
+    TABLES
+      value_tab       = gt_inbdel
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc IS INITIAL.
+    SORT gt_inbdel BY inbdel.
+  ENDIF.
+ENDFORM.                    " F4_INBDEL
+

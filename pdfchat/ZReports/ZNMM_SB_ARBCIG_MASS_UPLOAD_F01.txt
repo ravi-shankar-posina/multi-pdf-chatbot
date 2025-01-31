@@ -1,0 +1,318 @@
+*&---------------------------------------------------------------------*
+*&  Include           ARBCIG_MASS_UPLOAD_F01
+*&---------------------------------------------------------------------*
+FORM load_into_table USING lv_tablename TYPE rlgrap-filename. "#EC NEEDED
+  CLEAR lv_count.
+  PERFORM create_itab_dynamically.
+  PERFORM load_data_from_file.
+  PERFORM record_count.
+ENDFORM.                    "load_into_table
+
+*&---------------------------------------------------------------------*
+*&  Include           ARBCIG_MASS_UPLOAD_F01
+*&---------------------------------------------------------------------*
+FORM load_from_table USING lv_tablename TYPE rlgrap-filename. "#EC NEEDED
+  PERFORM create_itab_dynamically.
+  PERFORM load_data_to_file.
+ENDFORM.                    "load_from_table
+
+*&---------------------------------------------------------------------*
+*&      Form  create_itab_dynamically
+*&---------------------------------------------------------------------*
+*       Create internal table dynamically
+*----------------------------------------------------------------------*
+FORM create_itab_dynamically.
+
+* Create dynamic internal table and assign to Field Symbol
+  DATA lv_tab TYPE REF TO data.
+  CREATE DATA lv_tab TYPE STANDARD TABLE OF (lv_tablename).
+  ASSIGN lv_tab->* TO <fs_table>.
+
+* Create dynamic work area and assign to Field Symbol
+  CREATE DATA dyn_line LIKE LINE OF <fs_table>.
+  ASSIGN dyn_line->* TO <fs_wa>.
+  "ASSIGN dyn_line->* TO <fs_wa1>.
+ENDFORM.                    "create_itab_dynamically
+*&---------------------------------------------------------------------*
+*&      Form  test_data
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM load_data_from_file.
+
+  DATA: lt_table  TYPE TABLE OF alsmex_tabline,
+        lt_fields TYPE TABLE OF dfies.
+
+  DATA: lv_tab_name TYPE ddobjname.
+
+  FIELD-SYMBOLS: <fs_value> TYPE any.
+
+  lv_tab_name = lv_tablename.
+
+  CALL FUNCTION 'DDIF_FIELDINFO_GET'
+    EXPORTING
+      tabname        = lv_tab_name
+    TABLES
+      dfies_tab      = lt_fields
+    EXCEPTIONS
+      not_found      = 1
+      internal_error = 2
+      OTHERS         = 3.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  DESCRIBE TABLE lt_fields LINES DATA(lv_col_count).
+
+  CALL FUNCTION 'ALSM_EXCEL_TO_INTERNAL_TABLE'
+    EXPORTING
+      filename                = p_fname
+      i_begin_col             = 1
+      i_begin_row             = 2
+      i_end_col               = lv_col_count
+      i_end_row               = 50000
+    TABLES
+      intern                  = lt_table
+    EXCEPTIONS
+      inconsistent_parameters = 1
+      upload_ole              = 2
+      OTHERS                  = 3.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  LOOP AT lt_table INTO DATA(li_table).
+    DATA(lv_index) = li_table-col.
+    ASSIGN COMPONENT lv_index OF STRUCTURE <fs_wa> TO <fs_value>.
+    MOVE li_table-value TO <fs_value>.
+    AT END OF row.
+      APPEND <fs_wa> TO <fs_table>.
+    ENDAT.
+  ENDLOOP.
+
+*  CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+*    EXPORTING      "i_field_seperator = ','
+*      i_line_header        = 'X'
+*      i_tab_raw_data       = lv_raw_data              " WORK TABLE
+*      i_filename           = p_fname
+*    TABLES
+*      i_tab_converted_data = <fs_table>          " ACTUAL DATA
+*    EXCEPTIONS
+*      conversion_failed    = 1
+*      OTHERS               = 2.
+** Display error message
+*  IF sy-subrc <> 0.
+*    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+*ELSE.
+
+  IF <fs_table> IS NOT INITIAL.
+    DESCRIBE TABLE <fs_table> LINES lv_rowcount.
+
+    LOOP AT <fs_table> ASSIGNING <fs_wa>.
+      MODIFY (lv_tablename) CLIENT SPECIFIED  FROM <fs_wa>.
+      IF sy-subrc = 0.
+        ADD 1 TO lv_count.
+      ENDIF.
+      IF lv_tablename = 'ARBCIG_SYSTIDMAP'.
+        PERFORM remark_update.
+      ENDIF.
+    ENDLOOP.
+
+    COMMIT WORK.
+  ENDIF.
+
+ENDFORM.                    "test_data
+*&---------------------------------------------------------------------*
+*&      Form  record_count
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM record_count.
+  lv_strcount    = lv_count.
+  lv_strrowcount = lv_rowcount.
+* Display message
+  CONCATENATE TEXT-004 lv_strcount INTO lv_txt1.
+  CONCATENATE TEXT-005 lv_strrowcount INTO lv_txt2.
+
+* Display file upload details
+  CALL FUNCTION 'POPUP_TO_INFORM'                           "#EC *
+    EXPORTING
+      titel  = TEXT-007
+      txt1   = lv_txt1
+      txt2   = lv_txt2
+      txt3   = ' '
+    EXCEPTIONS                                              "#EC *
+      OTHERS = 1.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+ENDFORM.                    "record_count
+
+*&---------------------------------------------------------------------*
+*&      Form  load_data_to_file
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM load_data_to_file.
+
+  lv_tab_name = lv_tablename.
+  lv_filename = p_fname.
+
+* Create the header of the table selected.
+  CALL FUNCTION 'CREATE_XLS_HEADER_FROM_DDIC'
+    EXPORTING
+      i_fileformat    = 'XLS'
+      i_fieldname     = 'X'
+      i_tabname       = lv_tab_name
+    TABLES
+      t_header        = lv_tab_columns
+    EXCEPTIONS
+      table_not_found = 1.
+
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ELSE.
+* write the header of the table selected as the inputs for the data needed for the xls file
+    CALL FUNCTION 'SAP_DATA_CONVERT_WRITE_FILE'
+      EXPORTING
+        i_filename    = lv_filename
+        i_servertyp   = lv_out_servertyp
+        i_fileformat  = lv_fileformat
+        i_line_header = 'X'
+      TABLES
+        i_tab_sender  = lv_tab_columns
+      EXCEPTIONS
+        OTHERS        = 4.
+
+    IF sy-subrc <> 0.
+*      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+
+    CALL FUNCTION 'POPUP_TO_INFORM'                         "#EC *
+      EXPORTING
+        titel  = lv_tablename
+        txt1   = TEXT-015
+        txt2   = ' '
+        txt3   = ' '
+      EXCEPTIONS                                             "#EC *
+        OTHERS = 1.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "load_data_to_file
+*&---------------------------------------------------------------------*
+*&      Form  REMARK_UPDATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM remark_update.
+
+  DATA: lt_adrc       TYPE STANDARD TABLE OF adrc,
+        li_addr_data  TYPE addr1_data,
+        li_addr_data1 TYPE addr1_data,
+        li_return     TYPE szad_field-returncode.
+
+  DATA: li_lfa1 TYPE lfa1,
+        li_chg  TYPE char1.
+
+  FIELD-SYMBOLS: <fs_lifnr> TYPE lifnr,
+                 <fs_sysid> TYPE arbcig_systemid.
+
+  ASSIGN COMPONENT 'VENDORID' OF STRUCTURE <fs_wa> TO <fs_lifnr>.
+  ASSIGN COMPONENT 'SYSTEMID' OF STRUCTURE <fs_wa> TO <fs_sysid>.
+
+  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+    EXPORTING
+      input  = <fs_lifnr>
+    IMPORTING
+      output = <fs_lifnr>.
+
+*** To get Address Number of Vendor ID...
+  CALL FUNCTION 'LFA1_READ_SINGLE'
+    EXPORTING
+      id_lifnr            = <fs_lifnr>
+    IMPORTING
+      es_lfa1             = li_lfa1
+    EXCEPTIONS
+      not_found           = 1
+      input_not_specified = 2
+      lifnr_blocked       = 3
+      OTHERS              = 4.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+*** To get Address details...
+  CALL FUNCTION 'ADDR_SELECT_ADRC_SINGLE'
+    EXPORTING
+      addrnumber        = li_lfa1-adrnr
+    TABLES
+      et_adrc           = lt_adrc
+    EXCEPTIONS
+      address_not_exist = 1
+      parameter_error   = 2
+      internal_error    = 3
+      address_blocked   = 4
+      OTHERS            = 5.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  DELETE lt_adrc WHERE nation IS NOT INITIAL.
+  READ TABLE lt_adrc INTO DATA(li_adrc) INDEX 1.
+  MOVE-CORRESPONDING li_adrc TO li_addr_data.
+
+*** map ACM_ID to the Remark(Comments) field...
+  li_addr_data-remark = <fs_sysid>.
+
+*** Update the Comments field in Vendor Master...
+  CALL FUNCTION 'ADDR_UPDATE'
+    EXPORTING
+      address_data         = li_addr_data
+      address_number       = li_lfa1-adrnr
+      language             = sy-langu
+      check_empty_address  = 'X'
+      check_address        = 'X'
+      check_other_versions = 'X'
+    IMPORTING
+      address_data         = li_addr_data1
+      returncode           = li_return
+      data_has_changed     = li_chg
+    EXCEPTIONS
+      address_not_exist    = 1
+      parameter_error      = 2
+      version_not_exist    = 3
+      internal_error       = 4
+      address_blocked      = 5
+      OTHERS               = 6.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  CALL FUNCTION 'ADDR_MEMORY_SAVE'
+*       EXPORTING
+*         EXECUTE_IN_UPDATE_TASK       = ' '
+    EXCEPTIONS
+      address_number_missing = 1
+      person_number_missing  = 2
+      internal_error         = 3
+      database_error         = 4
+      reference_missing      = 5
+      OTHERS                 = 6.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  CLEAR: li_lfa1, li_addr_data, li_addr_data1, li_return, li_chg, <fs_lifnr>, <fs_sysid>, lt_adrc.
+
+ENDFORM.
+

@@ -1,0 +1,20 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SERVICE_ORDER_SELSCR
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+PARAMETERS : gp_aufnr TYPE aufnr MATCHCODE OBJECT ordp.
+SELECTION-SCREEN   END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-002.
+PARAMETERS: gp_excel  AS CHECKBOX DEFAULT gc_x,
+            gp_exfil TYPE rlgrap-filename DEFAULT 'C:\WRD\ZPPSRWRT.xls'. " CHANGED BY 502287934 RITM3049332
+SELECTION-SCREEN END OF BLOCK b2.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gp_exfil.
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = sy-cprog
+      dynpro_number = sy-dynnr
+    IMPORTING
+      file_name     = gp_exfil.
+

@@ -1,0 +1,102 @@
+*&---------------------------------------------------------------------*
+*&  Include           ARBCIG_MASS_UPLOAD_TOP
+*&---------------------------------------------------------------------*
+* Variable Declartions
+TYPE-POOLS : truxs, vrm.                                    "#EC *
+DATA: lv_tablename   TYPE rlgrap-filename,                  "#EC NEEDED
+      lv_allvalues   TYPE vrm_values,                       "#EC NEEDED
+
+      lv_count       TYPE i,                                "#EC NEEDED
+      lv_rowcount    TYPE i,                                "#EC NEEDED
+      lv_strcount    TYPE string,                           "#EC NEEDED
+      lv_strrowcount TYPE string,                           "#EC NEEDED
+
+      lv_raw_data    TYPE truxs_t_text_data,                "#EC NEEDED
+      lv_txt1        TYPE string,                           "#EC NEEDED
+      lv_txt2        TYPE string,                           "#EC NEEDED
+
+* Internal Tables Declarations
+      it_tabnam      TYPE TABLE OF arbcig_tabname,          "#EC NEEDED
+      wa_tabnam      TYPE arbcig_tabname.                   "#EC NEEDED
+
+DATA: lv_tab_name      TYPE dcobjdef-name,
+      lv_filename      TYPE filename-fileintern,
+      lv_out_servertyp TYPE truxs_server VALUE 'APP',
+      lv_fileformat    TYPE truxs_fileformat VALUE 'XLS'.
+
+DATA: dyn_line     TYPE REF TO data.                        "#EC NEEDED
+DATA: wa_allvalues            LIKE LINE OF lv_allvalues.    "IG-18019
+*{IG-25836
+*SCC_CHECK_1120
+DATA: lt_package  TYPE string_hashed_table,
+      ls_package  TYPE string,
+      lv_devclass TYPE devclass.
+*IG-25836}
+*SCC_CHECK_1120
+TYPES: BEGIN OF tt_tabname,
+         ddtext TYPE dd02t-ddtext,
+       END OF tt_tabname.
+DATA: wa_tabname TYPE tt_tabname.                           "#EC NEEDED
+
+DATA: lv_header_text(80).
+TYPES : BEGIN OF lv_columns,
+          col_text_01 LIKE lv_header_text,
+          col_text_02 LIKE lv_header_text,
+          col_text_03 LIKE lv_header_text,
+          col_text_04 LIKE lv_header_text,
+          col_text_05 LIKE lv_header_text,
+          col_text_06 LIKE lv_header_text,
+          col_text_07 LIKE lv_header_text,
+          col_text_08 LIKE lv_header_text,
+          col_text_09 LIKE lv_header_text,
+          col_text_10 LIKE lv_header_text,
+          col_text_11 LIKE lv_header_text,
+          col_text_12 LIKE lv_header_text,
+          col_text_13 LIKE lv_header_text,
+          col_text_14 LIKE lv_header_text,
+          col_text_15 LIKE lv_header_text,
+          col_text_16 LIKE lv_header_text,
+          col_text_17 LIKE lv_header_text,
+          col_text_18 LIKE lv_header_text,
+          col_text_19 LIKE lv_header_text,
+          col_text_20 LIKE lv_header_text,
+          col_text_21 LIKE lv_header_text,
+          col_text_22 LIKE lv_header_text,
+          col_text_23 LIKE lv_header_text,
+          col_text_24 LIKE lv_header_text,
+          col_text_25 LIKE lv_header_text,
+          col_text_26 LIKE lv_header_text,
+          col_text_27 LIKE lv_header_text,
+          col_text_28 LIKE lv_header_text,
+          col_text_29 LIKE lv_header_text,
+          col_text_30 LIKE lv_header_text,
+          col_text_31 LIKE lv_header_text,
+          col_text_32 LIKE lv_header_text,
+          col_text_33 LIKE lv_header_text,
+          col_text_34 LIKE lv_header_text,
+          col_text_35 LIKE lv_header_text,
+          col_text_36 LIKE lv_header_text,
+          col_text_37 LIKE lv_header_text,
+          col_text_38 LIKE lv_header_text,
+          col_text_39 LIKE lv_header_text,
+          col_text_40 LIKE lv_header_text,
+        END OF lv_columns.
+DATA: lv_tab_columns    TYPE TABLE OF lv_columns,
+      lv_return         TYPE  bapiret2, " ++ IG-25844: Crown Jewels-ABAP Security -SEC 11A1
+      lo_auth_exception TYPE REF TO cx_arbcig_arbci_appl. " ++ IG-25844: Crown Jewels-ABAP Security -SEC 11A1
+
+* Declare Field Symbols
+FIELD-SYMBOLS: <fs_table> TYPE STANDARD TABLE,
+               <fs_wa>    TYPE any.                         "#EC *
+*{IG-25836
+*SCC_CHECK_1120
+CONSTANTS: lc_pgmid  TYPE pgmid VALUE 'R3TR',
+           lc_object TYPE trobjtype VALUE 'TABL'.
+DATA: lo_oref              TYPE REF TO cx_root,
+      lo_table_exception   TYPE REF TO cx_abap_not_a_table,
+      lo_package_exception TYPE REF TO cx_abap_not_in_package.
+*IG-25836}
+*SCC_CHECK_1120
+
+DATA: lv_key_selected(30) TYPE c.
+

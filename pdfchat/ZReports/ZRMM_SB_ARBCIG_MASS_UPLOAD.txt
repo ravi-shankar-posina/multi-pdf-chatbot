@@ -1,0 +1,23 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_SB_ARBCIG_MASS_UPLOAD
+*&---------------------------------------------------------------------*
+*& Date             :  31/10/2023                                      *
+*& Name             :  Rakesh Jangiti(INRAJAN2), Arnab Basu(212585391) *
+*& Transport Request:  DE3K9A0NJK                                      *
+*& RICEF Object No  :  RICEF2670                                       *
+*& Description      :  Mass Upload program to load data in             *
+*&                     ARBCIG_SYSTIDMAP table                          *
+*&---------------------------------------------------------------------*
+**Date      |TR number  |Changed by | Description of Change
+************************************************************************
+
+************************************************************************
+
+REPORT  zrmm_sb_arbcig_mass_upload.
+
+INCLUDE znmm_sb_arbcig_mass_upload_top.  " Declare Variables
+
+INCLUDE znmm_sb_arbcig_mass_upload_f00.  " Selection Screen
+
+INCLUDE znmm_sb_arbcig_mass_upload_f01.  " Upload Data
+

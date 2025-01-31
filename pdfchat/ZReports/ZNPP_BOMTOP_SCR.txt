@@ -1,0 +1,63 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_BOMTOP_SCR
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+*   SELECTION-CRITERIA                                                 *
+*----------------------------------------------------------------------*
+SELECTION-SCREEN: BEGIN OF BLOCK an1 WITH FRAME TITLE text-001.
+SELECTION-SCREEN SKIP 1.
+
+PARAMETERS: p_infile LIKE rlgrap-filename.
+SELECT-OPTIONS s_mtnrv FOR mara-matnr  MEMORY ID mat .
+PARAMETERS:  pm_werks TYPE marc-werks MEMORY ID wrk, "OBLIGATORY,
+             p_bomus  TYPE stzu-stlan OBLIGATORY,
+             p_level(2)  TYPE n .
+SELECT-OPTIONS:s_lgort FOR mard-lgort,
+               s_datuv FOR stko-datuv DEFAULT sy-datum OBLIGATORY,
+               s_dispo FOR marc-dispo .
+
+SELECTION-SCREEN SKIP 1.
+PARAMETERS:     p_solcom AS CHECKBOX DEFAULT ' '.
+SELECTION-SCREEN SKIP 1.
+PARAMETERS:     p_zrohch AS CHECKBOX DEFAULT ' '.
+*PARAMETERS: p_stoloc AS CHECKBOX DEFAULT ' '.
+SELECTION-SCREEN: END   OF BLOCK an1.
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-035.
+PARAMETER:
+          p_alv RADIOBUTTON GROUP r01,
+          p_excel RADIOBUTTON GROUP r01,
+          p_exfile LIKE rlgrap-filename,
+          p_appl RADIOBUTTON GROUP r01,
+          p_fname TYPE eps2filnam,
+          p_ftp RADIOBUTTON GROUP r01,
+          p_count(5) TYPE n,
+          p_file(50) TYPE c.
+SELECTION-SCREEN END OF BLOCK b2.
+
+INITIALIZATION.
+**** assiginig file name to P_file to download
+  CONCATENATE gc_rep_name sy-sysid gc_rep_name1 gc_fname sy-datum gc_fname1 sy-uzeit gc_fname2 INTO p_fname.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_infile.
+PERFORM f4_fileselect USING p_infile.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_exfile.
+****  selecting file
+  PERFORM f4_fileselect USING p_exfile .
+
+AT SELECTION-SCREEN.
+
+  IF p_exfile IS INITIAL AND p_excel = 'X'.
+    MESSAGE e899 WITH text-066.
+    EXIT.
+  ENDIF.
+****  checking if material and plant are given by input filr or not
+  IF p_infile IS NOT INITIAL.
+    IF s_mtnrv-low  IS NOT INITIAL OR pm_werks IS NOT INITIAL.
+
+      MESSAGE 'matrials and plant already uploading by inpufile'(030) TYPE 'E'.
+    ENDIF.
+  ENDIF.
+  IF p_infile IS INITIAL AND pm_werks IS INITIAL.
+    MESSAGE 'Please Enter Plant'(031) TYPE 'E'.
+  ENDIF.
+

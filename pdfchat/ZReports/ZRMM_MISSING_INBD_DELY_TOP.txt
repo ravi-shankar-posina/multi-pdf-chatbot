@@ -1,0 +1,92 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_MISSING_INBD_DELY_TOP
+*&---------------------------------------------------------------------*
+TYPE-POOLS: slis.
+
+TYPES: BEGIN OF ty_final,
+         ebeln     TYPE ekko-ebeln,
+         ebelp     TYPE ekpo-ebelp,
+         aedat     TYPE ekko-aedat,
+         vbeln     TYPE lips-vbeln,
+         posnr     TYPE lips-posnr,
+         pstyv     TYPE lips-pstyv,
+         matnr     TYPE lips-matnr,
+         lfimg     TYPE lips-lfimg,
+         wadat_ist TYPE likp-wadat_ist,
+         wbstk     TYPE vbuk-wbstk,
+       END OF ty_final,
+
+       BEGIN OF ty_po,
+         ebeln TYPE ekko-ebeln,
+         bsart TYPE ekko-bsart,
+         aedat TYPE ekko-aedat,
+         ekorg TYPE ekko-ekorg,
+         ebelp TYPE lips-vgpos,
+         werks TYPE ekpo-werks,
+       END OF ty_po,
+       BEGIN OF ty_lips,
+         vbeln TYPE lips-vbeln,
+         posnr TYPE lips-posnr,
+         pstyv TYPE lips-pstyv,
+         matnr TYPE lips-matnr,
+         lfimg TYPE lips-lfimg,
+         vgbel TYPE lips-vgbel,
+         vgpos TYPE lips-vgpos,
+       END OF ty_lips,
+       BEGIN OF ty_likp,
+         vbeln     TYPE likp-vbeln,
+         wadat_ist TYPE likp-wadat_ist,
+       END OF ty_likp,
+       BEGIN OF ty_vbuk,
+         vbeln TYPE vbuk-vbeln,
+         wbstk TYPE vbuk-wbstk,
+       END OF ty_vbuk.
+*&---------------------------------------------------------------------*
+*& Global Tables Declaration
+*&---------------------------------------------------------------------*
+DATA: gt_po    TYPE TABLE OF ty_po,
+      gt_final TYPE TABLE OF ty_final,
+      gt_likp  TYPE TABLE OF ty_likp,
+      gt_lips  TYPE TABLE OF ty_lips,
+      gt_vbuk  TYPE TABLE OF ty_vbuk.
+
+*&---------------------------------------------------------------------*
+*& Global Work Area Declaration
+*&---------------------------------------------------------------------*
+DATA: gt_fieldcat TYPE slis_t_fieldcat_alv,
+      gi_fieldcat TYPE slis_fieldcat_alv,
+      gv_layout   TYPE slis_layout_alv,
+      gv_bsart    TYPE ekko-bsart,
+      gv_ekorg    TYPE ekko-ekorg,
+      gv_aedat    TYPE ekko-aedat,
+      gv_werks    TYPE ekpo-werks,
+      gv_final    TYPE ty_final.
+
+*&---------------------------------------------------------------------*
+*& Global Constants Declaration
+*&---------------------------------------------------------------------*
+CONSTANTS:gc_s             TYPE char1  VALUE 'S',
+          gc_e             TYPE char1  VALUE 'E',
+          gc_flg           TYPE char1  VALUE 'X',
+          gc_report        TYPE char22 VALUE 'ZRMM_MISSING_INBD_DELY',
+          gc_ebeln         TYPE char5  VALUE 'EBELN',
+          gc_ebeln_txt     TYPE char22 VALUE 'Purchase Document No',
+          gc_ebelp         TYPE char5  VALUE 'EBELP',
+          gc_ebelp_txt     TYPE char7  VALUE 'Item No',
+          gc_aedat         TYPE char5  VALUE 'AEDAT',
+          gc_aedat_txt     TYPE char12 VALUE 'Created Date',
+          gc_matnr         TYPE char5  VALUE 'MATNR',
+          gc_matnr_txt     TYPE char12 VALUE 'Material No',
+          gc_vbeln         TYPE char5  VALUE 'VBELN',
+          gc_vbeln_txt     TYPE char8  VALUE 'Delivery',
+          gc_posnr         TYPE char5  VALUE 'POSNR',
+          gc_posnr_txt     TYPE char13 VALUE 'Delivery Item',
+          gc_pstyv         TYPE char5  VALUE 'PSTYV',
+          gc_pstyv_txt     TYPE char13 VALUE 'Item Category',
+          gc_lfimg         TYPE char5  VALUE 'LFIMG',
+          gc_lfimg_txt     TYPE char20 VALUE 'Delivered Quantity',
+          gc_wadat_ist     TYPE char9  VALUE 'WADAT_IST',
+          gc_wadat_ist_txt TYPE char20 VALUE 'GoodsMovement Date',
+          gc_wbstk         TYPE char5  VALUE 'WBSTK',
+          gc_wbstk_txt     TYPE char21 VALUE 'GoodsMovement Status'.
+

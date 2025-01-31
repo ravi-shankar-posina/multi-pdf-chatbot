@@ -1,0 +1,363 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_ME2N_TOP
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+* Modified by         : Arti Kothule                                   *
+* Modification Date   : 18/07/2022                                     *
+* RITM / APT Number   : RITM5237188                                    *
+* CR Number           : CHG0214269                                     *
+* Transport Request   : DE3K9A0ELW                                      *
+* Transaction Code    : ZMM_ME2N                                       *
+* Purpose             : Include Info record PO text and buyer          *
+*                       description                                    *
+*&---------------------------------------------------------------------*
+
+
+TYPES: BEGIN OF ty_ekko,
+         ebeln  TYPE ebeln,            "Purchasing Document Number
+         bsart  TYPE esart,            "Purchasing Document Type
+         bsakz  TYPE bsakz,            "Control indicator for purchasing document type
+         loekz  TYPE eloek,            "Deletion Indicator in Purchasing Document
+         lifnr  TYPE elifn,            "Vendor Account Number
+         ekorg  TYPE ekorg,            "Purchasing Organization
+         ekgrp  TYPE bkgrp,            "Purchasing Group
+         waers  TYPE waers,            "Currency Key
+         bedat  TYPE ebdat,            "Purchasing Document Date
+         reswk  TYPE reswk,            "Supplying (Issuing) Plant in Stock Transport Order
+         ktwrt  TYPE ktwrt,            "Target Value for Header Area per Distribution
+         submi  TYPE submi,            "Collective Number
+         frggr  TYPE frggr,            "Release group
+         frgsx  TYPE frgsx,            "Release Strategy
+         frgke  TYPE frgke,            "Release Indicator: Purchasing Document
+         memory TYPE memer,          "Purchase order not yet complete
+
+       END OF ty_ekko.
+TYPES: BEGIN OF ty_ekpo,
+         ebeln     TYPE ebeln,              "Purchasing Document Number
+         ebelp     TYPE ebelp,              "Item Number of Purchasing Document
+         loekz    TYPE eloek,            "Deletion Indicator in Purchasing Document
+         statu     TYPE astat,              "RFQ status
+         txz01    TYPE txz01,            "Short Text
+         ematn     TYPE ematnr,           "Material Number
+         werks    TYPE ewerk,	            "Plant
+         lgort     TYPE lgort_d,                    "Storage Location
+         bednr     TYPE bednr,              "Requirement Tracking Number
+         matkl     TYPE matkl,              "Material Group
+         infnr     TYPE infnr,              "Number of Purchasing Info Record
+         menge     TYPE bstmg,            "Purchase Order Quantity
+         meins     TYPE bstme,              "Purchase Order Unit of Measure
+         bprme     TYPE bbprm,              "Order Price Unit (Purchasing)
+         netpr     TYPE bprei,              "Net Price in Purchasing Document (in Document Currency)
+         peinh     TYPE epein,              "Price Unit
+         agdat    TYPE angab,	            "Deadline for Submission of Bid/Quotation
+         mwskz     TYPE mwskz,              "Tax on sales/purchases code
+         knttp    TYPE knttp,            "Account Assignment Category
+         elikz    TYPE elikz,            ""Delivery Completed" Indicator
+         pstyp    TYPE pstyp,            "Item Category in Purchasing Document
+         wepos    TYPE wepos,            "Goods Receipt Indicator
+         repos    TYPE repos,            "Invoice Receipt Indicator
+         konnr     TYPE konnr,              "Number of Principal Purchase Agreement
+         ktpnr     TYPE ktpnr,            "Item Number of Principal Purchase Agreement
+         bstyp    TYPE bstyp,	            "Purchasing Document Category
+         txjcd     TYPE txjcd,              "Tax Jurisdiction
+         bstae    TYPE bstae,            "Confirmation Control Key
+         emlif     TYPE emlif,              "Vendor to be supplied/who is to receive delivery
+         banfn     TYPE banfn,              "Purchase Requisition Number
+         bnfpo     TYPE bnfpo,              "Item Number of Purchase Requisition
+         reslo     TYPE reslo,              "Issuing Storage Location for Stock Transport Order
+         prio_urg TYPE prio_urg,     "Requirement Urgency
+         prio_req TYPE prio_req,     "Requirement Priority
+         exlin     TYPE exlin,            "Item Number Length
+         exsnr     TYPE exsnr,              "External Sorting
+         ehtyp     TYPE ehtyp,              "External Hierarchy Category
+
+       END OF ty_ekpo.
+
+TYPES: BEGIN OF ty_rseg,
+         belnr  TYPE belnr_d,          "Accounting Document Number
+         gjahr  TYPE gjahr,             "Fiscal Year
+         buzei  TYPE rblgp,             "Document Item in Invoice Document
+         ebeln  TYPE ebeln,                   "Purchasing Document Number
+         ebelp  TYPE ebelp,             "Item Number of Purchasing Document
+         menge TYPE menge_d,          "Quantity
+       END OF ty_rseg.
+
+TYPES: BEGIN OF ty_ekbe,
+         ebeln TYPE ebeln,              "Purchasing Document Number
+         ebelp TYPE ebelp,              "Item Number of Purchasing Document
+         bpwes  TYPE bpwes,            "Quantity in GR blocked stock in order price unit
+       END OF ty_ekbe.
+
+TYPES: BEGIN OF ty_eket,
+         ebeln TYPE ebeln,            "Purchasing Document Number
+         ebelp TYPE ebelp,              "Item Number of Purchasing Document
+         etenr  TYPE eeten,             "Delivery Schedule Line Counter
+         eindt  TYPE eindt,            "Item Delivery Date
+         slfdt  TYPE slfdt,             "Statistics-Relevant Delivery Date
+         menge  TYPE etmen,             "Scheduled Quantity
+         ameng  TYPE vomng,             "Previous Quantity (Delivery Schedule Lines)
+         wemng  TYPE weemg,             "Quantity of Goods Received
+         wamng  TYPE wamng,             "Issued Quantity
+         uzeit  TYPE lzeit,            "Delivery Date Time-Spot
+         estkz TYPE estkz,            "Creation Indicator (Purchase Requisition/Schedule Lines)
+         glmng  TYPE glmng,             "Quantity Delivered (Stock Transfer)
+       END OF ty_eket.
+
+TYPES: BEGIN OF ty_eban,
+         banfn  TYPE banfn,             "Purchase Requisition Number
+         bnfpo  TYPE bnfpo,             "Item Number of Purchase Requisition
+         estkz TYPE estkz,            "Creation Indicator (Purchase Requisition/Schedule Lines)
+       END OF ty_eban.
+
+TYPES: BEGIN OF ty_eina,
+         infnr TYPE infnr,            "Number of Purchasing Info Record
+         urzzt TYPE urzzt,            "Number
+       END OF ty_eina.
+
+TYPES: BEGIN OF ty_ekkn,
+         ebeln      TYPE ebeln,            "Purchasing Document Number
+         ebelp      TYPE ebelp,	            "Item Number of Purchasing Document
+         sakto      TYPE saknr,	            "G/L Account Number
+         kostl      TYPE kostl,            "Cost Center
+         vbeln       TYPE vbeln_co,         "Sales and Distribution Document Number
+         vbelp       TYPE posnr_co,         "Sales Document Item
+         aufnr       TYPE aufnr,            "Order Number
+         ps_psp_pnr TYPE ps_psp_pnr,  "Work Breakdown Structure Element (WBS Element)
+         nplnr       TYPE nplnr,            "Network Number for Account Assignment
+       END OF ty_ekkn.
+
+TYPES: BEGIN OF ty_lfa1,
+         lifnr TYPE lifnr,            "Account Number of Vendor or Creditor
+         name1 TYPE name1_gp,         "Name 1
+       END OF ty_lfa1.
+
+*START CHANGE OF CHG0214269  (USARKOT)
+TYPES: BEGIN OF ty_t024,
+         ekgrp TYPE ekgrp,
+         eknam TYPE eknam,
+       END OF ty_t024.
+*END CHANGED OF CHG0214269  (USARKOT)
+
+TYPES : BEGIN OF ty_final,
+          ebeln           TYPE ebeln,            "Purchasing Document Number
+          ebelp	          TYPE ebelp,	            "Item Number of Purchasing Document
+          etenr	          TYPE eeten,	            "Delivery Schedule Line Counter
+          bsart           TYPE esart,            "Purchasing Document Type
+          bstyp           TYPE bstyp,	            "Purchasing Document Category
+          ekgrp           TYPE bkgrp,            "Purchasing Group
+          emlif           TYPE char45,           "Vendor to be supplied/who is to receive delivery
+          ematn	          TYPE ematnr,           "Material Number
+          txz01           TYPE txz01,            "Short Text
+          matkl	          TYPE matkl,	            "Material Group
+          loekz           TYPE  eloek,           "Deletion Indicator in Purchasing Document
+          memory          TYPE memer,           "Purchase order not yet complete
+          knttp           TYPE knttp,            "Account Assignment Category
+          werks           TYPE ewerk,	            "Plant
+          lgort	          TYPE lgort_d,	          "Storage Location
+          uzeit	          TYPE lzeit,            "Delivery Date Time-Spot
+          banfn	          TYPE banfn,	            "Purchase Requisition Number
+          bnfpo	          TYPE bnfpo,	            "Item Number of Purchase Requisition
+          estkz           TYPE estkz,            "Creation Indicator (Purchase Requisition/Schedule Lines)
+          ekorg           TYPE ekorg,            "Purchasing Organization
+          pstyp           TYPE pstyp,            "Item Category in Purchasing Document
+          bednr	          TYPE bednr,	            "Requirement Tracking Number
+          wepos           TYPE wepos,            "Goods Receipt Indicator
+          repos           TYPE repos,            "Invoice Receipt Indicator
+          konnr	          TYPE konnr,	            "Number of Principal Purchase Agreement
+          ktpnr	          TYPE ktpnr,            "Item Number of Principal Purchase Agreement
+          agdat           TYPE angab,	            "Deadline for Submission of Bid/Quotation
+          statu	          TYPE astat,	            "RFQ status
+          submi           TYPE submi,            "Collective Number
+          bsakz           TYPE bsakz,            "Control indicator for purchasing document type
+          infnr	          TYPE infnr,	            "Number of Purchasing Info Record
+          urzzt           TYPE urzzt,            "Number
+          frggr           TYPE frggr,            "Release group
+          frgsx           TYPE frgsx,            "Release Strategy
+          frgke           TYPE frgke,            "Release Indicator: Purchasing Document
+          elikz           TYPE elikz,            ""Delivery Completed" Indicator
+          reslo	          TYPE reslo,	            "Issuing Storage Location for Stock Transport Order
+          name1           TYPE name1_gp,         "Vendor name
+          bprme	          TYPE bbprm,	            "Order Price Unit (Purchasing)
+          mwskz	          TYPE mwskz,	            "Tax on sales/purchases code
+          txjcd	          TYPE txjcd,	            "Tax Jurisdiction
+          bstae           TYPE bstae,            "Confirmation Control Key
+          exlin	          TYPE exlin,            "Item Number Length
+          exsnr	          TYPE exsnr,	            "External Sorting
+          ehtyp	          TYPE ehtyp,	            "External Hierarchy Category
+          prio_urg        TYPE prio_urg,      "Requirement Urgency
+          prio_req        TYPE prio_req,      "Requirement Priority
+          bedat           TYPE ebdat,            "Purchasing Document Date
+          ekpo_menge      TYPE bstmg,      "Purchase Order Quantity
+          meins	          TYPE bstme,	            "Purchase Order Unit of Measure
+          netpr	          TYPE bprei,	            "Net Price in Purchasing Document (in Document Currency)
+          bpwes           TYPE bpwes,            "Quantity in GR blocked stock in order price unit
+          waers           TYPE  waers,           "Currency Key
+          peinh	          TYPE epein,	            "Price Unit
+          eket_menge      TYPE bstmg,      "Purchase Order Quantity
+          rseg_menge      TYPE menge_d,    "Quantity
+          eindt	          TYPE eindt,            "Item Delivery Date
+          slfdt	          TYPE slfdt,	            "Statistics-Relevant Delivery Date
+          ameng	          TYPE vomng,	            "Previous Quantity (Delivery Schedule Lines)
+          wemng	          TYPE weemg,	            "Quantity of Goods Received
+          wemng_head      TYPE weemg,      "Quantity of Goods Received (Header) "Added by Vijay Kumar N  CHG2017708 DE3K971665 13.05.2016
+          wamng	          TYPE wamng,	            "Issued Quantity
+          glmng	          TYPE glmng,	            "Quantity Delivered (Stock Transfer)
+          mglief          TYPE merep_mglief,    "Still to be Delivered (Quantity)
+          wtlief          TYPE merep_wtlief,    "Still to be Delivered (Value)
+          ktwrt           TYPE ktwrt,            "Target Value for Header Area per Distribution
+          ps_psp_pnr      TYPE char24,      "Work Breakdown Structure Element (WBS Element)
+          sakto           TYPE saknr,	            "G/L Account Number
+          vbeln	          TYPE vbeln_co,         "Sales and Distribution Document Number
+          vbelp	          TYPE posnr_co,         "Sales Document Item
+          nplnr	          TYPE nplnr,            "Network Number for Account Assignment
+          aufnr           TYPE aufnr,            "Order Number
+          kostl           TYPE kostl,            "Cost Center
+          mgliefh         TYPE merep_mglief,   "Still to be Delivered (Quantity) header
+          wtliefh         TYPE merep_wtlief,   "Still to be Delivered (Value) header
+          reswk           TYPE reswk,            "Supplying (Issuing) Plant in Stock Transport Order
+          poinfotext(128) TYPE c,       "++USARKOT-CHG0214269
+          eknam           TYPE eknam,             "++USARKOT-CHG0214269
+        END OF ty_final.
+
+TYPES: BEGIN OF ty_title,
+         title(5055),
+       END OF ty_title.
+
+DATA: gt_ekko         TYPE TABLE OF ty_ekko,
+      gw_ekko         TYPE ty_ekko,
+      gt_ekpo         TYPE TABLE OF ty_ekpo,
+      gw_ekpo         TYPE ty_ekpo,
+      gt_rseg         TYPE TABLE OF ty_rseg,
+      gw_rseg         TYPE ty_rseg,
+      gt_ekbe         TYPE TABLE OF ty_ekbe,
+      gw_ekbe         TYPE ty_ekbe,
+      gt_final        TYPE TABLE OF ty_final,
+      gt_final1       TYPE TABLE OF ty_final,
+      gw_final        TYPE ty_final,
+      gw_final1       TYPE ty_final,
+      gw_fcat         TYPE slis_fieldcat_alv,
+      gt_fcat         TYPE slis_t_fieldcat_alv,
+      gv_layout       TYPE slis_layout_alv,
+      gt_eket         TYPE TABLE OF ty_eket,
+      gw_eket         TYPE ty_eket,
+      gt_ekkn         TYPE TABLE OF ty_ekkn,
+      gw_ekkn         TYPE ty_ekkn,
+      gt_lfa1         TYPE TABLE OF ty_lfa1,
+      gw_lfa1         TYPE ty_lfa1,
+      gt_eban         TYPE TABLE OF ty_eban,
+      gw_eban         TYPE ty_eban,
+      gt_eina         TYPE TABLE OF ty_eina,
+      gw_eina         TYPE ty_eina,
+      gt_title        TYPE TABLE OF ty_title,
+      gw_title        TYPE ty_title,
+      lv_str          TYPE string,
+      lv_message(150),
+      gv_filename     TYPE string,
+      gv_total        TYPE char20,
+      gt_t024         TYPE TABLE OF ty_t024,             "++USARKOT-CHG0214269
+      gw_t024         TYPE ty_t024.                      "++USARKOT-CHG0214269
+
+
+
+CONSTANTS :
+  c_ebeln(5)        TYPE c VALUE 'EBELN',
+  c_bsart(5)        TYPE c VALUE 'BSART',
+  c_bsakz(5)        TYPE c VALUE 'BSAKZ',
+  c_loekz(5)        TYPE c VALUE 'LOEKZ',
+  c_ekorg(5)        TYPE c VALUE 'EKORG',
+  c_pstyp(5)        TYPE c VALUE 'PSTYP',
+  c_ekgrp(5)        TYPE c VALUE 'EKGRP',
+  c_waers(5)        TYPE c VALUE 'WAERS',
+  c_bedat(5)        TYPE c VALUE 'BEDAT',
+  c_eindt(5)        TYPE c VALUE 'EINDT',
+  c_slfdt(5)        TYPE c VALUE 'SLFDT',
+  c_ameng(5)        TYPE c VALUE 'AMENG',
+  c_wemng(5)        TYPE c VALUE 'WEMNG',
+  c_wemng_head(10)  TYPE c VALUE 'WEMNG_HEAD',    "Added by Vijay Kumar N CHG2017708 DE3K971665 13.05.2016
+  c_wamng(5)        TYPE c VALUE 'WAMNG',
+  c_glmng(5)        TYPE c VALUE 'GLMNG',
+  c_mglief(6)       TYPE c VALUE 'MGLIEF',
+  c_wtlief(6)       TYPE c VALUE 'WTLIEF',
+  c_ktwrt(5)        TYPE c VALUE 'KTWRT',
+  c_ps_psp_pnr(10)  TYPE c VALUE 'PS_PSP_PNR',
+  c_sakto(5)        TYPE c VALUE 'SAKTO',
+  c_vbeln(5)        TYPE c VALUE 'VBELN',
+  c_vbelp(5)        TYPE c VALUE 'VBELP',
+  c_nplnr(5)        TYPE c VALUE 'NPLNR',
+  c_aufnr(5)        TYPE c VALUE 'AUFNR',
+  c_kostl(5)        TYPE c VALUE 'KOSTL',
+  c_mgliefh(7)      TYPE c VALUE 'MGLIEFH',
+  c_wtliefh(7)      TYPE c VALUE 'WTLIEFH',
+  c_reswk(5)        TYPE c VALUE 'RESWK',
+  c_submi(5)        TYPE c VALUE 'SUBMI',
+  c_frggr(5)        TYPE c VALUE 'FRGGR',
+  c_frgsx(5)        TYPE c VALUE 'FRGSX',
+  c_frgke(5)        TYPE c VALUE 'FRGKE',
+  c_elikz(5)        TYPE c VALUE 'ELIKZ',
+  c_memory(6)       TYPE c VALUE 'MEMORY',
+  c_knttp(5)        TYPE c VALUE 'KNTTP',
+  c_ebelp(5)        TYPE c VALUE 'EBELP',
+  c_etenr(5)        TYPE c VALUE 'ETENR',
+  c_statu(5)        TYPE c VALUE 'STATU',
+  c_txz01(5)        TYPE c VALUE 'TXZ01',
+  c_ematn(5)        TYPE c VALUE 'EMATN',
+  c_werks(5)        TYPE c VALUE 'WERKS',
+  c_lgort(5)        TYPE c VALUE 'LGORT',
+  c_uzeit(5)        TYPE c VALUE 'UZEIT',
+  c_bednr(5)        TYPE c VALUE 'BEDNR',
+  c_wepos(5)        TYPE c VALUE 'WEPOS',
+  c_repos(5)        TYPE c VALUE 'REPOS',
+  c_matkl(5)        TYPE c VALUE 'MATKL',
+  c_infnr(5)        TYPE c VALUE 'INFNR',
+  c_urzzt(5)        TYPE c VALUE 'URZZT',
+  c_ekpo_menge(10)  TYPE c VALUE 'EKPO_MENGE',
+  c_eket_menge(10)  TYPE c VALUE 'EKET_MENGE',
+  c_rseg_menge(10)  TYPE c VALUE 'RSEG_MENGE',
+  c_menge(5)        TYPE c VALUE 'MENGE',                   "#EC NEEDED
+  c_meins(5)        TYPE c VALUE 'MEINS',
+  c_name1(5)        TYPE c VALUE 'NAME1',
+  c_bprme(5)        TYPE c VALUE 'BPRME',
+*       c_netpr(5) TYPE c VALUE 'NERPR',         "--USARKOT-CHG0214269
+  c_netpr(5)        TYPE c VALUE 'NETPR',          "++USARKOT-CHG0214269
+  c_bpwes(5)        TYPE c VALUE 'BPWES',
+  c_peinh(5)        TYPE c VALUE 'PEINH',
+  c_agdat(5)        TYPE c VALUE 'AGDAT',
+  c_mwskz(5)        TYPE c VALUE 'MWSKZ',
+  c_konnr(5)        TYPE c VALUE 'KONNR',
+  c_ktpnr(5)        TYPE c VALUE 'KTPNR',
+  c_bstyp(5)        TYPE c VALUE 'BSTYP',
+  c_txjcd(5)        TYPE c VALUE 'TXJCD',
+  c_bstae(5)        TYPE c VALUE 'BSTAE',
+  c_emlif(5)        TYPE c VALUE 'EMLIF',
+  c_banfn(5)        TYPE c VALUE 'BANFN',
+  c_bnfpo(5)        TYPE c VALUE 'BNFPO',
+  c_estkz(5)        TYPE c VALUE 'ESTKZ',
+  c_reslo(5)        TYPE c VALUE 'RESLO',
+  c_prio_urg(8)     TYPE c VALUE 'PRIO_URG',
+  c_prio_req(8)     TYPE c VALUE 'PRIO_REQ',
+  c_exlin(5)        TYPE c VALUE 'EXLIN',
+  c_exsnr(5)        TYPE c VALUE 'EXSNR',
+  c_ehtyp(5)        TYPE c VALUE 'EHTYP',
+  lv_xls            TYPE char4 VALUE '.XLS',
+  lv_path(20)       VALUE '/Interfaces/',
+*Begin of changes done by Vijay Kumar N CHG2017708 DE3K971407 12/05/2016
+*        lv_path1(20) VALUE '/MRP_REPORT/ME2N'.
+  lv_path1(20)      VALUE '/MRP_REPORT/ZMM_ME2N',
+*End of changes done by Vijay Kumar N CHG2017708 DE3K971407 12/05/2016
+
+*Begin of change-CHG0214269  USARKOT
+  c_poinfotext(128) TYPE c VALUE 'POINFOTEXT',
+  c_eknam(18)       TYPE c VALUE 'EKNAM'.
+
+DATA: lv_name       TYPE thead-tdname,
+      lv_text(128)  TYPE c,
+      lv_ctext(128) TYPE c,
+      lv_lines      TYPE sy-tabix,
+      lt_lines      TYPE TABLE OF tline,
+      wa_lines      TYPE tline.
+
+CONSTANTS: lc_id   TYPE thead-tdid      VALUE 'F02',
+           lc_lang TYPE thead-tdspras   VALUE 'E',
+           lc_obj  TYPE thead-tdobject  VALUE 'EKPO'.
+*End of change-CHG0214269  USARKOT
+

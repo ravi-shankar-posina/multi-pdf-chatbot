@@ -1,0 +1,13 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_STO_AB_CONFIRMATION_SCR
+*&---------------------------------------------------------------------*
+
+SELECTION-SCREEN BEGIN OF BLOCK b01.
+
+SELECT-OPTIONS: s_ponum FOR v_ponum ,
+                s_bsart FOR v_bsart NO INTERVALS OBLIGATORY,
+                s_aedat FOR v_aedat OBLIGATORY,
+                s_plant FOR v_plant OBLIGATORY.
+
+SELECTION-SCREEN END OF BLOCK b01.
+

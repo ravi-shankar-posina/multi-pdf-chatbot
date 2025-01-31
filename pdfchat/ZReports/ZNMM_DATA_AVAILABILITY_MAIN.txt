@@ -1,0 +1,752 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_DATA_AVAILABILITY_MAIN
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  show_status
+*&---------------------------------------------------------------------*
+FORM show_status USING p_text.
+  DATA: lw_indic_text(60) TYPE c,
+        lw_percentage TYPE i,
+        lw_index_str TYPE string,
+        lw_job_str TYPE string.
+  lw_index_str = gw_current_index.
+  lw_job_str = gw_total_job.
+  lw_percentage = gw_current_index * 100 / gw_total_job.
+  CONCATENATE lw_index_str '/' lw_job_str text-063 p_text '...' INTO lw_indic_text.
+  gw_info = p_text.
+  CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+    EXPORTING
+      percentage = lw_percentage
+      text       = lw_indic_text.
+  gw_current_index = gw_current_index + 1.
+ENDFORM.                    "show_status
+
+*&---------------------------------------------------------------------*
+*&      Form  insert_line
+*&---------------------------------------------------------------------*
+FORM insert_line USING p_name p_count.
+  gi_ret-name = p_name.
+  gi_ret-info = gw_info.
+  gi_ret-count = p_count.
+  APPEND gi_ret TO gt_ret.
+  CLEAR gi_ret.
+ENDFORM.                    "insert_line
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV
+*&---------------------------------------------------------------------*
+FORM display_alv .
+
+  gs_layout-colwidth_optimize = gc_x.
+  gs_layout-zebra = gc_x.
+
+  gw_fieldcat_ln-fieldname = text-070.
+  gw_fieldcat_ln-seltext_l = text-064.
+  APPEND gw_fieldcat_ln TO gt_fieldcat.
+  CLEAR gw_fieldcat_ln.
+
+  gw_fieldcat_ln-fieldname = text-071.
+  gw_fieldcat_ln-seltext_l = text-065.
+  APPEND gw_fieldcat_ln TO gt_fieldcat.
+  CLEAR gw_fieldcat_ln.
+
+  gw_fieldcat_ln-fieldname = text-072.
+  gw_fieldcat_ln-seltext_l = text-066.
+  APPEND gw_fieldcat_ln TO gt_fieldcat.
+  CLEAR gw_fieldcat_ln.
+
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_interface_check = ''
+      is_layout         = gs_layout
+      it_fieldcat       = gt_fieldcat[]
+    TABLES
+      t_outtab          = gt_ret
+    EXCEPTIONS
+      program_error     = 1
+      OTHERS            = 2.
+ENDFORM.                    " DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*&      Form  DATA_PROCESSING
+*&---------------------------------------------------------------------*
+FORM data_processing .
+  DATA: lw_line_bsis TYPE i,
+        lw_line_bsid TYPE i,
+        lw_line_bsik TYPE i,
+        lw_line_bsas TYPE i,
+        lw_line_bsad TYPE i,
+        lw_line_bsak TYPE i,
+        lc_werks TYPE char5 VALUE 'WERKS',
+        lc_lgnum TYPE char5 VALUE 'LGNUM',
+        lc_bukrs TYPE char5 VALUE 'BUKRS',
+        lc_ekorg TYPE char5 VALUE 'EKORG',
+        lc_vkorg TYPE char5 VALUE 'VKORG',
+        lc_cjv TYPE char004 VALUE 'CJV',
+        lc_ejv TYPE char004 VALUE 'EJV',
+        lw_field TYPE char004 ,
+        li_ztuhcd1 TYPE ztuhcd1,
+        lt_ztuhcd1 TYPE TABLE OF ztuhcd1.
+  li_ztuhcd1-name = sy-repid.
+  APPEND li_ztuhcd1 TO lt_ztuhcd1.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = lt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+   SORT lt_ztuhcd1 BY zkey field.
+  ENDIF.
+
+  IF p_cjv = gc_x.
+    lw_field = lc_cjv.
+  ELSE.
+    lw_field = lc_ejv.
+  ENDIF.
+  CLEAR li_ztuhcd1.
+  READ TABLE lt_ztuhcd1 INTO li_ztuhcd1 WITH KEY  zkey = lw_field
+                                                 field = lc_werks BINARY SEARCH.
+  IF sy-subrc = 0.
+    gw_werks = li_ztuhcd1-low.
+  ENDIF.
+  CLEAR li_ztuhcd1.
+  READ TABLE lt_ztuhcd1 INTO li_ztuhcd1 WITH KEY  zkey = lw_field
+                                                 field = lc_vkorg BINARY SEARCH.
+  IF sy-subrc = 0.
+    gw_vkorg = li_ztuhcd1-low.
+  ENDIF.
+  CLEAR li_ztuhcd1.
+  READ TABLE lt_ztuhcd1 INTO li_ztuhcd1 WITH KEY  zkey = lw_field
+                                                 field = lc_bukrs BINARY SEARCH.
+  IF sy-subrc = 0.
+    gw_bukrs = li_ztuhcd1-low.
+  ENDIF.
+  CLEAR li_ztuhcd1.
+  READ TABLE lt_ztuhcd1 INTO li_ztuhcd1 WITH KEY  zkey = lw_field
+                                                 field = lc_lgnum BINARY SEARCH.
+  IF sy-subrc = 0.
+    gw_lgnum = li_ztuhcd1-low.
+  ENDIF.
+  CLEAR li_ztuhcd1.
+  READ TABLE lt_ztuhcd1 INTO li_ztuhcd1 WITH KEY  zkey = lw_field
+                                                 field = lc_ekorg BINARY SEARCH.
+  IF sy-subrc = 0.
+    gw_ekorg = li_ztuhcd1-low.
+  ENDIF.
+
+
+
+  IF p_golive = gc_x.
+    gw_total_job = 50.
+
+    PERFORM show_status USING text-001.
+    SELECT COUNT(*) FROM marc INTO gw_line_count WHERE werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+    PERFORM insert_line USING text-073 gw_line_count.
+
+    PERFORM show_status USING text-002.
+    PERFORM insert_line USING text-074 gw_line_count.
+
+    PERFORM show_status USING text-003.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM marc
+      INNER JOIN mvke ON marc~matnr = mvke~matnr AND mvke~vkorg = gw_vkorg
+      WHERE marc~werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+    PERFORM insert_line USING text-075 gw_line_count.
+
+    PERFORM show_status USING text-004.
+    SELECT COUNT(*) FROM mapr INTO gw_line_count WHERE werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-076 gw_line_count.
+
+    PERFORM show_status USING text-005.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM mapr
+      INNER JOIN prop ON mapr~pnum1 = prop~pnum1
+      WHERE mapr~werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-077 gw_line_count.
+
+    PERFORM show_status USING text-006.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM marc
+      INNER JOIN makt ON marc~matnr = makt~matnr
+      WHERE marc~werks = gw_werks AND makt~spras IN ('1', gc_en).
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-078 gw_line_count.
+
+    PERFORM show_status USING text-007.
+    SELECT COUNT(*) FROM mlgt INTO gw_line_count WHERE lgnum = gw_lgnum.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-079 gw_line_count.
+
+    PERFORM show_status USING text-008.
+    SELECT COUNT(*) FROM mbew
+      INTO gw_line_count
+      WHERE matnr > 1
+        AND bwkey = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-080 gw_line_count.
+
+    PERFORM show_status USING text-009.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM marc
+      INNER JOIN mara ON marc~matnr = mara~matnr AND mara~bstme <> ' ' AND mara~bstme <> mara~meins
+      INNER JOIN marm ON marc~matnr = marm~matnr
+      WHERE marc~werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-081 gw_line_count.
+
+    PERFORM show_status USING text-010.
+    SELECT COUNT(*) FROM mapl
+      INTO gw_line_count
+      WHERE matnr > 1
+       AND  werks = gw_werks
+       AND plnty = gc_n.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-082 gw_line_count.
+
+    PERFORM show_status USING text-011.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM mapl
+      INNER JOIN plas ON mapl~plnnr = plas~plnnr AND plas~plnty = gc_n
+      WHERE mapl~werks = gw_werks AND mapl~plnty = gc_n.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-083 gw_line_count.
+
+    PERFORM show_status USING text-012.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM mapl
+      INNER JOIN plpo ON mapl~plnnr = plpo~plnnr AND plpo~plnty = gc_n
+      WHERE mapl~werks = gw_werks AND mapl~plnty = gc_n.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-084 gw_line_count.
+
+    PERFORM show_status USING text-085.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM mast
+      INNER JOIN stpo ON mast~stlnr = stpo~stlnr AND stpo~stlty = gc_m
+      WHERE mast~werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-086 gw_line_count.
+
+    PERFORM show_status USING text-013.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM lfb1
+      INNER JOIN lfa1 ON lfb1~lifnr = lfa1~lifnr
+      WHERE lfb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-087 gw_line_count.
+
+    PERFORM show_status USING text-014.
+    SELECT COUNT(*) FROM lfb1
+      INTO gw_line_count
+      WHERE lifnr > 1
+        AND bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-088 gw_line_count.
+
+    PERFORM show_status USING text-015.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM lfb1
+      INNER JOIN lfm1 ON lfb1~lifnr = lfm1~lifnr AND lfm1~ekorg = gw_ekorg
+      WHERE lfb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-089 gw_line_count.
+
+    PERFORM show_status USING text-016.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM lfb1
+      INNER JOIN lfbk ON lfb1~lifnr = lfbk~lifnr
+      WHERE lfb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-090 gw_line_count.
+
+    PERFORM show_status USING text-017.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM lfb1
+      INNER JOIN lfbk ON lfb1~lifnr = lfbk~lifnr
+      INNER JOIN bnka ON lfbk~bankl = bnka~bankl
+      WHERE lfb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-091 gw_line_count.
+
+    PERFORM show_status USING text-018.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM lfb1
+      INNER JOIN lfa1 ON lfb1~lifnr = lfa1~lifnr
+      INNER JOIN adrc ON lfa1~adrnr = adrc~addrnumber
+      WHERE lfb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-092 gw_line_count.
+
+    PERFORM show_status USING text-019.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM lfb1
+      INNER JOIN lfa1 ON lfb1~lifnr = lfa1~lifnr
+      INNER JOIN adr2 ON lfa1~adrnr = adr2~addrnumber
+      WHERE lfb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-093 gw_line_count.
+
+    PERFORM show_status USING text-020.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM lfb1
+      INNER JOIN lfa1 ON lfb1~lifnr = lfa1~lifnr
+      INNER JOIN adr3 ON lfa1~adrnr = adr3~addrnumber
+      WHERE lfb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-094 gw_line_count.
+
+    PERFORM show_status USING text-021.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM lfb1
+      INNER JOIN lfa1 ON lfb1~lifnr = lfa1~lifnr
+      INNER JOIN adr6 ON lfa1~adrnr = adr6~addrnumber
+      WHERE lfb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-095 gw_line_count.
+
+    PERFORM show_status USING text-022.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM eine
+      INNER JOIN eina ON eina~infnr = eine~infnr
+      WHERE eine~werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-096 gw_line_count.
+
+    PERFORM show_status USING text-023.
+    SELECT COUNT(*) FROM eine
+      INTO gw_line_count
+      WHERE infnr > 1
+        AND ekorg = gw_ekorg
+        AND werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-097 gw_line_count.
+
+    PERFORM show_status USING text-024.
+    SELECT COUNT(*) FROM eord
+      INTO gw_line_count
+      WHERE matnr > 1
+        AND werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-098 gw_line_count.
+
+    PERFORM show_status USING text-025.
+    SELECT COUNT(*) FROM equk
+      INTO gw_line_count
+      WHERE matnr > 1
+       AND werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-099 gw_line_count.
+
+    PERFORM show_status USING text-026.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM equk
+      INNER JOIN equp ON equk~qunum = equp~qunum
+      WHERE equk~matnr > 1
+      AND equk~werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-100 gw_line_count.
+
+    """"""""""""""""??"""""""""""""""""""""
+    PERFORM show_status USING text-027.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM knb1
+      INNER JOIN kna1 ON knb1~kunnr = kna1~kunnr
+      WHERE knb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-101 gw_line_count.
+
+    PERFORM show_status USING text-028.
+    SELECT COUNT(*) FROM knb1
+      INTO gw_line_count
+      WHERE kunnr > 1
+        AND  bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-102 gw_line_count.
+
+    PERFORM show_status USING text-029.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM knb1
+      INNER JOIN knvv ON knb1~kunnr = knvv~kunnr AND knvv~vkorg = gw_ekorg
+      WHERE knb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-103 gw_line_count.
+
+    PERFORM show_status USING text-030.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM knb1
+      INNER JOIN knbk ON knb1~kunnr = knbk~kunnr
+      WHERE knb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-104 gw_line_count.
+
+    PERFORM show_status USING text-031.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM knb1
+      INNER JOIN knbk ON knb1~kunnr = knbk~kunnr
+      INNER JOIN bnka ON knbk~bankl = bnka~bankl
+      WHERE knb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-105 gw_line_count.
+
+    PERFORM show_status USING text-032.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM knb1
+      INNER JOIN kna1 ON knb1~kunnr = kna1~kunnr
+      INNER JOIN adrc ON kna1~adrnr = adrc~addrnumber
+      WHERE knb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-106 gw_line_count.
+
+    PERFORM show_status USING text-033.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM knb1
+      INNER JOIN kna1 ON knb1~kunnr = kna1~kunnr
+      INNER JOIN adr2 ON kna1~adrnr = adr2~addrnumber
+      WHERE knb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-107 gw_line_count.
+
+    PERFORM show_status USING text-067.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM knb1
+      INNER JOIN kna1 ON knb1~kunnr = kna1~kunnr
+      INNER JOIN adr3 ON kna1~adrnr = adr3~addrnumber
+      WHERE knb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-108 gw_line_count.
+
+    PERFORM show_status USING text-034.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM knb1
+      INNER JOIN kna1 ON knb1~kunnr = kna1~kunnr
+      INNER JOIN adr6 ON kna1~adrnr = adr6~addrnumber
+      WHERE knb1~bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-109 gw_line_count.
+
+    """"""""""""""""??"""""""""""""""""""""
+    PERFORM show_status USING text-035.
+    SELECT COUNT(*) FROM crhd INTO gw_line_count WHERE werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-110 gw_line_count.
+
+    PERFORM show_status USING text-036.
+
+    SELECT aufnr INTO TABLE gt_wo
+      FROM aufk
+      WHERE autyp = '10' AND werks = gw_werks AND loekz = ' ' AND aufnr NOT IN
+      ( SELECT DISTINCT aufnr
+          FROM aufk AS a
+          INNER JOIN jest AS b ON a~objnr = b~objnr AND b~inact = ' '
+        WHERE a~autyp = '10' AND a~werks = gw_werks AND a~loekz = ' ' AND b~stat IN ('I0012', 'I0045', 'I0046', 'I0076') ).
+    gw_line_count = lines( gt_wo ).
+    IF sy-subrc = 0.
+    ENDIF.
+    PERFORM insert_line USING text-111 gw_line_count.
+
+    PERFORM show_status USING text-037.
+    IF gw_line_count > 0.
+      SELECT COUNT(*) INTO gw_line_count
+        FROM aufk AS a
+        INNER JOIN afko AS b ON a~aufnr = b~aufnr
+        INNER JOIN resb AS c ON b~rsnum = c~rsnum
+        FOR ALL ENTRIES IN gt_wo
+        WHERE a~aufnr = gt_wo-aufnr.
+      IF sy-subrc = 0.
+      ENDIF.
+    ENDIF.
+    PERFORM insert_line USING text-112 gw_line_count.
+
+    PERFORM show_status USING text-038.
+    IF gw_line_count > 0.
+      SELECT COUNT(*) INTO gw_line_count
+        FROM aufk AS a
+        INNER JOIN ser05 AS b ON a~aufnr = b~ppaufnr
+        INNER JOIN objk AS c ON b~obknr = c~obknr
+        FOR ALL ENTRIES IN gt_wo
+        WHERE a~aufnr = gt_wo-aufnr.
+      IF sy-subrc = 0.
+      ENDIF.
+    ENDIF.
+    PERFORM insert_line USING text-113 gw_line_count.
+
+
+    """"""""""""""""??"""""""""""""""""""""
+    PERFORM show_status USING text-039.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM vbak
+      INNER JOIN vbuk ON vbak~vbeln = vbuk~vbeln AND vbak~vbtyp = vbuk~vbtyp AND vbuk~gbstk <> 'C'
+      WHERE vbak~vkorg = gw_vkorg AND vbuk~gbstk <> ' '.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-114 gw_line_count.
+
+    PERFORM show_status USING text-040.
+    PERFORM insert_line USING text-115 gw_line_count.
+
+    PERFORM show_status USING text-041.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM vbak
+      INNER JOIN vbuk ON vbak~vbeln = vbuk~vbeln AND vbak~vbtyp = vbuk~vbtyp AND vbuk~gbstk <> 'C'
+      INNER JOIN vbup ON vbak~vbeln = vbup~vbeln
+      WHERE vbak~vkorg = gw_vkorg AND vbuk~gbstk <> ' '.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-116 gw_line_count.
+
+    PERFORM show_status USING text-042.
+    PERFORM insert_line USING text-118 gw_line_count.
+
+    PERFORM show_status USING text-043.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM vbak
+      INNER JOIN vbuk ON vbak~vbeln = vbuk~vbeln AND vbak~vbtyp = vbuk~vbtyp AND vbuk~gbstk <> 'C'
+      INNER JOIN vbkd ON vbak~vbeln = vbkd~vbeln
+      WHERE vbak~vkorg = gw_vkorg AND vbuk~gbstk <> ' '.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-117 gw_line_count.
+
+    PERFORM show_status USING text-044.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM vbak
+      INNER JOIN vbuk ON vbak~vbeln = vbuk~vbeln AND vbak~vbtyp = vbuk~vbtyp AND vbuk~gbstk <> 'C'
+      INNER JOIN lips ON vbak~vbeln = lips~vgbel
+      WHERE vbak~vkorg = gw_vkorg AND vbuk~gbstk <> ' '.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-119 gw_line_count.
+
+    PERFORM show_status USING text-045.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM vbak
+      INNER JOIN vbuk ON vbak~vbeln = vbuk~vbeln AND vbak~vbtyp = vbuk~vbtyp AND vbuk~gbstk <> 'C'
+      INNER JOIN vbrp ON vbak~vbeln = vbrp~aubel
+      WHERE vbak~vkorg = gw_vkorg AND vbuk~gbstk <> ' '.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-120 gw_line_count.
+
+
+    PERFORM show_status USING text-046.
+    SELECT COUNT(*) FROM vkdfs
+      INTO gw_line_count
+      WHERE fktyp <> space
+       AND  vkorg = gw_vkorg
+       AND  fkdat > 1
+       AND  kunnr >= 0
+       AND  vbeln > 1.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-121 gw_line_count.
+
+    """"""""""""""""??"""""""""""""""""""""
+    PERFORM show_status USING text-051.
+    SELECT COUNT(*) FROM bsid INTO gw_line_count WHERE bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-126 gw_line_count.
+
+    PERFORM show_status USING text-052.
+    SELECT COUNT(*) FROM bsik INTO gw_line_count WHERE bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-127 gw_line_count.
+
+  ELSE.
+    gw_total_job = 10.
+
+    PERFORM show_status USING text-053.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM ekko
+      INNER JOIN ekpo ON ekko~ebeln = ekpo~ebeln
+      WHERE ekko~bukrs = gw_bukrs AND ekko~bstyp = 'F'.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-128 gw_line_count.
+
+    PERFORM show_status USING text-054.
+    SELECT COUNT(*) FROM mseg INTO gw_line_count
+      WHERE mblnr > 1
+      AND werks = gw_werks
+      AND bwart IN ('101', '102', '201', '202', '221', '222', '251', '252', '601', '602', '961', '962').
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-132 gw_line_count.
+
+    PERFORM show_status USING text-055.
+    SELECT COUNT(*) FROM aufk INTO gw_line_count WHERE autyp = '10' AND werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-129 gw_line_count.
+
+    PERFORM show_status USING text-056.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM aufk
+      INNER JOIN afko ON aufk~aufnr = afko~aufnr
+      INNER JOIN resb ON afko~rsnum = resb~rsnum
+      WHERE aufk~autyp = '10' AND aufk~werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-130 gw_line_count.
+
+    PERFORM show_status USING text-057.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM aufk
+      INNER JOIN ser05 ON aufk~aufnr = ser05~ppaufnr AND ser05~ppwerk = gw_werks
+      INNER JOIN objk ON ser05~obknr = objk~obknr
+      WHERE aufk~autyp = '10' AND aufk~werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-113 gw_line_count.
+
+    PERFORM show_status USING text-058.
+    SELECT COUNT(*) INTO gw_line_count
+      FROM vbak
+      INNER JOIN vbap ON vbak~vbeln = vbap~vbeln
+      WHERE vbak~vkorg = gw_vkorg.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-131 gw_line_count.
+
+    PERFORM show_status USING text-059.
+    SELECT COUNT(*) FROM lips
+      INTO gw_line_count
+      WHERE vbeln > 1
+       AND werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-119 gw_line_count.
+
+    PERFORM show_status USING text-060.
+    SELECT COUNT(*) FROM vbrp
+      INTO gw_line_count
+      WHERE vbeln > 1
+       AND werks = gw_werks.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-120 gw_line_count.
+
+    PERFORM show_status USING text-061.
+    SELECT COUNT(*) FROM bkpf INTO gw_line_count WHERE bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+
+    PERFORM insert_line USING text-069 gw_line_count.
+
+    PERFORM show_status USING text-062.
+    SELECT COUNT(*) FROM bsis INTO lw_line_bsis WHERE bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+    SELECT COUNT(*) FROM bsid INTO lw_line_bsid WHERE bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+    SELECT COUNT(*) FROM bsik INTO lw_line_bsik WHERE bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+    SELECT COUNT(*) FROM bsas INTO lw_line_bsas WHERE bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+    SELECT COUNT(*) FROM bsad INTO lw_line_bsad WHERE bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+    SELECT COUNT(*) FROM bsak INTO lw_line_bsak WHERE bukrs = gw_bukrs.
+    IF sy-subrc = 0.
+    ENDIF.
+    gw_line_count = lw_line_bsis + lw_line_bsid + lw_line_bsis + lw_line_bsas + lw_line_bsad + lw_line_bsas.
+    PERFORM insert_line USING text-068 gw_line_count.
+
+  ENDIF.
+
+ENDFORM.                    " DATA_PROCESSING
+

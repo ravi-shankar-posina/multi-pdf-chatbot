@@ -1,0 +1,24 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PO_CLEAR_CC_TOP
+*&---------------------------------------------------------------------*
+
+INITIALIZATION.
+
+  TYPE-POOLS: slis.
+
+  TYPES: BEGIN OF ty_out_file,
+          ebeln     TYPE ekpo-ebeln,
+          ebelp     TYPE ekpo-ebelp,
+          zekkn     TYPE ekkn-zekkn,
+          status    TYPE char10,
+          message   TYPE char72,
+         END OF ty_out_file.
+
+
+  DATA: gt_output    TYPE TABLE OF ty_out_file.
+  DATA: gw_output    LIKE LINE  OF gt_output.
+
+  DATA: gt_fcat      TYPE TABLE OF slis_fieldcat_alv.
+  DATA: gw_fcat      LIKE LINE  OF gt_fcat.
+  DATA: gw_layo      TYPE          slis_layout_alv.
+

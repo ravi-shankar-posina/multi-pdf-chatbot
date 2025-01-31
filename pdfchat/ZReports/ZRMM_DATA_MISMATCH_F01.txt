@@ -1,0 +1,719 @@
+*&---------------------------------------------------------------------*
+* Name                          : ZRMM_DATA_MISMATCH
+* Tcode                         : ZMM113
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 25 Sep 2023
+* Transport Request #           : DE3K9A0N21
+* RICEF Object No #             : RICEF2684
+* Description                   : Card Missmatch for ZTMM_PICT
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 09.10.2023   | RICEF-2684|USSOSUB1  |Quality bug fix
+*----------------------------------------------------------------------*
+* 10.10.2023   | RICEF-2684|USANBOD11 |Quality bug fix
+*----------------------------------------------------------------------*
+* 09.05.2024   | RICEF-2684|USANBOD11 | card lock-Get from PICT_1 table
+*----------------------------------------------------------------------*
+* 31.05.2024   | RICEF-2684|USANBOD11 | Defect fix for data mismtach   *
+**----------------------------------------------------------------------*
+*****************************************************************************************
+* CHANGED BY | DATE        | TR #       | CR No(INCUM).  | DESCRIPTION OF CHANGE
+******************************************************************************
+* CHTAMUR    | 08/Nov/2024 | DE3K9A0U0J | 87274 | PICT Minor issue fixes
+*****************************************************************************************
+
+FORM get_data .
+  REFRESH :gt_ztmm_pict, gt_ztmm_picc_log.
+
+  SELECT *
+          FROM ztmm_pi_date
+          INTO TABLE @DATA(gt_pidate)
+          WHERE  piyear IN @s_year[]
+          AND werks IN @s_plant[]
+          AND version IN @s_ver[].
+
+  IF sy-subrc EQ  0.
+    SORT gt_pidate BY piyear werks pidate .
+  ENDIF.
+  IF gt_pidate IS NOT INITIAL.
+    SELECT *
+*    FROM ztmm_pict      " DE3K9A0QXS        USANBOD11
+     FROM ztmm_pict_1    " DE3K9A0QXS        USANBOD11
+    INTO TABLE gt_ztmm_pict
+      FOR ALL ENTRIES IN gt_pidate
+      WHERE werks IN s_plant[]
+      AND gjahr IN s_year[]
+      AND entdate = gt_pidate-pidate
+      AND xloek = space ."ussosub1
+  ENDIF.
+  IF sy-subrc EQ 0.
+    SORT gt_ztmm_pict BY werks gjahr inccd.
+  ENDIF.
+
+*  REFRESH: gt_pidate.
+
+  SELECT *
+         FROM ztmm_picc_log
+         INTO TABLE gt_ztmm_picc_log
+         WHERE piyear IN s_year[]
+         AND werks IN s_plant[]
+     AND version IN s_ver[].
+
+  IF sy-subrc EQ 0.
+    SORT gt_ztmm_picc_log BY piyear werks coord.
+  ENDIF.
+
+  LOOP AT gt_ztmm_picc_log INTO DATA(gw_ztmm_picc_log) .
+    r_log-sign = 'I'.
+    r_log-option = 'BT'.
+    r_log-low = gw_ztmm_picc_log-cardfrm  .
+    r_log-high = gw_ztmm_picc_log-cardto  .
+
+    APPEND r_log TO r_log[].
+    CLEAR gw_ztmm_picc_log.
+  ENDLOOP.
+
+  SELECT  piyear,
+     werks,
+    cardno,
+    status
+  FROM ztmm_picclog_itm
+  INTO TABLE @DATA(gt_ztmm_piclog_itm)
+  WHERE piyear IN @s_year[]
+         AND werks IN @s_plant[]
+    AND cardno IN @r_log.
+
+
+*1 -> unused
+*2 -> used
+*3 -> vioded
+
+  LOOP AT gt_ztmm_piclog_itm INTO DATA(gs_ztmm_piclog_itm).
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+      EXPORTING
+        input  = gs_ztmm_piclog_itm-cardno
+      IMPORTING
+        output = gs_ztmm_piclog_itm-cardno.
+
+    READ TABLE gt_ztmm_pict INTO DATA(gs_ztmm_pict) WITH KEY
+     inccd = gs_ztmm_piclog_itm-cardno.
+
+    IF sy-subrc EQ 0.""used
+      MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+      IF gs_ztmm_piclog_itm-status EQ '1' OR gs_ztmm_piclog_itm-status EQ '01'. "DE3K9A0R1M  USANBOD11
+        IF gs_ztmm_pict-matnr = 'VOID'.
+          ""card is unused and used and voided in pict table
+          gs_final-summary = TEXT-002.
+        ELSE.
+          gs_final-summary = TEXT-003.
+          """unused bt card is used in pict table
+        ENDIF.
+      ELSEIF  gs_ztmm_piclog_itm-status EQ '2' OR gs_ztmm_piclog_itm-status EQ '02'. "DE3K9A0R1M  USANBOD11
+        IF gs_ztmm_pict-matnr = 'VOID'.
+          ""card is used and used and voided in pict table
+          gs_final-summary = TEXT-004.
+        ELSE.
+          ""skip
+        ENDIF.
+
+      ELSEIF gs_ztmm_piclog_itm-status EQ '3' OR gs_ztmm_piclog_itm-status EQ '03'. "DE3K9A0R1M  USANBOD11
+        IF gs_ztmm_pict-matnr = 'VOID'.
+          ""card is voided abd used voided in pict table
+*          gs_final-summary = TEXT-005. ""--ussosub1
+        ELSE.
+          ""card is void and used in pict table
+          gs_final-summary = TEXT-006.
+        ENDIF.
+      ENDIF.
+      IF gs_final-summary IS NOT INITIAL.
+        APPEND gs_final TO gt_final.
+      ENDIF.
+    ELSE. ""unused
+      MOVE-CORRESPONDING gs_ztmm_piclog_itm TO gs_final.
+      gs_final-inccd = gs_ztmm_piclog_itm-cardno.
+      IF gs_ztmm_piclog_itm-status EQ '1' OR gs_ztmm_piclog_itm-status EQ '01'. "DE3K9A0R1M  USANBOD11
+        ""unused and unused in pict table
+*        gs_final-summary = TEXT-007.""--ussosub1
+      ELSEIF  gs_ztmm_piclog_itm-status EQ '2' OR gs_ztmm_piclog_itm-status EQ '02'. "DE3K9A0R1M  USANBOD11
+        ""used bt not available in pict
+        gs_final-summary = TEXT-008.
+      ELSEIF gs_ztmm_piclog_itm-status EQ '3' OR gs_ztmm_piclog_itm-status EQ '03'. "DE3K9A0R1M  USANBOD11
+        ""card is void and unused in pic Table
+        gs_final-summary = TEXT-009.
+      ENDIF.
+      IF gs_final-summary IS NOT INITIAL.
+        APPEND gs_final TO gt_final.
+      ENDIF.
+    ENDIF.
+    AT LAST.
+      LOOP AT gt_final INTO gs_final.
+        DELETE gt_ztmm_pict WHERE inccd = gs_final-inccd.
+        AT LAST.
+          LOOP AT gt_ztmm_pict INTO gs_ztmm_pict.
+            MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+            gs_final-summary = TEXT-010.
+            APPEND gs_final TO gt_final.
+            CLEAR gs_final.
+          ENDLOOP.
+          EXIT.
+        ENDAT.
+      ENDLOOP.
+    ENDAT.
+    CLEAR : gs_ztmm_piclog_itm,gs_final,gs_ztmm_pict.
+  ENDLOOP.
+
+  IF gt_final IS INITIAL.
+    MESSAGE TEXT-001 TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING. ""++USSOSUB1
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  BUILDCAT_DISPLAY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM buildcat_display .
+  CLEAR gt_fieldcatalog1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZINTC'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Count'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZCOUNT'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Count'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'WERKS'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Plant'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'GJAHR'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Fiscal Year'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'GIDAT'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Planned date of inventory count'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'INCCD'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Inv Card'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'LGORT'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Storage Location'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZUSER'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'User Name in User Master Record'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+* Start of Change for DE3K9A0U0J by CHTAMUR
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'PRCTR'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Profit Center'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'PCDESC'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'PC Description'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+* End of Change for DE3K9A0U0J by CHTAMUR
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'MATNR'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Material Number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BISMT'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Old material number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ALQTY'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Quantity in unit of entry'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ALUOM'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Unit of entry'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BSQTY'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Quantity'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BSUOM'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Base Unit of Measure'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BKQTY'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Book quantity'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'VBKQTY'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Total value of Book quantity'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ECOUNT'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Total value of Entered count'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'DFQTY'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Difference of Qty value'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'DUMPS'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Phantom item indicator'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SOBKZ'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Special Stock Indicator'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BSTAR'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Stock type'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'CHARG'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Batch Number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'IBLNR'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Physical Inventory Document'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZEILI'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Line Number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'PSPNR'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'WBS Element'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'VBELN'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Sales Document'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'POSNR'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Sales Document Item'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'LIFNR'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Vendor account number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZTEXT'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Text'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ADCOM'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Aud Comments'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'XLOEK'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Item is deleted'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'AUFNR'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Order Number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ENTDATE'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Entered Date'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SCHGT'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Indicator: bulk material'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BKLAS'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Valuation Class'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'LINE'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Prod.status'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'WIP'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Plant'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SBDKZ'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Dependent requirements ind. for individual and coll. reqmts'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SPLSTKIND'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Special stock indicator'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SHPSPLST'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Ship Special Status'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'STPRS'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'Unit Cost'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BOM_EXPLODE'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-seltext_m   = 'BOM Exploded'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SUMMARY'.
+  wa_fcat1-tabname   = 'GT_FINAL'.
+  wa_fcat1-outputlen   = 158.
+  wa_fcat1-seltext_m   = 'Message'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+*     I_INTERFACE_CHECK        = ' '
+*     I_BYPASSING_BUFFER       = ' '
+*     I_BUFFER_ACTIVE          = ' '
+      i_callback_program       = sy-repid
+      i_callback_pf_status_set = 'ZALV_PFSTATUS' "#EC NOTEXT
+      i_callback_user_command  = 'ZUSER_COM_ALV'
+*     I_CALLBACK_TOP_OF_PAGE   = ' '
+*     I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*     I_CALLBACK_HTML_END_OF_LIST       = ' '
+*     I_STRUCTURE_NAME         =
+*     I_BACKGROUND_ID          = ' '
+*     I_GRID_TITLE             =
+*     I_GRID_SETTINGS          =
+*     IS_LAYOUT                =
+      it_fieldcat              = gt_fieldcatalog1
+*     IT_EXCLUDING             =
+*     IT_SPECIAL_GROUPS        =
+*     IT_SORT                  =
+*     IT_FILTER                =
+*     IS_SEL_HIDE              =
+*     I_DEFAULT                = 'X'
+*     I_SAVE                   = ' '
+*     IS_VARIANT               =
+*     IT_EVENTS                =
+*     IT_EVENT_EXIT            =
+*     IS_PRINT                 =
+*     IS_REPREP_ID             =
+*     I_SCREEN_START_COLUMN    = 0
+*     I_SCREEN_START_LINE      = 0
+*     I_SCREEN_END_COLUMN      = 0
+*     I_SCREEN_END_LINE        = 0
+*     I_HTML_HEIGHT_TOP        = 0
+*     I_HTML_HEIGHT_END        = 0
+*     IT_ALV_GRAPHICS          =
+*     IT_HYPERLINK             =
+*     IT_ADD_FIELDCAT          =
+*     IT_EXCEPT_QINFO          =
+*     IR_SALV_FULLSCREEN_ADAPTER        =
+* IMPORTING
+*     E_EXIT_CAUSED_BY_CALLER  =
+*     ES_EXIT_CAUSED_BY_USER   =
+    TABLES
+      t_outtab                 = gt_final
+    EXCEPTIONS
+      program_error            = 1
+      OTHERS                   = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate .
+  LOOP AT SCREEN.
+    IF screen-name = 'S_PLANT-LOW' OR
+      screen-name = 'S_YEAR-LOW' OR
+      screen-name = 'S_VER-LOW'.
+
+      screen-required = 2.
+      MODIFY SCREEN.
+
+    ENDIF.
+
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_output .
+
+  IF sy-ucomm EQ 'ONLI'.
+    IF s_plant[] IS INITIAL OR s_year[] IS INITIAL OR s_ver[] IS INITIAL.
+      MESSAGE e055(00).
+    ENDIF.
+  ENDIF.
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  F4_VER
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_ver .
+  TYPES: BEGIN OF ty_version,
+           version TYPE ztmm_picc_log-version,
+         END OF ty_version.
+  DATA: lw_version TYPE ty_version,
+        lt_version TYPE TABLE OF ty_version,
+        lt_return  TYPE TABLE OF ddshretval.
+
+  CLEAR: lt_version, lt_return.
+
+* Get the version - based on the card log entered in table
+  SELECT piyear,
+         werks,
+         version FROM ztmm_picc_log
+    INTO TABLE @DATA(lt_picc_log)
+    WHERE version NE ''.
+  IF sy-subrc EQ 0.
+*    SORT lt_picc_log BY piyear werks area cardfrm cardto version.
+    SORT lt_picc_log BY piyear werks version.
+    DELETE ADJACENT DUPLICATES FROM lt_picc_log COMPARING version.
+
+    LOOP AT lt_picc_log INTO DATA(lw_picc_log).
+      CLEAR: lw_version.
+      lw_version-version = lw_picc_log-version.
+      APPEND lw_version TO lt_version.
+    ENDLOOP.
+  ENDIF.
+
+  SORT lt_version BY version.
+  DELETE ADJACENT DUPLICATES FROM lt_version COMPARING version.
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'VERSION'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'S_VER'
+      window_title    = 'Versions '
+      value_org       = 'S'
+    TABLES
+      value_tab       = lt_version
+      return_tab      = lt_return
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+ENDFORM.
+
+FORM zalv_pfstatus USING rt_extab TYPE slis_t_extab.
+  DATA: lv_slis_extab TYPE slis_extab.
+*    CLEAR: lv_slis_extab.
+  DELETE rt_extab WHERE fcode = '&AVE'.
+  DELETE rt_extab WHERE fcode = '&OAD'.
+  SET PF-STATUS 'ZALV_PFSTATUS' EXCLUDING rt_extab.
+ENDFORM.                    "ZUSER_COM_ALV
+
+FORM zuser_com_alv USING r_ucomm     TYPE sy-ucomm
+                         rs_selfield TYPE slis_selfield.
+
+  rs_selfield-refresh = 'X'.
+
+ENDFORM.
+

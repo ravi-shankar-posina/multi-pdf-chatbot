@@ -1,0 +1,896 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_BOM_MAIN_NEW
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+*   INCLUDE ZNPP_BOM_MAIN                                                    *
+*----------------------------------------------------------------------*
+*  Form  GET_DATA
+ FORM get_data .
+   DATA: lw_infile TYPE string,
+          lc_dat TYPE char10 VALUE 'DAT'.
+   REFRESH : gt_upload.
+******uploading file for matnr werks and qty and collecting into gt_upload
+   lw_infile = p_infile.
+   IF lw_infile IS NOT INITIAL.
+     CALL FUNCTION 'GUI_UPLOAD'
+       EXPORTING
+         filename                = lw_infile
+         filetype                = lc_dat
+       TABLES
+         data_tab                = gt_upload
+       EXCEPTIONS
+         file_open_error         = 1
+         file_read_error         = 2
+         no_batch                = 3
+         gui_refuse_filetransfer = 4
+         invalid_type            = 5
+         no_authority            = 6
+         unknown_error           = 7
+         bad_data_format         = 8
+         header_not_allowed      = 9
+         separator_not_allowed   = 10
+         header_too_long         = 11
+         unknown_dp_error        = 12
+         access_denied           = 13
+         dp_out_of_memory        = 14
+         disk_full               = 15
+         dp_timeout              = 16
+         OTHERS                  = 17.
+     IF sy-subrc <> 0.
+
+     ENDIF.
+     DELETE gt_upload INDEX 1." deleting coloumn names
+     DELETE gt_upload WHERE matnr IS INITIAL. "Deleting empty lines
+****converting uploaded materials into sap format.
+     LOOP AT gt_upload INTO gi_upload.
+       IF NOT gi_upload-matnr IS INITIAL.
+         CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+           EXPORTING
+             input  = gi_upload-matnr
+           IMPORTING
+             output = gi_upload-matnr.
+
+       ENDIF.
+       MODIFY gt_upload FROM gi_upload.
+       CLEAR : gi_upload.
+     ENDLOOP.
+*****assidning input file materials into selction fields
+     LOOP AT gt_upload INTO gi_upload.
+       IF NOT gi_upload-matnr IS INITIAL.
+         CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+           EXPORTING
+             input  = gi_upload-matnr
+           IMPORTING
+             output = s_mtnrv-low.
+
+       ENDIF.
+       pm_werks  = gi_upload-werks.
+       s_mtnrv-option = 'EQ'.
+       s_mtnrv-sign = 'I'.
+       APPEND s_mtnrv.
+       CLEAR : gi_upload.
+     ENDLOOP.
+   ENDIF.
+***** retrivinh materials by using mrpcontroller
+   IF s_mtnrv IS INITIAL AND s_dispo IS NOT INITIAL.
+     SELECT matnr werks  beskz schgt zlclid
+            FROM marc
+            INTO TABLE gt_marc1
+            WHERE werks = pm_werks
+            AND   dispo IN s_dispo.
+     IF sy-subrc = 0.
+*****retriving bom materials from mast into gt_mast
+       SELECT matnr
+            werks
+            stlan
+            FROM mast
+            INTO TABLE gt_mast
+            FOR ALL ENTRIES IN gt_marc1
+            WHERE matnr = gt_marc1-matnr
+            AND   werks = pm_werks
+            AND   stlan = p_bomus.
+     ENDIF.
+   ENDIF.
+*****retriving bom materials using input materials
+   IF s_mtnrv IS NOT INITIAL.
+     SELECT matnr
+            werks
+            stlan
+            FROM mast
+            INTO TABLE gt_mast
+            WHERE matnr IN s_mtnrv
+            AND   werks = pm_werks
+            AND   stlan = p_bomus.
+   ENDIF.
+**   collecting Qty and units from input file
+   IF lw_infile IS NOT INITIAL.
+     LOOP AT gt_upload INTO gi_upload.
+
+       READ TABLE gt_mast INTO gi_mast WITH KEY matnr = gi_upload-matnr.
+       IF sy-subrc EQ 0.
+         gi_mast1-matnr = gi_mast-matnr.
+         gi_mast1-stlan = gi_mast-stlan.
+         gi_mast1-werks = gi_mast-werks.
+         gi_mast1-bmeng = gi_upload-qty.
+         gi_mast1-meins = gi_upload-meins.
+         APPEND gi_mast1 TO gt_mast1.
+
+       ENDIF.
+       CLEAR : gi_mast1 , gi_upload  , gi_mast.
+     ENDLOOP.
+   ELSE.
+     LOOP AT gt_mast INTO gi_mast.
+       gi_mast1-matnr = gi_mast-matnr.
+       gi_mast1-stlan = gi_mast-stlan.
+       gi_mast1-werks = gi_mast-werks.
+       APPEND gi_mast1 TO gt_mast1.
+
+
+       CLEAR : gi_mast1 , gi_mast.
+     ENDLOOP.
+   ENDIF.
+******retriving bom for every material
+   LOOP AT gt_mast1 INTO gi_mast1.
+     CLEAR:gi_selpool.
+     REFRESH:gt_stb,gt_matcat,gt_selpool,gt_mard,gt_marc.
+*****this Function module will provide all bom elements for a material
+     CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+       EXPORTING
+         altvo                 = pm_altvo
+         aufsw                 = ' '
+         auskz                 = pm_ausch
+         bagrp                 = pm_bagrp
+         beikz                 = pm_beikz
+         bessl                 = pm_bessl
+         brems                 = pm_brems
+         capid                 = 'BEST'
+         datuv                 = sy-datum
+         ehndl                 = pm_ehndl
+         emeng                 = gi_mast1-bmeng
+         erskz                 = pm_erskz
+         erssl                 = pm_erssl
+         mbwls                 = ' '
+         mtnrv                 = gi_mast1-matnr
+         mehrs                 = 'X'
+         mmory                 = mem_mngmt
+         postp                 = pm_postp
+         sanko                 = pm_sanko
+         sanfr                 = pm_sanfe
+         sanka                 = pm_sanka
+         sanin                 = pm_sanin
+         sanvs                 = pm_sanvs
+         rndkz                 = tcspr-amekz
+         rvrel                 = pm_rvrel
+         schgt                 = pm_schgt
+         stkkz                 = pm_stkkz
+         stlal                 = pm_stlal
+         stlan                 = p_bomus
+         werks                 = pm_werks
+       IMPORTING
+         topmat                = gi_selpool
+       TABLES
+         stb                   = gt_stb
+         matcat                = gt_matcat
+       EXCEPTIONS
+         material_not_found    = 4
+         no_plant_data         = 8
+         no_bom_found          = 12
+         no_suitable_bom_found = 16
+         alt_not_found         = 24
+         missing_authorization = 28.
+
+     IF sy-subrc EQ 0.
+***** collecting all bomcomponents into final table
+       PERFORM move_data.
+     ENDIF.
+     IF sy-subrc EQ 8.
+       MESSAGE e899 WITH text-011 gi_mast-matnr text-025 ' '.
+     ENDIF.
+     IF sy-subrc EQ 12.
+       MESSAGE e899 WITH text-024.
+     ENDIF.
+     IF sy-subrc EQ 16.
+       MESSAGE e899 WITH gi_mast-matnr .
+     ENDIF.
+   ENDLOOP.
+ ENDFORM.                              " GET_DATA
+*  Form  WRITE_DATA
+ FORM write_data.
+
+   DATA:
+            lv_ptext TYPE symsgv,
+            lv_str TYPE string,
+            proxy                        TYPE REF TO zmmco_si_generic_data_out,
+          t_zmmdt_generic_data_row_tab TYPE zmmdt_generic_data_row_tab,
+          w_zmmdt_generic_data_row     TYPE zmmdt_generic_data_row,
+          t_output                     TYPE zmmmt_generic_data,
+          l_exception_msg              TYPE string,
+          l_sys_exc                    TYPE REF TO cx_ai_system_fault,
+          lw_count                     TYPE sy-tabix,
+          lw_fill                      TYPE sy-tfill,
+          lo_async_messaging TYPE REF TO if_wsprotocol_async_messaging..
+   IF p_appl EQ 'X'.
+     CONCATENATE text-067 p_fname
+         INTO lv_ptext.
+     CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+       EXPORTING
+         text = lv_ptext.
+     OPEN DATASET p_fname
+               FOR APPENDING
+               IN TEXT MODE ENCODING DEFAULT.
+   ENDIF.
+   IF p_alv EQ 'X'.
+     PERFORM field_cat USING:
+         '1'  gc_werks gc_mat_list3  text-010 CHANGING gt_fieldc,
+         '1'  gc_level gc_mat_list3  text-012 CHANGING gt_fieldc,
+         '1'  gc_fgmat gc_mat_list3  text-029 CHANGING gt_fieldc,
+         '1'  gc_matnr gc_mat_list3  text-011 CHANGING gt_fieldc,
+         '1'  'ZZALTMN' gc_mat_list3  text-t68 CHANGING gt_fieldc,"Added on 22.01.2016 for CHG1730762 by502277866
+         '1'  gc_maktx gc_mat_list3  text-008 CHANGING gt_fieldc,
+*         '1'  gc_zoldn gc_mat_list3  text-009 CHANGING gt_fieldc,
+         '1'  gc_lgort gc_mat_list3  text-005 CHANGING gt_fieldc,
+         '1'  gc_quant gc_mat_list3  text-007 CHANGING gt_fieldc,
+         '1'  gc_meins gc_mat_list3  text-006 CHANGING gt_fieldc,
+         '1'  'QUANTCNTD' gc_mat_list3 text-026 CHANGING gt_fieldc,
+         '1'  'MEINS1' gc_mat_list3 text-027 CHANGING gt_fieldc,
+         '1'  gc_schgt gc_mat_list3  text-004 CHANGING gt_fieldc,
+         '1'  'BESKZ' gc_mat_list3  text-028 CHANGING gt_fieldc,
+         '1' gc_dumps  gc_mat_list3 text-t41 CHANGING gt_fieldc,
+*         '1'  gc_lgpbe gc_mat_list3  text-003 CHANGING gt_fieldc,
+         '1'  gc_itsob  gc_mat_list3 text-t57 CHANGING gt_fieldc,
+
+         '1'  gc_stkkz  gc_mat_list3  text-t02 CHANGING gt_fieldc,
+
+*         '1'  gc_msign  gc_mat_list3  text-t01 CHANGING gt_fieldc,
+         '1'  gc_fmeng  gc_mat_list3 text-t28 CHANGING gt_fieldc,
+        '1'   gc_sbdkz  gc_mat_list3 text-t30 CHANGING gt_fieldc,
+         '1'  gc_mtart  gc_mat_list3 text-t37 CHANGING gt_fieldc,
+         '1'  gc_dismm  gc_mat_list3 text-t38 CHANGING gt_fieldc,
+*         '1'        gc_kstnr  gc_mat_list3  text-t03 CHANGING gt_fieldc,
+*         '1'        gc_xtlnr  gc_mat_list3  text-t04 CHANGING gt_fieldc,
+*         '1'        gc_stlan  gc_mat_list3  text-t05 CHANGING gt_fieldc,
+*         '1'        gc_mschg  gc_mat_list3  text-t06 CHANGING gt_fieldc,
+         '1'        gc_bindc  gc_mat_list3  text-t07 CHANGING gt_fieldc.
+*         '1'        gc_aenam  gc_mat_list3 text-t08 CHANGING gt_fieldc,
+*         '1'        gc_aedat  gc_mat_list3  text-t09 CHANGING gt_fieldc,
+*         '1'        gc_ausch  gc_mat_list3 text-t10 CHANGING gt_fieldc,
+*         '1'        gc_mnglg  gc_mat_list3 text-t11 CHANGING gt_fieldc,
+*         '1'        gc_kausf  gc_mat_list3 text-t12 CHANGING gt_fieldc,
+*         '1'        gc_idnrk  gc_mat_list3 text-t13 CHANGING gt_fieldc,
+*         '1'        gc_posnr  gc_mat_list3  text-t66 CHANGING gt_fieldc,
+*         '1'        gc_menge  gc_mat_list3 text-t14 CHANGING gt_fieldc,
+*         '1'        gc_meins  gc_mat_list3 text-t15 CHANGING gt_fieldc,
+*         '1'        gc_kzkup  gc_mat_list3 text-t16 CHANGING gt_fieldc,
+*         '1'        gc_sakto  gc_mat_list3 text-t17 CHANGING gt_fieldc,
+*         '1'        gc_annam  gc_mat_list3 text-t65 CHANGING gt_fieldc,
+*         '1'        gc_andat  gc_mat_list3 text-t18 CHANGING gt_fieldc,
+*         '1'        gc_waers  gc_mat_list3 text-t19 CHANGING gt_fieldc,
+*         '1'        gc_umren  gc_mat_list3 text-t21 CHANGING gt_fieldc,
+*         '1'        gc_xloek  gc_mat_list3 text-t22 CHANGING gt_fieldc,
+*         '1'        gc_loekz  gc_mat_list3 text-t23 CHANGING gt_fieldc,
+*         '1'        gc_doknr  gc_mat_list3 text-t24 CHANGING gt_fieldc,
+*         '1'        gc_dokar  gc_mat_list3 text-t25 CHANGING gt_fieldc,
+*         '1'        gc_stufe  gc_mat_list3 text-t26 CHANGING gt_fieldc,
+*         '1'        gc_dspst  gc_mat_list3 text-t27 CHANGING gt_fieldc,
+*
+*         '1'        gc_webaz  gc_mat_list3 text-t29 CHANGING gt_fieldc,
+*         '1'        gc_sbdkz  gc_mat_list3 text-t30 CHANGING gt_fieldc,
+*         '1'        gc_pswrk  gc_mat_list3 text-t31 CHANGING gt_fieldc,
+*         '1'        gc_postp  gc_mat_list3 text-t32 CHANGING gt_fieldc,
+*         '1'        gc_posnr  gc_mat_list3 text-t33 CHANGING gt_fieldc,
+*         '1'        gc_potx1  gc_mat_list3 text-t34 CHANGING gt_fieldc,
+*         '1'        gc_potx2  gc_mat_list3 text-t35 CHANGING gt_fieldc,
+*         '1'        gc_matkl  gc_mat_list3 text-t36 CHANGING gt_fieldc,
+*
+*         '1'        gc_umrez  gc_mat_list3 text-t39 CHANGING gt_fieldc,
+*         '1'        gc_ojtxb  gc_mat_list3 text-t40 CHANGING gt_fieldc,
+*         '1'        gc_dumps  gc_mat_list3 text-t41 CHANGING gt_fieldc,
+*         '1'        gc_werks  gc_mat_list3 text-t42 CHANGING gt_fieldc,
+*         '1'        gc_mmsta  gc_mat_list3 text-t43 CHANGING gt_fieldc,
+*         '1'        gc_preis  gc_mat_list3 text-t44 CHANGING gt_fieldc,
+*         '1'        gc_vprsv  gc_mat_list3 text-t45 CHANGING gt_fieldc,
+*         '1'        gc_peinh  gc_mat_list3 text-t46 CHANGING gt_fieldc,
+*         '1'        gc_preih  gc_mat_list3 text-t47 CHANGING gt_fieldc,
+*         '1'        gc_fbskz  gc_mat_list3 text-t48 CHANGING gt_fieldc,
+*         '1'        gc_lgort  gc_mat_list3 text-t49 CHANGING gt_fieldc,
+*         '1'        gc_prvbe  gc_mat_list3 text-t50 CHANGING gt_fieldc,
+*         '1'        gc_prctr  gc_mat_list3 text-t51 CHANGING gt_fieldc,
+*         '1'        gc_ekorg  gc_mat_list3 text-t52 CHANGING gt_fieldc,
+*         '1'        gc_ekgrp  gc_mat_list3 text-t53 CHANGING gt_fieldc,
+*         '1'        gc_sanka  gc_mat_list3 text-t54 CHANGING gt_fieldc,
+*         '1'        gc_amglg  gc_mat_list3 text-t55 CHANGING gt_fieldc,
+*         '1'        gc_sortf  gc_mat_list3 text-t56 CHANGING gt_fieldc,
+*
+*         '1'        gc_stprs  gc_mat_list3 text-t58 CHANGING gt_fieldc,
+*         '1'        gc_mmein  gc_mat_list3 text-t59 CHANGING gt_fieldc,
+*         '1'        gc_kzwsm  gc_mat_list3 text-t60 CHANGING gt_fieldc,
+*         '1'        gc_datuv  gc_mat_list3 text-t61 CHANGING gt_fieldc,
+*         '1'        gc_datub  gc_mat_list3 text-t62 CHANGING gt_fieldc,
+*         '1'        gc_lifnr  gc_mat_list3 text-t63 CHANGING gt_fieldc,
+*         '1'        gc_mstae  gc_mat_list3 text-t64 CHANGING gt_fieldc.
+     gw_layout_ds-colwidth_optimize = 'X'.
+     gw_layout_ds-zebra = 'X'.
+
+
+     CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+       EXPORTING
+         i_callback_program = sy-repid
+         is_layout          = gw_layout_ds
+         it_fieldcat        = gt_fieldc
+         i_default          = 'X'
+       TABLES
+         t_outtab           = gt_mat_list3
+       EXCEPTIONS
+         program_error      = 1
+         OTHERS             = 2.
+     IF sy-subrc <> 0.
+** Implement suitable error handling here
+       MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+                  WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+     ENDIF.
+   ENDIF.
+   CONCATENATE text-012  text-029 text-011 text-t68 "Added on 22.01.2016 for CHG1730762 by502277866
+               text-010  text-009   text-008  text-007  text-006 text-005  text-004 text-003 text-t01
+               text-t02  text-t03  text-t04  text-t05   text-t06  text-t07  text-t08 text-t09  text-t10 text-t11 text-t12 text-t13 text-t66
+               text-t14  text-t15  text-t16  text-t17   text-t65  text-t18  text-t19 text-t21  text-t22 text-t23 text-t24 text-t25 text-t26
+               text-t27  text-t28  text-t29  text-t30   text-t31  text-t32  text-t33 text-t34  text-t35 text-t36 text-t37 text-t38 text-t39
+               text-t40  text-t41  text-t42  text-t43   text-t44  text-t45  text-t46 text-t47  text-t48 text-t49 text-t50 text-t51 text-t52
+               text-t53  text-t54  text-t55  text-t56   text-t57  text-t58  text-t59 text-t60  text-t61 text-t62 text-t63 text-t64
+               INTO  gi_title-title
+           SEPARATED BY  cl_abap_char_utilities=>horizontal_tab.
+   APPEND gi_title TO gt_title.
+   IF p_ftp EQ 'X'.
+     LOOP AT gt_title INTO gi_title.
+       CONCATENATE w_zmmdt_generic_data_row-string gi_title INTO w_zmmdt_generic_data_row-string SEPARATED BY  cl_abap_char_utilities=>horizontal_tab.
+     ENDLOOP.
+     SHIFT w_zmmdt_generic_data_row-string.
+     APPEND w_zmmdt_generic_data_row TO t_zmmdt_generic_data_row_tab.
+     CLEAR gw_filename.
+     t_output-mt_generic_data-file_name = p_file.
+     CONCATENATE text-032 gc_fname1 pm_werks INTO gw_filename1.
+     t_output-mt_generic_data-identifier = gw_filename1.
+     t_output-mt_generic_data-row       =  t_zmmdt_generic_data_row_tab[].
+     IF NOT t_output-mt_generic_data IS INITIAL.
+       TRY.
+           CREATE OBJECT proxy.
+         CATCH cx_ai_system_fault INTO l_sys_exc.
+           l_exception_msg = l_sys_exc->get_text( ).
+       ENDTRY.
+       IF l_exception_msg IS INITIAL.
+         TRY.
+             lo_async_messaging ?=
+             proxy->get_protocol( if_wsprotocol=>async_messaging ).
+             lo_async_messaging->set_serialization_context('XBTO65').
+             CALL METHOD proxy->si_generic_data_out
+               EXPORTING
+                 output = t_output.
+           CATCH cx_ai_system_fault INTO l_sys_exc.
+             l_exception_msg = l_sys_exc->get_text( ).
+         ENDTRY.
+       ENDIF.
+     ENDIF.
+
+     COMMIT WORK.
+     WAIT UP TO 5 SECONDS. "2 SECONDS.
+     CLEAR lw_count.
+     REFRESH t_zmmdt_generic_data_row_tab[].
+   ENDIF.
+   IF p_ftp EQ 'X' OR p_appl EQ 'X' .
+     LOOP AT gt_mat_list3 INTO gi_mat_list2.
+       CONCATENATE
+           gi_mat_list2-level gi_mat_list2-fgmat gi_mat_list2-matnr gi_mat_list2-zzaltmn " Addedon22.01.2016 for CHG1730762 by502277866
+           gi_mat_list2-werks gi_mat_list2-maktx gi_mat_list2-quant
+           gi_mat_list2-meins
+           gi_mat_list2-posnr gi_mat_list2-beskz
+           gi_mat_list2-stpoz gi_mat_list2-msign gi_mat_list2-rgekz gi_mat_list2-mmein gi_mat_list2-kstnr gi_mat_list2-xtlnr
+           gi_mat_list2-stlan gi_mat_list2-bindc gi_mat_list2-mschg gi_mat_list2-aenam gi_mat_list2-annam gi_mat_list2-aedat
+           gi_mat_list2-ausch gi_mat_list2-mnglg gi_mat_list2-meins gi_mat_list2-kausf gi_mat_list2-idnrk gi_mat_list2-menge
+           gi_mat_list2-kzkup gi_mat_list2-sakto gi_mat_list2-kstpz gi_mat_list2-andat gi_mat_list2-waers gi_mat_list2-umren
+           gi_mat_list2-xloek gi_mat_list2-loekz gi_mat_list2-doknr gi_mat_list2-dokar gi_mat_list2-stufe gi_mat_list2-dspst
+           gi_mat_list2-fmeng gi_mat_list2-webaz gi_mat_list2-sbdkz gi_mat_list2-pswrk gi_mat_list2-postp gi_mat_list2-potx2
+           gi_mat_list2-matkl gi_mat_list2-mtart gi_mat_list2-dismm gi_mat_list2-umrez gi_mat_list2-ojtxb gi_mat_list2-dumps
+           gi_mat_list2-mmsta gi_mat_list2-preis gi_mat_list2-vprsv gi_mat_list2-peinh gi_mat_list2-preih gi_mat_list2-fbskz
+           gi_mat_list2-prvbe gi_mat_list2-prctr gi_mat_list2-ekorg gi_mat_list2-ekgrp gi_mat_list2-sanka gi_mat_list2-amglg
+           gi_mat_list2-sortf gi_mat_list2-itsob gi_mat_list2-stprs gi_mat_list2-mmein gi_mat_list2-kzwsm gi_mat_list2-datuv
+           gi_mat_list2-datub gi_mat_list2-lifnr gi_mat_list2-mstae
+           INTO  lv_str
+          SEPARATED BY  cl_abap_char_utilities=>horizontal_tab.
+       IF p_ftp EQ 'X'.
+         w_zmmdt_generic_data_row-string  = lv_str.
+         APPEND w_zmmdt_generic_data_row TO t_zmmdt_generic_data_row_tab.
+         IF lw_count = p_count.
+           lw_fill =  lw_fill - p_count.
+           CLEAR gw_filename.
+           t_output-mt_generic_data-file_name = p_file.
+
+           CONCATENATE text-032 gc_fname1 gi_mat_list2-werks INTO gw_filename1.
+
+           t_output-mt_generic_data-identifier = gw_filename1.
+           t_output-mt_generic_data-row        =  t_zmmdt_generic_data_row_tab[].
+
+           IF NOT t_output-mt_generic_data IS INITIAL AND t_zmmdt_generic_data_row_tab IS NOT INITIAL.
+             TRY.
+                 CREATE OBJECT proxy.
+               CATCH cx_ai_system_fault INTO l_sys_exc.
+                 l_exception_msg = l_sys_exc->get_text( ).
+             ENDTRY.
+             IF l_exception_msg IS INITIAL.
+               TRY.
+                   lo_async_messaging ?=
+                   proxy->get_protocol( if_wsprotocol=>async_messaging ).
+                   lo_async_messaging->set_serialization_context('XBTO65').
+                   CALL METHOD proxy->si_generic_data_out
+                     EXPORTING
+                       output = t_output.
+                 CATCH cx_ai_system_fault INTO l_sys_exc.
+                   l_exception_msg = l_sys_exc->get_text( ).
+               ENDTRY.
+             ENDIF.
+             COMMIT WORK.
+           ENDIF.
+           COMMIT WORK.
+           CLEAR lw_count.
+           REFRESH t_zmmdt_generic_data_row_tab[].
+         ENDIF.
+         IF lw_count = lw_fill.
+           CLEAR gw_filename.
+           t_output-mt_generic_data-file_name = p_file.
+           CONCATENATE text-032 gc_fname1 gi_mat_list2-werks INTO gw_filename1.
+           t_output-mt_generic_data-identifier = gw_filename1.
+           t_output-mt_generic_data-row       =  t_zmmdt_generic_data_row_tab[].
+
+           IF NOT t_output-mt_generic_data IS INITIAL AND t_zmmdt_generic_data_row_tab IS NOT INITIAL.
+             TRY.
+                 CREATE OBJECT proxy.
+               CATCH cx_ai_system_fault INTO l_sys_exc.
+                 l_exception_msg = l_sys_exc->get_text( ).
+             ENDTRY.
+             IF l_exception_msg IS INITIAL.
+               TRY.
+                   lo_async_messaging ?=
+                   proxy->get_protocol( if_wsprotocol=>async_messaging ).
+                   lo_async_messaging->set_serialization_context('XBTO65').
+                   CALL METHOD proxy->si_generic_data_out
+                     EXPORTING
+                       output = t_output.
+                 CATCH cx_ai_system_fault INTO l_sys_exc.
+                   l_exception_msg = l_sys_exc->get_text( ).
+               ENDTRY.
+             ENDIF.
+             COMMIT WORK.
+           ENDIF.
+           COMMIT WORK.
+           CLEAR lw_count.
+           REFRESH t_zmmdt_generic_data_row_tab[].
+         ENDIF.
+         CLEAR w_zmmdt_generic_data_row.
+       ENDIF.
+       IF p_appl EQ 'X'.
+         TRANSFER lv_str TO p_fname.
+         CLEAR:  lv_str.
+       ENDIF.
+     ENDLOOP.
+     IF p_ftp = 'X'.
+       MESSAGE s899 WITH text-068.
+     ENDIF.
+     IF p_appl EQ 'X'.                       " mat_list3
+       CLOSE DATASET p_fname.
+       MESSAGE s899 WITH text-069.
+     ENDIF.
+   ENDIF.
+ ENDFORM.                              " WRITE_DATA
+*&---------------------------------------------------------------------*
+*&      Form  move_data
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+ FORM move_data.
+   DATA : lw_lev1 TYPE i VALUE 0.
+   DATA : lw_phat ,
+       lw_level TYPE i,"(2)" added on 08.12.2015 for CHG1608306 by 502277866
+       lw_level1 TYPE i," added on 08.12.2015 for CHG1608306 by 502277866
+       lw_flag.
+   gi_ztuhcd1-name = gc_name.
+   APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+   CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+     TABLES
+       t_ztuhcd1     = gt_ztuhcd1
+     EXCEPTIONS
+       no_data_found = 1
+       OTHERS        = 2.
+   IF sy-subrc <> 0.
+* Implement suitable error handling here
+   ENDIF.
+
+
+   APPEND gi_selpool TO gt_selpool.
+
+   CLEAR: gi_selpool, gi_stb.
+   REFRESH : gt_mat_list2.
+***** collecting header material information
+   LOOP AT gt_selpool INTO gi_selpool.
+     CLEAR gi_mat_list2.
+     PERFORM  f_get_mard.
+     PERFORM  f_get_marc.
+
+     MOVE : lw_lev1           TO gi_mat_list2-level,
+            gi_selpool-matnr  TO gi_mat_list2-matnr,
+            gi_selpool-matnr  TO gi_mat_list2-fgmat,
+            gi_selpool-werks  TO gi_mat_list2-werks,
+            gi_selpool-maktx  TO gi_mat_list2-maktx,
+            gi_selpool-bmeng  TO gi_mat_list2-quant,
+            gi_selpool-emmbm  TO gi_mat_list2-quantcntd,
+            gi_selpool-bmein  TO gi_mat_list2-meins.
+*****retriving units from input file
+     READ TABLE gt_mast1 INTO gi_mast1 WITH KEY matnr = gi_mat_list2-matnr.
+     IF sy-subrc EQ 0.
+       MOVE gi_mast1-meins  TO gi_mat_list2-meins1.
+     ENDIF.
+     APPEND gi_mat_list2 TO gt_mat_list2. "appending header material
+   ENDLOOP.
+*****collecting Storage Location Data for Material
+   PERFORM  f_get_mard_stb.
+**** collecting localid and procurement type
+   PERFORM  f_get_marc_stb.
+***collecting bom items
+   LOOP AT gt_stb INTO gi_stb.
+     CLEAR gi_mat_list2.
+     MOVE : gi_stb-stufe TO gi_mat_list2-level,
+            gi_selpool-matnr TO gi_mat_list2-fgmat,
+            gi_stb-idnrk TO gi_mat_list2-matnr,
+            gi_stb-werks TO gi_mat_list2-werks,
+            gi_stb-ojtxp TO gi_mat_list2-maktx,
+            gi_stb-menge TO gi_mat_list2-quant,
+            gi_stb-meins TO gi_mat_list2-meins,
+            gi_stb-posnr TO gi_mat_list2-posnr,
+            gi_stb-wegxx TO gi_mat_list2-wegxx,
+            gi_stb-stlty TO gi_mat_list2-stlty,
+            gi_stb-stlnr TO gi_mat_list2-stlnr,
+            gi_stb-stlkn TO gi_mat_list2-stlkn,
+            gi_stb-stpoz TO gi_mat_list2-stpoz,
+            gi_stb-msign TO gi_mat_list2-msign,
+            gi_stb-rgekz TO gi_mat_list2-rgekz,
+            gi_stb-mmein TO gi_mat_list2-mmein,
+            gi_stb-kstnr TO gi_mat_list2-kstnr,
+            gi_stb-xtlnr TO gi_mat_list2-xtlnr,
+            gi_stb-stlan TO gi_mat_list2-stlan,
+            gi_stb-schgt TO gi_mat_list2-bindc,
+            gi_stb-mschg TO gi_mat_list2-mschg,
+            gi_stb-aenam TO gi_mat_list2-aenam,
+            gi_stb-annam TO gi_mat_list2-annam,
+            gi_stb-aedat TO gi_mat_list2-aedat,
+            gi_stb-ausch TO gi_mat_list2-ausch,
+            gi_stb-mnglg TO gi_mat_list2-mnglg,
+            gi_stb-meins TO gi_mat_list2-meins,
+            gi_stb-meins TO gi_mat_list2-meins1,
+            gi_stb-kausf TO gi_mat_list2-kausf,
+            gi_stb-idnrk TO gi_mat_list2-idnrk,
+            gi_stb-menge TO gi_mat_list2-menge,
+            gi_stb-kzkup TO gi_mat_list2-kzkup,
+            gi_stb-sakto TO gi_mat_list2-sakto,
+            gi_stb-kstpz TO gi_mat_list2-kstpz,
+            gi_stb-andat TO gi_mat_list2-andat,
+            gi_stb-waers TO gi_mat_list2-waers,
+            gi_stb-umren TO gi_mat_list2-umren,
+            gi_stb-xloek TO gi_mat_list2-xloek,
+            gi_stb-loekz TO gi_mat_list2-loekz,
+            gi_stb-doknr TO gi_mat_list2-doknr,
+            gi_stb-dokar TO gi_mat_list2-dokar,
+            gi_stb-stufe TO gi_mat_list2-stufe,
+            gi_stb-dspst TO gi_mat_list2-dspst,
+            gi_stb-fmeng TO gi_mat_list2-fmeng,
+            gi_stb-webaz TO gi_mat_list2-webaz,
+            gi_stb-sbdkz TO gi_mat_list2-sbdkz,
+            gi_stb-pswrk TO gi_mat_list2-pswrk,
+            gi_stb-postp TO gi_mat_list2-postp,
+            gi_stb-potx2 TO gi_mat_list2-potx2,
+            gi_stb-matkl TO gi_mat_list2-matkl,
+            gi_stb-mtart TO gi_mat_list2-mtart,
+            gi_stb-dismm TO gi_mat_list2-dismm,
+            gi_stb-umrez TO gi_mat_list2-umrez,
+            gi_stb-ojtxb TO gi_mat_list2-ojtxb,
+            gi_stb-dumps TO gi_mat_list2-dumps,
+            gi_stb-mmsta TO gi_mat_list2-mmsta,
+            gi_stb-preis TO gi_mat_list2-preis,
+            gi_stb-vprsv TO gi_mat_list2-vprsv,
+            gi_stb-peinh TO gi_mat_list2-peinh,
+            gi_stb-preih TO gi_mat_list2-preih,
+            gi_stb-fbskz TO gi_mat_list2-fbskz,
+            gi_stb-prvbe TO gi_mat_list2-prvbe,
+            gi_stb-prctr TO gi_mat_list2-prctr,
+            gi_stb-ekorg TO gi_mat_list2-ekorg,
+            gi_stb-ekgrp TO gi_mat_list2-ekgrp,
+            gi_stb-sanka TO gi_mat_list2-sanka,
+            gi_stb-amglg TO gi_mat_list2-amglg,
+            gi_stb-sortf TO gi_mat_list2-sortf,
+            gi_stb-sobmx TO gi_mat_list2-itsob,
+            gi_stb-stprs TO gi_mat_list2-stprs,
+            gi_stb-mmein TO gi_mat_list2-mmein,
+            gi_stb-kzwsm TO gi_mat_list2-kzwsm,
+            gi_stb-datuv TO gi_mat_list2-datuv,
+            gi_stb-datub TO gi_mat_list2-datub,
+            gi_stb-lifnr TO gi_mat_list2-lifnr,
+            gi_stb-mngko TO gi_mat_list2-quantcntd,
+            gi_stb-mstae TO gi_mat_list2-mstae.
+     IF gi_stb-xtlnr IS NOT INITIAL.
+       gi_mat_list2-stlkz = 'X'. " assiging assembly indicator
+     ENDIF.
+     READ TABLE gt_mard INTO gi_mard WITH KEY matnr = gi_stb-idnrk
+                                werks = gi_stb-werks BINARY SEARCH.
+     IF sy-subrc EQ 0.
+       MOVE : gi_mard-lgort TO gi_mat_list2-lgort,
+              gi_mard-lgpbe TO gi_mat_list2-lgpbe.
+     ENDIF.
+     READ TABLE gt_marc INTO gi_marc WITH KEY matnr = gi_stb-idnrk
+                                              werks = gi_stb-werks BINARY SEARCH.
+     IF sy-subrc EQ 0.
+       MOVE : gi_marc-schgt TO gi_mat_list2-schgt.
+       MOVE : gi_marc-zoldn TO gi_mat_list2-zoldn.
+       MOVE : gi_marc-beskz TO gi_mat_list2-beskz.
+     ENDIF.
+     APPEND gi_mat_list2 TO gt_mat_list2.
+     CLEAR: gi_mat_list2.
+   ENDLOOP.
+   DELETE gt_mat_list2 WHERE matnr IS INITIAL.
+
+******logic for filtering phantom assembly materials
+   LOOP AT gt_mat_list2 INTO gi_mat_list2.
+     IF gi_mat_list2-level NE '0'.
+       lw_level1 = gi_mat_list2-level."" added on 08.12.2015 for CHG1608306 by 502277866
+       IF lw_flag IS INITIAL OR lw_level GE lw_level1."gi_mat_list2-level ." added on 08.12.2015 for CHG1608306 by 502277866
+         IF gi_mat_list2-stlkz EQ 'X' AND gi_mat_list2-dumps EQ 'x'.
+           lw_phat = 'X'.
+           lw_level = gi_mat_list2-level.
+           CLEAR : lw_flag.
+         ELSE.
+           lw_flag = 'X'.
+           lw_level = gi_mat_list2-level.
+         ENDIF.
+       ELSE.
+         CLEAR : lw_phat.
+       ENDIF.
+       IF lw_phat NE 'X' AND lw_level1 GT lw_level." gi_mat_list2-level GT lw_level " added on 08.12.2015 for CHG1608306 by 502277866 .
+         DELETE gt_mat_list2. " deleting the materials which are not under phantom assembly
+       ENDIF.
+     ENDIF.
+   ENDLOOP.
+   IF NOT p_level IS INITIAL.
+     LOOP AT gt_mat_list2 INTO gi_mat_list2.
+       IF gi_mat_list2-level GT p_level .
+         DELETE gt_mat_list2.
+       ENDIF.
+     ENDLOOP.
+   ENDIF.
+***Start ofchanges  on22.01.2016 for CHG1730762 by502277866
+   IF gt_mat_list2 IS NOT INITIAL.
+     SELECT matnr mtart zzaltmn
+                  FROM mara
+                  INTO TABLE gt_mara
+                  FOR ALL ENTRIES IN gt_mat_list2
+                  WHERE matnr = gt_mat_list2-matnr.
+     IF sy-subrc = 0.
+       SORT gt_mara BY matnr.
+     ENDIF.
+   ENDIF.
+***end of changes  on 22.01.2016 for CHG1730762 by502277866
+   IF p_zrohch = 'X'.
+     PERFORM f_output_zroh_check.
+   ENDIF.
+   PERFORM f_matlongtext.
+
+ ENDFORM.                              " MOVE_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  f_output_zroh_check
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+ FORM f_output_zroh_check.
+**** deleting raw materials
+*** Start of comments  on22.01.2016 for CHG1730762 by502277866
+*   IF gt_mat_list2 IS NOT INITIAL.
+*     SELECT matnr mtart ZZALTMN
+*                  FROM mara
+*                  INTO TABLE gt_mara
+*                  FOR ALL ENTRIES IN gt_mat_list2
+*                  WHERE matnr = gt_mat_list2-matnr.
+*     IF sy-subrc = 0.
+*       SORT gt_mara BY matnr.
+*     ENDIF.
+*   ENDIF.
+***end of comments on " Added on22.01.2016 for CHG1730762 by 502277866
+   LOOP AT gt_mat_list2 INTO gi_mat_list2.
+     CLEAR mara.
+     CLEAR gi_mara.
+     READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_mat_list2-matnr BINARY SEARCH.
+     IF sy-subrc = 0.
+       READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY name = gc_name
+                                                      zkey = gc_key1
+                                                     field = gc_field1
+                                                     low   = gi_mara-mtart.
+       IF sy-subrc = 0.
+         IF gi_mat_list2-level EQ 0.
+           DELETE gt_mat_list2.
+         ENDIF.
+       ENDIF.
+     ENDIF.
+   ENDLOOP.
+
+ ENDFORM.                              " f_output_zroh_check
+
+*&---------------------------------------------------------------------*
+*&      Form  f_get_mard
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+ FORM f_get_mard.
+******retriving strogae location from mard
+   SELECT SINGLE  lgort lgpbe FROM mard
+          INTO (gi_mat_list2-lgort, gi_mat_list2-lgpbe)
+                      WHERE matnr = gi_selpool-matnr
+                      AND werks = gi_selpool-werks.
+
+ ENDFORM.                              " F_GET_MARD
+
+*  Form  F_GET_MARC
+ FORM f_get_marc.
+*** Retriving localid from marc
+   SELECT SINGLE schgt zlclid FROM marc
+           INTO (gi_mat_list2-schgt,gi_mat_list2-zoldn)
+                      WHERE matnr = gi_selpool-matnr
+                      AND werks = gi_selpool-werks.
+
+ ENDFORM.                              " F_GET_MARC
+
+*  Form  F_GET_MARD_STB
+ FORM f_get_mard_stb.
+   IF gt_stb IS NOT INITIAL.
+
+     SELECT matnr werks lgort labst lgpbe FROM mard
+     INTO TABLE gt_mard
+     FOR ALL ENTRIES IN gt_stb
+     WHERE matnr = gt_stb-idnrk
+     AND werks = gt_stb-werks.
+     IF sy-subrc = 0.
+       SORT gt_mard BY matnr werks.
+     ENDIF.
+   ENDIF.
+ ENDFORM.                              " F_GET_MARD_STB
+
+
+*&---------------------------------------------------------------------*
+*&      Form  f_get_marc_stb
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+ FORM f_get_marc_stb.
+   IF gt_stb IS NOT INITIAL.
+     IF s_dispo IS NOT INITIAL.
+       SELECT matnr werks beskz schgt zlclid FROM marc
+            INTO TABLE gt_marc
+            FOR ALL ENTRIES IN gt_stb
+                WHERE  matnr = gt_stb-idnrk
+                  AND  werks = gt_stb-werks
+                  AND  dispo IN s_dispo.
+       IF sy-subrc = 0.
+         SORT gt_marc BY matnr werks.
+       ENDIF.
+     ELSE.
+       SELECT matnr werks beskz schgt zlclid FROM marc
+              INTO TABLE gt_marc
+              FOR ALL ENTRIES IN gt_stb
+                  WHERE  matnr = gt_stb-idnrk
+                    AND  werks = gt_stb-werks.
+       IF sy-subrc = 0.
+         SORT gt_marc BY matnr werks.
+       ENDIF.
+     ENDIF.
+   ENDIF.
+ ENDFORM.                              " F_GET_MARC_STB
+
+*  Form  F_MATLONGTEXT
+ FORM f_matlongtext.
+*****Preparing final Table
+   DATA: l_tabix LIKE sy-tabix,
+         lw_tmp1(17),
+         lw_tmp2(17).
+   CLEAR: lw_tmp1,lw_tmp2.
+   LOOP AT gt_mat_list2 INTO gi_mat_list2.
+
+     gi_mat_list3 = gi_mat_list2.
+     CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+       EXPORTING
+         input  = gi_mat_list3-matnr
+       IMPORTING
+         output = gi_mat_list3-matnr.
+     SPLIT gi_mat_list3-quant AT '.' INTO lw_tmp1 lw_tmp2.
+     gi_mat_list3-quant = lw_tmp1.
+     IF lw_tmp2 > 0.
+       CONCATENATE gi_mat_list3-quant '.' lw_tmp2 INTO gi_mat_list3-quant.
+     ENDIF.
+     READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_mat_list2-matnr BINARY SEARCH.
+     IF sy-subrc EQ 0.
+       gi_mat_list3-zzaltmn  = gi_mara-zzaltmn.
+     ENDIF.
+     APPEND gi_mat_list3 TO gt_mat_list3.
+     IF NOT l_tabix IS INITIAL.
+       DELETE gt_mat_list2 INDEX l_tabix.
+     ENDIF.
+     CLEAR :  l_tabix, gi_mara.
+   ENDLOOP.
+
+ ENDFORM.                              " F_MATLONGTEXT
+
+*&---------------------------------------------------------------------*
+*&      Form  FIELD_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+ FORM field_cat USING value(p_0063) TYPE any
+                           p_c_aufnr TYPE any
+                           value(p_0065) TYPE any
+                           p_text_002 TYPE any
+                  CHANGING gt_fieldc TYPE slis_t_fieldcat_alv..
+   DATA: gi_fieldc TYPE slis_fieldcat_alv.
+   CLEAR gi_fieldc.
+   gi_fieldc-row_pos  = p_0063.
+   gi_fieldc-fieldname = p_c_aufnr.
+   gi_fieldc-tabname = p_0065.
+   gi_fieldc-seltext_l = p_text_002.
+   APPEND gi_fieldc TO gt_fieldc.
+ ENDFORM.                    " FIELD_CAT
+*&---------------------------------------------------------------------*
+*&      Form  F_EXCEL_DOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+ FORM f_excel_download .
+   IF NOT gt_mat_list3[] IS INITIAL.
+     gw_filename = p_exfile.
+     CALL FUNCTION 'GUI_DOWNLOAD'
+       EXPORTING
+         filename                = gw_filename
+         filetype                = text-064
+         append                  = 'X'
+       TABLES
+         data_tab                = gt_mat_list3
+         fieldnames              = gt_title
+       EXCEPTIONS
+         file_write_error        = 1
+         no_batch                = 2
+         gui_refuse_filetransfer = 3
+         invalid_type            = 4
+         no_authority            = 5
+         unknown_error           = 6
+         header_not_allowed      = 7
+         separator_not_allowed   = 8
+         filesize_not_allowed    = 9
+         header_too_long         = 10
+         dp_error_create         = 11
+         dp_error_send           = 12
+         dp_error_write          = 13
+         unknown_dp_error        = 14
+         access_denied           = 15
+         dp_out_of_memory        = 16
+         disk_full               = 17
+         dp_timeout              = 18
+         file_not_found          = 19
+         dataprovider_exception  = 20
+         control_flush_error     = 21
+         OTHERS                  = 22.
+     IF sy-subrc <> 0.
+       MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+               WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+       EXIT.
+     ELSE .
+       MESSAGE s899 WITH  text-065.
+     ENDIF.
+   ENDIF.
+ ENDFORM.                    " F_EXCEL_DOWNLOAD
+

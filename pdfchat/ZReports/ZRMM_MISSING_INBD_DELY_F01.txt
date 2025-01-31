@@ -1,0 +1,209 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_MISSING_INBD_DELY_F01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  FETCH_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fetch_data.
+  SELECT a~ebeln
+         a~bsart
+         a~aedat
+         a~ekorg
+         b~ebelp
+         b~werks
+         INTO TABLE gt_po
+         FROM ekko AS a INNER JOIN ekpo AS b
+         ON a~ebeln = b~ebeln
+         WHERE a~bsart IN s_bsart
+           AND a~aedat IN s_aedat
+           AND a~ekorg IN s_ekorg
+           AND b~werks IN s_werks.
+  IF gt_po[] IS NOT INITIAL.
+    SORT gt_po BY ebeln ebelp.
+    SELECT vbeln
+           posnr
+           pstyv
+           matnr
+           lfimg
+           vgbel
+           vgpos
+           FROM lips
+           INTO TABLE gt_lips
+           FOR ALL ENTRIES IN gt_po
+           WHERE vgbel = gt_po-ebeln
+             AND vgpos = gt_po-ebelp.
+    IF sy-subrc EQ 0.
+      SORT gt_lips BY vbeln posnr.
+
+      SELECT vbeln
+             wadat_ist
+        FROM likp
+        INTO TABLE gt_likp
+        FOR ALL ENTRIES IN gt_lips
+        WHERE vbeln EQ gt_lips-vbeln.
+      IF sy-subrc EQ 0.
+        SORT gt_likp BY vbeln.
+      ENDIF.
+
+      SELECT vbeln
+             wbstk
+        FROM vbuk
+        INTO TABLE gt_vbuk
+        FOR ALL ENTRIES IN gt_lips
+        WHERE vbeln EQ gt_lips-vbeln.
+      IF sy-subrc EQ 0.
+        SORT gt_vbuk BY vbeln.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  POPULATE_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_data .
+  LOOP AT gt_po INTO DATA(lv_po).
+    gv_final-ebeln = lv_po-ebeln.
+    gv_final-ebelp = lv_po-ebelp.
+    gv_final-aedat = lv_po-aedat.
+*<->Parallel Cursor<->*
+    SORT gt_lips BY vgbel vgpos.
+    READ TABLE gt_lips INTO DATA(lv_tmp) WITH KEY vgbel = lv_po-ebeln
+                                                  vgpos = lv_po-ebelp
+                                                  BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      DATA(lv_index) = sy-tabix.
+      LOOP AT gt_lips INTO DATA(lv_lips) FROM lv_index.
+        IF ( lv_lips-vgbel EQ lv_po-ebeln AND lv_lips-vgpos EQ lv_po-ebelp ).
+          gv_final-vbeln = lv_lips-vbeln.
+          gv_final-posnr = lv_lips-posnr.
+          gv_final-pstyv = lv_lips-pstyv.
+          gv_final-matnr = lv_lips-matnr.
+          gv_final-lfimg = lv_lips-lfimg.
+*Goods Movement Date*
+          READ TABLE gt_likp INTO DATA(lv_likp) WITH KEY vbeln = lv_lips-vbeln
+                                                         BINARY SEARCH.
+          IF sy-subrc EQ 0.
+            gv_final-wadat_ist = lv_likp-wadat_ist.
+          ENDIF.
+*Goods Movement Status*
+          READ TABLE gt_vbuk INTO DATA(lv_vbuk) WITH KEY vbeln = lv_lips-vbeln
+                                                         BINARY SEARCH.
+          IF sy-subrc EQ 0.
+            gv_final-wbstk = lv_vbuk-wbstk.
+          ENDIF.
+
+          APPEND gv_final TO gt_final.
+          CLEAR:lv_lips,lv_likp,lv_vbuk.
+        ELSE.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_alv .
+  CLEAR:gv_layout.
+  gv_layout-zebra             = gc_flg.
+  gv_layout-colwidth_optimize = gc_flg.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-repid
+      it_fieldcat        = gt_fieldcat
+      is_layout          = gv_layout
+    TABLES
+      t_outtab           = gt_final
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_fieldcat.
+  gi_fieldcat-fieldname  = gc_ebeln.
+  gi_fieldcat-seltext_m  = gc_ebeln_txt.
+  gi_fieldcat-col_pos    = 1.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+  gi_fieldcat-fieldname  = gc_ebelp.
+  gi_fieldcat-seltext_m  = gc_ebelp_txt.
+  gi_fieldcat-col_pos    = 2.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+  gi_fieldcat-fieldname  = gc_aedat .
+  gi_fieldcat-seltext_m  = gc_aedat_txt.
+  gi_fieldcat-col_pos    = 3.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+  gi_fieldcat-fieldname  = gc_matnr.
+  gi_fieldcat-seltext_m  = gc_matnr_txt.
+  gi_fieldcat-col_pos    = 4.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+  gi_fieldcat-fieldname  = gc_vbeln.
+  gi_fieldcat-seltext_m  = gc_vbeln_txt.
+  gi_fieldcat-outputlen  = 12.
+  gi_fieldcat-col_pos    = 5.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+  gi_fieldcat-fieldname  = gc_posnr.
+  gi_fieldcat-seltext_m  = gc_posnr_txt.
+  gi_fieldcat-col_pos    = 6.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+  gi_fieldcat-fieldname  = gc_pstyv .
+  gi_fieldcat-seltext_m  = gc_pstyv_txt.
+  gi_fieldcat-col_pos    = 7.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+  gi_fieldcat-fieldname  = gc_lfimg.
+  gi_fieldcat-seltext_m  = gc_lfimg_txt.
+  gi_fieldcat-col_pos    = 8.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+  gi_fieldcat-fieldname  = gc_wadat_ist.
+  gi_fieldcat-seltext_m  = gc_wadat_ist_txt.
+  gi_fieldcat-col_pos    = 9.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+  gi_fieldcat-fieldname  = gc_wbstk.
+  gi_fieldcat-seltext_m  = gc_wbstk_txt.
+  gi_fieldcat-col_pos    = 10.
+  APPEND gi_fieldcat TO gt_fieldcat.
+  CLEAR:gi_fieldcat.
+
+ENDFORM.
+

@@ -1,0 +1,813 @@
+*&-------------------------------------------------------------------*
+*&  Include           ZNSD_ITRADE_PO_ANALYZER_SUB
+*&-------------------------------------------------------------------*
+*--------------------------------------------------------------------*
+*       CLASS lcl_event_receiver DEFINITION
+*--------------------------------------------------------------------*
+*
+*--------------------------------------------------------------------*
+CLASS lcl_event_receiver DEFINITION.
+  PUBLIC SECTION.
+    METHODS:
+      handle_toolbar FOR EVENT toolbar OF cl_gui_alv_grid
+      IMPORTING e_object e_interactive,
+
+      handle_user_command FOR EVENT user_command OF cl_gui_alv_grid
+      IMPORTING e_ucomm.
+ENDCLASS.                    "lcl_event_receiver DEFINITION
+
+*--------------------------------------------------------------------*
+*       CLASS lcl_event_receiver IMPLEMENTATION
+*--------------------------------------------------------------------*
+*
+*--------------------------------------------------------------------*
+CLASS lcl_event_receiver IMPLEMENTATION.
+
+  METHOD handle_toolbar.
+    DATA: ls_toolbar  TYPE stb_button.
+    CLEAR ls_toolbar.
+    MOVE 3 TO ls_toolbar-butn_type.
+    APPEND ls_toolbar TO e_object->mt_toolbar.
+    CLEAR ls_toolbar.
+    MOVE 'EXPORT_EXCEL' TO ls_toolbar-function.
+    MOVE icon_export TO ls_toolbar-icon.
+    MOVE 'Export to excel'(111) TO ls_toolbar-quickinfo.
+    MOVE 'Export to excel'(112) TO ls_toolbar-text.
+    MOVE ' ' TO ls_toolbar-disabled.
+    APPEND ls_toolbar TO e_object->mt_toolbar.
+
+    CLEAR ls_toolbar.
+    MOVE 3 TO ls_toolbar-butn_type.
+    APPEND ls_toolbar TO e_object->mt_toolbar.
+    CLEAR ls_toolbar.
+    MOVE 'GEN_MESSAGE' TO ls_toolbar-function.
+    MOVE icon_release TO ls_toolbar-icon.
+    MOVE 'Generate Message'(113) TO ls_toolbar-quickinfo.
+    MOVE 'Generate Message'(114) TO ls_toolbar-text.
+    MOVE ' ' TO ls_toolbar-disabled.
+    APPEND ls_toolbar TO e_object->mt_toolbar.
+
+    CLEAR ls_toolbar.
+    MOVE 3 TO ls_toolbar-butn_type.
+    APPEND ls_toolbar TO e_object->mt_toolbar.
+    CLEAR ls_toolbar.
+    MOVE 'REFRESH_DISPLAY' TO ls_toolbar-function.
+    MOVE icon_refresh TO ls_toolbar-icon.
+    MOVE 'Refresh display'(115) TO ls_toolbar-quickinfo.
+    MOVE 'Refresh display'(116) TO ls_toolbar-text.
+    MOVE ' ' TO ls_toolbar-disabled.
+    APPEND ls_toolbar TO e_object->mt_toolbar.
+  ENDMETHOD.                    "handle_toolbar
+
+  METHOD handle_user_command.
+    DATA: lv_rows TYPE i.
+
+    CASE e_ucomm.
+      WHEN 'EXPORT_EXCEL' .
+        PERFORM export_to_excel.
+      WHEN 'GEN_MESSAGE'.
+        PERFORM get_selected_row.
+
+        IF gt_rows[] IS INITIAL.
+          MESSAGE text-e01 TYPE 'S' DISPLAY LIKE 'E'.
+        ELSE.
+          CLEAR lv_rows.
+          DESCRIBE TABLE gt_rows LINES lv_rows.
+          IF lv_rows GT 500.
+            MESSAGE text-e02 TYPE 'S' DISPLAY LIKE 'E'.
+          ELSE.
+            LOOP AT gt_rows INTO gi_row.
+              READ TABLE gt_po INTO selected_row INDEX gi_row-index.
+              IF sy-subrc = 0.
+                PERFORM generate_message_new USING selected_row.
+                MODIFY gt_rows FROM selected_row INDEX gi_row-index.
+              ENDIF.
+            ENDLOOP.
+            PERFORM extract_data_po.
+            PERFORM refresh_display.
+          ENDIF.
+        ENDIF.
+      WHEN 'REFRESH_DISPLAY'.
+        PERFORM extract_data_po.
+        PERFORM refresh_display.
+      WHEN OTHERS.
+    ENDCASE.
+  ENDMETHOD.                    "handle_user_command
+
+ENDCLASS.                    "lcl_event_receiver IMPLEMENTATION
+
+DATA: evt_receiver TYPE REF TO lcl_event_receiver.
+
+*&-------------------------------------------------------------------*
+*&      Form  GET_IDOC_STATUS
+*&-------------------------------------------------------------------*
+FORM get_idoc_status .
+  SELECT status statva FROM stacust INTO TABLE gt_stacust.
+  SELECT statva stalight FROM stalight INTO TABLE gt_stalight.
+ENDFORM.                    "get_idoc_status
+*&-------------------------------------------------------------------*
+*&      Form  EXTRACT_DATA_PO
+*&-------------------------------------------------------------------*
+*       text
+*--------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*--------------------------------------------------------------------*
+FORM extract_data_po .
+  REFRESH: gt_ekko1,  gt_nast, gt_po.
+*Begin of changes by 503146489 CR-GECHG0657413  DE3K994936 27/11/2019
+  CLEAR gv_stat.
+  IF s_status-low = 'OPEN'.
+    gv_stat = ' '.
+  ELSEIF s_status-low = 'CLOSE'.
+    gv_stat = 'X'.
+  ENDIF.
+
+  IF s_status-low = 'OPEN' OR
+     s_status-low = 'CLOSE'.
+    SELECT a~ebeln a~bedat a~ekorg c~lifnr a~bukrs
+           a~bsart a~bstyp a~frgke a~ernam
+      INTO CORRESPONDING FIELDS OF TABLE gt_ekko1 "UP TO 500 ROWS
+          FROM ekko AS a JOIN ekpo AS b
+          ON a~ebeln = b~ebeln
+          JOIN lfa1 AS c
+          ON a~lifnr = c~lifnr
+      WHERE a~ebeln IN s_ebeln
+        AND a~ekorg IN s_ekorg
+        AND a~bedat IN s_bedat
+        AND a~ernam IN s_ernam
+        AND c~ktokk IN s_ktokk
+        AND a~bukrs IN s_bukrs
+        AND a~bstyp IN s_bstyp
+        AND a~frgke IN s_frgke
+        AND a~bsart IN s_bsart
+        AND b~elikz = gv_stat.
+*End of changes by 503146489 CR-GECHG0657413  DE3K994936 27/11/2019
+  ELSE.
+    SELECT a~ebeln a~bedat a~ekorg c~lifnr a~bukrs
+           a~bsart a~bstyp a~frgke a~ernam
+      INTO CORRESPONDING FIELDS OF TABLE gt_ekko1 "UP TO 500 ROWS
+          FROM ekko AS a JOIN ekpo AS b
+          ON a~ebeln = b~ebeln
+          JOIN lfa1 AS c
+          ON a~lifnr = c~lifnr
+      WHERE a~ebeln IN s_ebeln
+        AND a~ekorg IN s_ekorg
+        AND a~bedat IN s_bedat
+        AND a~ernam IN s_ernam
+        AND c~ktokk IN s_ktokk
+        AND a~bukrs IN s_bukrs
+        AND a~bstyp IN s_bstyp
+        AND a~frgke IN s_frgke
+        AND a~bsart IN s_bsart
+*Begin of changes by 503146489 CR-GECHG0657413  DE3K994936 27/11/2019
+*       AND b~elikz = ' '
+        AND b~elikz IN ('X', ' ').
+  ENDIF.
+*End of changes by 503146489 CR-GECHG0657413  DE3K994936 27/11/2019
+
+  IF gt_ekko1[] IS NOT INITIAL .
+    SORT gt_ekko1 BY ebeln.
+    DELETE ADJACENT DUPLICATES FROM gt_ekko1 COMPARING ebeln.
+
+    SELECT objky vstat kschl erdat eruhr datvr uhrvr cmfpnr
+           kappl parnr parvw spras
+       INTO CORRESPONDING FIELDS OF TABLE gt_nast
+       FROM nast FOR ALL ENTRIES IN gt_ekko1
+       WHERE objky = gt_ekko1-ebeln
+         AND kschl IN s_kschl
+         AND kappl = 'EF'.
+    IF sy-subrc = 0.
+      SORT gt_nast BY objky erdat DESCENDING eruhr DESCENDING.
+      DELETE ADJACENT DUPLICATES FROM gt_nast COMPARING objky.
+
+      IF gt_nast[] IS NOT INITIAL.
+        SELECT * FROM cmfp
+               INTO TABLE gt_cmfp
+               FOR ALL ENTRIES IN gt_nast
+               WHERE aplid = 'WFMC'
+                AND nr = gt_nast-cmfpnr
+                AND msgty = 'I'
+                AND ( arbgb = 'E0' OR arbgb = 'EA' ).
+        IF sy-subrc EQ 0.
+          SORT gt_cmfp.
+
+* Type mis-match between DOCNUM and MSGV1 - holding IDOC number
+* and hence moving in another internal table
+          LOOP AT gt_cmfp INTO gi_cmfp.
+            gi_cmfp_temp-msgv1 = gi_cmfp-msgv1+0(16).
+            APPEND gi_cmfp_temp TO gt_cmfp_temp.
+          ENDLOOP.
+
+* Fetch control record and idoc status
+          SELECT t2~status t2~descrp t1~docnum
+                   INTO TABLE gt_teds2
+                   FROM edidc AS t1
+             INNER JOIN teds2 AS t2
+                     ON t1~status = t2~status
+             FOR ALL ENTRIES IN gt_cmfp_temp
+                  WHERE t1~docnum = gt_cmfp_temp-msgv1
+                    AND t2~langua  = sy-langu .
+
+          IF sy-subrc EQ 0.
+            SORT gt_teds2.
+          ENDIF.
+
+          SELECT * FROM t100 INTO TABLE gt_t100
+                   FOR ALL ENTRIES IN gt_cmfp
+                   WHERE sprsl = sy-langu
+                     AND arbgb = gt_cmfp-arbgb
+                     AND msgnr = gt_cmfp-msgnr.
+          IF sy-subrc EQ 0.
+            SORT gt_t100.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+* Type mis-match between EKKOEBEN and Z table EBELN
+    LOOP AT gt_ekko1 INTO gi_ekko.
+      gw_ekko_temp-ebeln = gi_ekko-ebeln+0(10).
+      APPEND gw_ekko_temp TO gt_ekko_temp.
+    ENDLOOP.
+
+* Fetch Push Back - Purchase Orders
+    SELECT * FROM zfi_itrade_po
+             INTO TABLE gt_push
+             FOR ALL ENTRIES IN gt_ekko_temp
+             WHERE ebeln = gt_ekko_temp-ebeln.
+    IF sy-subrc EQ 0.
+      SORT gt_push.
+    ENDIF.
+  ENDIF.
+
+  LOOP AT gt_ekko1 INTO gi_ekko.
+    CLEAR: gi_po.
+    MOVE-CORRESPONDING gi_ekko TO gi_po.
+    gi_po-type_doc = c_oda. "PO
+
+* Populate pushback values
+    READ TABLE gt_push WITH KEY ebeln = gi_ekko-ebeln+0(10)
+                                       TRANSPORTING NO FIELDS.
+    IF sy-subrc EQ 0.
+      gi_po-pushback = 'YES'.
+    ELSE.
+      gi_po-pushback = 'NO'.
+    ENDIF.
+
+    CHECK gi_po-pushback IN s_push.
+
+    LOOP AT s_kschl.
+      CLEAR gi_nast.
+      READ TABLE gt_nast INTO gi_nast WITH KEY objky = gi_ekko-ebeln
+                                               kschl = s_kschl-low.
+      IF sy-subrc = 0.
+        READ TABLE gt_cmfp INTO gi_cmfp WITH KEY nr = gi_nast-cmfpnr.
+        IF sy-subrc = 0.
+          gi_po-msgv1 = gi_cmfp-msgv1.
+
+          READ TABLE gt_teds2 INTO gi_teds2  WITH KEY
+                                         docnum = gi_cmfp-msgv1+0(16).
+          IF sy-subrc EQ 0.
+            gi_po-idoc_stat = gi_teds2-status.
+            gi_po-idoc_stat_descr = gi_teds2-descrp.
+            PERFORM set_status_groupping USING gi_po-idoc_stat
+                                      CHANGING gi_po-idoc_stat_group.
+
+          ENDIF.
+        ENDIF.
+
+        CHECK gi_po-idoc_stat IN s_stat[].
+        IF gi_nast-vstat = '0' AND po_nproc = 'X'.
+          MOVE icon_yellow_light TO gi_po-icon.
+          gi_po-message = text-008.
+          gi_po-kschl = gi_nast-kschl.
+          gi_po-datvr = gi_nast-datvr.
+          IF gi_po-datvr IS INITIAL.
+            gi_po-uhrvr = space.
+          ELSE.
+            gi_po-uhrvr = gi_nast-uhrvr.
+          ENDIF.
+          APPEND gi_po TO gt_po.
+        ELSEIF gi_nast-vstat = '1' AND po_sproc = 'X'.
+          MOVE icon_green_light TO gi_po-icon.
+          gi_po-message = text-014.
+          gi_po-kschl = gi_nast-kschl.
+          gi_po-datvr = gi_nast-datvr.
+          IF gi_po-datvr IS INITIAL.
+            gi_po-uhrvr = space.
+          ELSE.
+            gi_po-uhrvr = gi_nast-uhrvr.
+          ENDIF.
+          APPEND gi_po TO gt_po.
+        ELSEIF gi_nast-vstat = '2' AND po_iproc = 'X'.
+          READ TABLE gt_cmfp INTO gi_cmfp
+                      WITH KEY nr = gi_nast-cmfpnr
+                               msgty = 'E'.
+          IF sy-subrc EQ 0.
+            READ TABLE gt_t100 INTO gi_t100
+                            WITH KEY arbgb = gi_cmfp-arbgb
+                                     msgnr = gi_cmfp-msgnr.
+            IF gi_t100-text <> ''.
+              gi_po-message = gi_t100-text.
+            ELSE.
+              gi_po-message = text-013.
+            ENDIF.
+          ELSE.
+            gi_po-message = text-013.
+          ENDIF.
+          gi_po-kschl = gi_nast-kschl.
+          gi_po-datvr = gi_nast-datvr.
+          MOVE icon_red_light TO gi_po-icon.
+          IF gi_po-datvr IS INITIAL.
+            gi_po-uhrvr = space.
+          ELSE.
+            gi_po-uhrvr = gi_nast-uhrvr.
+          ENDIF.
+          APPEND gi_po TO gt_po.
+
+        ELSE.
+          DELETE gt_ekko1 FROM gi_ekko.
+        ENDIF.
+      ELSEIF po_ngen = 'X'.
+        gi_po-kschl = gi_nast-kschl.
+        MOVE icon_red_light TO gi_po-icon.
+        gi_po-message = text-007.
+        IF gi_po-datvr IS INITIAL.
+          gi_po-uhrvr = space.
+        ENDIF.
+        APPEND gi_po TO gt_po.
+      ENDIF.
+    ENDLOOP.
+  ENDLOOP.
+ENDFORM.                    " EXTRACT_DATA_PO
+*&-------------------------------------------------------------------*
+*&      Form  SET_STATUS_GROUPPING
+*&-------------------------------------------------------------------*
+*       text
+*--------------------------------------------------------------------*
+*      -->P_GI_EKKO_IDOC_STAT  text
+*      <--P_GI_EKKO_IDOC_STAT_GROUP  text
+*--------------------------------------------------------------------*
+FORM set_status_groupping  USING    idoc_status
+                           CHANGING idoc_stat_group.
+
+  CLEAR : gi_stacust , gi_stalight.
+
+  CHECK idoc_status IS NOT INITIAL.
+  READ TABLE gt_stacust INTO gi_stacust
+                       WITH KEY status = idoc_status.
+  CHECK sy-subrc = 0.
+  READ TABLE gt_stalight INTO gi_stalight
+                   WITH KEY statva = gi_stacust-statva.
+  CASE gi_stalight-stalight .
+    WHEN '1' .
+      CONCATENATE icon_yellow_light 'Yellow'
+             INTO idoc_stat_group SEPARATED BY space .
+    WHEN '2' .
+      CONCATENATE icon_green_light 'Green'
+             INTO idoc_stat_group SEPARATED BY space .
+    WHEN '3'.
+      CONCATENATE icon_red_light 'Red'
+             INTO idoc_stat_group SEPARATED BY space .
+  ENDCASE.
+
+ENDFORM.                    " SET_STATUS_GROUPPING
+*&-------------------------------------------------------------------*
+*&      Form  EXPORT_TO_EXCEL
+*&-------------------------------------------------------------------*
+*       text
+*--------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*--------------------------------------------------------------------*
+FORM export_to_excel.
+  DATA: gd_path TYPE string.
+  REFRESH gt_xls.
+
+  LOOP AT gt_po INTO gi_po.
+    CLEAR gt_xls.
+    MOVE-CORRESPONDING gi_po TO gt_xls.
+    CASE gi_po-icon.
+      WHEN icon_red_light.
+        gt_xls-status = 'RED'.
+      WHEN icon_green_light.
+        gt_xls-status = 'GREEN'.
+      WHEN icon_yellow_light.
+        gt_xls-status = 'YELLOW'.
+    ENDCASE.
+    IF gi_po-idoc_stat_group CS 'Green'.
+      gt_xls-idoc_stat_group = 'Green'.
+    ELSEIF gi_po-idoc_stat_group CS 'Red'.
+      gt_xls-idoc_stat_group = 'Red'.
+    ELSEIF gi_po-idoc_stat_group CS 'Yellow'.
+      gt_xls-idoc_stat_group = 'Yellow'.
+    ENDIF.
+    APPEND gt_xls.
+  ENDLOOP.
+  CALL METHOD cl_gui_frontend_services=>directory_browse
+    EXPORTING
+      window_title         = 'File Directory'
+      initial_folder       = 'C:\'
+    CHANGING
+      selected_folder      = gd_path
+    EXCEPTIONS
+      cntl_error           = 1
+      error_no_gui         = 2
+      not_supported_by_gui = 3
+      OTHERS               = 4.
+  IF sy-subrc <> 0.
+    EXIT.
+  ENDIF.
+  CONCATENATE gd_path text-f02 INTO gd_path.
+
+  PERFORM prepare_header.
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename                = gd_path
+      write_field_separator   = 'X'
+    TABLES
+      data_tab                = gt_xls
+      fieldnames              = gt_heading
+    EXCEPTIONS
+      file_write_error        = 1
+      no_batch                = 2
+      gui_refuse_filetransfer = 3
+      invalid_type            = 4
+      no_authority            = 5
+      unknown_error           = 6
+      header_not_allowed      = 7
+      separator_not_allowed   = 8
+      filesize_not_allowed    = 9
+      header_too_long         = 10
+      dp_error_create         = 11
+      dp_error_send           = 12
+      dp_error_write          = 13
+      unknown_dp_error        = 14
+      access_denied           = 15
+      dp_out_of_memory        = 16
+      disk_full               = 17
+      dp_timeout              = 18
+      file_not_found          = 19
+      dataprovider_exception  = 20
+      control_flush_error     = 21
+      OTHERS                  = 22.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+ENDFORM.                    " EXPORT_TO_EXCEL
+*&-------------------------------------------------------------------*
+*&      Form  GET_SELECTED_ROW
+*&-------------------------------------------------------------------*
+*       text
+*--------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*--------------------------------------------------------------------*
+FORM get_selected_row .
+  CLEAR selected_row.
+  CALL METHOD r_grid->get_selected_rows
+    IMPORTING
+      et_index_rows = gt_rows.
+ENDFORM.                    " GET_SELECTED_ROW
+*&-------------------------------------------------------------------*
+*&      Form  PREPARE_HEADER
+*&-------------------------------------------------------------------*
+*       text
+*--------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*--------------------------------------------------------------------*
+FORM prepare_header .
+  DEFINE add_header.
+    clear gt_heading.
+    gt_heading-text = &1.
+    append gt_heading.
+  END-OF-DEFINITION.
+
+  add_header : 'Document type', 'Status','Document',
+               'Document Category' , 'Document Type',
+               'Document date','Created by', 'Processing Date',
+               'Processing Time', 'Company Code','Purch. Org.','Vendor',
+               'Output Type','Release Indicator' ,
+               'Output Message Descr.','IDoc Number',
+               'Status', 'IDOC Status' ,'Description',
+               'Pushback'.
+ENDFORM.                    " PREPARE_HEADER
+*&-------------------------------------------------------------------*
+*&      Form  REFRESH_DISPLAY
+*&-------------------------------------------------------------------*
+*       text
+*--------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*--------------------------------------------------------------------*
+FORM refresh_display .
+  DATA ls_stable TYPE lvc_s_stbl.
+  ls_stable-row = 'X'.
+  ls_stable-col = 'X'.
+  CALL METHOD r_grid->refresh_table_display
+    EXPORTING
+      is_stable = ls_stable.
+ENDFORM.                    " REFRESH_DISPLAY
+*&-------------------------------------------------------------------*
+*&      Module  STATUS_0100  OUTPUT
+*&-------------------------------------------------------------------*
+*       text
+*--------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'STATUS'.
+  SET TITLEBAR 'T01'.
+  PERFORM prepare_fieldcat.
+  IF r_container IS  INITIAL.
+    IF cl_gui_alv_grid=>offline( ) IS INITIAL.
+      CREATE OBJECT r_container
+        EXPORTING
+          container_name = 'CONTAINER_1'.
+    ENDIF.
+*-Begin of changes by 503146489 for CR# GECHG0648088 TR# DE3K994578
+*    PERFORM export_to_mem_rfc.
+*-End of changes by 503146489 for CR# GECHG0648088 TR# DE3K994578
+    PERFORM display_alv.
+  ENDIF.
+ENDMODULE.                 " STATUS_0100  OUTPUT
+*&--------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&--------------------------------------------------------------------*
+*       text
+*---------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+  ok_code = sy-ucomm.
+  CASE ok_code.
+    WHEN 'BACK'.
+      LEAVE TO SCREEN 0.
+    WHEN OTHERS.
+  ENDCASE.
+ENDMODULE.                 " USER_COMMAND_0100  INPUT
+*&--------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV
+*&--------------------------------------------------------------------*
+*       text
+*---------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*---------------------------------------------------------------------*
+FORM display_alv .
+  DATA: lv_lines TYPE i,
+        lv_lines_t(20).
+  CLEAR: lv_lines, lv_lines_t.
+  DESCRIBE TABLE gt_po LINES lv_lines.
+  lv_lines_t = lv_lines.
+  CONDENSE lv_lines_t.
+  CONCATENATE text-001 lv_lines_t text-rec
+         INTO ls_layout-grid_title
+         SEPARATED BY space.
+
+  ls_layout-box_fname = 'BOX'.
+  ls_layout-sel_mode  = 'D'.
+
+  CREATE OBJECT: evt_receiver.
+  CREATE OBJECT r_grid
+    EXPORTING
+      i_parent = r_container.
+
+  SET HANDLER: evt_receiver->handle_user_command FOR r_grid,
+               evt_receiver->handle_toolbar FOR r_grid.
+  CALL METHOD r_grid->set_table_for_first_display
+    EXPORTING
+      is_layout       = ls_layout
+    CHANGING
+      it_outtab       = gt_po[]
+      it_fieldcatalog = it_fieldcat.
+  CALL METHOD r_grid->set_toolbar_interactive.
+ENDFORM.                    " DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*&      Form  EXPORT_TO_MEM_RFC
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+*FORM export_to_mem_rfc .
+*
+*  DATA lista_tab_po LIKE zitrade_po_out OCCURS 0 WITH HEADER LINE.
+*
+*  CLEAR lista_tab_po[].
+*  LOOP AT gt_po INTO gi_po.
+*    MOVE-CORRESPONDING gi_ekko TO lista_tab_po.
+*    APPEND lista_tab_po.
+*  ENDLOOP.
+*
+*  EXPORT lista_tab_po TO MEMORY ID 'LISTA_TAB_PO'.
+*
+*ENDFORM.                    " EXPORT_TO_MEM_RFC
+*&---------------------------------------------------------------------*
+*&      Form  PREPARE_FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM prepare_fieldcat .
+
+  REFRESH: it_fieldcat ,l_it_fieldcat .
+
+  CALL FUNCTION 'REUSE_ALV_FIELDCATALOG_MERGE'
+    EXPORTING
+      i_program_name         = sy-repid
+      i_internal_tabname     = 'GT_PO'
+      i_client_never_display = 'X'
+      i_inclname             = sy-repid
+      i_bypassing_buffer     = 'X'
+    CHANGING
+      ct_fieldcat            = l_it_fieldcat
+    EXCEPTIONS
+      inconsistent_interface = 1
+      program_error          = 2
+      OTHERS                 = 3.
+
+  CALL FUNCTION 'LVC_TRANSFER_FROM_SLIS'
+    EXPORTING
+      it_fieldcat_alv = l_it_fieldcat
+    IMPORTING
+      et_fieldcat_lvc = it_fieldcat
+    TABLES
+      it_data         = gt_po.
+
+  LOOP AT it_fieldcat INTO wa_fieldcat.
+    CASE wa_fieldcat-fieldname.
+*      Tipo Documento
+      WHEN 'TYPE_DOC'.
+        wa_fieldcat-reptext = text-010.
+        wa_fieldcat-outputlen   = 5.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'ICON'.
+        wa_fieldcat-reptext = text-011 .
+        wa_fieldcat-ref_field = ''.
+        wa_fieldcat-outputlen   = 5.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'EBELN'.
+        wa_fieldcat-reptext = text-002.
+        wa_fieldcat-scrtext_s = text-012.
+        wa_fieldcat-scrtext_m = text-002.
+        wa_fieldcat-scrtext_l = text-002.
+        wa_fieldcat-outputlen   = 15.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'DATVR'.
+        wa_fieldcat-scrtext_m = text-015.
+        wa_fieldcat-scrtext_s = text-015.
+        wa_fieldcat-scrtext_l = text-015.
+        wa_fieldcat-reptext = text-015.
+        wa_fieldcat-outputlen   = 10.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'UHRVR'.
+        wa_fieldcat-scrtext_m = text-016.
+        wa_fieldcat-scrtext_s = text-016.
+        wa_fieldcat-scrtext_l = text-016.
+        wa_fieldcat-reptext = text-016.
+        wa_fieldcat-outputlen   = 8.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'EKORG'.
+        wa_fieldcat-scrtext_m = text-004.
+        wa_fieldcat-scrtext_s = text-004.
+        wa_fieldcat-scrtext_l = text-004.
+        wa_fieldcat-reptext = text-004.
+        wa_fieldcat-outputlen   = 8.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'LIFNR'.
+        wa_fieldcat-scrtext_m = text-005.
+        wa_fieldcat-scrtext_s = text-005.
+        wa_fieldcat-scrtext_l = text-005.
+        wa_fieldcat-reptext = text-005.
+        wa_fieldcat-outputlen   = 15.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'KSCHL'.
+        wa_fieldcat-outputlen   = 10.
+        wa_fieldcat-scrtext_m = text-018.
+        wa_fieldcat-scrtext_l = text-018.
+        wa_fieldcat-scrtext_s = text-019.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'MSGV1'.
+        wa_fieldcat-outputlen   = 20.
+        wa_fieldcat-scrtext_m = text-020.
+        wa_fieldcat-scrtext_l = text-020.
+        wa_fieldcat-reptext = text-020.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'BUKRS'.
+        wa_fieldcat-outputlen   = 15.
+        wa_fieldcat-scrtext_s = text-021.
+        wa_fieldcat-scrtext_m = text-021.
+        wa_fieldcat-scrtext_l = text-021.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'MESSAGE'.
+        wa_fieldcat-outputlen   = 50.
+        wa_fieldcat-scrtext_m = text-006.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'IDOC_STAT'.
+        wa_fieldcat-outputlen   = 10.
+        wa_fieldcat-scrtext_l = text-029.
+        wa_fieldcat-scrtext_m = text-029.
+        wa_fieldcat-scrtext_s = text-029.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'IDOC_STAT_GROUP'.
+        wa_fieldcat-outputlen   = 20.
+        wa_fieldcat-scrtext_l = text-030.
+        wa_fieldcat-scrtext_m = text-030.
+        wa_fieldcat-scrtext_s = text-030.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'BSTYP'.
+        wa_fieldcat-outputlen   = 10.
+        wa_fieldcat-scrtext_l = text-031.
+        wa_fieldcat-scrtext_m = text-031.
+        wa_fieldcat-scrtext_s = text-031.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'BSART'.
+        wa_fieldcat-outputlen   = 10.
+        wa_fieldcat-scrtext_l = text-032.
+        wa_fieldcat-scrtext_m = text-032.
+        wa_fieldcat-scrtext_s = text-032.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'ERNAM'.
+        wa_fieldcat-scrtext_m = text-034.
+        wa_fieldcat-scrtext_s = text-034.
+        wa_fieldcat-scrtext_l = text-034.
+        wa_fieldcat-reptext = text-034.
+        wa_fieldcat-outputlen   = 10.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'IDOC_STAT_DESCR'.
+        wa_fieldcat-scrtext_m = text-039.
+        wa_fieldcat-scrtext_s = text-039.
+        wa_fieldcat-scrtext_l = text-039.
+        wa_fieldcat-reptext = text-039.
+        wa_fieldcat-outputlen   = 10.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'FRGKE'.
+        wa_fieldcat-scrtext_m = text-033.
+        wa_fieldcat-scrtext_s = text-033.
+        wa_fieldcat-scrtext_l = text-033.
+        wa_fieldcat-reptext = text-033.
+        wa_fieldcat-outputlen   = 8.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'BEDAT'.
+        wa_fieldcat-scrtext_m = text-003.
+        wa_fieldcat-scrtext_s = text-003.
+        wa_fieldcat-scrtext_l = text-003.
+        wa_fieldcat-reptext = text-003.
+        wa_fieldcat-outputlen   = 8.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'BOX'.
+        wa_fieldcat-no_out = 'X'.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+      WHEN 'PUSHBACK'.
+        wa_fieldcat-outputlen   = 9.
+        wa_fieldcat-scrtext_l = text-040.
+        wa_fieldcat-scrtext_m = text-040.
+        wa_fieldcat-scrtext_s = text-040.
+        wa_fieldcat-reptext   = text-040.
+        MODIFY it_fieldcat FROM wa_fieldcat.
+
+    ENDCASE.
+  ENDLOOP.
+ENDFORM.                    " PREPARE_FIELDCAT
+*&---------------------------------------------------------------------*
+*&      Form  GENERATE_MESSAGE_NEW
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_SELECTED_ROW  text
+*----------------------------------------------------------------------*
+FORM generate_message_new  USING    p_row STRUCTURE gt_po.
+  DATA: li_nast           TYPE nast.
+  CONSTANTS: lc_zitr      TYPE sna_kschl VALUE 'ZITR',
+             lc_1         TYPE na_vsztp  VALUE  '1',
+             lc_ef        TYPE sna_kappl VALUE 'EF',
+             lc_6         TYPE na_nacha  VALUE '6',
+             lc_ls        TYPE sna_parvw VALUE 'LS',
+             lc_e         TYPE c         VALUE 'E',
+             lc_parnr     TYPE na_parnr  VALUE 'ZFITRADE'.
+
+  CLEAR li_nast.
+  li_nast-mandt = sy-mandt.
+  li_nast-kappl = lc_ef.   "Application : sales
+  li_nast-kschl = lc_zitr. "Out put type - ZITR
+  li_nast-erdat = sy-datum.
+  li_nast-eruhr = sy-uzeit.
+  li_nast-nacha = lc_6.    "Message transmission medium - EDI
+  li_nast-usnam = sy-uname.
+  li_nast-vsztp = lc_1.    "Dispatch time is Send with periodically scheduled job
+  li_nast-datvr = sy-datum.
+  li_nast-uhrvr = sy-uzeit.
+  li_nast-vstat = lc_1.
+  li_nast-parvw = lc_ls.   "Partner function - Logical system
+  li_nast-spras = lc_e.
+  li_nast-objky = p_row-ebeln.   "gi_so_idoc-vbeln.
+  li_nast-parnr = lc_parnr.
+
+  CALL FUNCTION 'ZSD_ZEMP_EDI_TRIGGER_FM'
+    EXPORTING
+      im_nast_ds = li_nast.
+ENDFORM.                    " GENERATE_MESSAGE_NEW
+

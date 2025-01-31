@@ -1,0 +1,1693 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_STOCK_OUTPUT_FORM
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  STOCK_OUT_DETAILS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM stock_out_details .
+* Start of changes by Gaurav on 08/10/2020 for Performance Improvement
+* Free range tables before use
+  FREE: gv_loekz, gv_mtart, gv_bsart.
+
+* Prepare the range used as-is in data fetch
+  gv_loekz-sign = 'E'.
+  gv_loekz-option = 'EQ'.
+  gv_loekz-low = 'L'.
+  APPEND gv_loekz.
+  gv_loekz-low = 'S'.
+  APPEND gv_loekz.
+
+* Only need for these material types - confirmed
+  gv_mtart-sign = 'I'.
+  gv_mtart-option = 'EQ'.
+  gv_mtart-low = 'HALB'.
+  APPEND gv_mtart.
+  gv_mtart-low = 'ROH'.
+  APPEND gv_mtart.
+  gv_mtart-low = 'ZFRT'.
+  APPEND gv_mtart.
+  gv_mtart-low = 'ZHWA'.
+  APPEND gv_mtart.
+
+  gv_bsart-sign = 'I'.
+  gv_bsart-option = 'EQ'.
+  gv_bsart-low = 'NB'.
+  APPEND gv_bsart.
+  gv_bsart-low = 'UD'.
+  APPEND gv_bsart.
+  gv_bsart-low = 'ZB'.
+  APPEND gv_bsart.
+* End of changes by Gaurav on 08/10/2020
+
+  REFRESH : gt_ztuhcd1.
+  CLEAR : gi_ztuhcd1.
+*    Get hardcoding table entries
+  gi_ztuhcd1-name = gc_name.
+  APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1.
+
+  gi_range-sign   = gc_i.
+  gi_range-option = gc_eq.
+  LOOP AT gt_ztuhcd1 INTO gi_ztuhcd1.
+    CASE gi_ztuhcd1-field.
+      WHEN gc_lgort.
+        gi_range-low = gi_ztuhcd1-low.
+        APPEND gi_range TO gr_lgort.
+    ENDCASE.
+  ENDLOOP.
+
+* Start of changes by Gaurav on 08/10/2020 for Performance Improvement
+**selecting data from marc ekpo and ekko
+*  SELECT marc~matnr
+*         marc~werks
+*         marc~dispo
+*         marc~beskz
+*         marc~rgekz
+**Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+*         marc~sobsl
+**End of Change CHG1206753  07/05/2015 Sumit(502237354)
+*         marc~wzeit
+*         marc~plifz
+*         marc~webaz
+*         marc~eisbe
+*         marc~trame
+*         ekpo~ebeln
+*         ekpo~ebelp
+*         ekpo~loekz
+*         ekpo~elikz
+*         ekpo~menge
+*         ekpo~erekz
+*         ekko~ebeln
+*         ekko~lifnr
+**Begin of Change CHG0994698  28/12/2014 Sumit(502237354)
+*         ekko~reswk
+**End of Change CHG0994698  28/12/2014 Sumit(502237354)
+*         ekko~aedat
+*    INTO TABLE gt_marc_ekpo_ekko
+*    FROM ( ( marc
+**Begin of Change CHG1043848 03/05/2015 Sumit(502237354)
+*    INNER JOIN ekpo
+**End of Change CHG1043848 03/05/2015 Sumit(502237354)
+*    ON marc~matnr = ekpo~matnr
+*    AND marc~werks = ekpo~werks )
+*    INNER JOIN ekko
+*    ON ekpo~ebeln = ekko~ebeln )
+*   WHERE marc~matnr IN gs_matnr
+*     AND marc~dispo IN gs_plan
+*     AND marc~werks IN gs_werks
+*     AND marc~beskz IN gs_proc
+*     AND ekko~lifnr IN gs_vend.
+
+* Select query is optimized to use primary/secondary index with filters
+*selecting data from marc ekpo and ekko
+  SELECT a~matnr
+         a~werks
+         a~dispo
+         a~beskz
+         a~rgekz
+         a~sobsl
+         a~wzeit
+         a~plifz
+         a~webaz
+         a~eisbe
+         a~trame
+         c~ebeln
+         c~ebelp
+         c~loekz
+         c~elikz
+         c~menge
+         c~erekz
+         d~ebeln
+         d~lifnr
+         d~reswk
+         d~aedat
+    INTO TABLE gt_marc_ekpo_ekko
+    FROM marc AS a
+    INNER JOIN mara AS b ON b~matnr = a~matnr
+    INNER JOIN ekpo AS c ON c~matnr = a~matnr
+                        AND c~werks = a~werks
+    INNER JOIN ekko AS d ON d~ebeln = c~ebeln
+   WHERE a~werks IN gs_werks
+     AND a~matnr IN gs_matnr
+     AND a~dispo IN gs_plan
+     AND a~beskz IN gs_proc
+     AND c~matnr EQ b~matnr
+     AND c~werks EQ a~werks
+     AND c~bstyp EQ 'F'
+     AND c~loekz IN gv_loekz
+     AND c~elikz EQ abap_false
+     AND c~matkl EQ b~matkl
+     AND c~erekz EQ abap_false
+     AND b~mtart IN gv_mtart
+     AND d~bsart IN gv_bsart
+     AND d~lifnr IN gs_vend.
+
+  IF sy-subrc IS INITIAL.
+*    DELETE gt_marc_ekpo_ekko WHERE loekz EQ 'L' OR loekz EQ 'S' OR elikz EQ 'X' OR erekz EQ 'X'.
+    SORT gt_marc_ekpo_ekko BY matnr werks.
+    gt_matnr_werks[] = gt_marc_ekpo_ekko[].
+*    SORT gt_matnr_werks BY matnr werks.
+    DELETE ADJACENT DUPLICATES FROM gt_matnr_werks COMPARING matnr werks.
+
+* Key fields used were not in proper order, corrected now
+*selecting data from MRP controllers
+    SELECT dispo
+           werks
+           dsnam
+      FROM t024d
+INTO TABLE gt_t024d
+FOR ALL ENTRIES IN gt_marc_ekpo_ekko
+*     WHERE dispo = gt_marc_ekpo_ekko-dispo
+*      AND  werks = gt_marc_ekpo_ekko-werks.
+     WHERE werks = gt_marc_ekpo_ekko-werks
+       AND dispo = gt_marc_ekpo_ekko-dispo.
+    IF sy-subrc IS INITIAL.
+      SORT gt_t024d BY werks dispo.
+    ENDIF.
+
+* Type casting, move into temp table
+    LOOP AT gt_marc_ekpo_ekko INTO gi_marc_ekpo_ekko.
+      gw_temp-objky = gi_marc_ekpo_ekko-ebeln.
+      APPEND gw_temp TO gt_temp.
+    ENDLOOP.
+
+    IF gt_temp[] IS NOT INITIAL.
+      DELETE ADJACENT DUPLICATES FROM gt_temp COMPARING ALL FIELDS.
+    ENDIF.
+
+* Query on NAST table was without any data in OBJKY, corrected now
+*    SELECT objky
+*           datvr
+*      FROM nast
+*      INTO TABLE gt_nast
+*      FOR ALL ENTRIES IN gt_marc_ekpo_ekko
+*      WHERE objky = gt_marc_ekpo_ekko-objectid.
+*    IF sy-subrc IS INITIAL.
+*      SORT gt_nast BY objky ASCENDING datvr DESCENDING.
+*    ENDIF.
+
+    SELECT objky
+           datvr
+      FROM nast
+      INTO TABLE gt_nast
+      FOR ALL ENTRIES IN gt_temp
+      WHERE objky = gt_temp-objky.
+    IF sy-subrc IS INITIAL.
+      SORT gt_nast BY objky ASCENDING datvr DESCENDING.
+    ENDIF.
+
+    FREE gt_temp.
+
+* Below query on MSEG was without key, which is optimized now
+**Begin of Change CHG1073059  18/02/2014 Sumit(502237354)
+*    SELECT mblnr
+*           mjahr
+*           zeile
+*           matnr
+*           menge
+*           ebeln
+*           ebelp
+*      FROM mseg
+*INTO TABLE gt_mseg
+*FOR ALL ENTRIES IN gt_marc_ekpo_ekko
+*   WHERE matnr = gt_marc_ekpo_ekko-matnr
+*     AND ebeln = gt_marc_ekpo_ekko-ebeln
+*     AND ebelp = gt_marc_ekpo_ekko-ebelp  .
+*    IF sy-subrc IS INITIAL.
+*      SORT gt_mseg BY matnr ebeln ebelp.
+*    ENDIF.
+
+* Fetch document data from EKBE
+    SELECT ebeln
+           ebelp
+           gjahr
+           belnr
+           buzei
+      FROM ekbe
+      INTO TABLE gt_ekbe
+      FOR ALL ENTRIES IN gt_marc_ekpo_ekko
+     WHERE ebeln EQ gt_marc_ekpo_ekko-ebeln
+       AND ebelp EQ gt_marc_ekpo_ekko-ebelp.
+    IF sy-subrc EQ 0.
+      SORT gt_ekbe.
+
+* Fetch Material document number
+      SELECT mblnr
+             mjahr
+             zeile
+             matnr
+             menge
+             ebeln
+             ebelp
+        FROM mseg
+  INTO TABLE gt_mseg
+  FOR ALL ENTRIES IN gt_ekbe
+     WHERE mblnr = gt_ekbe-belnr
+       AND mjahr = gt_ekbe-gjahr
+       AND zeile = gt_ekbe-buzei.
+      IF sy-subrc IS INITIAL.
+        SORT gt_mseg BY matnr ebeln ebelp.
+      ENDIF.
+    ENDIF.
+* End of changes by Gaurav on 08/10/2020
+
+*End of Change CHG1073059  18/02/2014 Sumit(502237354)
+*selecting data from Material Descriptions
+    IF gs_lang IS INITIAL.
+      SELECT matnr
+             maktx
+             spras
+        FROM makt
+        INTO TABLE gt_makt
+        FOR ALL ENTRIES IN gt_matnr_werks
+        WHERE matnr = gt_matnr_werks-matnr
+        AND   spras = sy-langu.
+      IF sy-subrc IS INITIAL.
+        SORT gt_makt BY matnr spras.
+      ENDIF.
+    ELSE.
+      SELECT matnr
+            maktx
+            spras
+       FROM makt
+       INTO TABLE gt_makt
+       FOR ALL ENTRIES IN gt_matnr_werks
+       WHERE matnr = gt_matnr_werks-matnr
+       AND   spras IN gs_lang.
+      IF sy-subrc IS INITIAL.
+        SORT gt_makt BY matnr spras.
+      ENDIF.
+    ENDIF.
+
+* Optimized query by removing negative condition
+    IF gt_matnr_werks[] IS NOT INITIAL.
+*selecting data for Sales Data for Material
+      SELECT matnr
+             mvgr1
+        FROM mvke
+        INTO TABLE gt_mvke
+        FOR ALL ENTRIES IN gt_matnr_werks
+        WHERE matnr = gt_matnr_werks-matnr.
+*      AND   mvgr1 NE space.
+      IF sy-subrc IS INITIAL.
+        SORT gt_mvke BY matnr mvgr1.
+* Delete where MVGR1 is blank
+        DELETE gt_mvke WHERE mvgr1 EQ space.
+      ENDIF.
+
+*Begin of Change CHG0994698  12/01/2014 Sumit(502237354)
+*selecting data for Material Consumption
+      gw_date   = sy-datum.
+      gw_gjahr  = gw_date+0(4).
+      gw_gjahr1 = gw_gjahr - 1.
+      gw_month  = gw_date+4(2).
+
+      SELECT werks
+             matnr
+             gjahr
+*Begin of Change CHG0994698  28/12/2014 Sumit(502237354)
+             mgv01
+             mgv02
+             mgv03
+             mgv04
+             mgv05
+             mgv06
+             mgv07
+             mgv08
+             mgv09
+             mgv10
+             mgv11
+             mgv12
+             mgv13
+*End of Change CHG0994698  28/12/2014 Sumit(502237354)
+        FROM mver
+        INTO TABLE gt_mver
+        FOR ALL ENTRIES IN gt_matnr_werks
+        WHERE matnr = gt_matnr_werks-matnr
+        AND   werks = gt_matnr_werks-werks
+        AND   gjahr IN (gw_gjahr, gw_gjahr1)."= gw_date+0(4).
+      IF sy-subrc IS INITIAL.
+        SORT gt_mver BY werks matnr gjahr.
+        gt_mver1[] = gt_mver[].
+        LOOP AT gt_mver INTO gi_mver.
+          REFRESH: gt_mver2 , gt_mver3.
+          CLEAR: gi_mver1 , gi_mver2.
+          READ TABLE gt_mver1 INTO gi_mver1 WITH KEY werks = gi_mver-werks matnr = gi_mver-matnr gjahr = gw_gjahr1 BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            gi_mver2 = gi_mver1.
+            APPEND gi_mver2 TO gt_mver2.
+          ENDIF.
+
+          CLEAR: gi_mver1 , gi_mver2.
+          READ TABLE gt_mver1 INTO gi_mver1 WITH KEY werks = gi_mver-werks matnr = gi_mver-matnr gjahr = gw_gjahr BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            gi_mver2 = gi_mver1.
+            APPEND gi_mver2 TO gt_mver2.
+          ENDIF.
+
+          CLEAR: gi_mver3 , gi_mver2.
+          READ TABLE gt_mver2 INTO gi_mver2 INDEX 1.
+          IF sy-subrc IS INITIAL.
+            gi_mver3-gsv = gi_mver2-gsv01.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv02.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv03.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv04.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv05.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv06.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv07.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv08.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv09.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv10.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv11.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv12.
+            APPEND gi_mver3 TO gt_mver3.
+          ENDIF.
+
+          CLEAR: gi_mver3 , gi_mver2.
+          READ TABLE gt_mver2 INTO gi_mver2 INDEX 2.
+          IF sy-subrc IS INITIAL.
+            gi_mver3-gsv = gi_mver2-gsv01.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv02.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv03.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv04.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv05.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv06.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv07.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv08.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv09.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv10.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv11.
+            APPEND gi_mver3 TO gt_mver3.
+            gi_mver3-gsv = gi_mver2-gsv12.
+            APPEND gi_mver3 TO gt_mver3.
+          ENDIF.
+
+          CLEAR count.
+          count = gw_month.
+          DO 12 TIMES.
+            CLEAR gi_mver3.
+            READ TABLE gt_mver3 INTO gi_mver3 INDEX count.
+            IF sy-subrc IS INITIAL.
+              gi_annusg-gsv = gi_annusg-gsv + gi_mver3-gsv.
+              count = count + 1.
+            ENDIF.
+          ENDDO.
+
+*        gi_annusg-gsv = gi_mver-gsv01 + gi_mver-gsv02 + gi_mver-gsv03 + gi_mver-gsv04  +
+*                        gi_mver-gsv05 + gi_mver-gsv06 + gi_mver-gsv07 + gi_mver-gsv08  +
+*                        gi_mver-gsv09 + gi_mver-gsv10 + gi_mver-gsv11 + gi_mver-gsv12  +
+*                        gi_mver-gsv13.
+          gi_annusg-matnr = gi_mver-matnr.
+          gi_annusg-werks = gi_mver-werks.
+          gi_annusg-gjahr = gi_mver-gjahr.
+          gi_annusg-avgusg = gi_annusg-gsv / 48.
+          AT NEW matnr.
+            APPEND gi_annusg TO gt_annusg.
+          ENDAT.
+          CLEAR gi_annusg.
+        ENDLOOP.
+      ENDIF.
+*End of Change CHG0994698  12/01/2014 Sumit(502237354)
+*selecting data for Storage Location Data for Material
+      SELECT matnr
+             werks
+             lgort
+             labst
+        FROM mard
+        INTO TABLE gt_mard
+        FOR ALL ENTRIES IN gt_matnr_werks
+        WHERE matnr = gt_matnr_werks-matnr
+          AND werks = gt_matnr_werks-werks
+*Begin of Change CHG0994698  28/12/2014 Sumit(502237354)
+          AND ( lgort IN gr_lgort ).
+*End of Change CHG0994698  28/12/2014 Sumit(502237354)
+      IF sy-subrc IS INITIAL.
+        SORT gt_mard BY matnr werks lgort.
+      ENDIF.
+
+    ENDIF.
+
+*selecting data for vendor details
+    SELECT lifnr
+           name1
+      FROM lfa1
+      INTO TABLE gt_lfa1
+      FOR ALL ENTRIES IN gt_marc_ekpo_ekko
+      WHERE lifnr = gt_marc_ekpo_ekko-lifnr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_lfa1 BY lifnr.
+    ENDIF.
+*selecting data for Scheduling Agreement Schedule Lines
+    SELECT ebeln
+           ebelp
+           eindt
+           menge
+           wemng
+      FROM eket
+      INTO TABLE gt_eket
+      FOR ALL ENTRIES IN gt_marc_ekpo_ekko
+      WHERE ebeln = gt_marc_ekpo_ekko-ebeln
+       AND  ebelp = gt_marc_ekpo_ekko-ebelp.
+    IF sy-subrc IS INITIAL.
+      SORT gt_eket BY ebeln ebelp.
+    ENDIF.
+*Begin of Change CHG0994698  28/12/2014 Sumit(502237354)
+    SELECT bstyp
+           edokn
+           edokp
+           revno
+           fgdat
+      FROM erev
+      INTO TABLE gt_erev
+      FOR ALL ENTRIES IN gt_marc_ekpo_ekko
+      WHERE edokn = gt_marc_ekpo_ekko-ebeln.
+*        AND edokp = gt_marc_ekpo_ekko-ebelp.
+    IF sy-subrc IS INITIAL.
+      SORT gt_erev BY revno DESCENDING edokn.
+    ENDIF.
+*End of Change CHG0994698  28/12/2014 Sumit(502237354)
+*selecting data for Vendor Confirmations
+    SELECT ebeln
+           ebelp
+           ebtyp
+           eindt
+           erdat
+           ezeit
+      FROM ekes
+      INTO TABLE gt_ekes
+      FOR ALL ENTRIES IN gt_marc_ekpo_ekko
+      WHERE ebeln = gt_marc_ekpo_ekko-ebeln
+       AND  ebelp = gt_marc_ekpo_ekko-ebelp
+       AND  ebtyp = gc_ebtyp.
+    IF sy-subrc IS INITIAL.
+      SORT gt_ekes BY erdat ezeit DESCENDING.
+    ENDIF.
+*function module to week day details
+    CALL FUNCTION 'GET_WEEK_INFO_BASED_ON_DATE'
+      EXPORTING
+        date   = sy-datum
+      IMPORTING
+        week   = gw_week
+        monday = gw_monday
+        sunday = gw_sunday.
+
+    gw_1mweek = gw_monday + 7.
+    gw_1sweek = gw_sunday + 7.
+    gw_2mweek = gw_monday + 14.
+    gw_2sweek = gw_sunday + 14.
+    gw_3mweek = gw_monday + 21.
+    gw_3sweek = gw_sunday + 21.
+    gw_4mweek = gw_monday + 28.
+    gw_4sweek = gw_sunday + 28.
+    gw_5mweek = gw_monday + 35.
+    gw_5sweek = gw_sunday + 35.
+    gw_6mweek = gw_monday + 42.
+    gw_6sweek = gw_sunday + 42.
+*function module to get details of stock requiremnt
+*Begin of Change CHG1043848 04/02/2015 Sumit(502237354)
+    LOOP AT gt_matnr_werks INTO gi_matnr_werks.
+      REFRESH: gt_mdezx, gt_mdsux.
+      CALL FUNCTION 'MD_STOCK_REQUIREMENTS_LIST_API'
+        EXPORTING
+          matnr                    = gi_matnr_werks-matnr
+          werks                    = gi_matnr_werks-werks
+        TABLES
+          mdpsx                    = gt_mdpsx   "Change CHG1206753  04/06/2015 Sumit(502237354)
+          mdezx                    = gt_mdezx
+          mdsux                    = gt_mdsux
+        EXCEPTIONS
+          material_plant_not_found = 1
+          plant_not_found          = 2
+          OTHERS                   = 3.
+      IF sy-subrc IS INITIAL.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+        SORT gt_mdpsx BY delnr delps. "Change CHG1206753  04/06/2015 Sumit(502237354)
+        DELETE gt_mdezx WHERE mng01 > 0.
+        DELETE gt_mdsux WHERE mng02 > 0.
+        APPEND LINES OF gt_mdpsx TO gt_mdpsx1."added on 27-jul-2015 for CHG1363833 by502277866
+*        LOOP AT gt_mdezx INTO gi_mdezx.
+        LOOP AT gt_mdsux INTO gi_mdsux.
+*Begin of Change CHG1043848 03/02/2015 Sumit(502237354)
+          IF gi_mdsux-dat00 IS NOT INITIAL AND gi_mdsux-dat00 < sy-datum.
+            gi_demand-pquan  = gi_demand-pquan  + gi_mdsux-mng02.
+            gi_demand-pquani = gi_demand-pquani + gi_mdsux-mng02 + gi_mdsux-mng01.
+          ENDIF.
+*End of Change CHG1043848 03/02/2015 Sumit(502237354)
+          IF gi_mdsux-dat00 >= sy-datum AND gi_mdsux-dat00 <= gw_sunday    .
+            gi_demand-1quan  = gi_demand-1quan  + gi_mdsux-mng02.
+            gi_demand-1quani = gi_demand-1quani + gi_mdsux-mng02 + gi_mdsux-mng01.
+          ENDIF.
+          IF gi_mdsux-dat00 >= gw_1mweek AND gi_mdsux-dat00 <= gw_1sweek.
+            gi_demand-2quan  = gi_demand-2quan  + gi_mdsux-mng02.
+            gi_demand-2quani = gi_demand-2quani + gi_mdsux-mng02 + gi_mdsux-mng01.
+          ENDIF.
+          IF gi_mdsux-dat00 >= gw_2mweek AND gi_mdsux-dat00 <= gw_2sweek.
+            gi_demand-3quan  = gi_demand-3quan  + gi_mdsux-mng02.
+            gi_demand-3quani = gi_demand-3quani + gi_mdsux-mng02 + gi_mdsux-mng01.
+          ENDIF.
+          IF gi_mdsux-dat00 >= gw_3mweek AND gi_mdsux-dat00 <= gw_3sweek.
+            gi_demand-4quan  = gi_demand-4quan  + gi_mdsux-mng02.
+            gi_demand-4quani = gi_demand-4quani + gi_mdsux-mng02 + gi_mdsux-mng01.
+          ENDIF.
+          IF gi_mdsux-dat00 >= gw_4mweek AND gi_mdsux-dat00 <= gw_4sweek.
+            gi_demand-5quan  = gi_demand-5quan  + gi_mdsux-mng02.
+            gi_demand-5quani = gi_demand-5quani + gi_mdsux-mng02 + gi_mdsux-mng01.
+          ENDIF.
+          IF gi_mdsux-dat00 >= gw_5mweek AND gi_mdsux-dat00 <= gw_5sweek.
+            gi_demand-6quan  = gi_demand-6quan  + gi_mdsux-mng02.
+            gi_demand-6quani = gi_demand-6quani + gi_mdsux-mng02 + gi_mdsux-mng01.
+          ENDIF.
+
+        ENDLOOP.
+*End of Change CHG1043848 04/02/2015 Sumit(502237354)
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        gi_demand-werks = gi_matnr_werks-werks.
+        gi_demand-matnr = gi_matnr_werks-matnr.
+        APPEND gi_demand TO gt_demand.
+        SORT gt_demand BY werks matnr.
+        CLEAR gi_demand.
+      ENDIF.
+***Start of changes for CHG1422704 on 27.08.2015 by 502277866
+****** code added for intransient stock
+      gr_matnr-sign = gr_werks-sign = gr_pstyp-sign = 'I'.
+      gr_matnr-option = gr_werks-option = gr_pstyp-option = 'EQ'.
+      gr_matnr-low = gi_matnr_werks-matnr..
+      gr_werks-low = gi_matnr_werks-werks.
+      gr_pstyp-low = '0'. " Alwasy will use '0' to include cross company
+      APPEND gr_matnr.
+      APPEND gr_werks.
+      APPEND gr_pstyp.
+      CALL FUNCTION 'MB_ADD_TRANSFER_QUANTITY'
+        EXPORTING
+          cumulate = ' '
+        TABLES
+          xmatnr   = gr_matnr
+          xwerks   = gr_werks
+          xpstyp   = gr_pstyp
+          xtab6    = gt_tab6.
+      APPEND LINES OF gt_tab6 TO gt_tab1.
+      REFRESH  : gr_matnr , gr_werks ,gr_pstyp , gt_tab6.
+
+    ENDLOOP.
+    SORT gt_tab1 BY matnr werks ebeln ebelp.
+****End of changes for CHG1422704 on 27.08.2015 by 502277866
+  ELSE.
+    MESSAGE i090(zmm) WITH text-901.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+ENDFORM.                    " STOCK_OUT_DETAILS
+*&---------------------------------------------------------------------*
+*&      Form  POPULATE_FTABLE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_ftable .
+  DATA : lw_tabix TYPE sy-index.
+  SORT gt_mdpsx1 BY delnr delps."added on 27-jul-2015 for CHG1363833 by502277866
+  LOOP AT gt_marc_ekpo_ekko INTO gi_marc_ekpo_ekko.
+    gi_final-werks = gi_marc_ekpo_ekko-werks.
+    gi_final-matnr = gi_marc_ekpo_ekko-matnr.
+    gi_final-dispo = gi_marc_ekpo_ekko-dispo.
+    gi_final-beskz = gi_marc_ekpo_ekko-beskz.
+    gi_final-sobsl = gi_marc_ekpo_ekko-sobsl.
+    gi_final-wzeit = gi_marc_ekpo_ekko-wzeit.
+    gi_final-plifz = gi_marc_ekpo_ekko-plifz.
+    gi_final-webaz = gi_marc_ekpo_ekko-webaz.
+    gi_final-eisbe = gi_marc_ekpo_ekko-eisbe.
+    gi_final-ebeln = gi_marc_ekpo_ekko-ebeln.
+    gi_final-ebelp = gi_marc_ekpo_ekko-ebelp.
+    gi_final-menge = gi_marc_ekpo_ekko-menge.
+    gi_final-lifnr = gi_marc_ekpo_ekko-lifnr.
+***Start of changes for CHG1422704 on 27.08.2015 by 502277866
+******in transien stock
+    READ TABLE gt_tab1 INTO gs_tab6 WITH KEY matnr = gi_marc_ekpo_ekko-matnr
+                                             werks = gi_marc_ekpo_ekko-werks
+                                             ebeln = gi_marc_ekpo_ekko-ebeln
+                                             ebelp = gi_marc_ekpo_ekko-ebelp BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gi_final-trame = gs_tab6-menge.
+    ENDIF.
+***End of changes for CHG1422704 on 27.08.2015 by 502277866
+    gi_final-reswk = gi_marc_ekpo_ekko-reswk.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+    gi_final-rgekz = gi_marc_ekpo_ekko-rgekz.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+*    CLEAR gi_erev.
+*    READ TABLE gt_erev INTO gi_erev WITH KEY edokn = gi_marc_ekpo_ekko-ebeln.
+    READ TABLE gt_nast INTO gi_nast WITH KEY objky = gi_marc_ekpo_ekko-ebeln BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final-udate = gi_nast-datvr."gi_erev-fgdat.
+    ENDIF.
+
+    IF gi_final-udate IS INITIAL.
+      gi_final-udate = gi_marc_ekpo_ekko-aedat.
+    ENDIF.
+
+    READ TABLE gt_t024d INTO gi_t024d WITH KEY werks = gi_marc_ekpo_ekko-werks
+                                               dispo = gi_marc_ekpo_ekko-dispo BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final-dsnam = gi_t024d-dsnam.
+    ENDIF.
+
+    READ TABLE gt_makt INTO gi_makt WITH KEY matnr = gi_marc_ekpo_ekko-matnr.
+    IF sy-subrc IS INITIAL.
+      gi_final-maktx = gi_makt-maktx.
+    ENDIF.
+
+    READ TABLE gt_mvke INTO gi_mvke WITH KEY matnr = gi_marc_ekpo_ekko-matnr BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final-mvgr1 = gi_mvke-mvgr1.
+    ENDIF.
+
+    READ TABLE gt_annusg INTO gi_annusg WITH KEY matnr = gi_marc_ekpo_ekko-matnr
+                                                 werks = gi_marc_ekpo_ekko-werks.
+    " gjahr = gw_date+0(4).
+    IF sy-subrc IS INITIAL.
+      gi_final-avgusg = gi_annusg-avgusg.
+    ENDIF.
+*Begin of Change CHG0994698  28/12/2014 Sumit(502237354)
+    CLEAR: gi_mard, gi_ztuhcd1.
+    READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY name  = gc_name
+                                                   field = gc_lgort
+                                                   zkey  = gc_flor.
+    IF sy-subrc IS INITIAL.
+      READ TABLE gt_mard INTO gi_mard WITH KEY matnr = gi_marc_ekpo_ekko-matnr
+                                               werks = gi_marc_ekpo_ekko-werks
+                                               lgort = gi_ztuhcd1-low."BINARY SEARCH.
+*End of Change CHG0994698  28/12/2014 Sumit(502237354)
+      IF sy-subrc IS INITIAL.
+        gi_final-labst = gi_mard-labst.
+      ENDIF.
+    ENDIF.
+
+    READ TABLE gt_lfa1 INTO gi_lfa1 WITH KEY lifnr = gi_marc_ekpo_ekko-lifnr BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final-name1 = gi_lfa1-name1.
+    ENDIF.
+*Begin of Change CHG1112746  10/03/2015 Sumit(502237354)
+    CLEAR: gi_mdezx, gi_ztuhcd1.
+    READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY name  = gc_name
+                                                   field = gc_lgort
+                                                   zkey  = gc_stck.
+    IF sy-subrc IS INITIAL.
+      READ TABLE gt_mard INTO gi_mard WITH KEY matnr = gi_marc_ekpo_ekko-matnr
+                                               werks = gi_marc_ekpo_ekko-werks
+                                               lgort = gi_ztuhcd1-low."gc_stck."BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+*Begin of Change CHG0994698  28/12/2014 Sumit(502237354)
+        gi_final-lbkum = gi_mard-labst.
+      ENDIF.
+    ENDIF.
+*End of Change CHG0994698  28/12/2014 Sumit(502237354)
+*End of Change CHG1112746  10/03/2015 Sumit(502237354)
+*Begin of Change CHG1043848 03/05/2015 Sumit(502237354)
+    IF gi_final-avgusg IS NOT INITIAL.
+      IF gp_istck NE 'X'.
+        gi_final-doh = ( gi_final-labst + gi_final-lbkum ) / ( gi_final-avgusg / 5 ).
+      ELSE.
+        gi_final-doh = (  gi_final-lbkum ) / ( gi_final-avgusg / 5 ).
+      ENDIF.
+      SHIFT gi_final-doh LEFT DELETING LEADING '0'.
+*          IF strlen( gw_doh ) > 10.
+*            gi_final-doh = 9999999999.
+*          ELSE.
+*            gi_final-doh = gw_doh.
+*          ENDIF.
+    ELSE.
+      gi_final-doh = 9999.
+      SHIFT gi_final-doh LEFT DELETING LEADING '0'.
+    ENDIF.
+
+    READ TABLE gt_demand INTO gi_demand WITH KEY werks = gi_marc_ekpo_ekko-werks
+                                            matnr = gi_marc_ekpo_ekko-matnr BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+      gi_final-pweek  =  gi_final-labst  + gi_final-lbkum  - gi_final-eisbe.
+      gi_final-pweeki =  gi_final-lbkum  - gi_final-eisbe.
+      gi_final-week1  =  gi_final-pweek  + gi_demand-1quan + gi_demand-pquan .
+      gi_final-week2  =  gi_final-week1  + gi_demand-2quan.
+      gi_final-week3  =  gi_final-week2  + gi_demand-3quan.
+      gi_final-week4  =  gi_final-week3  + gi_demand-4quan.
+      gi_final-week5  =  gi_final-week4  + gi_demand-5quan.
+      gi_final-week6  =  gi_final-week5  + gi_demand-6quan.
+      gi_final-week1g =  gi_final-pweek  + gi_demand-1quani + gi_demand-pquani .
+      gi_final-week2g =  gi_final-week1g + gi_demand-2quani.
+      gi_final-week3g =  gi_final-week2g + gi_demand-3quani.
+      gi_final-week4g =  gi_final-week3g + gi_demand-4quani.
+      gi_final-week5g =  gi_final-week4g + gi_demand-5quani.
+      gi_final-week6g =  gi_final-week5g + gi_demand-6quani.
+      gi_final-week1h =  gi_final-pweeki + gi_demand-1quan + gi_demand-pquan .
+      gi_final-week2h =  gi_final-week1h + gi_demand-2quan.
+      gi_final-week3h =  gi_final-week2h + gi_demand-3quan.
+      gi_final-week4h =  gi_final-week3h + gi_demand-4quan.
+      gi_final-week5h =  gi_final-week4h + gi_demand-5quan.
+      gi_final-week6h =  gi_final-week5h + gi_demand-6quan.
+      gi_final-week1i =  gi_final-pweeki + gi_demand-1quani + gi_demand-pquani .
+      gi_final-week2i =  gi_final-week1i + gi_demand-2quani.
+      gi_final-week3i =  gi_final-week2i + gi_demand-3quani.
+      gi_final-week4i =  gi_final-week3i + gi_demand-4quani.
+      gi_final-week5i =  gi_final-week4i + gi_demand-5quani.
+      gi_final-week6i =  gi_final-week5i + gi_demand-6quani.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+    ENDIF.
+*Begin of Change CHG1206753  04/06/2015 Sumit(502237354)
+*Begin of Change CHG1276843  16/06/2015 Sumit(502237354)
+*    gi_final-opquan  = gi_marc_ekpo_ekko-menge.
+*End of Change CHG1276843 16/06/2015 Sumit(502237354)
+*    CLEAR lw_tabix.
+*    READ TABLE gt_mseg INTO gi_mseg WITH KEY matnr = gi_marc_ekpo_ekko-matnr
+*                                             ebeln = gi_marc_ekpo_ekko-ebeln
+*                                             ebelp = gi_marc_ekpo_ekko-ebelp BINARY SEARCH.
+*    IF sy-subrc IS INITIAL.
+*      lw_tabix = sy-tabix.
+*      CLEAR gi_mseg.
+*      LOOP at gt_mseg INTO gi_mseg FROM lw_tabix.
+*        IF gi_mseg-matnr <> gi_marc_ekpo_ekko-matnr
+*          OR gi_mseg-ebeln <> gi_marc_ekpo_ekko-ebeln
+*          OR gi_mseg-ebelp <> gi_marc_ekpo_ekko-ebelp.
+*          EXIT.
+*        ELSE.
+*          gi_final-opquan  = gi_final-opquan - gi_mseg-menge.
+*        ENDIF.
+*      ENDLOOP.
+*    ENDIF.
+
+    CLEAR gi_mdpsx.
+*    READ TABLE gt_mdpsx1 INTO gi_mdpsx WITH KEY delnr = gi_marc_ekpo_ekko-ebeln commented on 27-jul-2015 for CHG1363833 by502277866
+    READ TABLE gt_mdpsx1 INTO gi_mdpsx WITH KEY delnr = gi_marc_ekpo_ekko-ebeln "added on 27-jul-2015 for CHG1363833 by502277866
+                                               delps = gi_marc_ekpo_ekko-ebelp BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final-opquan  = gi_mdpsx-mng01.
+    ENDIF.
+*End of Change CHG1206753  04/06/2015 Sumit(502237354)
+*End of Change CHG1043848 03/05/2015 Sumit(502237354)
+
+    READ TABLE gt_eket INTO gi_eket WITH KEY ebeln = gi_marc_ekpo_ekko-ebeln
+                                             ebelp = gi_marc_ekpo_ekko-ebelp BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+*      gi_final-opquan  = gi_eket-menge - gi_eket-wemng.
+      gi_final-deindt  = gi_eket-eindt.
+    ENDIF.
+
+    READ TABLE gt_ekes INTO gi_ekes WITH KEY ebeln = gi_marc_ekpo_ekko-ebeln
+                                             ebelp = gi_marc_ekpo_ekko-ebelp.
+    IF sy-subrc IS INITIAL.
+      gi_final-peindt = gi_ekes-eindt.
+    ELSE.
+      gi_final-peindt = gi_eket-eindt.
+    ENDIF.
+    gi_final-mandt = sy-sysid.
+*    gw_index = gw_index + 1.
+*    gi_final-indx  = gw_index.
+*    IF NOT gi_final-opquan IS INITIAL." added on 17-jul-2015 for CHG1350150 by502277866
+    "commented by 502277866 for CHG1363833 on 25.07.2015
+    APPEND gi_final TO gt_final.
+*    ENDIF.
+    CLEAR: gi_t024d , gi_makt, gi_mvke, gi_annusg, gi_mbew, gi_demand, gi_mard,
+           gi_lfa1, gi_eket, gi_cdpos, gi_ekes , gi_final, gi_mseg, gi_nast , gs_tab6.
+  ENDLOOP.
+
+*  DELETE gt_final WHERE opquan LE 0.
+*Begin of Change CHG0994698  28/12/2014 Sumit(502237354)
+  DELETE FROM ztmm_fut_stck WHERE  werks IN gs_werks.
+  SORT gt_final BY werks matnr ebeln ebelp.
+  MODIFY ztmm_fut_stck FROM TABLE gt_final." ACCEPTING DUPLICATE KEYS.
+*End of Change CHG0994698  28/12/2014 Sumit(502237354)
+  CLEAR gw_index.
+ENDFORM.                    " POPULATE_FTABLE
+*&---------------------------------------------------------------------*
+*&      Form  FOREGROUND_SELECTION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM foreground_selection .
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+  SELECT werks
+         dsnam
+         dispo
+         mvgr1
+         reswk
+         matnr
+         beskz
+         sobsl
+         wzeit
+         plifz
+         webaz
+         avgusg
+         lbkum
+         doh
+         labst
+         eisbe
+         trame
+         pweek
+         pweeki
+         week1
+         week2
+         week3
+         week4
+         week5
+         week6
+         week1g
+         week2g
+         week3g
+         week4g
+         week5g
+         week6g
+         week1h
+         week2h
+         week3h
+         week4h
+         week5h
+         week6h
+         week1i
+         week2i
+         week3i
+         week4i
+         week5i
+         week6i
+         ebeln
+         ebelp
+         lifnr
+         name1
+         menge
+         opquan
+         udate
+         deindt
+         peindt
+         rgekz
+    FROM ztmm_fut_stck
+    INTO TABLE gt_fut_stck
+    WHERE werks IN gs_werks
+     AND  matnr IN gs_matnr
+     AND  dispo IN gs_plan
+     AND  beskz IN gs_proc
+     AND  lifnr IN gs_vend.
+  IF sy-subrc IS INITIAL.
+    IF gp_bkfls = 'X'.
+      DELETE gt_fut_stck WHERE rgekz <> 1 .
+    ENDIF.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+    SORT gt_fut_stck BY werks matnr ebeln ebelp.
+    gt_fut_stck1[] = gt_fut_stck[].
+    SORT gt_fut_stck1 BY matnr.
+    DELETE ADJACENT DUPLICATES FROM gt_fut_stck1 COMPARING matnr.
+*selecting data from Material Descriptions
+    IF gs_lang IS INITIAL.
+      SELECT matnr
+             maktx
+             spras
+        FROM makt
+        INTO TABLE gt_makt1
+        FOR ALL ENTRIES IN gt_fut_stck1
+        WHERE matnr = gt_fut_stck1-matnr
+        AND   spras = sy-langu.
+      IF sy-subrc IS INITIAL.
+        SORT gt_makt1 BY matnr spras.
+      ENDIF.
+    ELSE.
+      SELECT matnr
+            maktx
+            spras
+       FROM makt
+       INTO TABLE gt_makt1
+       FOR ALL ENTRIES IN gt_fut_stck
+       WHERE matnr = gt_fut_stck-matnr
+       AND   spras IN gs_lang.
+      IF sy-subrc IS INITIAL.
+        SORT gt_makt BY matnr spras.
+      ENDIF.
+    ENDIF.
+    IF gp_pweek = 'X'.
+      LOOP AT gt_fut_stck INTO gi_fut_stck WHERE pweek IS NOT INITIAL.
+        READ TABLE gt_makt1 INTO gi_makt1 WITH KEY matnr = gi_fut_stck-matnr.
+        IF sy-subrc IS INITIAL.
+          gi_final1-maktx = gi_makt1-maktx.
+        ENDIF.
+        gi_final1-werks =  gi_fut_stck-werks.
+        gi_final1-dsnam =  gi_fut_stck-dsnam.
+        gi_final1-dispo =  gi_fut_stck-dispo.
+        gi_final1-mvgr1 =  gi_fut_stck-mvgr1.
+        gi_final1-matnr  = gi_fut_stck-matnr.
+        gi_final1-beskz =  gi_fut_stck-beskz.
+        gi_final1-sobsl =  gi_fut_stck-sobsl.
+        gi_final1-wzeit =  gi_fut_stck-wzeit.
+        gi_final1-plifz =  gi_fut_stck-plifz.
+        gi_final1-webaz =  gi_fut_stck-webaz.
+        gi_final1-avgusg = gi_fut_stck-avgusg.
+        gi_final1-lbkum =  gi_fut_stck-lbkum.
+        gi_final1-doh   =  gi_fut_stck-doh+0(10)." added on 17-jul-2015 for CHG1350150 by502277866
+        gi_final1-labst =  gi_fut_stck-labst.
+        gi_final1-eisbe =  gi_fut_stck-eisbe.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+        IF ( gp_istck = 'X' AND gp_indrq = 'X' ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1i.
+          gi_final1-week2 =  gi_fut_stck-week2i.
+          gi_final1-week3 =  gi_fut_stck-week3i.
+          gi_final1-week4 =  gi_fut_stck-week4i.
+          gi_final1-week5 =  gi_fut_stck-week5i.
+          gi_final1-week6 =  gi_fut_stck-week6i.
+        ELSEIF ( gp_istck = 'X' AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1h.
+          gi_final1-week2 =  gi_fut_stck-week2h.
+          gi_final1-week3 =  gi_fut_stck-week3h.
+          gi_final1-week4 =  gi_fut_stck-week4h.
+          gi_final1-week5 =  gi_fut_stck-week5h.
+          gi_final1-week6 =  gi_fut_stck-week6h.
+        ELSEIF ( gp_istck EQ space AND gp_indrq = 'X' ) .
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1g.
+          gi_final1-week2 =  gi_fut_stck-week2g.
+          gi_final1-week3 =  gi_fut_stck-week3g.
+          gi_final1-week4 =  gi_fut_stck-week4g.
+          gi_final1-week5 =  gi_fut_stck-week5g.
+          gi_final1-week6 =  gi_fut_stck-week6g.
+        ELSEIF ( gp_istck EQ space AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1.
+          gi_final1-week2 =  gi_fut_stck-week2.
+          gi_final1-week3 =  gi_fut_stck-week3.
+          gi_final1-week4 =  gi_fut_stck-week4.
+          gi_final1-week5 =  gi_fut_stck-week5.
+          gi_final1-week6 =  gi_fut_stck-week6.
+        ENDIF.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        gi_final1-ebeln =  gi_fut_stck-ebeln.
+        gi_final1-ebelp =  gi_fut_stck-ebelp.
+        gi_final1-lifnr =  gi_fut_stck-lifnr.
+        gi_final1-name1 =  gi_fut_stck-name1.
+        gi_final1-menge =  gi_fut_stck-menge.
+        gi_final1-opquan = gi_fut_stck-opquan.
+        gi_final1-udate  = gi_fut_stck-udate.
+        gi_final1-deindt = gi_fut_stck-deindt.
+        gi_final1-peindt = gi_fut_stck-peindt.
+        gi_final1-trame  = gi_fut_stck-trame.
+        gi_final1-reswk  = gi_fut_stck-reswk.
+*          SHIFT gi_final1-doh   LEFT DELETING LEADING '0'.
+        SHIFT gi_final1-matnr LEFT DELETING LEADING '0'.
+        IF NOT gi_final1-opquan IS INITIAL. " added on 17-jul-2015 for CHG1350150 by502277866
+          APPEND gi_final1 TO gt_final1.
+        ENDIF.
+        CLEAR: gi_makt1 , gi_final1.
+      ENDLOOP.
+      SORT gt_final1 BY doh werks matnr ebeln ebelp.
+      DELETE ADJACENT DUPLICATES FROM gt_final1 COMPARING werks matnr ebeln ebelp.
+    ENDIF.
+    IF gp_1week = 'X'.
+      LOOP AT gt_fut_stck INTO gi_fut_stck WHERE week1 IS NOT INITIAL.
+        READ TABLE gt_makt1 INTO gi_makt1 WITH KEY matnr = gi_fut_stck-matnr.
+        IF sy-subrc IS INITIAL.
+          gi_final1-maktx = gi_makt1-maktx.
+        ENDIF.
+        gi_final1-werks =  gi_fut_stck-werks.
+        gi_final1-dsnam =  gi_fut_stck-dsnam.
+        gi_final1-dispo =  gi_fut_stck-dispo.
+        gi_final1-mvgr1 =  gi_fut_stck-mvgr1.
+        gi_final1-matnr  = gi_fut_stck-matnr.
+        gi_final1-beskz =  gi_fut_stck-beskz.
+        gi_final1-sobsl =  gi_fut_stck-sobsl.
+        gi_final1-wzeit =  gi_fut_stck-wzeit.
+        gi_final1-plifz =  gi_fut_stck-plifz.
+        gi_final1-webaz =  gi_fut_stck-webaz.
+        gi_final1-avgusg = gi_fut_stck-avgusg.
+        gi_final1-lbkum =  gi_fut_stck-lbkum.
+        gi_final1-doh   =  gi_fut_stck-doh+0(10)."" added on 17-jul-2015 for CHG1350150 by502277866
+        gi_final1-labst =  gi_fut_stck-labst.
+        gi_final1-eisbe =  gi_fut_stck-eisbe.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+        IF ( gp_istck = 'X' AND gp_indrq = 'X' ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1i.
+          gi_final1-week2 =  gi_fut_stck-week2i.
+          gi_final1-week3 =  gi_fut_stck-week3i.
+          gi_final1-week4 =  gi_fut_stck-week4i.
+          gi_final1-week5 =  gi_fut_stck-week5i.
+          gi_final1-week6 =  gi_fut_stck-week6i.
+        ELSEIF ( gp_istck = 'X' AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1h.
+          gi_final1-week2 =  gi_fut_stck-week2h.
+          gi_final1-week3 =  gi_fut_stck-week3h.
+          gi_final1-week4 =  gi_fut_stck-week4h.
+          gi_final1-week5 =  gi_fut_stck-week5h.
+          gi_final1-week6 =  gi_fut_stck-week6h.
+        ELSEIF ( gp_istck EQ space AND gp_indrq = 'X' ) .
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1g.
+          gi_final1-week2 =  gi_fut_stck-week2g.
+          gi_final1-week3 =  gi_fut_stck-week3g.
+          gi_final1-week4 =  gi_fut_stck-week4g.
+          gi_final1-week5 =  gi_fut_stck-week5g.
+          gi_final1-week6 =  gi_fut_stck-week6g.
+        ELSEIF ( gp_istck EQ space AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1.
+          gi_final1-week2 =  gi_fut_stck-week2.
+          gi_final1-week3 =  gi_fut_stck-week3.
+          gi_final1-week4 =  gi_fut_stck-week4.
+          gi_final1-week5 =  gi_fut_stck-week5.
+          gi_final1-week6 =  gi_fut_stck-week6.
+        ENDIF.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        gi_final1-ebeln =  gi_fut_stck-ebeln.
+        gi_final1-ebelp =  gi_fut_stck-ebelp.
+        gi_final1-lifnr =  gi_fut_stck-lifnr.
+        gi_final1-name1 =  gi_fut_stck-name1.
+        gi_final1-menge =  gi_fut_stck-menge.
+        gi_final1-opquan = gi_fut_stck-opquan.
+        gi_final1-udate  = gi_fut_stck-udate.
+        gi_final1-deindt = gi_fut_stck-deindt.
+        gi_final1-peindt = gi_fut_stck-peindt.
+        gi_final1-trame  = gi_fut_stck-trame.
+        gi_final1-reswk  = gi_fut_stck-reswk.
+*          SHIFT gi_final1-doh LEFT DELETING LEADING '0'.
+        SHIFT gi_final1-matnr LEFT DELETING LEADING '0'.
+        IF gi_final1-opquan IS NOT INITIAL." added on 17-jul-2015 for CHG1350150 by502277866
+          APPEND gi_final1 TO gt_final1.
+        ENDIF.
+        CLEAR: gi_makt1 ,gi_final1.
+      ENDLOOP.
+      SORT gt_final1 BY doh werks matnr ebeln ebelp.
+      DELETE ADJACENT DUPLICATES FROM gt_final1 COMPARING werks matnr ebeln ebelp.
+    ENDIF.
+    IF gp_2week = 'X'.
+      LOOP AT gt_fut_stck INTO gi_fut_stck WHERE week2 IS NOT INITIAL.
+        READ TABLE gt_makt1 INTO gi_makt1 WITH KEY matnr = gi_fut_stck-matnr.
+        IF sy-subrc IS INITIAL.
+          gi_final1-maktx = gi_makt1-maktx.
+        ENDIF.
+        gi_final1-werks =  gi_fut_stck-werks.
+        gi_final1-dsnam =  gi_fut_stck-dsnam.
+        gi_final1-dispo =  gi_fut_stck-dispo.
+        gi_final1-mvgr1 =  gi_fut_stck-mvgr1.
+        gi_final1-matnr  = gi_fut_stck-matnr.
+        gi_final1-beskz =  gi_fut_stck-beskz.
+        gi_final1-sobsl =  gi_fut_stck-sobsl.
+        gi_final1-wzeit =  gi_fut_stck-wzeit.
+        gi_final1-plifz =  gi_fut_stck-plifz.
+        gi_final1-webaz =  gi_fut_stck-webaz.
+        gi_final1-avgusg = gi_fut_stck-avgusg.
+        gi_final1-lbkum =  gi_fut_stck-lbkum.
+        gi_final1-doh   =  gi_fut_stck-doh+0(10)." added on 17-jul-2015 for CHG1350150 by502277866
+        gi_final1-labst =  gi_fut_stck-labst.
+        gi_final1-eisbe =  gi_fut_stck-eisbe.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+        IF ( gp_istck = 'X' AND gp_indrq = 'X' ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1i.
+          gi_final1-week2 =  gi_fut_stck-week2i.
+          gi_final1-week3 =  gi_fut_stck-week3i.
+          gi_final1-week4 =  gi_fut_stck-week4i.
+          gi_final1-week5 =  gi_fut_stck-week5i.
+          gi_final1-week6 =  gi_fut_stck-week6i.
+        ELSEIF ( gp_istck = 'X' AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1h.
+          gi_final1-week2 =  gi_fut_stck-week2h.
+          gi_final1-week3 =  gi_fut_stck-week3h.
+          gi_final1-week4 =  gi_fut_stck-week4h.
+          gi_final1-week5 =  gi_fut_stck-week5h.
+          gi_final1-week6 =  gi_fut_stck-week6h.
+        ELSEIF ( gp_istck EQ space AND gp_indrq = 'X' ) .
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1g.
+          gi_final1-week2 =  gi_fut_stck-week2g.
+          gi_final1-week3 =  gi_fut_stck-week3g.
+          gi_final1-week4 =  gi_fut_stck-week4g.
+          gi_final1-week5 =  gi_fut_stck-week5g.
+          gi_final1-week6 =  gi_fut_stck-week6g.
+        ELSEIF ( gp_istck EQ space AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1.
+          gi_final1-week2 =  gi_fut_stck-week2.
+          gi_final1-week3 =  gi_fut_stck-week3.
+          gi_final1-week4 =  gi_fut_stck-week4.
+          gi_final1-week5 =  gi_fut_stck-week5.
+          gi_final1-week6 =  gi_fut_stck-week6.
+        ENDIF.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        gi_final1-ebeln =  gi_fut_stck-ebeln.
+        gi_final1-ebelp =  gi_fut_stck-ebelp.
+        gi_final1-lifnr =  gi_fut_stck-lifnr.
+        gi_final1-name1 =  gi_fut_stck-name1.
+        gi_final1-menge =  gi_fut_stck-menge.
+        gi_final1-opquan = gi_fut_stck-opquan.
+        gi_final1-udate  = gi_fut_stck-udate.
+        gi_final1-deindt = gi_fut_stck-deindt.
+        gi_final1-peindt = gi_fut_stck-peindt.
+        gi_final1-trame  = gi_fut_stck-trame.
+        gi_final1-reswk  = gi_fut_stck-reswk.
+*          SHIFT gi_final1-doh LEFT DELETING LEADING '0'.
+        SHIFT gi_final1-matnr LEFT DELETING LEADING '0'.
+        IF gi_final1-opquan IS NOT INITIAL." added on 17-jul-2015 for CHG1350150 by502277866
+          APPEND gi_final1 TO gt_final1.
+        ENDIF.
+        CLEAR: gi_makt1 ,gi_final1.
+      ENDLOOP.
+      SORT gt_final1 BY doh werks matnr ebeln ebelp.
+      DELETE ADJACENT DUPLICATES FROM gt_final1 COMPARING werks matnr ebeln ebelp.
+    ENDIF.
+    IF gp_3week = 'X'.
+      LOOP AT gt_fut_stck INTO gi_fut_stck WHERE week3 IS NOT INITIAL.
+        READ TABLE gt_makt1 INTO gi_makt1 WITH KEY matnr = gi_fut_stck-matnr.
+        IF sy-subrc IS INITIAL.
+          gi_final1-maktx = gi_makt1-maktx.
+        ENDIF.
+        gi_final1-werks =  gi_fut_stck-werks.
+        gi_final1-dsnam =  gi_fut_stck-dsnam.
+        gi_final1-dispo =  gi_fut_stck-dispo.
+        gi_final1-mvgr1 =  gi_fut_stck-mvgr1.
+        gi_final1-matnr  = gi_fut_stck-matnr.
+        gi_final1-beskz =  gi_fut_stck-beskz.
+        gi_final1-sobsl =  gi_fut_stck-sobsl.
+        gi_final1-wzeit =  gi_fut_stck-wzeit.
+        gi_final1-plifz =  gi_fut_stck-plifz.
+        gi_final1-webaz =  gi_fut_stck-webaz.
+        gi_final1-avgusg = gi_fut_stck-avgusg.
+        gi_final1-lbkum =  gi_fut_stck-lbkum.
+        gi_final1-doh   =  gi_fut_stck-doh+0(10)." added on 17-jul-2015 for CHG1350150 by502277866
+        gi_final1-labst =  gi_fut_stck-labst.
+        gi_final1-eisbe =  gi_fut_stck-eisbe.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+        IF ( gp_istck = 'X' AND gp_indrq = 'X' ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1i.
+          gi_final1-week2 =  gi_fut_stck-week2i.
+          gi_final1-week3 =  gi_fut_stck-week3i.
+          gi_final1-week4 =  gi_fut_stck-week4i.
+          gi_final1-week5 =  gi_fut_stck-week5i.
+          gi_final1-week6 =  gi_fut_stck-week6i.
+        ELSEIF ( gp_istck = 'X' AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1h.
+          gi_final1-week2 =  gi_fut_stck-week2h.
+          gi_final1-week3 =  gi_fut_stck-week3h.
+          gi_final1-week4 =  gi_fut_stck-week4h.
+          gi_final1-week5 =  gi_fut_stck-week5h.
+          gi_final1-week6 =  gi_fut_stck-week6h.
+        ELSEIF ( gp_istck EQ space AND gp_indrq = 'X' ) .
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1g.
+          gi_final1-week2 =  gi_fut_stck-week2g.
+          gi_final1-week3 =  gi_fut_stck-week3g.
+          gi_final1-week4 =  gi_fut_stck-week4g.
+          gi_final1-week5 =  gi_fut_stck-week5g.
+          gi_final1-week6 =  gi_fut_stck-week6g.
+        ELSEIF ( gp_istck EQ space AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1.
+          gi_final1-week2 =  gi_fut_stck-week2.
+          gi_final1-week3 =  gi_fut_stck-week3.
+          gi_final1-week4 =  gi_fut_stck-week4.
+          gi_final1-week5 =  gi_fut_stck-week5.
+          gi_final1-week6 =  gi_fut_stck-week6.
+        ENDIF.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        gi_final1-ebeln =  gi_fut_stck-ebeln.
+        gi_final1-ebelp =  gi_fut_stck-ebelp.
+        gi_final1-lifnr =  gi_fut_stck-lifnr.
+        gi_final1-name1 =  gi_fut_stck-name1.
+        gi_final1-menge =  gi_fut_stck-menge.
+        gi_final1-opquan = gi_fut_stck-opquan.
+        gi_final1-udate  = gi_fut_stck-udate.
+        gi_final1-deindt = gi_fut_stck-deindt.
+        gi_final1-peindt = gi_fut_stck-peindt.
+        gi_final1-trame  = gi_fut_stck-trame.
+        gi_final1-reswk  = gi_fut_stck-reswk.
+*          SHIFT gi_final1-doh LEFT DELETING LEADING '0'.
+        SHIFT gi_final1-matnr LEFT DELETING LEADING '0'.
+        IF gi_final1-opquan IS NOT INITIAL." added on 17-jul-2015 for CHG1350150 by502277866
+          APPEND gi_final1 TO gt_final1.
+        ENDIF.
+        CLEAR: gi_makt1 ,gi_final1.
+      ENDLOOP.
+      SORT gt_final1 BY doh werks matnr ebeln ebelp.
+      DELETE ADJACENT DUPLICATES FROM gt_final1 COMPARING werks matnr ebeln ebelp.
+    ENDIF.
+    IF gp_4week = 'X'.
+      LOOP AT gt_fut_stck INTO gi_fut_stck WHERE week4 IS NOT INITIAL.
+        READ TABLE gt_makt1 INTO gi_makt1 WITH KEY matnr = gi_fut_stck-matnr.
+        IF sy-subrc IS INITIAL.
+          gi_final1-maktx = gi_makt1-maktx.
+        ENDIF.
+        gi_final1-werks =  gi_fut_stck-werks.
+        gi_final1-dsnam =  gi_fut_stck-dsnam.
+        gi_final1-dispo =  gi_fut_stck-dispo.
+        gi_final1-mvgr1 =  gi_fut_stck-mvgr1.
+        gi_final1-matnr  = gi_fut_stck-matnr.
+        gi_final1-beskz =  gi_fut_stck-beskz.
+        gi_final1-sobsl =  gi_fut_stck-sobsl.
+        gi_final1-wzeit =  gi_fut_stck-wzeit.
+        gi_final1-plifz =  gi_fut_stck-plifz.
+        gi_final1-webaz =  gi_fut_stck-webaz.
+        gi_final1-avgusg = gi_fut_stck-avgusg.
+        gi_final1-lbkum =  gi_fut_stck-lbkum.
+        gi_final1-doh   =  gi_fut_stck-doh+0(10)." added on 17-jul-2015 for CHG1350150 by502277866
+        gi_final1-labst =  gi_fut_stck-labst.
+        gi_final1-eisbe =  gi_fut_stck-eisbe.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+        IF ( gp_istck = 'X' AND gp_indrq = 'X' ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1i.
+          gi_final1-week2 =  gi_fut_stck-week2i.
+          gi_final1-week3 =  gi_fut_stck-week3i.
+          gi_final1-week4 =  gi_fut_stck-week4i.
+          gi_final1-week5 =  gi_fut_stck-week5i.
+          gi_final1-week6 =  gi_fut_stck-week6i.
+        ELSEIF ( gp_istck = 'X' AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1h.
+          gi_final1-week2 =  gi_fut_stck-week2h.
+          gi_final1-week3 =  gi_fut_stck-week3h.
+          gi_final1-week4 =  gi_fut_stck-week4h.
+          gi_final1-week5 =  gi_fut_stck-week5h.
+          gi_final1-week6 =  gi_fut_stck-week6h.
+        ELSEIF ( gp_istck EQ space AND gp_indrq = 'X' ) .
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1g.
+          gi_final1-week2 =  gi_fut_stck-week2g.
+          gi_final1-week3 =  gi_fut_stck-week3g.
+          gi_final1-week4 =  gi_fut_stck-week4g.
+          gi_final1-week5 =  gi_fut_stck-week5g.
+          gi_final1-week6 =  gi_fut_stck-week6g.
+        ELSEIF ( gp_istck EQ space AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1.
+          gi_final1-week2 =  gi_fut_stck-week2.
+          gi_final1-week3 =  gi_fut_stck-week3.
+          gi_final1-week4 =  gi_fut_stck-week4.
+          gi_final1-week5 =  gi_fut_stck-week5.
+          gi_final1-week6 =  gi_fut_stck-week6.
+        ENDIF.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        gi_final1-ebeln =  gi_fut_stck-ebeln.
+        gi_final1-ebelp =  gi_fut_stck-ebelp.
+        gi_final1-lifnr =  gi_fut_stck-lifnr.
+        gi_final1-name1 =  gi_fut_stck-name1.
+        gi_final1-menge =  gi_fut_stck-menge.
+        gi_final1-opquan = gi_fut_stck-opquan.
+        gi_final1-udate  = gi_fut_stck-udate.
+        gi_final1-deindt = gi_fut_stck-deindt.
+        gi_final1-peindt = gi_fut_stck-peindt.
+        gi_final1-trame  = gi_fut_stck-trame.
+        gi_final1-reswk  = gi_fut_stck-reswk.
+*          SHIFT gi_final1-doh LEFT DELETING LEADING '0'.
+        SHIFT gi_final1-matnr LEFT DELETING LEADING '0'.
+        IF gi_final1-opquan IS NOT INITIAL." added on 17-jul-2015 for CHG1350150 by502277866
+          APPEND gi_final1 TO gt_final1.
+        ENDIF.
+        CLEAR: gi_makt1 ,gi_final1.
+      ENDLOOP.
+      SORT gt_final1 BY doh werks matnr ebeln ebelp.
+      DELETE ADJACENT DUPLICATES FROM gt_final1 COMPARING werks matnr ebeln ebelp.
+    ENDIF.
+    IF gp_5week = 'X'.
+      LOOP AT gt_fut_stck INTO gi_fut_stck WHERE week5 IS NOT INITIAL.
+        READ TABLE gt_makt1 INTO gi_makt1 WITH KEY matnr = gi_fut_stck-matnr.
+        IF sy-subrc IS INITIAL.
+          gi_final1-maktx = gi_makt1-maktx.
+        ENDIF.
+        gi_final1-werks =  gi_fut_stck-werks.
+        gi_final1-dsnam =  gi_fut_stck-dsnam.
+        gi_final1-dispo =  gi_fut_stck-dispo.
+        gi_final1-mvgr1 =  gi_fut_stck-mvgr1.
+        gi_final1-matnr  = gi_fut_stck-matnr.
+        gi_final1-beskz =  gi_fut_stck-beskz.
+        gi_final1-sobsl =  gi_fut_stck-sobsl.
+        gi_final1-wzeit =  gi_fut_stck-wzeit.
+        gi_final1-plifz =  gi_fut_stck-plifz.
+        gi_final1-webaz =  gi_fut_stck-webaz.
+        gi_final1-avgusg = gi_fut_stck-avgusg.
+        gi_final1-lbkum =  gi_fut_stck-lbkum.
+        gi_final1-doh   =  gi_fut_stck-doh+0(10)." added on 17-jul-2015 for CHG1350150 by502277866
+        gi_final1-labst =  gi_fut_stck-labst.
+        gi_final1-eisbe =  gi_fut_stck-eisbe.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+        IF ( gp_istck = 'X' AND gp_indrq = 'X' ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1i.
+          gi_final1-week2 =  gi_fut_stck-week2i.
+          gi_final1-week3 =  gi_fut_stck-week3i.
+          gi_final1-week4 =  gi_fut_stck-week4i.
+          gi_final1-week5 =  gi_fut_stck-week5i.
+          gi_final1-week6 =  gi_fut_stck-week6i.
+        ELSEIF ( gp_istck = 'X' AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1h.
+          gi_final1-week2 =  gi_fut_stck-week2h.
+          gi_final1-week3 =  gi_fut_stck-week3h.
+          gi_final1-week4 =  gi_fut_stck-week4h.
+          gi_final1-week5 =  gi_fut_stck-week5h.
+          gi_final1-week6 =  gi_fut_stck-week6h.
+        ELSEIF ( gp_istck EQ space AND gp_indrq = 'X' ) .
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1g.
+          gi_final1-week2 =  gi_fut_stck-week2g.
+          gi_final1-week3 =  gi_fut_stck-week3g.
+          gi_final1-week4 =  gi_fut_stck-week4g.
+          gi_final1-week5 =  gi_fut_stck-week5g.
+          gi_final1-week6 =  gi_fut_stck-week6g.
+        ELSEIF ( gp_istck EQ space AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1.
+          gi_final1-week2 =  gi_fut_stck-week2.
+          gi_final1-week3 =  gi_fut_stck-week3.
+          gi_final1-week4 =  gi_fut_stck-week4.
+          gi_final1-week5 =  gi_fut_stck-week5.
+          gi_final1-week6 =  gi_fut_stck-week6.
+        ENDIF.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        gi_final1-ebeln =  gi_fut_stck-ebeln.
+        gi_final1-ebelp =  gi_fut_stck-ebelp.
+        gi_final1-lifnr =  gi_fut_stck-lifnr.
+        gi_final1-name1 =  gi_fut_stck-name1.
+        gi_final1-menge =  gi_fut_stck-menge.
+        gi_final1-opquan = gi_fut_stck-opquan.
+        gi_final1-udate  = gi_fut_stck-udate.
+        gi_final1-deindt = gi_fut_stck-deindt.
+        gi_final1-peindt = gi_fut_stck-peindt.
+        gi_final1-trame  = gi_fut_stck-trame.
+        gi_final1-reswk  = gi_fut_stck-reswk.
+*          SHIFT gi_final1-doh LEFT DELETING LEADING '0'.
+        SHIFT gi_final1-matnr LEFT DELETING LEADING '0'.
+        IF gi_final1-opquan IS NOT INITIAL." added on 17-jul-2015 for CHG1350150 by502277866
+          APPEND gi_final1 TO gt_final1.
+        ENDIF.
+        CLEAR: gi_makt1 ,gi_final1.
+      ENDLOOP.
+      SORT gt_final1 BY doh werks matnr ebeln ebelp.
+      DELETE ADJACENT DUPLICATES FROM gt_final1 COMPARING werks matnr ebeln ebelp.
+    ENDIF.
+    IF gp_6week = 'X'.
+      LOOP AT gt_fut_stck INTO gi_fut_stck WHERE week6 IS NOT INITIAL.
+        READ TABLE gt_makt1 INTO gi_makt1 WITH KEY matnr = gi_fut_stck-matnr.
+        IF sy-subrc IS INITIAL.
+          gi_final1-maktx = gi_makt1-maktx.
+        ENDIF.
+        gi_final1-werks =  gi_fut_stck-werks.
+        gi_final1-dsnam =  gi_fut_stck-dsnam.
+        gi_final1-dispo =  gi_fut_stck-dispo.
+        gi_final1-mvgr1 =  gi_fut_stck-mvgr1.
+        gi_final1-matnr  = gi_fut_stck-matnr.
+        gi_final1-beskz =  gi_fut_stck-beskz.
+        gi_final1-sobsl =  gi_fut_stck-sobsl.
+        gi_final1-wzeit =  gi_fut_stck-wzeit.
+        gi_final1-plifz =  gi_fut_stck-plifz.
+        gi_final1-webaz =  gi_fut_stck-webaz.
+        gi_final1-avgusg = gi_fut_stck-avgusg.
+        gi_final1-lbkum =  gi_fut_stck-lbkum.
+        gi_final1-doh   =  gi_fut_stck-doh+0(10)." added on 17-jul-2015 for CHG1350150 by502277866
+        gi_final1-labst =  gi_fut_stck-labst.
+        gi_final1-eisbe =  gi_fut_stck-eisbe.
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+        IF ( gp_istck = 'X' AND gp_indrq = 'X' ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1i.
+          gi_final1-week2 =  gi_fut_stck-week2i.
+          gi_final1-week3 =  gi_fut_stck-week3i.
+          gi_final1-week4 =  gi_fut_stck-week4i.
+          gi_final1-week5 =  gi_fut_stck-week5i.
+          gi_final1-week6 =  gi_fut_stck-week6i.
+        ELSEIF ( gp_istck = 'X' AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1h.
+          gi_final1-week2 =  gi_fut_stck-week2h.
+          gi_final1-week3 =  gi_fut_stck-week3h.
+          gi_final1-week4 =  gi_fut_stck-week4h.
+          gi_final1-week5 =  gi_fut_stck-week5h.
+          gi_final1-week6 =  gi_fut_stck-week6h.
+        ELSEIF ( gp_istck EQ space AND gp_indrq = 'X' ) .
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1g.
+          gi_final1-week2 =  gi_fut_stck-week2g.
+          gi_final1-week3 =  gi_fut_stck-week3g.
+          gi_final1-week4 =  gi_fut_stck-week4g.
+          gi_final1-week5 =  gi_fut_stck-week5g.
+          gi_final1-week6 =  gi_fut_stck-week6g.
+        ELSEIF ( gp_istck EQ space AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1.
+          gi_final1-week2 =  gi_fut_stck-week2.
+          gi_final1-week3 =  gi_fut_stck-week3.
+          gi_final1-week4 =  gi_fut_stck-week4.
+          gi_final1-week5 =  gi_fut_stck-week5.
+          gi_final1-week6 =  gi_fut_stck-week6.
+        ENDIF.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        gi_final1-ebeln =  gi_fut_stck-ebeln.
+        gi_final1-ebelp =  gi_fut_stck-ebelp.
+        gi_final1-lifnr =  gi_fut_stck-lifnr.
+        gi_final1-name1 =  gi_fut_stck-name1.
+        gi_final1-menge =  gi_fut_stck-menge.
+        gi_final1-opquan = gi_fut_stck-opquan.
+        gi_final1-udate  = gi_fut_stck-udate.
+        gi_final1-deindt = gi_fut_stck-deindt.
+        gi_final1-peindt = gi_fut_stck-peindt.
+        gi_final1-trame  = gi_fut_stck-trame.
+        gi_final1-reswk  = gi_fut_stck-reswk.
+*          SHIFT gi_final1-doh LEFT DELETING LEADING '0'.
+        SHIFT gi_final1-matnr LEFT DELETING LEADING '0'.
+        IF gi_final1-opquan IS NOT INITIAL." added on 17-jul-2015 for CHG1350150 by502277866
+          APPEND gi_final1 TO gt_final1.
+        ENDIF.
+        CLEAR: gi_makt1 ,gi_final1.
+      ENDLOOP.
+      SORT gt_final1 BY doh werks matnr ebeln ebelp.
+      DELETE ADJACENT DUPLICATES FROM gt_final1 COMPARING werks matnr ebeln ebelp.
+    ENDIF.
+    IF gp_pweek IS INITIAL AND gp_1week IS INITIAL AND gp_2week IS INITIAL AND
+       gp_3week IS INITIAL AND gp_4week IS INITIAL AND gp_5week IS INITIAL AND gp_6week IS INITIAL.
+      LOOP AT gt_fut_stck INTO gi_fut_stck.
+        READ TABLE gt_makt1 INTO gi_makt1 WITH KEY matnr = gi_fut_stck-matnr.
+        IF sy-subrc IS INITIAL.
+          gi_final1-maktx = gi_makt1-maktx.
+        ENDIF.
+        gi_final1-werks =  gi_fut_stck-werks.
+        gi_final1-dsnam =  gi_fut_stck-dsnam.
+        gi_final1-dispo =  gi_fut_stck-dispo.
+        gi_final1-mvgr1 =  gi_fut_stck-mvgr1.
+        gi_final1-matnr  = gi_fut_stck-matnr.
+        gi_final1-beskz =  gi_fut_stck-beskz.
+        gi_final1-sobsl =  gi_fut_stck-sobsl.
+        gi_final1-wzeit =  gi_fut_stck-wzeit.
+        gi_final1-plifz =  gi_fut_stck-plifz.
+        gi_final1-webaz =  gi_fut_stck-webaz.
+        gi_final1-avgusg = gi_fut_stck-avgusg.
+        gi_final1-lbkum =  gi_fut_stck-lbkum.
+        gi_final1-doh   =  gi_fut_stck-doh+0(10)." added on 17-jul-2015 for CHG1350150 by502277866
+        gi_final1-labst =  gi_fut_stck-labst.
+        gi_final1-eisbe =  gi_fut_stck-eisbe.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        IF ( gp_istck = 'X' AND gp_indrq = 'X' ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1i.
+          gi_final1-week2 =  gi_fut_stck-week2i.
+          gi_final1-week3 =  gi_fut_stck-week3i.
+          gi_final1-week4 =  gi_fut_stck-week4i.
+          gi_final1-week5 =  gi_fut_stck-week5i.
+          gi_final1-week6 =  gi_fut_stck-week6i.
+        ELSEIF ( gp_istck = 'X' AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweeki.
+          gi_final1-week1 =  gi_fut_stck-week1h.
+          gi_final1-week2 =  gi_fut_stck-week2h.
+          gi_final1-week3 =  gi_fut_stck-week3h.
+          gi_final1-week4 =  gi_fut_stck-week4h.
+          gi_final1-week5 =  gi_fut_stck-week5h.
+          gi_final1-week6 =  gi_fut_stck-week6h.
+        ELSEIF ( gp_istck EQ space AND gp_indrq = 'X' ) .
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1g.
+          gi_final1-week2 =  gi_fut_stck-week2g.
+          gi_final1-week3 =  gi_fut_stck-week3g.
+          gi_final1-week4 =  gi_fut_stck-week4g.
+          gi_final1-week5 =  gi_fut_stck-week5g.
+          gi_final1-week6 =  gi_fut_stck-week6g.
+        ELSEIF ( gp_istck EQ space AND gp_indrq EQ space ).
+          gi_final1-pweek =  gi_fut_stck-pweek.
+          gi_final1-week1 =  gi_fut_stck-week1.
+          gi_final1-week2 =  gi_fut_stck-week2.
+          gi_final1-week3 =  gi_fut_stck-week3.
+          gi_final1-week4 =  gi_fut_stck-week4.
+          gi_final1-week5 =  gi_fut_stck-week5.
+          gi_final1-week6 =  gi_fut_stck-week6.
+        ENDIF.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+        gi_final1-ebeln =  gi_fut_stck-ebeln.
+        gi_final1-ebelp =  gi_fut_stck-ebelp.
+        gi_final1-lifnr =  gi_fut_stck-lifnr.
+        gi_final1-name1 =  gi_fut_stck-name1.
+        gi_final1-menge =  gi_fut_stck-menge.
+        gi_final1-opquan = gi_fut_stck-opquan.
+        gi_final1-udate  = gi_fut_stck-udate.
+        gi_final1-deindt = gi_fut_stck-deindt.
+        gi_final1-peindt = gi_fut_stck-peindt.
+        gi_final1-trame  = gi_fut_stck-trame.
+        gi_final1-reswk  = gi_fut_stck-reswk.
+*          SHIFT gi_final1-doh   LEFT DELETING LEADING '0'.
+        SHIFT gi_final1-matnr LEFT DELETING LEADING '0'.
+        IF gi_final1-opquan IS NOT INITIAL." added on 17-jul-2015 for CHG1350150 by502277866
+          APPEND gi_final1 TO gt_final1.
+        ENDIF.
+        CLEAR: gi_makt1 ,gi_final1.
+      ENDLOOP.
+      SORT gt_final1 BY doh werks matnr ebeln ebelp.
+    ENDIF.
+  ELSE.
+    MESSAGE i090(zmm) WITH text-901.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+ENDFORM.                    "FOREGROUND_SELECTION
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_fieldcatalog .
+  REFRESH gt_fldcat_ds.
+  CONSTANTS : lc_tabname(30) TYPE c VALUE 'GT_FINAL1'.
+  PERFORM popu_fcatf USING:
+*Begin of Change CHG0994698  28/12/2014 Sumit(502237354)
+        '1'    lc_tabname  'WERKS'     text-b01    ,
+        '5'    lc_tabname  'DSNAM'     text-b02     ,
+        '4'    lc_tabname  'DISPO'     text-b03     ,
+*        '27'   lc_tabname  'MVGR1'     text-b04    ,
+        '6'    lc_tabname  'MATNR'     text-b05    ,
+        '7'    lc_tabname  'MAKTX'     text-b06   ,
+        '8'    lc_tabname  'BESKZ'     text-b07   ,
+        '9'    lc_tabname  'SOBSL'     text-b08   ,
+        '11'   lc_tabname  'WZEIT'     text-b09    ,
+        '12'   lc_tabname  'PLIFZ'     text-b10     ,
+        '10'   lc_tabname  'WEBAZ'     text-b11    ,
+        '15'   lc_tabname  'AVGUSG'    text-b12    ,
+        '13'   lc_tabname  'LBKUM'     text-b13     ,
+        '16'   lc_tabname  'DOH'       text-b14     ,
+        '14'   lc_tabname  'LABST'     text-b15    ,
+        '17'   lc_tabname  'EISBE'     text-b16    ,
+        '18'   lc_tabname  'PWEEK'     text-b17   ,
+        '19'   lc_tabname  'WEEK1'     text-b18   ,
+        '20'   lc_tabname  'WEEK2'     text-b19   ,
+        '21'   lc_tabname  'WEEK3'     text-b20    ,
+        '22'   lc_tabname  'WEEK4'     text-b21     ,
+        '23'   lc_tabname  'WEEK5'     text-b22    ,
+        '24'   lc_tabname  'WEEK6'     text-b23    ,
+        '2'    lc_tabname  'EBELN'     text-b24     ,
+        '3'    lc_tabname  'EBELP'     text-b25     ,
+        '25'   lc_tabname  'LIFNR'     text-b26    ,
+        '26'   lc_tabname  'NAME1'     text-b27    ,
+        '30'   lc_tabname  'MENGE'     text-b28   ,
+        '31'   lc_tabname  'OPQUAN'    text-b29   ,
+        '32'   lc_tabname  'UDATE'     text-b30   ,
+        '33'   lc_tabname  'DEINDT'    text-b31    ,
+        '34'   lc_tabname  'PEINDT'    text-b32    ,
+        '28'   lc_tabname  'RESWK'     text-b33,
+        '29'   lc_tabname  'TRAME'     text-b34  .
+*End of Change CHG0994698  28/12/2014 Sumit(502237354)
+ENDFORM.                    " BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  POPU_FCATF
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM popu_fcatf USING   lp_col_pos_ds       TYPE sycucol
+                        lp_tabname_ds       TYPE slis_tabname
+                        lp_fieldname_ds     TYPE slis_fieldname
+                        lp_reptext_ddic_ds  TYPE reptext.
+*Begin of Change CHG0994698  13/01/2015 Sumit(502237354)
+  DATA: li_fld_ds TYPE slis_fieldcat_alv.
+
+  IF ( gp_pweek IS INITIAL AND lp_fieldname_ds = 'PWEEK' ) OR ( gp_1week IS INITIAL AND lp_fieldname_ds = 'WEEK1' ) OR
+     ( gp_2week IS INITIAL AND lp_fieldname_ds = 'WEEK2' ) OR ( gp_3week IS INITIAL AND lp_fieldname_ds = 'WEEK3' ) OR
+     ( gp_4week IS INITIAL AND lp_fieldname_ds = 'WEEK4' ) OR ( gp_5week IS INITIAL AND lp_fieldname_ds = 'WEEK5' ) OR
+     ( gp_6week IS INITIAL AND lp_fieldname_ds = 'WEEK6' ).
+
+    li_fld_ds-col_pos       = lp_col_pos_ds.
+    li_fld_ds-tabname       = lp_tabname_ds.
+    li_fld_ds-fieldname     = lp_fieldname_ds.
+    li_fld_ds-reptext_ddic  = lp_reptext_ddic_ds.
+    li_fld_ds-no_out        = 'X'.
+
+  ELSE.
+
+    li_fld_ds-col_pos       = lp_col_pos_ds.
+    li_fld_ds-tabname       = lp_tabname_ds.
+    li_fld_ds-fieldname     = lp_fieldname_ds.
+    li_fld_ds-reptext_ddic  = lp_reptext_ddic_ds.
+
+  ENDIF.
+*End of Change CHG0994698  13/01/2015 Sumit(502237354)
+  APPEND li_fld_ds TO gt_fldcat_ds.
+  CLEAR li_fld_ds.
+  SORT gt_fldcat_ds BY col_pos.
+ENDFORM.                    " POPU_FCATF
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output .
+  DATA     : li_layout_ds TYPE slis_layout_alv.
+  CONSTANTS: gc_x         TYPE c VALUE 'X'.
+
+  li_layout_ds-colwidth_optimize = gc_x.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer = 'X'
+      i_buffer_active    = space
+      i_save             = 'A'
+      i_callback_program = sy-repid
+      is_layout          = li_layout_ds
+      it_fieldcat        = gt_fldcat_ds
+    TABLES
+      t_outtab           = gt_final1.
+  EXIT.
+ENDFORM.                    " DISPLAY_OUTPUT
+" FOREGROUND_SELECTION
+

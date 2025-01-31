@@ -1,0 +1,75 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNSD_OPENPO_TOP
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* T A B L E S
+*----------------------------------------------------------------------*
+TABLES: somlreci1.   "SAPoffice: Structure of the API Recipient List
+*----------------------------------------------------------------------*
+*----Types for Input Structure
+*----------------------------------------------------------------------*
+
+TYPES: BEGIN OF ty_input,
+           ebeln(10)     TYPE c,    "Po number
+            name(40),
+            name2(35), " Added on 24-APR-2019 for GECHG0435576 by 502277866
+            street(35),"(25), "" chnaged on 24-APR-2019 for GECHG0435576 by 502277866
+            district(35),"(40),"" chnaged on 24-APR-2019 for GECHG0435576 by 502277866
+            line3(40),
+            line4(40),
+            city(25),
+            region(2),
+            postl_cod1(10),
+            country(2),
+           msg(15)        TYPE c,     " Message
+           field1(90)    TYPE c,     " error message
+        END OF ty_input,
+        BEGIN OF ty_ekpo,
+          ebeln TYPE ebeln,
+          ebelp TYPE ebelp,
+          bukrs TYPE bukrs,
+        END OF ty_ekpo.
+
+
+DATA:  gt_input_data    TYPE STANDARD TABLE OF ty_input,
+       gi_input_data    TYPE ty_input,
+       gt_ekpo          TYPE TABLE OF ty_ekpo,
+       gi_ekpo          TYPE ty_ekpo,
+       gt_error         TYPE  TABLE OF  ty_input,
+       gt_success       TYPE  TABLE OF  ty_input,
+       gi_error         TYPE ty_input,
+       gi_success       TYPE ty_input,
+       gt_input_data1   TYPE STANDARD TABLE OF ty_input,
+       gi_input_data1   TYPE ty_input,
+       gi_input_data2   TYPE ty_input,
+       gt_return        TYPE STANDARD TABLE OF bapiret2,
+       gi_return        TYPE bapiret2,
+       gi_poheader TYPE bapimepoheader,
+       gi_poheaderx TYPE bapimepoheaderx,
+       gi_version   TYPE bapimedcm,
+       gt_poadd     TYPE TABLE OF bapimepoaddrdelivery,
+       gi_poadd     TYPE bapimepoaddrdelivery,
+       gt_poitem TYPE TABLE OF bapimepoitem,
+       gt_poitemx TYPE TABLE OF bapimepoitemx,
+       gi_poitem TYPE   bapimepoitem,
+       gi_poitemx TYPE  bapimepoitemx.
+
+DATA: g_succ_cnt(5) TYPE n,  "Success Count
+       g_err_cnt(5) TYPE n,   "Error Count
+       g_tot_cnt(5) TYPE n.   "Total Count.
+
+DATA : gt_ztuhcd1_ds TYPE TABLE OF ztuhcd1,
+       gi_ztuhcd1_ds TYPE ztuhcd1.
+*----------------------------------------------------------------------*
+*                        Constants                                     *
+*----------------------------------------------------------------------*
+CONSTANTS: gc_htab      TYPE c VALUE               "For tab
+                               cl_abap_char_utilities=>horizontal_tab,
+            gc_cret TYPE c VALUE cl_abap_char_utilities=>cr_lf.
+CONSTANTS : gc_program     TYPE zobject VALUE 'ZRMM_STD_OPEN_PO_CHG',"'ZCMM_OPEN_PO_R_CHG',
+            gc_completed   TYPE char50 VALUE 'COMPLETED',
+            gc_reason      TYPE char50 VALUE 'REASON',
+            gc_description TYPE char50 VALUE 'DESCRIPTION',
+            gc_s           VALUE 'S',
+            gc_x           VALUE 'X'.
+

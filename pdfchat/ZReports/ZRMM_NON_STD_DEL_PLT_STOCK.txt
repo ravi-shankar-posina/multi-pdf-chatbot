@@ -1,0 +1,67 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_NON_STD_DEL_PLT_STOCK
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  zrmm_non_std_del_plt_stock.
+TABLES: vbak,
+        vbap.
+TYPE-POOLS: slis.
+INCLUDE zrmm_non_std_del_plt_stock_top.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-f01.
+SELECT-OPTIONS: s_auart FOR vbak-auart,
+                s_vbeln FOR vbak-vbeln,
+                s_posnr FOR vbap-posnr,
+                s_matnr FOR vbap-matnr,
+                s_pstyv FOR vbap-pstyv NO INTERVALS,
+                s_erdat FOR vbak-erdat,
+                s_kunnr FOR vbak-kunnr.
+SELECTION-SCREEN END OF BLOCK b1.
+*SELECTION-SCREEN BEGIN OF BLOCK b WITH FRAME TITLE text-f02.
+*SELECTION-SCREEN COMMENT 31(15) text-001.
+*PARAMETERS: p_delpri LIKE rv03r-p_sort DEFAULT '1'.
+*
+*PARAMETERS: p_date LIKE rv03r-p_sort DEFAULT '2'.
+*SELECTION-SCREEN BEGIN OF LINE.
+*SELECTION-SCREEN COMMENT 4(50) text-002 FOR FIELD p_dcreat.
+*PARAMETERS: p_dcreat RADIOBUTTON GROUP g2.
+*SELECTION-SCREEN END OF LINE.
+*SELECTION-SCREEN BEGIN OF LINE.
+*SELECTION-SCREEN COMMENT 4(50) text-003 FOR FIELD p_ddeliv.
+*PARAMETERS: p_ddeliv RADIOBUTTON GROUP g2.
+*
+*SELECTION-SCREEN END OF LINE.
+*PARAMETERS: p_docno LIKE rv03r-p_sort DEFAULT '3'.
+*PARAMETERS: p_itemno LIKE rv03r-p_sort DEFAULT '4'.
+*SELECTION-SCREEN END OF BLOCK b.
+
+
+INITIALIZATION.
+  mc_range: s_auart c_i c_eq c_auart_zor space,
+            s_auart c_i c_eq c_auart_zdp space,
+            s_pstyv c_i c_eq c_pstyv_ztan space.
+
+*  S_AUART-LOW = C_AUART_ZOR.
+*  S_AUART-OPTION = C_EQ.
+*  S_AUART-SIGN = C_I.
+*  APPEND S_AUART.
+*  S_AUART-LOW = C_AUART_ZDP.
+*  S_AUART-OPTION = C_EQ.
+*  S_AUART-SIGN = C_I.
+*  APPEND S_AUART.
+AT SELECTION-SCREEN.
+*  PERFORM F5000_INITIAL_CHECK.
+START-OF-SELECTION.
+  PERFORM f1000_data_retrieve.
+  PERFORM f2000_data_retrieve.
+  PERFORM f3000_main_processing.
+  PERFORM f4000_fieldcat_build.
+  PERFORM f4200_sortinfo_build.
+END-OF-SELECTION.
+  PERFORM f4100_alv_display.
+
+  INCLUDE zrmm_non_std_del_plt_stock_f01.
+

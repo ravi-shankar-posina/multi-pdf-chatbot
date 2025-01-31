@@ -1,0 +1,547 @@
+******************************************************************************************
+* Created by          : Ravi chandra karnam(502295730)
+* Creation Date       : 08/05/2014
+* Transport Request # : FE3K900443
+* RICEF Object No #   : 1185
+* Change request No   : CHG0479115
+* Transaction code    : ZMM186
+* Description         : To Download the Vendor master Historical data .
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+*19/06/2014           CHG0479115        502295730 | Change in date format for all date fields
+*                                                 | TR : FE3K900522
+*****************************************************************************************
+
+REPORT  zrmm_apss_vend_hist_data NO STANDARD PAGE HEADING MESSAGE-ID zfi_apss_msg_cl LINE-COUNT 1023.
+
+************************************************************************
+* S T R U C T U R E   D E C L A R A T I O N S
+************************************************************************
+TYPES : BEGIN OF type_lfa1,
+        lifnr TYPE lifnr,
+        land1 TYPE land1_gp,
+        name1 TYPE name1_gp,
+        ort01 TYPE ort01_gp,
+        ort02 TYPE ort02_gp,
+        pstlz TYPE pstlz,
+        regio TYPE regio,
+        stras TYPE stras_gp,
+        adrnr TYPE adrnr,
+        erdat TYPE erdat_rf,
+        gbort TYPE gbort_q,
+        profs TYPE profs,
+        END OF type_lfa1,
+
+BEGIN OF type_bkpf,                                         "#EC NEEDED
+        bukrs TYPE bukrs,
+        belnr TYPE belnr_d,
+        upddt TYPE upddt,
+       END OF type_bkpf,
+
+         BEGIN OF type_lfb5,
+        lifnr TYPE lifnr,
+        mahns TYPE mahns_d,
+        END OF type_lfb5,
+
+ BEGIN OF type_lfb1,
+        lifnr TYPE lifnr,
+        bukrs TYPE bukrs,
+        zterm TYPE dzterm,
+        erdat TYPE erdat_rf,
+        loevm TYPE loevm_b,
+        END OF type_lfb1,
+
+ BEGIN OF type_dfb1,
+        lifnr TYPE cdobjectv,
+        bukrs TYPE bukrs,
+        zterm TYPE dzterm,
+        erdat TYPE erdat_rf,
+        loevm TYPE loevm_b,
+        END OF type_dfb1,
+
+ BEGIN OF type_eord,
+        bdatu TYPE ordbi,
+        lifnr TYPE elifn,
+       END OF type_eord,
+
+
+ BEGIN OF type_output,
+        sor_id1(2) TYPE c,
+        gbort      TYPE gbort_q,
+        name1      TYPE name1_gp,
+        erdat      TYPE char40,
+        upddt      TYPE char40,
+        load_date1 TYPE char40,
+        sor_id2(2) TYPE c,
+        profs      TYPE profs,
+        ort01      TYPE ort01_gp,
+        stras      TYPE stras_gp,
+        adrnr      TYPE adrnr,
+        pstlz      TYPE pstlz,
+        ort01_gp   TYPE ort01_gp,
+        regio      TYPE regio,
+        pstlz2     TYPE pstlz,
+        regio2     TYPE regio,
+        land1      TYPE land1_gp,
+        parvw      TYPE parvw,
+        parvw1     TYPE parvw,
+        mahns      TYPE mahns_d,
+        gbort1     TYPE gbort_q,
+        bukrs1     TYPE bukrs,
+        load_date2 TYPE char40,
+        sor_id3(2) TYPE c,
+        profs1     TYPE profs,
+        bukrs2     TYPE bukrs,
+        gbort2     TYPE gbort_q,
+        load_date3 TYPE char40,
+        name2      TYPE name1_gp,
+        zterm      TYPE dzterm,
+        sor_id4(2) TYPE c,
+        bukrs3     TYPE bukrs,
+        profs2     TYPE profs,
+        inac_date  TYPE char40,
+        gbort3     TYPE gbort_q,
+        load_date4 TYPE char40,
+        del_ind    TYPE loevm_b,
+        END OF type_output,
+
+        BEGIN OF type_fields,
+           field TYPE char40,
+        END OF type_fields.
+************************************************************************
+* I N T E R N A L    T A B L E
+************************************************************************
+DATA : gt_lfa1      TYPE STANDARD TABLE OF type_lfa1  ,
+       gt_lfb5      TYPE STANDARD TABLE OF type_lfb5   ,
+       gt_lfb1      TYPE STANDARD TABLE OF type_lfb1  ,
+       gt_w_lfb1    TYPE STANDARD TABLE OF type_dfb1   ,
+       gt_eord      TYPE STANDARD TABLE OF type_eord   ,
+       gt_output    TYPE STANDARD TABLE OF type_output ,
+       gt_output_fm TYPE  zpi_dt_vendor_req_vendors__tab,
+       gt_fields    TYPE TABLE OF type_fields.
+
+************************************************************************
+* W O R K   A R E A
+************************************************************************
+DATA : gi_lfa1        TYPE type_lfa1,
+       gi_lfb5        TYPE type_lfb5,
+       gi_lfb1        TYPE type_lfb1,
+       gi_t_lfb1      TYPE type_dfb1,
+       gi_eord        TYPE type_eord,
+       gi_output      TYPE type_output,
+       gi_output_fm   TYPE zpi_dt_vendor_req_vendors_requ,
+       gi_fields      TYPE type_fields.
+
+************************************************************************
+* G L O B A L   D A T A
+************************************************************************
+DATA : gw_erdat      TYPE erdat,
+       gw_bukrs      TYPE bukrs.
+
+************************************************************************
+* I N C L U D E S
+************************************************************************
+
+INCLUDE : znfi_apss_top_include,                           "#EC INCL_OK
+          znfi_apss_subroutines_include.
+
+************************************************************************
+* C O N S T A N T S   D A T A
+************************************************************************
+CONSTANTS : gc_prnm(7) TYPE c VALUE 'VENDOR'.
+
+*************************************************************************
+** S E L E C T  O P T I O N S
+*************************************************************************
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+
+SELECT-OPTIONS : s_erdat FOR gw_erdat NO-EXTENSION OBLIGATORY,
+                 s_bukrs FOR gw_bukrs .
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-002.
+PARAMETERS :p_file1 TYPE rlgrap-filename OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b3.
+
+************************************************************************
+* I N I T I A L I Z A T I O N
+************************************************************************
+INITIALIZATION.
+
+  CLEAR : gi_lfa1,
+          gi_lfb5,
+          gi_lfb1,
+          gi_eord.
+
+  REFRESH : gt_lfa1,
+            gt_lfb5,
+            gt_lfb1,
+            gt_eord.
+
+  s_erdat-low    = sy-datum.
+  s_erdat-high   = sy-datum.
+  s_erdat-option = gc_bt.
+  s_erdat-sign   = gc_i1.
+  APPEND s_erdat.
+  PERFORM get_comp_codes.
+
+************************************************************************
+* S E L E C T I O N   S C R E E N   E V E N T S
+************************************************************************
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file1.
+
+  CALL FUNCTION 'KD_GET_FILENAME_ON_F4'
+    EXPORTING
+      field_name    = p_file1
+    CHANGING
+      file_name     = p_file1
+    EXCEPTIONS
+      mask_too_long = 1
+      OTHERS        = 2.
+  IF sy-subrc <> 0.
+    MESSAGE e026.
+  ENDIF.                    " IF sy-subrc <> 0.
+
+
+************************************************************************
+* S T A R T - O F - S E L E C T I O N
+************************************************************************
+START-OF-SELECTION.
+
+*Getting all the data into internal table
+  PERFORM data_fetch_fm.
+
+END-OF-SELECTION.
+
+  PERFORM output_alv.
+
+*&---------------------------------------------------------------------*
+*&      Form  OUTPUT_ALV
+*&---------------------------------------------------------------------*
+*       ALV DISPLAY
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM output_alv .
+
+  PERFORM fill_field_names.
+  PERFORM download_file.
+  PERFORM create_field_catalog.
+  PERFORM create_alv_layout.
+  PERFORM call_alv.
+
+ENDFORM.                    " OUTPUT_ALV
+
+*&------------------------------------------------------------------------------------*
+*&      Form  data_fetch_fm
+*&------------------------------------------------------------------------------------*
+*   This Subroutine is used to get the required data and putting into internal table
+*-------------------------------------------------------------------------------------*
+FORM data_fetch_fm.
+
+  LOOP AT gt_ccodes INTO gi_ccodes.
+    IF gi_ccodes-bukrs NOT IN s_bukrs[].
+      gi_ccodes-bukrs = ' '.
+      MODIFY gt_ccodes FROM gi_ccodes.
+    ENDIF.
+  ENDLOOP.
+
+  DELETE gt_ccodes WHERE bukrs = ' '.
+
+  IF gt_ccodes[] IS NOT INITIAL.
+    CALL FUNCTION 'ZMM_VENDOR_SAP2APSS_FM'
+      EXPORTING
+        im_datefrom   = s_erdat-low
+        im_dateto     = s_erdat-high
+        im_hist       = gc_x
+      IMPORTING
+        ex_output_fm  = gt_output_fm
+      TABLES
+        tb_ccodes     = gt_ccodes[]
+      EXCEPTIONS                                            "#EC FB_RC
+        program_error = 1
+        OTHERS        = 2.
+  ENDIF.
+
+  IF sy-subrc NE 0.                                       "#EC CI_SUBRC
+    MESSAGE s018.
+  ENDIF.
+
+  LOOP AT gt_output_fm INTO gi_output_fm.
+
+    gw_df            = gi_output_fm-start_date_active .
+    PERFORM conv_date_format USING gw_df.
+    gi_output-erdat       = gw_df.
+    CLEAR gw_df.
+
+    gw_df            = gi_output_fm-end_date_active .
+    PERFORM conv_date_format USING gw_df.
+    gi_output-upddt       = gw_df.
+    CLEAR gw_df.
+    gw_df            = gi_output_fm-inactive_date .
+    PERFORM conv_date_format USING gw_df.
+    gi_output-inac_date  = gw_df.
+    CLEAR gw_df.
+
+    gi_output-sor_id1     = gi_output_fm-av_sor_id.
+    gi_output-gbort       = gi_output_fm-av_vendor_gsl.
+    gi_output-name1       = gi_output_fm-av_vendor_name.
+    gi_output-sor_id2     = gi_output_fm-avsa_sor_id.
+    gi_output-profs       = gi_output_fm-avsa_vendor_site.
+    gi_output-ort01       = gi_output_fm-vendor_site_name.
+    gi_output-stras       = gi_output_fm-address_line1.
+    gi_output-adrnr       = gi_output_fm-address_line2.
+    gi_output-pstlz       = gi_output_fm-address_line3.
+    gi_output-ort01_gp    = gi_output_fm-city.
+    gi_output-regio       = gi_output_fm-state.
+    gi_output-pstlz2      = gi_output_fm-zip.
+    gi_output-regio2      = gi_output_fm-province.
+    gi_output-land1       = gi_output_fm-country.
+    gi_output-parvw       = gi_output_fm-pay_site_flag.
+    gi_output-parvw1      = gi_output_fm-remit_site_flag.
+    gi_output-mahns       = gi_output_fm-duns_number.
+    gi_output-gbort1      = gi_output_fm-avsa_vendor_gsl.
+    gi_output-sor_id3     = gi_output_fm-aspt_sor_id.
+    gi_output-profs1      = gi_output_fm-aspt_vendor_site.
+    gi_output-bukrs1      = gi_output_fm-aspt_operating_unit_id.
+    gi_output-bukrs2      = gi_output_fm-aspt_operating_unit_id.
+    gi_output-gbort2      = gi_output_fm-aspt_vendor_gsl.
+    gi_output-name2       = gi_output_fm-aspt_vendor_name.
+    gi_output-zterm       = gi_output_fm-supplier_payment_term.
+    gi_output-sor_id4     = gi_output_fm-aos_sor_id.
+    gi_output-bukrs3      = gi_output_fm-aos_operating_unit_id.
+    gi_output-profs2      = gi_output_fm-aos_vendor_site.
+    gi_output-gbort3      = gi_output_fm-aos_vendor_gsl.
+    gi_output-del_ind     = gi_output_fm-del_ind.
+    gw_df = sy-datum.
+    PERFORM conv_date_format USING gw_df.
+    gi_output-load_date1 = gw_df.
+    CLEAR gw_df.
+    gw_df = sy-datum.
+    PERFORM conv_date_format USING gw_df.
+    gi_output-load_date2 = gw_df.
+    CLEAR gw_df.
+    gw_df = sy-datum.
+    PERFORM conv_date_format USING gw_df.
+    gi_output-load_date3 = gw_df.
+    CLEAR gw_df.
+    gw_df = sy-datum.
+    PERFORM conv_date_format USING gw_df.
+    gi_output-load_date4 = gw_df.
+    CLEAR gw_df.
+    APPEND gi_output TO gt_output.
+  ENDLOOP.
+
+ENDFORM.                    " SUB_GET_DATA_TABLE
+
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_field_catalog .
+  PERFORM: fill_catalog USING gw_seqno 'SOR_ID1' text-025,
+           fill_catalog USING gw_seqno 'GBORT'   text-026,
+           fill_catalog USING gw_seqno 'NAME1'   text-027,
+           fill_catalog USING gw_seqno 'ERDAT'   text-028,
+           fill_catalog USING gw_seqno 'UPDDT'   text-029,
+           fill_catalog USING gw_seqno 'LOAD_DATE1'   text-058,
+           fill_catalog USING gw_seqno 'SOR_ID2' text-030,
+           fill_catalog USING gw_seqno 'PROFS'   text-031,
+           fill_catalog USING gw_seqno 'ORT01'   text-032,
+           fill_catalog USING gw_seqno 'STRAS'   text-033,
+           fill_catalog USING gw_seqno 'ADRNR'   text-034,
+           fill_catalog USING gw_seqno 'PSTLZ'   text-035,
+           fill_catalog USING gw_seqno 'ORT01_GP' text-036,
+           fill_catalog USING gw_seqno 'REGIO'   text-037,
+           fill_catalog USING gw_seqno 'PSTLZ2'  text-038,
+           fill_catalog USING gw_seqno 'REGIO2'  text-039,
+           fill_catalog USING gw_seqno 'LAND1'   text-040,
+           fill_catalog USING gw_seqno 'PARVW'   text-041,
+           fill_catalog USING gw_seqno 'PARVW1'  text-042,
+           fill_catalog USING gw_seqno 'MAHNS'   text-043,
+           fill_catalog USING gw_seqno 'GBORT1'  text-044,
+           fill_catalog USING gw_seqno 'BUKRS1'   text-047,
+           fill_catalog USING gw_seqno 'LOAD_DATE2'   text-058,
+           fill_catalog USING gw_seqno 'SOR_ID3'  text-045,
+           fill_catalog USING gw_seqno 'PROFS1'   text-046,
+           fill_catalog USING gw_seqno 'BUKRS2'   text-047,
+           fill_catalog USING gw_seqno 'GBORT2'   text-048,
+           fill_catalog USING gw_seqno 'LOAD_DATE' text-058,
+           fill_catalog USING gw_seqno 'NAME2'   text-049,
+           fill_catalog USING gw_seqno 'ZTERM'   text-050,
+           fill_catalog USING gw_seqno 'SOR_ID4' text-051,
+           fill_catalog USING gw_seqno 'BUKRS3'  text-052,
+           fill_catalog USING gw_seqno 'PROFS2'  text-053,
+           fill_catalog USING gw_seqno 'INAC_DATE' text-054,
+           fill_catalog USING gw_seqno 'GBORT3'     text-055,
+           fill_catalog USING gw_seqno 'LOAD_DATE4' text-058,
+           fill_catalog USING gw_seqno 'DEL_IND'    text-056.
+
+ENDFORM.                    " CREATE_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*&      Form  CALL_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM call_alv .
+  IF gt_output_fm IS NOT INITIAL.
+    PERFORM display_output TABLES gt_output[].
+  ELSE.
+    MESSAGE s030.
+  ENDIF.
+ENDFORM.                    " CALL_ALV
+*&---------------------------------------------------------------------*
+*&      Form  DOWNLD_FILE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM download_file .
+  DATA : lw_filename_ds TYPE string,
+         lw_filetype TYPE char10.
+
+  lw_filename_ds = p_file1.
+  lw_filetype    = gc_asc.
+  IF lw_filename_ds IS NOT INITIAL.
+
+    CALL FUNCTION 'GUI_DOWNLOAD'
+      EXPORTING
+        filename                = lw_filename_ds
+        filetype                = lw_filetype
+        write_field_separator   = gc_x
+        trunc_trailing_blanks   = gc_x
+        codepage                = space
+        write_bom               = gc_x
+      TABLES
+        data_tab                = gt_output
+        fieldnames              = gt_fields
+      EXCEPTIONS
+        file_write_error        = 1
+        no_batch                = 2
+        gui_refuse_filetransfer = 3
+        invalid_type            = 4
+        no_authority            = 5
+        unknown_error           = 6
+        header_not_allowed      = 7
+        separator_not_allowed   = 8
+        filesize_not_allowed    = 9
+        header_too_long         = 10
+        dp_error_create         = 11
+        dp_error_send           = 12
+        dp_error_write          = 13
+        unknown_dp_error        = 14
+        access_denied           = 15
+        dp_out_of_memory        = 16
+        disk_full               = 17
+        dp_timeout              = 18
+        file_not_found          = 19
+        dataprovider_exception  = 20
+        control_flush_error     = 21
+        OTHERS                  = 22.
+    IF sy-subrc = 0.
+      MESSAGE s028.
+    ENDIF.
+    LEAVE TO LIST-PROCESSING.
+  ENDIF.
+ENDFORM.                    " DOWNLD_FILE
+*&---------------------------------------------------------------------*
+*&      Form  FILL_FIELD_NAMES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fill_field_names .
+  gi_fields-field = text-025.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-026.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-027.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-028.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-029.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-058.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-030.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-031.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-032.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-033.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-034.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-035.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-036.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-037.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-038.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-039.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-040.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-041.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-042.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-043.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-044.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-047.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-058.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-045.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-046.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-047.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-048.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-058.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-049.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-050.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-051.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-052.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-053.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-054.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-055.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-058.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-056.
+  APPEND gi_fields TO gt_fields.
+
+
+ENDFORM.                    " FILL_FIELD_NAMES

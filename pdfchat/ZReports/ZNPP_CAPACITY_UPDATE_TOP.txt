@@ -1,0 +1,69 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_CAPACITY_UPDATE_TOP
+*&---------------------------------------------------------------------*
+DATA : gw_mrp TYPE dispo,
+       gw_plant TYPE werks_d.
+TYPES : BEGIN OF ty_marc ,
+        matnr TYPE matnr,
+        werks TYPE werks_d,
+        dispo TYPE dispo,
+        webaz TYPE webaz,
+        END OF ty_marc,
+        BEGIN OF ty_mseg,
+        mjahr TYPE mjahr,
+        bwart TYPE bwart,
+        matnr TYPE matnr,
+        werks TYPE werks_d,
+        menge TYPE menge_d,
+        aufnr TYPE aufnr,
+        END OF ty_mseg.
+
+DATA : gt_marc TYPE TABLE OF ty_marc,
+      gi_marc TYPE ty_marc,
+      gt_mseg TYPE TABLE OF ty_mseg,
+      gi_mseg TYPE ty_mseg.
+RANGES : s_bwart FOR mseg-bwart,
+         s_budat FOR sy-datum.
+DATA : lw_date1 TYPE sy-datum.
+TYPES : BEGIN OF ty_mlist,
+        dispo TYPE dispo,
+        matnr TYPE matnr,
+        bwart TYPE bwart,
+        werks TYPE werks_d,
+        menge TYPE menge_d,
+        END OF ty_mlist.
+DATA : gt_mlist TYPE TABLE OF ty_mlist,
+       gi_mlist TYPE ty_mlist,
+        gt_final TYPE TABLE OF ztpp_capacity,
+         gi_final TYPE ztpp_capacity.
+DATA : lw_dispo TYPE dispo,
+    lw_capacity TYPE gemng,
+    lw_val1 TYPE p DECIMALS 3,
+    lw_cap1 TYPE char10.
+**** Start of changes for CHG1178311 DE3K961760 by 502277866 on 29.04.2015
+TYPES : BEGIN OF ty_fid,
+      werks TYPE werks_d,
+      fabkl TYPE fabkl,
+     END OF ty_fid,
+     BEGIN OF ty_days,
+     werks TYPE werks_d,
+     days TYPE i,
+     END OF ty_days.
+DATA : gt_fid TYPE TABLE OF ty_fid,
+       gi_fid TYPE ty_fid,
+       gt_days TYPE TABLE OF ty_days,
+       gi_days TYPE ty_days,
+       gw_fabkl TYPE fabkl,
+       gt_date TYPE TABLE OF rke_dat,
+        gw_days TYPE i.
+***end of changes for CHG1178311 DE3K961760 by 502277866 on 29.04.2015
+*** start of changes for CHG1178311 DE3K961893 by  502277866 on 05.05.2015
+TYPES : BEGIN OF ty_capacity,
+        plant TYPE werks_d,
+        dispo TYPE dispo,
+        percentage TYPE char10,
+        END OF ty_capacity.
+DATA : gt_capacity TYPE TABLE OF ty_capacity,
+       gi_capacity TYPE ty_capacity.
+*** end of changes for CHG1178311 DE3K961893 by  502277866 on 05.05.2015
+

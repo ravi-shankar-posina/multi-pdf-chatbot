@@ -1,0 +1,75 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_SHIPPING_SA
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name             : ZRMM_SHIPPING_SA                                  *
+* Created by       : Laxma Reddy K/503187592                           *
+* Transport Request: DE3K9A09TU                                        *
+* RICEF Object No  : RICEF2366                                         *
+* Transaction code : ZWM2366_MAIN                                      *
+* Change Request No: CHG0191538                                        *
+* Description      : Sheduling agreements and stock transfer orders    *
+*                    custom shipping solution using RF screens and main*
+*                    screen.                                           *
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+************************************************************************
+*TR #      |DATE       |CHANGED BY   |CR #        |DESCRIPTION OF CHANGE
+************************************************************************
+*DE3K9A09TU|25-Jan-2022|Laxma Reddy K|CHG0191538  |Object created      *
+*                       (503187592)                                    *
+************************************************************************
+REPORT  zrmm_shipping_sa.
+
+TYPES: BEGIN OF ty_report,
+       operation TYPE char20,
+       message TYPE bapi_msg,
+       END OF ty_report.
+DATA: gt_report TYPE STANDARD TABLE OF ty_report,
+      gi_fcat TYPE slis_fieldcat_alv,
+      gt_fcat TYPE slis_t_fieldcat_alv,
+      gi_layout_ds TYPE slis_layout_alv.
+
+************************************************************************
+*Declaration of Macro
+************************************************************************
+DEFINE m_fieldcat.
+  gi_fcat-fieldname = &1.
+  gi_fcat-seltext_l = &2.
+  append gi_fcat to gt_fcat.
+  clear gi_fcat.
+END-OF-DEFINITION.
+
+
+START-OF-SELECTION.
+  IMPORT gt_report FROM MEMORY ID 'SASHIPPING'.
+  IF sy-subrc IS INITIAL.
+    DELETE FROM MEMORY ID 'SASHIPPING'.
+  ENDIF.
+
+***Populate Fieldcat
+  m_fieldcat 'OPERATION' 'Operation'.
+  m_fieldcat 'MESSAGE' 'Message'.
+  CLEAR gi_layout_ds.
+  gi_layout_ds-colwidth_optimize = 'X'.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      is_layout     = gi_layout_ds
+      it_fieldcat   = gt_fcat
+    TABLES
+      t_outtab      = gt_report
+    EXCEPTIONS
+      program_error = 1
+      OTHERS        = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+

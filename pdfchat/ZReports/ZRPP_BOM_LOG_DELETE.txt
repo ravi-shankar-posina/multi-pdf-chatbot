@@ -1,0 +1,42 @@
+*&---------------------------------------------------------------------*
+
+*=======================================================================
+*= Copyright © 2013 GE IS                                              =
+*= ALL RIGHTS RESERVED                                                 =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRPP_BOM_LOG_DELETE
+* Created by        : Sekhar Perala, 502277866
+* Transport Request : DE3K966427
+* RICEF Object No   : RICEF1568,1605
+* Transaction code  : ZPP020
+* Change request No : CHG1520261
+* Description       : This program used to delete records
+*                     in the table ztpp_prodbom_log based .
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+* DATE               | CR No.     |CHANGED BY |   DESCRIPTION OF CHANGE
+*11.04.2015           CHG1520261   502277866    Changed Selection Scereen And Deleted Logic
+*-----------------------------------------------------------------------------------------
+* DATE               | TR         |CHANGED BY | DESCRIPTION OF CHANGE
+*-----------------------------------------------------------------------------------------
+*06.06.2023           DE3K9A0KUV   USALNAR1     Changed Deletion Logic and Output Message
+*----------------------------------------------------------------------------------------
+
+REPORT  zrpp_bom_log_delete.
+*** selection screen.
+INCLUDE znpp_bom_log_delete_scr.
+
+INCLUDE znpp_bom_log_delete_delete_f01. " USALNAR1 - DE3K9A0KUV
+
+START-OF-SELECTION.
+  PERFORM delete_data.
+
+
+*  INCLUDE znpp_bom_log_delete_delete_f01.
+

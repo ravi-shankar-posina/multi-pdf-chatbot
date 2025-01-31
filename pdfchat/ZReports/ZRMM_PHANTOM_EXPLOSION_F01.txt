@@ -1,0 +1,1652 @@
+*&---------------------------------------------------------------------*
+* Name                          : ZRMM_PHANTOM_EXPLOSION
+* Tcode                         : ZMM110
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 12 Sep 2023
+* Transport Request #           : DE3K9A0MKH
+* RICEF Object No #             : RICEF2684
+* Description                   : Phantom Explosion and store the data in
+*                                 ZTMM_PICT
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 25.09.2023   | RICEF-2684|USSOSUB1  |Dispalay the data in ALV as output
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 26.09.2023   | RICEF-2684|USSOSUB1  |Quality bug fix
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 09.10.2023   | RICEF-2684|USSOSUB1  |Quality bug fix
+*----------------------------------------------------------------------*
+* 06.02.2024   | RICEF-2684|USANBOD11 | Phantom Explosion requirement  *
+*----------------------------------------------------------------------*
+* 03.03.2024   | RICEF-2684|USANBOD11 | Phantom Explosion UAT Defects  *
+* 04.04.2024   | RICEF-2684|USANBOD11 | Phantom Explosion UAT Defects
+* 09.05.2024   | RICEF-2684|USANBOD11 | card lock-Get from PICT_1 table
+*----------------------------------------------------------------------*
+*****************************************************************************************
+* CHANGED BY  | DATE        | TR #       |CR No(INCUM | DESCRIPTION OF CHANG
+*****************************************************************************************
+* CHTAMUR     | 09/09/2024  | DE3K9A0T02 | CHG2078268 | PI tool issue fixes and improvements   *
+*----------------------------------------------------------------------*
+* CHTAMUR    | 08/Nov/2024 | DE3K9A0U0J | 87274 | PICT Minor issue fixes
+*----------------------------------------------------------------------*
+
+FORM get_data .
+
+  REFRESH: gt_ztmm_pict,gt_final,gt_stb,gt_matcat.
+** BOC  USANBOD11 06/02/2024
+  DATA : lev TYPE i VALUE 0.
+  DATA : lv_flg_alw.
+** BOC USANBOD11 DE3K9A0Q80
+  DATA : lv_plt_mat_sta TYPE flag .
+  TYPES : BEGIN OF tp_marc1 ,
+            matnr TYPE matnr,
+            werks TYPE werks_d,
+            mmsta TYPE mmsta,
+          END OF tp_marc1 .
+  DATA : gt_marc1 TYPE STANDARD TABLE OF tp_marc1 .
+  DATA : gs_marc1 TYPE tp_marc1.
+** BOC USANBOD11 DE3K9A0Q80
+** EOC  USANBOD11 06/02/2024
+** BOC "DE3K9A0PS6 USANBOD11 SCM-2684
+  RANGES : r_tablename FOR ztmm_pict-mmsta.
+  CONSTANTS: gc_inv_rec(40) TYPE c VALUE 'ZPP_INV_RECORD_PI',
+             gc_pi(40)      TYPE c VALUE 'PI',
+             gc_mmsta(40)   TYPE c VALUE 'MMSTA'.
+  DATA: lt_ztuhcd1_1 TYPE TABLE OF ztuhcd1,
+        lw_ztuhcd1_1 TYPE ztuhcd1,
+        lv_mmsta     TYPE marc-mmsta.
+
+  CLEAR: lt_ztuhcd1_1, lw_ztuhcd1_1.
+
+  lw_ztuhcd1_1-name  = gc_inv_rec.
+  lw_ztuhcd1_1-zkey  = gc_pi.
+  APPEND lw_ztuhcd1_1 TO lt_ztuhcd1_1.
+  CLEAR  lw_ztuhcd1_1.
+
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE_NEW'
+    TABLES
+      t_ztuhcd1     = lt_ztuhcd1_1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+    SORT  lt_ztuhcd1_1.
+    CLEAR lw_ztuhcd1_1.
+  ENDIF.
+
+  LOOP AT lt_ztuhcd1_1 INTO lw_ztuhcd1_1
+                          WHERE name = gc_inv_rec
+                           AND  zkey = gc_pi
+                           AND  field = gc_mmsta.
+
+    r_tablename-sign = 'I'.
+    r_tablename-option = 'EQ'.
+    r_tablename-low = lw_ztuhcd1_1-low . "-'O4'.
+    APPEND r_tablename TO r_tablename[].
+  ENDLOOP .
+** EOC "DE3K9A0PS6 USANBOD11 SCM-2684
+  SELECT *
+        FROM ztmm_pi_date
+        INTO TABLE @DATA(gt_pidate)
+        WHERE  piyear = @p_year
+        AND werks = @p_plant
+        AND version = @p_ver.
+  IF sy-subrc EQ  0.
+    SORT gt_pidate BY piyear werks pidate .
+  ENDIF.
+
+  IF gt_pidate IS NOT INITIAL.   " BOC  USANBOD11 06/02/2024
+    SELECT *
+    FROM ztmm_pict  " DE3K9A0QXS        USANBOD11        " +++ DE3K9A0T02 -> CHTAMUR
+*    FROM ztmm_pict_1 " DE3K9A0QXS        USANBOD11      " --- DE3K9A0T02 -> CHTAMUR
+    INTO TABLE gt_ztmm_pict
+      FOR ALL ENTRIES IN gt_pidate
+      WHERE werks = p_plant
+      AND gjahr = p_year
+      AND entdate = gt_pidate-pidate
+      AND dumps = 'X'   "BOC  USANBOD11 06/02/2024
+      AND xloek = space.
+
+    IF sy-subrc EQ 0.
+      SORT gt_ztmm_pict.
+    ENDIF.
+  ENDIF.   "  BOC  USANBOD11 06/02/2024
+** BOC USANBOD11 DE3K9A0Q80
+  IF gt_ztmm_pict[] IS NOT INITIAL.
+    SELECT matnr werks  mmsta FROM marc INTO TABLE gt_marc1
+      FOR ALL ENTRIES IN gt_ztmm_pict
+      WHERE matnr = gt_ztmm_pict-matnr
+      AND werks = gt_ztmm_pict-werks.
+    IF sy-subrc EQ 0.
+      SORT gt_marc1 BY matnr werks.
+    ENDIF.
+  ENDIF.
+** EOC USANBOD11 DE3K9A0Q80
+** BOC  USANBOD11 06/02/2024
+  IF p_but6 IS NOT INITIAL OR p_but8 IS NOT INITIAL OR
+     p_cre IS NOT INITIAL  OR
+     p_but4 IS NOT INITIAL OR p_but2 IS NOT INITIAL
+    .
+    gt_ztmm_pict2[] = gt_ztmm_pict[] .
+    IF p_but8 IS NOT INITIAL .
+      DELETE gt_ztmm_pict2 WHERE bom_explode NE 'P' .
+*    ELSEIF P_BUT6 IS NOT INITIAL .
+    ENDIF.
+*    SELECT * FROM ZTMM_PICT INTO TABLE GT_ZTMM_PICT1
+    SELECT  werks , gjahr , gidat ,inccd ,lgort , matnr , adcom , ztext
+*         FROM ztmm_pict INTO TABLE @DATA(gt_ztmm_pict1)   " DE3K9A0QXS        USANBOD11
+          FROM ztmm_pict_1 INTO TABLE @DATA(gt_ztmm_pict1) " DE3K9A0QXS        USANBOD11
+          FOR ALL ENTRIES IN @gt_ztmm_pict2
+    WHERE werks = @gt_ztmm_pict2-werks
+    AND gjahr = @gt_ztmm_pict2-gjahr
+    AND gidat = @gt_ztmm_pict2-gidat
+*      AND ENTDATE = GT_PIDATE-PIDATE
+*      AND ADCOM = GT_ZTMM_PICT-MATNR
+     AND lgort = @gt_ztmm_pict2-lgort
+*      AND DUMPS = 'X'
+     AND xloek = @space.
+
+
+  ENDIF.
+
+  IF gt_ztmm_pict[] IS NOT INITIAL.
+
+    LOOP AT gt_ztmm_pict INTO gs_ztmm_pict
+            WHERE  ( bklas NE '3001' AND bklas NE '3002' ). "DE3K9A0PP7 USANBOD11
+      CLEAR : lv_flg_alw , lv_plt_mat_sta. "  USANBOD11 DE3K9A0Q80
+*      IF P_DIS = 'X'.
+      IF p_but1 = 'X' .   " All Phantom HDR
+        IF gs_ztmm_pict-dumps = abap_true
+         AND  gs_ztmm_pict-xloek = abap_false.
+          MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+** BOC USANBOD11 DE3K9A0Q80
+          READ TABLE gt_marc1 INTO gs_marc1 WITH KEY matnr = gs_ztmm_pict-matnr
+                                                           werks = gs_ztmm_pict-werks BINARY SEARCH.
+          IF sy-subrc EQ 0.
+            gs_final-mmsta = gs_marc1-mmsta.
+          ENDIF.
+** EOC USANBOD11 DE3K9A0Q80
+          MOVE lev TO  gs_final-step  .
+          gs_final-fgmat = gs_ztmm_pict-matnr .
+** BOC  DE3K9A0PP7 USANBOD11
+          IF gs_ztmm_pict-bom_explode = 'X'.
+            gs_final-ph_cre_stat = 'CREATED' .
+          ELSE.
+            IF gs_ztmm_pict-bom_explode = 'P'.   " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'PARTIAL' .  " USANBOD11 DE3K9A0Q80
+            ELSEIF gs_ztmm_pict-mmsta IN r_tablename[] . " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'NOT CREATED' .     " USANBOD11 DE3K9A0Q80
+            ELSE.
+              gs_final-ph_cre_stat = 'Excluded-Plant/Material Status' ." USANBOD11 DE3K9A0Q80
+              lv_plt_mat_sta = 'X' .
+            ENDIF.
+          ENDIF.
+** EOC  DE3K9A0PP7 USANBOD11
+          APPEND gs_final TO gt_final.
+          CLEAR: gs_final,gi_stb.
+          lv_flg_alw = space.
+        ENDIF.
+      ELSEIF p_but2 = 'X' . "All Phantom HDR +  Item
+        IF gs_ztmm_pict-dumps = abap_true
+         AND  gs_ztmm_pict-xloek = abap_false.
+          MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+** BOC USANBOD11 DE3K9A0Q80
+          READ TABLE gt_marc1 INTO gs_marc1 WITH KEY matnr = gs_ztmm_pict-matnr
+                                                           werks = gs_ztmm_pict-werks BINARY SEARCH.
+          IF sy-subrc EQ 0.
+            gs_final-mmsta = gs_marc1-mmsta.
+          ENDIF .
+** EOC USANBOD11 DE3K9A0Q80
+** BOC  DE3K9A0PP7 USANBOD11
+          IF gs_ztmm_pict-bom_explode = 'X'.
+            gs_final-ph_cre_stat = 'CREATED' .
+          ELSE.
+            IF gs_ztmm_pict-bom_explode = 'P'.     " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'PARTIAL' .   " USANBOD11 DE3K9A0Q80
+            ELSEIF gs_ztmm_pict-mmsta IN r_tablename[] . " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'NOT CREATED' .
+            ELSE.
+              gs_final-ph_cre_stat = 'Excluded-Plant/Material Status' . " USANBOD11 DE3K9A0Q80
+              lv_plt_mat_sta = 'X' .
+            ENDIF.
+          ENDIF.
+** EOC  DE3K9A0PP7 USANBOD11
+          lv_flg_alw = 'X'.
+        ENDIF.
+** BOC "DE3K9A0PS6 USANBOD11 SCM-2684
+***      ELSEIF p_but3 = 'X' . "Phantom Exploded HDR
+***        IF gs_ztmm_pict-dumps = abap_true
+***         AND gs_ztmm_pict-xloek = abap_false
+***         AND gs_ztmm_pict-bom_explode = 'X'.
+***          MOVE lev TO  gs_final-step  .
+***          gs_final-fgmat = gs_ztmm_pict-matnr .
+***          MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+***** BOC  DE3K9A0PP7 USANBOD11
+***          IF gs_ztmm_pict-bom_explode = 'X'.
+***           gs_final-ph_cre_stat = 'CREATED' .
+***          ELSE.
+***           gs_final-ph_cre_stat = 'NOT CREATED' .
+***          ENDIF.
+***** EOC  DE3K9A0PP7 USANBOD11
+***          APPEND gs_final TO gt_final.
+***          CLEAR: gs_final,gi_stb.
+***          lv_flg_alw = space.
+***        ENDIF.
+** EOC "DE3K9A0PS6 USANBOD11 SCM-2684
+      ELSEIF p_but4 = 'X' . "Phantom Exploded HDR + ITEMS
+        IF gs_ztmm_pict-dumps = abap_true
+         AND gs_ztmm_pict-xloek = abap_false
+         AND gs_ztmm_pict-bom_explode = 'X'.
+          MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+** BOC USANBOD11 DE3K9A0Q80
+          READ TABLE gt_marc1 INTO gs_marc1 WITH KEY matnr = gs_ztmm_pict-matnr
+                                                           werks = gs_ztmm_pict-werks BINARY SEARCH.
+          IF sy-subrc EQ 0.
+            gs_final-mmsta = gs_marc1-mmsta.
+          ENDIF .
+** EOC USANBOD11 DE3K9A0Q80
+** BOC  DE3K9A0PP7 USANBOD11
+          IF gs_ztmm_pict-bom_explode = 'X'.
+            gs_final-ph_cre_stat = 'CREATED' .
+          ELSE.
+*           gs_final-ph_cre_stat = 'NOT CREATED' .
+            IF gs_ztmm_pict-bom_explode = 'P'.    " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'PARTIAL' .  " USANBOD11 DE3K9A0Q80
+            ELSEIF gs_ztmm_pict-mmsta IN r_tablename[] .  " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'NOT CREATED' .
+            ELSE.
+              gs_final-ph_cre_stat = 'Excluded-Plant/Material Status' . " USANBOD11 DE3K9A0Q80
+              lv_plt_mat_sta = 'X' .
+            ENDIF.
+          ENDIF.
+** EOC  DE3K9A0PP7 USANBOD11
+          lv_flg_alw = 'X'.
+        ENDIF.
+** BOC "DE3K9A0PS6 USANBOD11 SCM-2684
+***      ELSEIF p_but5 = 'X' . "Phantom NOT Exploded HDR
+***        IF gs_ztmm_pict-dumps = abap_true
+***         AND gs_ztmm_pict-xloek = abap_false
+***         AND ( gs_ztmm_pict-bom_explode = 'N' OR
+***              gs_ztmm_pict-bom_explode = space ).
+***          MOVE lev TO  gs_final-step  .
+***          gs_final-fgmat = gs_ztmm_pict-matnr .
+***          MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+***** BOC  DE3K9A0PP7 USANBOD11
+***          IF gs_ztmm_pict-bom_explode = 'X'.
+***           gs_final-ph_cre_stat = 'CREATED' .
+***          ELSE.
+***           gs_final-ph_cre_stat = 'NOT CREATED' .
+***          ENDIF.
+***** EOC  DE3K9A0PP7 USANBOD11
+***          APPEND gs_final TO gt_final.
+***          CLEAR: gs_final,gi_stb.
+***          lv_flg_alw = space..
+***        ENDIF.
+** EOC "DE3K9A0PS6 USANBOD11 SCM-2684
+      ELSEIF p_but6 = 'X' . "Phantom NOT Exploded HDR + ITEMS
+        IF gs_ztmm_pict-dumps = abap_true
+         AND gs_ztmm_pict-xloek = abap_false
+         AND  ( gs_ztmm_pict-bom_explode = 'N' OR
+              gs_ztmm_pict-bom_explode = space ).
+          MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+** BOC USANBOD11 DE3K9A0Q80
+          READ TABLE gt_marc1 INTO gs_marc1 WITH KEY matnr = gs_ztmm_pict-matnr
+                                                           werks = gs_ztmm_pict-werks BINARY SEARCH.
+          IF sy-subrc EQ 0.
+            gs_final-mmsta = gs_marc1-mmsta.
+          ENDIF .
+** EOC USANBOD11 DE3K9A0Q80
+** BOC  DE3K9A0PP7 USANBOD11
+          IF gs_ztmm_pict-bom_explode = 'X'.
+            gs_final-ph_cre_stat = 'CREATED' .
+          ELSE.
+*           gs_final-ph_cre_stat = 'NOT CREATED' .
+            IF gs_ztmm_pict-bom_explode = 'P'.  " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'PARTIAL' . " USANBOD11 DE3K9A0Q80
+            ELSEIF gs_ztmm_pict-mmsta IN r_tablename[] . " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'NOT CREATED' .
+            ELSE.
+              gs_final-ph_cre_stat = 'Excluded-Plant/Material Status' . " USANBOD11 DE3K9A0Q80
+              lv_plt_mat_sta = 'X' .
+            ENDIF.
+          ENDIF.
+** EOC  DE3K9A0PP7 USANBOD11
+          lv_flg_alw = 'X'.
+        ENDIF.
+** BOC "DE3K9A0PS6 USANBOD11 SCM-2684
+***      ELSEIF p_but7 = 'X' . "Phantom Partialy Exploded HDR
+***        IF gs_ztmm_pict-dumps = abap_true
+***         AND gs_ztmm_pict-xloek = abap_false
+***         AND gs_ztmm_pict-bom_explode = 'P'.
+***          MOVE lev TO  gs_final-step  .
+***          gs_final-fgmat = gs_ztmm_pict-matnr .
+***          MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+***** BOC  DE3K9A0PP7 USANBOD11
+***          IF gs_ztmm_pict-bom_explode = 'X'.
+***           gs_final-ph_cre_stat = 'CREATED' .
+***          ELSE.
+***           gs_final-ph_cre_stat = 'NOT CREATED' .
+***          ENDIF.
+***** EOC  DE3K9A0PP7 USANBOD11
+***          APPEND gs_final TO gt_final.
+***          CLEAR: gs_final,gi_stb.
+***          lv_flg_alw = space..
+***        ENDIF.
+** EOC "DE3K9A0PS6 USANBOD11 SCM-2684
+      ELSEIF p_but8 = 'X' . "Phantom Partialy Exploded HDR + ITEMS
+        IF gs_ztmm_pict-dumps = abap_true
+         AND gs_ztmm_pict-xloek = abap_false
+         AND gs_ztmm_pict-bom_explode = 'P'.
+          MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+** BOC USANBOD11 DE3K9A0Q80
+          READ TABLE gt_marc1 INTO gs_marc1 WITH KEY matnr = gs_ztmm_pict-matnr
+                                                           werks = gs_ztmm_pict-werks BINARY SEARCH.
+          IF sy-subrc EQ 0.
+            gs_final-mmsta = gs_marc1-mmsta.
+          ENDIF .
+** EOC USANBOD11 DE3K9A0Q80
+** BOC  DE3K9A0PP7 USANBOD11
+          IF gs_ztmm_pict-bom_explode = 'X'.
+            gs_final-ph_cre_stat = 'CREATED' .
+          ELSE.
+*           gs_final-ph_cre_stat = 'NOT CREATED' .
+            IF gs_ztmm_pict-bom_explode = 'P'.  " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'PARTIAL' ." USANBOD11 DE3K9A0Q80
+            ELSEIF gs_ztmm_pict-mmsta IN r_tablename[] . " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'NOT CREATED' .
+            ELSE.
+              gs_final-ph_cre_stat = 'Excluded-Plant/Material Status' . " USANBOD11 DE3K9A0Q80
+              lv_plt_mat_sta = 'X' .
+            ENDIF.
+          ENDIF.
+** EOC  DE3K9A0PP7 USANBOD11
+          lv_flg_alw = 'X'.
+        ENDIF.
+      ELSEIF p_cre = 'X'.
+        IF gs_ztmm_pict-dumps = abap_true
+         AND  gs_ztmm_pict-xloek NE abap_true
+         AND ( gs_ztmm_pict-bom_explode = space OR
+               gs_ztmm_pict-bom_explode = 'N'  OR
+               gs_ztmm_pict-bom_explode = 'P' ) .
+          MOVE-CORRESPONDING gs_ztmm_pict TO gs_final.
+** BOC USANBOD11 DE3K9A0Q80
+          READ TABLE gt_marc1 INTO gs_marc1 WITH KEY matnr = gs_ztmm_pict-matnr
+                                                           werks = gs_ztmm_pict-werks BINARY SEARCH.
+          IF sy-subrc EQ 0.
+            gs_final-mmsta = gs_marc1-mmsta.
+          ENDIF .
+** EOC USANBOD11 DE3K9A0Q80
+** BOC  DE3K9A0PP7 USANBOD11
+          IF gs_ztmm_pict-bom_explode = 'X'.
+            gs_final-ph_cre_stat = 'CREATED' .
+          ELSE.
+            IF gs_ztmm_pict-bom_explode = 'P'. " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'PARTIAL' . " USANBOD11 DE3K9A0Q80
+*           gs_final-ph_cre_stat = 'NOT CREATED' .
+            ELSEIF gs_ztmm_pict-mmsta IN r_tablename[] . " USANBOD11 DE3K9A0Q80
+              gs_final-ph_cre_stat = 'NOT CREATED' .
+            ELSE.
+              gs_final-ph_cre_stat = 'Excluded-Plant/Material Status' . " USANBOD11 DE3K9A0Q80
+              lv_plt_mat_sta = 'X' .
+            ENDIF.
+          ENDIF.
+** EOC  DE3K9A0PP7 USANBOD11
+          lv_flg_alw = 'X' .
+        ENDIF.
+
+      ENDIF.
+** EOC  USANBOD11 06/02/2024
+      IF gs_ztmm_pict-dumps = abap_true
+        AND  gs_ztmm_pict-xloek EQ abap_false "NE ABAP_TRUE
+        AND lv_flg_alw = 'X'.
+***         AND GS_ZTMM_PICT-BOM_EXPLODE = ABAP_FALSE.
+***
+***        MOVE-CORRESPONDING GS_ZTMM_PICT TO GS_FINAL.
+
+***        gs_final-bom_explode = abap_true.   anil
+
+        MOVE lev TO  gs_final-step  .
+        gs_final-fgmat = gs_ztmm_pict-matnr .
+** BOC  DE3K9A0PP7 USANBOD11
+        IF gs_ztmm_pict-bom_explode = 'X'.
+          gs_final-ph_cre_stat = 'CREATED' .
+        ELSE.
+*           gs_final-ph_cre_stat = 'NOT CREATED' .
+          IF gs_ztmm_pict-bom_explode = 'P'. " USANBOD11 DE3K9A0Q80
+            gs_final-ph_cre_stat = 'PARTIAL' . " USANBOD11 DE3K9A0Q80
+          ELSEIF gs_ztmm_pict-mmsta IN r_tablename[] . " USANBOD11 DE3K9A0Q80
+            gs_final-ph_cre_stat = 'NOT CREATED' .
+          ELSE.
+            gs_final-ph_cre_stat = 'Excluded-Plant/Material Status' ." USANBOD11 DE3K9A0Q80
+            lv_plt_mat_sta = 'X' .
+          ENDIF.
+        ENDIF.
+** EOC  DE3K9A0PP7 USANBOD11
+        APPEND gs_final TO gt_final.
+
+        CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+          EXPORTING
+*           FTREL                 = ' '
+*           ALEKZ                 = ' '
+*           ALTVO                 = ' '
+*           AUFSW                 = ' '
+*           AUMGB                 = ' '
+*           AUMNG                 = 0
+*           AUSKZ                 = ' '
+*           AMIND                 = ' '
+*           BAGRP                 = ' '
+*           BEIKZ                 = ' '
+*           BESSL                 = ' '
+*           BGIXO                 = ' '
+*           BREMS                 = ' '
+            capid                 = 'PP01'
+*           CHLST                 = ' '
+*           COSPR                 = ' '
+*           CUOBJ                 = 000000000000000
+*           CUOVS                 = 0
+*           CUOLS                 = ' '
+            datuv                 = sy-datum
+*           DELNL                 = ' '
+*           DRLDT                 = ' '
+*           EHNDL                 = ' '
+*           EMENG                 = 0
+*           ERSKZ                 = ' '
+*           ERSSL                 = ' '
+*           FBSTP                 = ' '
+*           KNFBA                 = ' '
+*           KSBVO                 = ' '
+*           MBWLS                 = ' '
+*           MKTLS                 = 'X'
+            mdmps                 = 'X'
+            mehrs                 = 'X'
+*           MKMAT                 = ' '
+*           MMAPS                 = ' '
+*           SALWW                 = ' '
+*           SPLWW                 = ' '
+*           MMORY                 = ' '
+            mtnrv                 = gs_ztmm_pict-matnr
+*           NLINK                 = ' '
+*           POSTP                 = ' '
+*           RNDKZ                 = ' '
+*           RVREL                 = ' '
+*           SANFR                 = ' '
+*           SANIN                 = ' '
+*           SANKA                 = ' '
+*           SANKO                 = ' '
+*           SANVS                 = ' '
+*           SCHGT                 = ' '
+*           STKKZ                 = ' '
+*           STLAL                 = ' '
+*           STLAN                 = ' '
+*           STPST                 = 0
+*           SVWVO                 = 'X'
+            werks                 = gs_ztmm_pict-werks
+*           NORVL                 = ' '
+*           MDNOT                 = ' '
+*           PANOT                 = ' '
+*           QVERW                 = ' '
+*           VERID                 = ' '
+*           VRSVO                 = 'X'
+*           SGT_SCAT              =
+*           SGT_REL               =
+*           CALLER_APP            =
+          IMPORTING
+            topmat                = lv_topmat
+            dstst                 = lv_dstst
+          TABLES
+            stb                   = gt_stb
+            matcat                = gt_matcat
+          EXCEPTIONS
+            alt_not_found         = 1
+            call_invalid          = 2
+            material_not_found    = 3
+            missing_authorization = 4
+            no_bom_found          = 5
+            no_plant_data         = 6
+            no_suitable_bom_found = 7
+            conversion_error      = 8
+            OTHERS                = 9.
+        IF sy-subrc <> 0.
+* Implement suitable error handling here
+        ENDIF.
+** boc anil
+        IF gs_ztmm_pict-dumps = space.
+          APPEND gs_final TO gt_final_cmp.
+        ENDIF.
+** eoc anil
+        DATA   lv_index  TYPE string .  " ++ Anil
+        DATA   lv_counter TYPE i . " DE3K9A0PP7 USANBOD11
+        CLEAR lv_counter.          " DE3K9A0PP7 USANBOD11
+        LOOP AT gt_stb INTO gi_stb WHERE mschg = space " Bulk inidicator  DE3K9A0PP7 USANBOD11
+                                   AND   idnrk IS NOT INITIAL.
+          ADD 1 TO lv_counter .
+          MOVE lv_counter TO lv_index .  " ++ Anil   DE3K9A0PP7 USANBOD11
+*          MOVE SY-TABIX TO LV_INDEX .  " ++ Anil    DE3K9A0PP7 USANBOD11
+          CONDENSE lv_index .          " ++ Anil
+          MOVE-CORRESPONDING gs_final TO gs_final1.
+** BOC "DE3K9A0PS6 USANBOD11 SCM-2684
+          IF gs_final-sobkz  = space .
+            gs_final1-sobkz  = space .
+          ELSEIF gs_final-sobkz  = 'O' .
+            gs_final1-lifnr  = space .  " USANBOD11 DE3K9A0Q80
+            gs_final1-sobkz  = space .  " USANBOD11 DE3K9A0Q80
+          ELSEIF gs_final-sobkz  = 'E' .
+            IF  gs_final-sbdkz = '1'.
+              gs_final1-vbeln  = gs_final-vbeln .
+              gs_final1-posnr  = gs_final-posnr .
+            ENDIF.
+          ELSEIF gs_final-sobkz  = 'Q' .
+            IF  gs_final-sbdkz = '1'.
+              gs_final1-pspnr  = gs_final-pspnr.
+            ENDIF.
+          ENDIF.
+** EOC "DE3K9A0PS6 USANBOD11 SCM-2684
+          gs_final1-matnr = gi_stb-idnrk.
+          gs_final1-lgort = gi_stb-lgpro.
+          gs_final1-bom_explode = abap_false.
+          gs_final1-mmsta = gi_stb-mmsta.   "  DE3K9A0PP7 USANBOD11
+          TRANSLATE gi_stb-dumps TO UPPER CASE.
+          IF gi_stb-dumps = 'X' .
+            gs_final1-sub_pht  = 'X'.
+          ENDIF.
+          gs_final1-alqty = gi_stb-menge * gs_final-alqty.
+
+          CONCATENATE gs_final1-inccd '-' lv_index INTO gs_final1-inccd.
+
+** boc anil
+          gs_final1-fgmat = gs_ztmm_pict-matnr .
+          gs_final1-step = gi_stb-stufe .
+          gs_final1-compqty = gi_stb-menge * gs_final-alqty ."gi_stb-mnglg * gs_final-alqty .
+          gs_final1-qty_bom = gi_stb-menge ."gi_stb-mnglg .
+          TRANSLATE gi_stb-dumps TO UPPER CASE .     "  DE3K9A0PP7 USANBOD11
+          gs_final1-dumps = gi_stb-dumps . "abap_false.   DE3K9A0PP7 USANBOD11
+          IF gi_stb-dumps = space.
+            APPEND gs_final1 TO gt_final_cmp.
+          ENDIF.
+
+** eoc anil
+** BOC  USANBOD11 06/02/2024
+          IF ( p_but8 IS NOT INITIAL OR p_cre IS NOT INITIAL
+            OR p_but2 IS NOT INITIAL OR p_but6 IS NOT INITIAL ) AND
+           ( gs_final-bom_explode =  space OR gs_final-bom_explode =  'E'
+          OR gs_final-bom_explode =  'P' )  .
+            IF gi_stb-dumps = space .
+              READ TABLE gt_ztmm_pict1 INTO DATA(ls_tmp) WITH KEY
+                   werks = gs_final1-werks
+                   gjahr = gs_final1-gjahr
+                   gidat = gs_final1-gidat
+                   inccd = gs_final1-inccd
+                   lgort = gs_final-lgort "gs_final1-lgort
+                   matnr = gs_final1-matnr
+                   adcom = gs_ztmm_pict-matnr
+                   ztext = gs_ztmm_pict-inccd .
+              IF sy-subrc  = 0.
+                gs_final1-ph_cre_stat = 'CREATED'.
+              ELSE.
+*                gs_final1-ph_cre_stat = 'NOT CREATED'.
+                IF gs_final1-mmsta IN r_tablename[] .   " USANBOD11 DE3K9A0Q80
+                  gs_final1-ph_cre_stat = 'NOT CREATED' . " USANBOD11 DE3K9A0Q80
+                ELSE.
+                  gs_final1-ph_cre_stat = 'Excluded-Plant/Material Status' . " USANBOD11 DE3K9A0Q80
+                ENDIF.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+
+          IF lv_plt_mat_sta = 'X' .  " USANBOD11 DE3K9A0Q80
+            gs_final1-ph_cre_stat =  'Excluded-Plant/Material Status' . " USANBOD11 DE3K9A0Q80
+          ELSE.
+            IF gs_final1-dumps = 'X' OR  gs_final1-sub_pht = 'X'. " USANBOD11 DE3K9A0Q80
+              gs_final1-ph_cre_stat = 'NOT CREATED' .
+            ELSEIF gs_final1-mmsta IN r_tablename[].       "DE3K9A0PS6 USANBOD11 SCM-2684
+            ELSE.
+*               gs_final1-ph_cre_stat = 'NOT CREATED'."DE3K9A0PS6 USANBOD11 SCM-2684
+              gs_final1-ph_cre_stat =  'Excluded-Plant/Material Status' . "'Excluded due to Mat.Plnt status' . "CREATED'."DE3K9A0PS6 USANBOD11 SCM-2684
+            ENDIF.                                    "DE3K9A0PS6 USANBOD11 SCM-2684
+          ENDIF.
+          APPEND gs_final1 TO gt_final.
+          CLEAR: gs_final1,gi_stb.
+        ENDLOOP.
+** EOC  USANBOD11 06/02/2024
+        CLEAR : gs_ztmm_pict,lv_index,gs_final.
+*        ENDIF.
+      ELSEIF gs_ztmm_pict-dumps EQ abap_true
+         AND  gs_ztmm_pict-xloek EQ abap_true
+         AND gs_ztmm_pict-bom_explode EQ abap_true.
+
+        LOOP AT gt_ztmm_pict INTO gs_ztmm_pict.
+          SPLIT gs_ztmm_pict-inccd AT '-' INTO DATA(lv_temp1) DATA(lv_temp2).
+          IF lv_temp1 = gs_ztmm_pict-inccd.
+            gs_ztmm_pict-xloek = abap_true.
+            APPEND gs_ztmm_pict TO gt_final.
+            APPEND gs_ztmm_pict TO gt_final_cmp.
+            CLEAR :gs_ztmm_pict,lv_temp1,lv_temp2.
+          ENDIF.
+        ENDLOOP.
+      ELSE.
+      ENDIF.
+
+*      ENDIF.
+    ENDLOOP.
+
+    IF gt_final[] IS NOT INITIAL.
+      SELECT matnr
+             bismt
+        FROM mara
+        INTO TABLE gt_mara
+        FOR ALL ENTRIES IN gt_final
+        WHERE matnr = gt_final-matnr.
+      IF sy-subrc EQ 0.
+        SORT gt_mara BY matnr.
+      ENDIF.
+
+      SELECT matnr
+             bwkey
+             lbkum
+             salk3
+             vmbkl
+        FROM mbew
+        INTO TABLE gt_mbew
+        FOR ALL ENTRIES IN gt_final
+        WHERE matnr = gt_final-matnr
+        AND bwkey = p_plant.
+      IF sy-subrc EQ 0.
+        SORT gt_mbew BY matnr.
+      ENDIF.
+
+      SELECT matnr
+             werks
+             schgt
+        FROM marc
+        INTO TABLE gt_marc
+        FOR ALL ENTRIES IN gt_final
+        WHERE matnr = gt_final-matnr
+        AND werks = gt_final-werks.
+      IF sy-subrc EQ 0.
+        SORT gt_marc BY matnr werks.
+      ENDIF.
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+    ELSE.
+      MESSAGE TEXT-002 TYPE 'S' DISPLAY LIKE 'E'.
+*End of Change for DE3K9A0T02 by CHTAMUR
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ELSE.
+    MESSAGE TEXT-002 TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING. ""++USSOSUB1
+  ENDIF.
+  REFRESH:gt_pidate.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_data .
+  DATA : lv_tbx      TYPE sytabix,
+         lv_valclass .
+  LOOP AT gt_final INTO gs_final1.
+    lv_tbx  = sy-tabix .  "DE3K9A0PS6 USANBOD11 SCM-2684
+    CLEAR lv_valclass  .  "DE3K9A0PS6 USANBOD11 SCM-2684
+    IF gs_final1-dumps = abap_false.""only for no phantoms
+      READ TABLE gt_mara INTO DATA(gs_mara) WITH KEY matnr = gs_final1-matnr
+      BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gs_final1-bismt = gs_mara-bismt.
+      ENDIF.
+
+      READ TABLE gt_ztmm_pict INTO wa_ztmm_pict WITH KEY matnr = gs_final1-matnr
+       BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        IF wa_ztmm_pict-dumps = abap_true.
+        ELSE.
+          gs_final1-bkqty = 0.
+          gs_final1-vbkqty = 0.
+        ENDIF.
+      ENDIF.
+
+      READ TABLE gt_mbew INTO DATA(gs_mbew) WITH KEY matnr = gs_final1-matnr
+      BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gs_final1-bkqty = gs_mbew-lbkum.
+        gs_final1-vbkqty = gs_mbew-salk3.
+        gs_final1-bklas = gs_mbew-vmbkl.
+** BOC "DE3K9A0PS6 USANBOD11 SCM-2684
+        IF gs_final1-bklas = '3001' OR gs_final1-bklas = '3002' .
+          lv_valclass = 'X' .
+        ENDIF.
+** EOC "DE3K9A0PS6 USANBOD11 SCM-2684
+      ENDIF.
+*** Bulk matrial indicator
+      READ TABLE gt_marc INTO DATA(gs_marc) WITH KEY matnr = gs_final1-matnr
+       werks = gs_final1-werks BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gs_final1-schgt = gs_marc-schgt.
+      ENDIF.
+      gs_final1-splstkind = abap_false.
+** BOC "DE3K9A0PS6 USANBOD11 SCM-2684
+      IF lv_valclass = 'X'.
+        DELETE gt_final  INDEX lv_tbx .
+      ELSE.
+** EOC "DE3K9A0PS6 USANBOD11 SCM-2684
+        MODIFY gt_final FROM gs_final1.
+      ENDIF. "DE3K9A0PS6 USANBOD11 SCM-2684
+    ENDIF.
+    CLEAR :gs_marc,gs_mbew,wa_ztmm_pict,gs_mara,gs_final1.
+  ENDLOOP.
+
+*  IF gt_final IS NOT INITIAL.
+*    MODIFY ztmm_pict FROM TABLE gt_final.
+*    IF sy-subrc EQ 0.
+*      MESSAGE TEXT-001 TYPE 'S'.
+*    ENDIF.
+*  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_cat .
+
+  DATA:lv_col TYPE i.
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+*    gw_layo-box_fieldname  = 'SEL'.                         "#EC NOTEXT
+*    gw_layo-box_tabname    = 'IT_FINAL'.                    "#EC NOTEXT
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+  gw_layo-zebra          = 'X'.
+
+  CLEAR gt_fieldcatalog1.
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+  IF p_cre EQ 'X'.
+    lv_col             = 1 + lv_col.
+    wa_fcat1-col_pos   = lv_col.
+    wa_fcat1-fieldname = 'SEL'.
+    wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+    wa_fcat1-seltext_m = 'Selection'.
+    wa_fcat1-checkbox  = 'X'.
+    APPEND wa_fcat1 TO gt_fieldcatalog1.
+    CLEAR wa_fcat1.
+  ENDIF.
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'STEP'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'LEVEL'.     " --- DE3K9A0T02 -> CHTAMUR
+  wa_fcat1-seltext_m   = 'Level'.     " +++ DE3K9A0T02 -> CHTAMUR
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZINTC'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Count'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZCOUNT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Count'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'WERKS'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Plant'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'GJAHR'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Fiscal Year'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'GIDAT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Planned date of inventory count'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'INCCD'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Inv Card'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'LGORT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Storage Location'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+* Start of Change for DE3K9A0U0J by CHTAMUR
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'PRCTR'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Profit Center'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'PCDESC'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'PC Description'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+* End of Change for DE3K9A0U0J by CHTAMUR
+
+** BOC  USANBOD11 06/02/2024
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'FGMAT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Parent Material Number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+** EOC  USANBOD11 06/02/2024
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'MATNR'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Material Number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BISMT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Old material number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'DUMPS'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Phantom item indicator'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+** BOC  DE3K9A0PP7 USANBOD11
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SUB_PHT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Sub Phantom item indicator'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+** EOC  DE3K9A0PP7 USANBOD11
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BOM_EXPLODE'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'BOM Exploded'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+** BOC  USANBOD11 06/02/2024
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'PH_CRE_STAT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Inv Rec. Status'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+** BOC  DE3K9A0PP7 USANBOD11
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'MMSTA'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'P-S matl status'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+** EOC  DE3K9A0PP7 USANBOD11
+** EOC  USANBOD11 06/02/2024
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ALQTY'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Quantity in unit of entry'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ALUOM'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Unit of entry'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BSQTY'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Quantity'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BSUOM'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Base Unit of Measure'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'QTY_BOM'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'BOM Comp.qty'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'COMPQTY'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Comp.qty'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BKQTY'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Book quantity'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'VBKQTY'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Total value of Book quantity'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ECOUNT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Total value of Entered count'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'DFQTY'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Difference of Qty value'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SOBKZ'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Special Stock Indicator'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BSTAR'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Stock type'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'CHARG'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Batch Number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'IBLNR'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Physical Inventory Document'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZEILI'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Line Number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'PSPNR'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'WBS Element'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'VBELN'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Sales Document'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'POSNR'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Sales Document Item'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'LIFNR'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Vendor account number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZTEXT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Text'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ADCOM'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Aud Comments'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'XLOEK'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Item is deleted'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'AUFNR'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Order Number'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ENTDATE'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Entered Date'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SCHGT'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Indicator: bulk material'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'BKLAS'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Valuation Class'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'LINE'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Prod.status'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'WIP'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Plant'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SBDKZ'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Dependent requirements ind. for individual and coll. reqmts'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SPLSTKIND'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Special stock indicator'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'SHPSPLST'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Ship Special Status'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'STPRS'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'Unit Cost'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+
+  lv_col             = 1 + lv_col.
+  wa_fcat1-col_pos   = lv_col.
+  wa_fcat1-fieldname = 'ZUSER'.
+  wa_fcat1-tabname   = 'GT_ZTMM_PICT'.
+  wa_fcat1-seltext_m   = 'User Name in User Master Record'.
+  APPEND wa_fcat1 TO gt_fieldcatalog1.
+  CLEAR wa_fcat1.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display .
+
+  gs_layout-zebra = 'X'.
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+
+**** BOC  DE3K9A0PP7 USANBOD11
+***  Type H is used to display headers i.e. big font
+**  wa_listheader-typ  = 'H'.
+***  wa_listheader-info ='ANILKUMAR'.
+**  IF p_but1 = 'X'.
+**    wa_listheader-info = TEXT-c01.
+**  ELSEIF p_but2 = 'X'.
+**    wa_listheader-info = TEXT-c02.
+*****   ELSEIF p_but3 = 'X'.           "DE3K9A0PS6 USANBOD11 SCM-2684
+*****    wa_listheader-info = TEXT-c03."DE3K9A0PS6 USANBOD11 SCM-2684
+**  ELSEIF p_but4 = 'X'.
+**    wa_listheader-info = TEXT-c04.
+*****  ELSEIF p_but5 = 'X'.            "DE3K9A0PS6 USANBOD11 SCM-2684
+*****    wa_listheader-info = TEXT-c05."DE3K9A0PS6 USANBOD11 SCM-2684
+**  ELSEIF p_but6 = 'X'.
+**    wa_listheader-info = TEXT-c06.
+*****  ELSEIF p_but7 = 'X'.            "DE3K9A0PS6 USANBOD11 SCM-2684
+*****    wa_listheader-info = TEXT-c07."DE3K9A0PS6 USANBOD11 SCM-2684
+**  ELSEIF p_but8 = 'X'.
+**    wa_listheader-info = TEXT-c08.
+**  ELSEIF p_cre = 'X' .
+**    wa_listheader-info = TEXT-003.
+**  ENDIF.
+**  APPEND wa_listheader TO it_listheader.
+**  CLEAR wa_listheader.
+**** EOC  DE3K9A0PP7 USANBOD11
+
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+*     I_INTERFACE_CHECK        = ' '
+*     I_BYPASSING_BUFFER       = ' '
+*     I_BUFFER_ACTIVE          = ' '
+      i_callback_program       = sy-repid
+      i_callback_pf_status_set = 'ZALV_PFSTATUS' "#EC NOTEXT
+      i_callback_user_command  = 'ZUSER_COM_ALV'
+*     i_callback_top_of_page   = 'TOP_OF_PAGE'  " *  DE3K9A0PP7 USANBOD11   " --- DE3K9A0T02 -> CHTAMUR
+*     I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*     I_CALLBACK_HTML_END_OF_LIST       = ' '
+*     I_STRUCTURE_NAME         =
+*     I_BACKGROUND_ID          = ' '
+*     I_GRID_TITLE             =
+*     I_GRID_SETTINGS          =
+      is_layout                = gw_layo            " +++ DE3K9A0T02 -> CHTAMUR
+      it_fieldcat              = gt_fieldcatalog1
+*     IT_EXCLUDING             =
+*     IT_SPECIAL_GROUPS        =
+*     IT_SORT                  =
+*     IT_FILTER                =
+*     IS_SEL_HIDE              =
+*     I_DEFAULT                = 'X'
+*     I_SAVE                   = ' '
+*     IS_VARIANT               =
+*     IT_EVENTS                =
+*     IT_EVENT_EXIT            =
+*     IS_PRINT                 =
+*     IS_REPREP_ID             =
+*     I_SCREEN_START_COLUMN    = 0
+*     I_SCREEN_START_LINE      = 0
+*     I_SCREEN_END_COLUMN      = 0
+*     I_SCREEN_END_LINE        = 0
+*     I_HTML_HEIGHT_TOP        = 0
+*     I_HTML_HEIGHT_END        = 0
+*     IT_ALV_GRAPHICS          =
+*     IT_HYPERLINK             =
+*     IT_ADD_FIELDCAT          =
+*     IT_EXCEPT_QINFO          =
+*     IR_SALV_FULLSCREEN_ADAPTER        =
+* IMPORTING
+*     E_EXIT_CAUSED_BY_CALLER  =
+*     ES_EXIT_CAUSED_BY_USER   =
+    TABLES
+      t_outtab                 = gt_final
+    EXCEPTIONS
+      program_error            = 1
+      OTHERS                   = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  F4_VER
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_ver .
+  TYPES: BEGIN OF ty_version,
+           version TYPE ztmm_picc_log-version,
+         END OF ty_version.
+  DATA: lw_version TYPE ty_version,
+        lt_version TYPE TABLE OF ty_version,
+        lt_return  TYPE TABLE OF ddshretval.
+
+  CLEAR: lt_version, lt_return.
+
+* Get the version - based on the card log entered in table
+  SELECT piyear,                                        "#EC CI_NOFIELD
+         werks,
+         version FROM ztmm_picc_log
+    INTO TABLE @DATA(lt_picc_log)
+    WHERE version NE ''.
+  IF sy-subrc EQ 0.
+*    SORT lt_picc_log BY piyear werks area cardfrm cardto version.
+    SORT lt_picc_log BY piyear werks version.
+    DELETE ADJACENT DUPLICATES FROM lt_picc_log COMPARING version.
+
+    LOOP AT lt_picc_log INTO DATA(lw_picc_log).
+      CLEAR: lw_version.
+      lw_version-version = lw_picc_log-version.
+      APPEND lw_version TO lt_version.
+    ENDLOOP.
+  ENDIF.
+
+  SORT lt_version BY version.
+  DELETE ADJACENT DUPLICATES FROM lt_version COMPARING version.
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'VERSION'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'P_VER'
+      window_title    = 'Versions '
+      value_org       = 'S'
+    TABLES
+      value_tab       = lt_version
+      return_tab      = lt_return
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+
+ENDFORM.
+FORM zalv_pfstatus USING rt_extab TYPE slis_t_extab.
+  DATA: lv_slis_extab TYPE slis_extab.
+*    CLEAR: lv_slis_extab.
+  DELETE rt_extab WHERE fcode = '&AVE'.
+  DELETE rt_extab WHERE fcode = '&OAD'.
+  CLEAR: lv_slis_extab.
+*  IF P_DIS = 'X'.
+  IF p_but1 = 'X'  OR p_but2 = 'X'  OR "p_but3 = 'X'  OR "DE3K9A0PS6 USANBOD11 SCM-2684
+     p_but4 = 'X'  OR p_but6 = 'X'  OR  p_but8 = 'X'.    "DE3K9A0PS6 USANBOD11 SCM-2684
+*     p_but7 = 'X'  OR p_but5 = 'X'  .                   "DE3K9A0PS6 USANBOD11 SCM-2684
+    lv_slis_extab-fcode = '&DTL'.
+    APPEND lv_slis_extab TO rt_extab .
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+    lv_slis_extab-fcode = 'SELALL'.
+    APPEND lv_slis_extab TO rt_extab .
+
+    lv_slis_extab-fcode = 'DESEL'.
+    APPEND lv_slis_extab TO rt_extab .
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+  ENDIF  .
+  SET PF-STATUS 'ZALV_PFSTATUS' EXCLUDING rt_extab.
+ENDFORM.                    "ZUSER_COM_ALV
+** BOC  USANBOD11 06/02/2024
+FORM zuser_com_alv USING r_ucomm     TYPE sy-ucomm
+                         rs_selfield TYPE slis_selfield.
+
+*    rs_selfield-refresh = 'X'.
+  IF r_ucomm = '&DTL'.
+*    LV_FLG_FCAT = 'X' .
+    IF line_exists( gt_final[ sel = 'X' ] ).        " +++ DE3K9A0T02 -> CHTAMUR
+      PERFORM create_invrecord.
+      rs_selfield-refresh = 'X'.
+    ELSE.
+      MESSAGE TEXT-007 TYPE 'S' DISPLAY LIKE 'E'.   " +++ DE3K9A0T02 -> CHTAMUR
+    ENDIF.
+  ENDIF .
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+  CLEAR gs_final.
+  IF r_ucomm = 'SELALL'.
+    gs_final-sel = 'X'.
+    MODIFY gt_final FROM gs_final TRANSPORTING sel WHERE sel = ''.
+    rs_selfield-refresh = 'X'.
+  ELSEIF r_ucomm = 'DESEL'.
+    gs_final-sel = ''.
+    MODIFY gt_final FROM gs_final TRANSPORTING sel WHERE sel = 'X'.
+    rs_selfield-refresh = 'X'.
+  ENDIF.
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_INVRECORD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_invrecord .
+*Start of Change for DE3K9A0T02 by CHTAMUR
+*  BREAK usanbod11.
+*
+*  DATA: lt_final TYPE TABLE OF gi_final,
+*        ls_final TYPE gi_final.
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+  DATA : lv_err ,
+         lv_suc .
+  DATA : lv_bom_val TYPE c.
+  DATA : lv_inv_cre TYPE zph_cre_stat.
+  DATA : lv_str      TYPE char100, lv_err_flag, lv_suc_flag .
+  DATA: lt_output TYPE zttpp_pi_output.           " +++ DE3K9A0T02 -> CHTAMUR
+
+  CALL FUNCTION 'ZPP_INV_RECORD_FM'
+*Start of Change for DE3K9A0T02 by CHTAMUR
+*    IN UPDATE TASK
+    IMPORTING
+      ex_output   = lt_output
+      ex_final    = gt_final
+*End of Change for DE3K9A0T02 by CHTAMUR
+    TABLES
+      gt_final    = gt_final
+    EXCEPTIONS
+      raise_error = 1
+      OTHERS      = 2.
+
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+
+    MESSAGE TEXT-006 TYPE 'S' DISPLAY LIKE 'E'.   " +++ DE3K9A0T02 -> CHTAMUR
+
+** BOC  DE3K9A0PP7 USANBOD11
+  ELSE.
+*Start of Change for DE3K9A0T02 by CHTAMUR
+*    COMMIT WORK.
+    IF lt_output IS NOT INITIAL.
+      TRY.
+          CALL METHOD cl_salv_table=>factory
+            IMPORTING
+              r_salv_table = DATA(lo_alv)
+            CHANGING
+              t_table      = lt_output.
+        CATCH cx_salv_msg.
+      ENDTRY.
+
+      lo_alv->get_functions( )->set_all( abap_true ).
+      lo_alv->get_columns( )->set_optimize( abap_true ).
+      lo_alv->display( ).
+    ENDIF.
+*End of Change for DE3K9A0T02 by CHTAMUR
+  ENDIF.
+** EOC  DE3K9A0PP7 USANBOD11
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DYNAMIC_SCREEN
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM dynamic_screen .
+
+*  LOOP AT SCREEN.
+*
+*    IF P_DIS = 'X' AND ( SCREEN-GROUP1 = 'ID1' OR
+*                         SCREEN-GROUP1 = 'ID2' OR
+*                         SCREEN-GROUP1 = 'ID3' OR
+*                           SCREEN-GROUP1 = 'ID4' OR
+*                           SCREEN-GROUP1 = 'ID5' OR
+*                           SCREEN-GROUP1 = 'ID6' OR
+*                           SCREEN-GROUP1 = 'ID7' OR
+*                           SCREEN-GROUP1 = 'ID8' ) .
+*      SCREEN-ACTIVE = '1' .
+*      SCREEN-INPUT = '1' .
+*    ELSEIF P_CRE = 'X' AND ( SCREEN-GROUP1 = 'ID1' OR
+*                         SCREEN-GROUP1 = 'ID2' OR
+*                         SCREEN-GROUP1 = 'ID3' OR
+*                           SCREEN-GROUP1 = 'ID4' OR
+*                           SCREEN-GROUP1 = 'ID5' OR
+*                           SCREEN-GROUP1 = 'ID6' OR
+*                           SCREEN-GROUP1 = 'ID7' OR
+*                           SCREEN-GROUP1 = 'ID8' ) .
+*      SCREEN-ACTIVE = '0' .
+*      SCREEN-INPUT = '0' .
+*    ENDIF.
+*
+*    MODIFY SCREEN .
+*
+*  ENDLOOP .
+
+ENDFORM.
+** EOC  USANBOD11 06/02/2024
+*&---------------------------------------------------------------------*
+*&      Form  INV_RECORD_CREATION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM inv_record_creation USING gs_final TYPE gi_final ls_final TYPE gi_final
+                         CHANGING lv_str TYPE char100
+                                  lv_err_flag TYPE c
+                                  lv_suc_flag TYPE c .
+
+  DATA : lv_adcom TYPE zpict3,
+         lv_text  TYPE char100,
+         ls_data  TYPE zpp_invrec.
+
+  lv_adcom = ls_final-matnr .
+  lv_text = ls_final-inccd .
+  CLEAR :     lv_err_flag  ,     lv_suc_flag  , ls_data. .
+
+  ls_data-matnr = gs_final-matnr .
+  ls_data-werks = gs_final-werks .
+  ls_data-bname = sy-uname .
+*  LS_DATA-LGORT = GS_FINAL-LGORT .
+  ls_data-lgort = ls_final-lgort .
+  ls_data-gjahr = gs_final-gjahr .
+*LS_DATA-BISMT =
+  ls_data-gidat = ls_final-gidat .
+  ls_data-menge = gs_final-alqty .
+  ls_data-sobkz = ls_final-sobkz .
+  ls_data-bstar = gs_final-bstar .
+  ls_data-lifnr = ls_final-lifnr .
+*LS_DATA-LAND1 =
+  ls_data-adcom = lv_adcom .
+  ls_data-inccd = gs_final-inccd .
+*LS_DATA-OVRW =
+  ls_data-text =  lv_text .
+*LS_DATA-ERFME =
+*LS_DATA-MEINS =
+  ls_data-vbeln = ls_final-vbeln .
+  ls_data-posnr = ls_final-posnr .
+  ls_data-pspnr = ls_final-pspnr .
+*LS_DATA-SC =
+  ls_data-aufnr = ls_final-aufnr .
+
+  CALL FUNCTION 'ZPP_INV_RECORD_FM'
+    EXPORTING
+      in_data     = ls_data
+      matnr       = gs_final-matnr
+      werks       = gs_final-werks
+      bname       = sy-uname "LV_NAME
+      lgort       = gs_final-lgort
+      gjahr       = gs_final-gjahr
+*     BISMT       =
+      gidat       = ls_final-gidat "LV_DATE
+      menge       = gs_final-alqty
+      sobkz       = ls_final-sobkz
+      bstar       = gs_final-bstar
+      lifnr       = ls_final-lifnr
+*     LAND1       =
+      adcom       = lv_adcom "LS_FINAL-MATNR
+      inccd       = gs_final-inccd
+*     OVRW        =
+      text        = lv_text " LS_FINAL-INCCD
+*     ERFME       =
+*     MEINS       =
+      vbeln       = ls_final-vbeln
+      posnr       = ls_final-posnr
+      pspnr       = ls_final-pspnr
+*     SC          =
+*     AUFNR       =
+    IMPORTING
+      gv_ret_text = lv_str
+    EXCEPTIONS
+      raise_error = 1
+      OTHERS      = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+    lv_err_flag = 'X' .
+  ELSE.
+    lv_suc_flag = 'X' .
+  ENDIF.
+
+
+ENDFORM.
+** BOC  DE3K9A0PP7 USANBOD11
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+
+*FORM top_of_page.
+*
+*  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+*    EXPORTING
+*      it_list_commentary = it_listheader.
+*
+*ENDFORM.                    "top_of_page
+
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+** EOC  DE3K9A0PP7 USANBOD11
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+*&---------------------------------------------------------------------*
+*&      Form  SET_TITLES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM set_titles .
+
+  IF p_but1 EQ 'X'.
+    SET TITLEBAR 'TITLE001'.
+  ELSEIF p_but2 EQ 'X'.
+    SET TITLEBAR 'TITLE002'.
+  ELSEIF p_but4 EQ 'X'.
+    SET TITLEBAR 'TITLE003'.
+  ELSEIF p_but6 EQ 'X'.
+    SET TITLEBAR 'TITLE004'.
+  ELSEIF p_but8 EQ 'X'.
+    SET TITLEBAR 'TITLE005'.
+  ELSEIF p_cre EQ 'X'.
+    SET TITLEBAR 'TITLE006'.
+  ENDIF.
+
+ENDFORM.
+
+*End of Change for DE3K9A0T02 by CHTAMUR
+

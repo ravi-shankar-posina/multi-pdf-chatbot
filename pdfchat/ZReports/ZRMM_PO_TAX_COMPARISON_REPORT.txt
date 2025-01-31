@@ -1,0 +1,67 @@
+*&---------------------------------------------------------------------*
+*& Report
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+* Name             : ZRMM_PO_TAX_COMPARISON_REPORT                        *
+* Created by       : Vijay Kumar N (502259099)                            *
+* Transport Request: DE3K940921                                           *
+* CR No            : CHG0479115                                           *
+* RICEF Object No  : RICEF1300                                            *
+* Transaction code : ZMM103                                               *
+*Description       : PO_Tax_Code_Comparison_Report-V1.0                   *
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE       |  TR NO.      | CR No.     |CHANGED BY  |DESCRIPTION OF CHANGE
+*************************************************************************
+
+
+REPORT  ZRMM_PO_TAX_COMPARISON_REPORT.
+
+** Declaring all the declarations
+INCLUDE znrmm_po_tax_report_top.
+
+** Getting selection screen display
+INCLUDE znrmm_po_tax_report_sel.
+
+AT SELECTION-SCREEN.
+
+  IF s_bedat IS INITIAL AND
+     s_ebeln IS INITIAL AND
+     s_ekorg IS INITIAL AND
+     s_bsart IS INITIAL AND
+     s_lifnr IS INITIAL AND
+     s_matnr IS INITIAL AND
+     s_matkl IS INITIAL AND
+     s_mwskz IS INITIAL AND
+     s_ernam IS INITIAL AND
+     s_ekgrp IS INITIAL.
+    MESSAGE e090(zmm) WITH 'Please enter atleast one selection'(016).
+  ENDIF.
+
+*************************************************************************
+**    S T A R T - O F - S E L E C T I O N                               *
+*************************************************************************
+
+START-OF-SELECTION.
+
+** Fetch the required records from various tables
+  PERFORM fetch_records.
+
+** Preparing fieldcat to build output display
+  PERFORM fieldcatalog.
+
+** Looping all tables to get the required data
+  PERFORM prepare_data.
+
+END-OF-SELECTION.
+
+** Displaying final output
+  PERFORM display_alv.
+
+  INCLUDE znrmm_po_tax_report_forms.
+

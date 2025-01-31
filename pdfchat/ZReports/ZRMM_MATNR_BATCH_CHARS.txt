@@ -1,0 +1,923 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_MATNR_BATCH_CHARS
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+***------------------------------------------------------------------***
+*** Created by            : Mallikarjun Vaja
+*** Creation Date         : 28 Oct 2014
+*** Transport Request #   : DE3K953617
+*** RICEF Object No #     : 1434
+*** CR#                   : CHG0479283
+*** Description           : This Report is sued to display BATCH Classification values maintained in MSC3N tcode
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***************************************************************************************
+* DATE               | CR No.          |CHANGED BY   |DESCRIPTION OF CHANG
+**************************************************************************************
+*28-Oct-2014         | CHG0479283     |502055609    |This Report is sued to display BATCH Classification values maintained in MSC3N tcode
+*16-Nov-2014         | CHG0479283     |502055609    |Add MARC Select Query and Binary search to improve the performace
+*17-Nov-2014         | CHG0479283     |502055609    |Modified logic to improve the performace
+*18-Nov-2014         | CHG0479283     |502055609    |Add KLART = '022'  condition to AUSP Table
+*18-Nov-2014         | CHG0479283     |502055609    |Removed FM'S and used Tables to improve the performace
+*24-Nov-2014         | CHG0479283     |502055609    |Bug Fix while reading MCHA Records.
+REPORT  zrmm_matnr_batch_chars MESSAGE-ID zmm.
+INCLUDE zncc_email_top.
+TYPES : BEGIN OF ty_mara,
+        matnr TYPE matnr,
+        mtart TYPE mtart,
+        END OF ty_mara.
+
+TYPES: BEGIN OF ty_marc,
+        matnr TYPE matnr,
+        werks TYPE werks_d,
+       END OF ty_marc.
+
+TYPES : BEGIN OF ty_inob,
+        cuobj TYPE cuobj,
+        objek TYPE cuobn,
+      END OF ty_inob.
+
+TYPES : BEGIN OF ty_ausp,
+        objek TYPE ausp-objek,
+        atwrt TYPE ausp-atwrt,
+       END OF ty_ausp.
+
+TYPES : BEGIN OF ty_final,
+        matnr TYPE matnr,
+        mtart TYPE mtart,
+        werks TYPE werks_d,
+        classtype TYPE klassenart,
+        matnr_atwrt TYPE atwrt,
+        charg TYPE charg_d,
+        batch_atwrt TYPE atwrt,
+        objek TYPE cuobn,                                               "CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+        END OF ty_final.
+
+*Begin of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+TYPES : BEGIN OF ty_inob2,
+        objek TYPE cuobn,
+        END OF ty_inob2.
+
+TYPES : BEGIN OF ty_final2,
+        matnr TYPE matnr,
+        mtart TYPE mtart,
+        werks TYPE werks_d,
+        classtype TYPE klassenart,
+        matnr_atwrt TYPE atwrt,
+        charg TYPE charg_d,
+        batch_atwrt TYPE atwrt,
+        END OF ty_final2.
+*End  of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+
+*Begin  of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+TYPES : BEGIN OF ty_mcha,
+        matnr TYPE mcha-matnr,
+        werks TYPE mcha-werks,
+        charg TYPE mcha-charg,
+        END OF ty_mcha.
+*End  of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+
+DATA : gt_ausp TYPE TABLE OF ty_ausp.
+DATA : gw_ausp TYPE ty_ausp .
+DATA : gt_ausp_tmp TYPE TABLE OF ty_ausp.
+DATA : gw_ausp_tmp TYPE ty_ausp .
+DATA : gt_mara TYPE TABLE OF ty_mara.
+DATA : gw_mara TYPE ty_mara.
+DATA : gt_marc TYPE TABLE OF ty_marc .
+DATA : gw_marc TYPE ty_marc.
+DATA : gw_marc_tmp TYPE ty_marc.
+DATA : gt_inob TYPE TABLE OF ty_inob.
+DATA : gw_inob TYPE ty_inob .
+DATA : gt_inob_tmp TYPE TABLE OF ty_inob.
+DATA : gw_inob_tmp TYPE ty_inob .
+DATA : gv_matnr TYPE matnr .
+DATA : gt_val_tab TYPE TABLE OF api_vali .
+DATA : gw_val_tab TYPE api_vali .
+DATA : gt_char TYPE TABLE OF bapi1003_alloc_values_char .
+DATA : gw_char TYPE bapi1003_alloc_values_char .
+DATA : gt_curr TYPE TABLE OF bapi1003_alloc_values_curr.
+DATA : gw_curr TYPE bapi1003_alloc_values_curr.
+DATA : gt_num TYPE TABLE OF bapi1003_alloc_values_num.
+DATA : gw_num TYPE bapi1003_alloc_values_num.
+DATA : gt_return TYPE TABLE OF bapiret2.
+DATA : gw_return TYPE bapiret2.
+DATA : gv_key TYPE  objnum.
+DATA : gv_charg TYPE charg_d.
+DATA : gt_final TYPE TABLE OF ty_final .
+DATA : gt_final_tmp TYPE TABLE OF ty_final .                                "CR#CHG0479283    Mallikarjun  Nov-24-2014     DE3K955664
+DATA : gw_final TYPE ty_final .
+DATA : gt_fcat TYPE slis_t_fieldcat_alv .
+DATA : gw_fcat TYPE slis_fieldcat_alv .
+DATA : wa_layout TYPE slis_layout_alv .
+DATA : gv_pos TYPE i.
+DATA : gv_mtart TYPE mara-mtart.
+DATA : gv_werks TYPE werks_d.
+DATA : gw_attach TYPE solisti1.         "Workarea for Mail Attach
+DATA : gt_attach TYPE STANDARD TABLE OF solisti1.
+DATA : gv_receiver TYPE somlreci1-receiver .
+DATA : gv_objek TYPE objnum.
+DATA : gv_tabix TYPE sy-tabix.
+DATA : gv_tabix_tmp TYPE sy-tabix.                                  "CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+
+*Begin of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+DATA : gt_ausp2 TYPE TABLE OF ty_ausp.
+DATA : gw_ausp2 TYPE ty_ausp .
+DATA : gt_ausp_tmp2 TYPE TABLE OF ty_ausp.
+DATA : gw_ausp_tmp2 TYPE ty_ausp .
+DATA : gt_inob2 TYPE TABLE OF ty_inob.
+DATA : gw_inob2 TYPE ty_inob .
+DATA : gt_inob_tmp2 TYPE TABLE OF ty_inob2.
+DATA : gw_inob_tmp2 TYPE ty_inob2 .
+DATA : gt_final2 TYPE TABLE OF ty_final2 .
+DATA : gw_final2 TYPE ty_final2 .
+*End of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+
+*Begin  of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+DATA : gt_mcha TYPE TABLE OF ty_mcha .
+DATA : gw_mcha TYPE ty_mcha .
+*End  of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+
+CONSTANTS : c_022 TYPE klassenart VALUE '022' .
+CONSTANTS : c_mara TYPE tabelle VALUE 'MARA' .
+CONSTANTS : c_tab TYPE c VALUE cl_abap_char_utilities=>horizontal_tab.
+CONSTANTS : c_cret TYPE c VALUE cl_abap_char_utilities=>cr_lf.
+
+SELECT-OPTIONS : s_matnr FOR gv_matnr .
+SELECT-OPTIONS : s_mtart FOR gv_mtart .
+SELECT-OPTIONS : s_werks FOR gv_werks .
+SELECT-OPTIONS : s_email FOR gv_receiver NO INTERVALS.
+
+START-OF-SELECTION .
+*Begin of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+*  PERFORM get_data .
+*  PERFORM get_batch_values .
+  PERFORM get_matnr_data.
+  PERFORM get_matnr_batch_values .
+  PERFORM get_batch_char_values.
+  PERFORM move_data_to_final .
+*End of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+  IF s_email[] IS NOT INITIAL AND gt_attach IS NOT INITIAL.
+    PERFORM send_mail TABLES gt_attach  USING  text-008.
+  ENDIF.
+  PERFORM disp_alv .
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+*Begin of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+**Select Master data from MARA
+*  SELECT matnr mtart
+*    FROM mara
+*    INTO TABLE gt_mara
+*    WHERE matnr IN s_matnr
+*    AND   mtart IN s_mtart
+*    AND   lvorm EQ ' ' .
+
+
+**Begin of CR#CHG0479283   Mallikarjun  Nov-16-2014 DE3K954889
+**Select Plant data
+*  IF gt_mara IS NOT INITIAL .
+*    SELECT matnr werks
+*      FROM marc
+*      INTO TABLE gt_marc
+*      FOR ALL ENTRIES IN gt_mara
+*      WHERE matnr = gt_mara-matnr
+*      AND   werks IN s_werks
+*      AND   lvorm = ''
+*      AND   xchpf = 'X'.
+*  ENDIF .
+**End  of CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+
+  SELECT matnr werks
+    FROM marc
+    INTO TABLE gt_marc
+    WHERE matnr IN s_matnr
+    AND   werks IN s_werks
+    AND   lvorm = ''
+    AND   xchpf = 'X'.
+
+  IF gt_marc IS NOT INITIAL .
+    SELECT matnr mtart
+      FROM mara
+      INTO TABLE gt_mara
+      FOR ALL ENTRIES IN gt_marc
+      WHERE matnr = gt_marc-matnr
+      AND   mtart IN s_mtart
+      AND   lvorm EQ ' ' .
+  ENDIF .
+*END of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+
+
+
+*Begin of CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+*  LOOP AT gt_mara INTO gw_mara.
+*    gw_inob_tmp-objek = gw_mara-matnr.
+*    APPEND  gw_inob_tmp TO gt_inob_tmp.
+*  ENDLOOP.
+
+  LOOP AT gt_marc INTO gw_marc.
+    gw_inob_tmp-objek = gw_marc-matnr.
+    APPEND  gw_inob_tmp TO gt_inob_tmp.
+  ENDLOOP.
+*End of CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+
+*Pass Class type 022 in INOB-KLART, INOB-OBTAB=MARA, INOB-OBJEK=<material number> and Select CUOBJ
+  IF gt_inob_tmp IS NOT INITIAL .
+    SELECT cuobj objek
+      FROM inob
+      INTO TABLE gt_inob
+      FOR ALL ENTRIES IN gt_inob_tmp
+       WHERE klart = c_022
+       AND obtab = c_mara
+       AND objek = gt_inob_tmp-objek.
+
+*Move INOB-CUOBJ into gt_ausp_tmp ITAB.
+    LOOP AT gt_inob INTO gw_inob.
+      gw_ausp_tmp-objek = gw_inob-cuobj.
+      APPEND gw_ausp_tmp TO gt_ausp_tmp.
+    ENDLOOP.
+  ENDIF .
+
+*Pass INOB-CUOBJ and get Material master Batch Values
+*  IF gt_inob IS NOT INITIAL .
+  IF gt_ausp_tmp IS NOT INITIAL .                            "CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+    SELECT objek atwrt
+      FROM ausp
+      INTO TABLE gt_ausp
+      FOR ALL ENTRIES IN gt_ausp_tmp
+      WHERE objek = gt_ausp_tmp-objek
+      AND   klart = c_022.                                   "CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955008
+  ENDIF .
+
+*Begin of CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+**Select Plant data
+*  IF gt_mara IS NOT INITIAL .
+*    SELECT matnr werks
+*      FROM marc
+*      INTO TABLE gt_marc
+*      FOR ALL ENTRIES IN gt_mara
+*      WHERE matnr = gt_mara-matnr
+*      AND   werks IN s_werks
+*      AND   lvorm = ''
+*      AND   xchpf = 'X'.
+*  ENDIF .
+*End  of CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  GET_BATCH_VALUES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_batch_values .
+  SORT gt_inob BY objek.
+  SORT gt_ausp BY objek.
+  SORT gt_mara BY matnr.
+  LOOP AT gt_marc INTO gw_marc .
+    gv_tabix_tmp = sy-tabix .                                            "CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+    gv_key = gw_marc-matnr .
+*Begin of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+    CLEAR gw_mara .
+    READ TABLE gt_mara INTO gw_mara WITH KEY matnr = gw_marc-matnr  BINARY SEARCH.
+    IF sy-subrc = 0.
+*End  of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+
+*Check if Classificatio View Exists in Material master using INOB read stmt
+      CLEAR gw_inob.                                                                 "CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+      READ TABLE gt_inob INTO gw_inob WITH KEY objek = gw_marc-matnr BINARY SEARCH.  "CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+      IF sy-subrc = 0 .
+        gv_objek = gw_inob-cuobj.
+        CLEAR gw_ausp .                                                              "CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+        READ TABLE gt_ausp INTO gw_ausp WITH KEY objek = gv_objek BINARY SEARCH. "Parallel cusror Tech to improve Performance"CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+        IF sy-subrc = 0 .
+          gv_tabix = sy-tabix .
+*GT_AUSP contains Material Master BATCH values...So Loop and check if BATCH data is maintained in MSC3N Tcode
+          LOOP AT gt_ausp INTO gw_ausp FROM gv_tabix.
+            IF gw_ausp-objek NE gv_objek .
+              EXIT.
+            ELSE.
+              REFRESH : gt_val_tab.
+              gv_charg = gw_ausp-atwrt.
+*Call Below FM and check if BATCH Number is maintained for combination of Material/Plant/Batch in MSC3N Tcode
+              CALL FUNCTION 'QC01_BATCH_CLASS'
+                EXPORTING
+                  i_batch        = gv_charg
+                  i_material     = gw_marc-matnr
+                  i_plant        = gw_marc-werks
+                  i_language     = sy-langu
+                EXCEPTIONS
+                  no_class       = 1
+                  internal_error = 2
+                  no_material    = 3
+                  no_batch       = 4
+                  no_plant       = 5
+                  OTHERS         = 6.
+*IF sy-subrc = 0...means BATCH Number is maintained in MSC3N Tcode. So get the BATCH Classification vales using below FM.
+              IF sy-subrc = 0.
+                CALL FUNCTION 'QC01_BATCH_VALUES_READ'
+                  EXPORTING
+                    i_val_matnr    = gw_marc-matnr
+                    i_val_werks    = gw_marc-werks
+                    i_val_charge   = gv_charg
+                  TABLES
+                    t_val_tab      = gt_val_tab
+                  EXCEPTIONS
+                    no_class       = 1
+                    internal_error = 2
+                    no_values      = 3
+                    no_chars       = 4
+                    OTHERS         = 5.
+*Move the data into Final ITAB
+                gw_final-matnr = gw_marc-matnr .
+
+*Begin of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+*                CLEAR gw_mara .
+*              READ TABLE gt_mara INTO gw_mara WITH KEY matnr = gw_marc-matnr BINARY SEARCH."CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+*                IF sy-subrc = 0 .
+*                  gw_final-mtart = gw_mara-mtart .
+*                ENDIF .
+*End  of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+                gw_final-mtart = gw_mara-mtart .
+                gw_final-werks = gw_marc-werks .
+                gw_final-classtype = c_022 .
+                gw_final-matnr_atwrt = gw_ausp-atwrt .
+*Gt_val_tab contains BATCH Classification vales....So loop and move each value into Final Itab
+                LOOP AT gt_val_tab INTO gw_val_tab.
+                  gw_final-charg = gw_ausp-atwrt.
+                  gw_final-batch_atwrt = gw_val_tab-atwrt .
+                  IF gw_final-matnr_atwrt = gw_final-charg AND gw_final-charg = gw_final-batch_atwrt .
+                  ELSE.
+                    APPEND gw_final TO gt_final .
+                    PERFORM move_data_to_gt_attach .                    " CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+                  ENDIF .
+                ENDLOOP.
+*If Gt_val_tab is Empty....means...there is no BATCH Classification vales. Then move remaining data into final ITAB
+                IF sy-subrc <> 0 .
+                  gw_final-charg = gw_ausp-atwrt.
+                  gw_final-matnr_atwrt = gw_ausp-atwrt .
+                  APPEND gw_final TO gt_final .
+                  PERFORM move_data_to_gt_attach .                        " CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+                ENDIF .
+*ELSE Means BATCH Number is Not maintained in MSC3N Tcode....So move remaining data into final ITAB
+              ELSE.
+                gw_final-matnr = gw_marc-matnr .
+                gw_final-mtart = gw_mara-mtart .
+                gw_final-werks = gw_marc-werks .
+                gw_final-classtype = c_022 .
+                gw_final-matnr_atwrt = gw_ausp-atwrt.
+                APPEND gw_final TO gt_final .
+                PERFORM move_data_to_gt_attach .                 " CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+              ENDIF .
+              CLEAR gw_final .
+            ENDIF .
+          ENDLOOP.
+        ENDIF .
+*Begin of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+*IF sy-subrc <> 0 ....Means...GT_CHAR is Empty...That means Material does not contain any BATCH Classification values in MM01
+        IF sy-subrc <> 0 .
+          gw_final-matnr = gw_marc-matnr .
+          gw_final-mtart = gw_mara-mtart .
+          gw_final-werks = gw_marc-werks .
+          gw_final-classtype = c_022 .
+          gw_final-charg = ' ' .
+          gw_final-batch_atwrt = '' .
+          APPEND gw_final TO gt_final .
+          PERFORM move_data_to_gt_attach .                 " CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+        ENDIF .
+*End  of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+*Else means Classificatio View does not Exists in Material master-MM01
+      ELSE.
+*Begin of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+*        CLEAR gw_mara .
+*      READ TABLE gt_mara INTO gw_mara WITH KEY matnr = gw_marc-matnr  BINARY SEARCH."CR#CHG0479283    Mallikarjun  Nov-16-2014 DE3K954889
+*End  of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+        gw_final-matnr = gw_marc-matnr .
+        gw_final-mtart = gw_mara-mtart .
+        gw_final-werks = gw_marc-werks .
+        gw_final-classtype = '' .
+        gw_final-charg = ' ' .
+        gw_final-batch_atwrt = '' .
+        APPEND gw_final TO gt_final .
+        PERFORM move_data_to_gt_attach .                          " CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+      ENDIF .
+    ENDIF .                                                        " CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+  ENDLOOP .
+
+*Begin of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+  IF gt_attach IS NOT INITIAL .
+    CONCATENATE text-001 text-002 text-003 text-004 text-005 text-006 text-007  INTO  gw_attach  SEPARATED BY c_tab.
+    INSERT gw_attach INTO gt_attach INDEX 1 .
+  ENDIF .
+
+*  LOOP AT gt_final INTO gw_final.
+*    IF sy-tabix = 1 .
+*      CONCATENATE text-001 text-002 text-003 text-004 text-005 text-006 text-007  INTO  gw_attach  SEPARATED BY c_tab.
+*    ELSE.
+*      CONCATENATE gw_final-matnr
+*                  gw_final-mtart
+*                  gw_final-werks
+*                  gw_final-classtype
+*                  gw_final-matnr_atwrt
+*                  gw_final-charg
+*                  gw_final-batch_atwrt INTO  gw_attach  SEPARATED BY c_tab.
+*      CONCATENATE c_cret gw_attach INTO gw_attach.
+*    ENDIF.
+*    APPEND gw_attach TO gt_attach.
+*  ENDLOOP.
+*End of CR#CHG0479283    Mallikarjun  Nov-17-2014 DE3K954903
+ENDFORM.                    " GET_BATCH_VALUES
+*&---------------------------------------------------------------------*
+*&      Form  DISP_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM disp_alv .
+
+  gv_pos = gv_pos + 1 .
+  gw_fcat-col_pos = gv_pos.
+  gw_fcat-fieldname = 'MATNR' .
+  gw_fcat-tabname = 'GT_FINAL' .
+  gw_fcat-seltext_m = text-001.
+  APPEND gw_fcat TO gt_fcat .
+  CLEAR gw_fcat .
+
+  gv_pos = gv_pos + 1 .
+  gw_fcat-col_pos = gv_pos.
+  gw_fcat-fieldname = 'MTART' .
+  gw_fcat-tabname = 'GT_FINAL' .
+  gw_fcat-seltext_m = text-002 .
+  APPEND gw_fcat TO gt_fcat .
+  CLEAR gw_fcat .
+
+  gv_pos = gv_pos + 1 .
+  gw_fcat-col_pos = gv_pos.
+  gw_fcat-fieldname = 'WERKS' .
+  gw_fcat-tabname = 'GT_FINAL' .
+  gw_fcat-seltext_m = text-003.
+  APPEND gw_fcat TO gt_fcat .
+  CLEAR gw_fcat .
+
+
+  gv_pos = gv_pos + 1 .
+  gw_fcat-col_pos = gv_pos.
+  gw_fcat-fieldname = 'CLASSTYPE' .
+  gw_fcat-tabname = 'GT_FINAL' .
+  gw_fcat-seltext_m = text-004 .
+  APPEND gw_fcat TO gt_fcat .
+  CLEAR gw_fcat .
+
+  gv_pos = gv_pos + 1 .
+  gw_fcat-col_pos = gv_pos.
+  gw_fcat-fieldname = 'MATNR_ATWRT' .
+  gw_fcat-tabname = 'GT_FINAL' .
+  gw_fcat-seltext_m = text-005.
+  APPEND gw_fcat TO gt_fcat .
+  CLEAR gw_fcat .
+
+  gv_pos = gv_pos + 1 .
+  gw_fcat-col_pos = gv_pos.
+  gw_fcat-fieldname = 'CHARG' .
+  gw_fcat-tabname = 'GT_FINAL' .
+  gw_fcat-seltext_m = text-006.
+  APPEND gw_fcat TO gt_fcat .
+  CLEAR gw_fcat .
+
+  gv_pos = gv_pos + 1 .
+  gw_fcat-col_pos = gv_pos.
+  gw_fcat-fieldname = 'BATCH_ATWRT' .
+  gw_fcat-tabname = 'GT_FINAL' .
+  gw_fcat-seltext_m = text-007 .
+  APPEND gw_fcat TO gt_fcat .
+  CLEAR gw_fcat .
+
+  wa_layout-colwidth_optimize = 'X' .
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-repid
+      is_layout          = wa_layout
+      it_fieldcat        = gt_fcat
+    TABLES
+      t_outtab           = gt_final2 "gt_final                  "CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+  ENDIF.
+ENDFORM.                    " DISP_ALV
+*&---------------------------------------------------------------------*
+*&      Form  SEND_MAIL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_IT_ATTACH  text
+*      -->P_TEXT_001  text
+*----------------------------------------------------------------------*
+FORM send_mail  TABLES  it_attach STRUCTURE gw_attach
+                 USING    p_desc.
+
+  DATA: l_seq(10),
+        l_format TYPE  so_obj_tp VALUE 'XLS',
+        l_attdescription TYPE  so_obj_nam,
+        l_attfilename TYPE  so_obj_des VALUE 'filename',
+        l_sender_address LIKE  soextreci1-receiver,
+        l_sender_address_type LIKE  soextreci1-adr_typ,
+        l_firstname LIKE adrp-name_first,
+        l_lastname LIKE adrp-name_last,
+        l_name(75).
+
+  REFRESH it_message.
+
+  l_attdescription      = space.
+  l_sender_address      = space.
+  l_sender_address_type = space.
+
+  SELECT SINGLE b~name_first
+         b~name_last
+    INTO (l_firstname, l_lastname)
+    FROM usr21 AS a INNER JOIN adrp AS b
+    ON a~persnumber = b~persnumber
+    WHERE a~bname = sy-uname.
+
+
+* Fill the document data.
+  g_doc_data-doc_size = 1.
+
+* Fill the document data and get size of attachment
+  CLEAR g_doc_data.
+  READ TABLE it_attach INTO wa_attach INDEX g_cnt.
+  g_doc_data-doc_size =
+     ( g_cnt - 1 ) * 255 + strlen( wa_attach ).
+  g_doc_data-obj_langu  = sy-langu.
+  g_doc_data-obj_name   = c_obj_name.
+  g_doc_data-obj_descr  = p_desc.
+  g_doc_data-sensitivty = c_sensitivty.
+
+  REFRESH it_attachment.
+  it_attachment[] = it_attach[].
+
+  CLEAR wa_message.
+  wa_message-line = text-009.
+  APPEND wa_message TO it_message.
+
+* Describe the body of the message
+  CLEAR wa_packing_list.
+  REFRESH it_packing_list.
+  wa_packing_list-transf_bin = space.
+  wa_packing_list-head_start = 1.
+  wa_packing_list-head_num = 0.
+  wa_packing_list-body_start = 1.
+  DESCRIBE TABLE it_message LINES wa_packing_list-body_num.
+  wa_packing_list-doc_type = c_doc_type.
+  APPEND wa_packing_list TO it_packing_list.
+  CLEAR wa_packing_list.
+* Create attachment notification
+  wa_packing_list-transf_bin = c_x.
+  wa_packing_list-head_start = 1.
+  wa_packing_list-head_num   = 1.
+  wa_packing_list-body_start = 1.
+
+  DESCRIBE TABLE it_attachment LINES wa_packing_list-body_num.
+  wa_packing_list-doc_type   =  l_format.
+  wa_packing_list-obj_descr  =  l_attdescription.
+  wa_packing_list-obj_name   =  text-010.
+  wa_packing_list-doc_size   =  wa_packing_list-body_num * 255.
+  APPEND wa_packing_list TO it_packing_list.
+
+* Add the recipients email address
+  CLEAR wa_receivers.
+  REFRESH it_receivers.
+  LOOP AT s_email.
+    wa_receivers-receiver = s_email-low.
+    wa_receivers-rec_type = c_rec_type.
+    wa_receivers-com_type = c_com_type.
+    wa_receivers-notif_del = c_x.
+    wa_receivers-notif_ndel = c_x.
+    APPEND wa_receivers TO it_receivers.
+    CLEAR wa_receivers.
+  ENDLOOP.
+
+  CALL FUNCTION 'SO_DOCUMENT_SEND_API1'
+    EXPORTING
+      document_data              = g_doc_data
+      put_in_outbox              = c_x
+      sender_address             = l_sender_address
+      sender_address_type        = l_sender_address_type
+      commit_work                = c_x
+    IMPORTING
+      sent_to_all                = g_sent_all
+    TABLES
+      packing_list               = it_packing_list
+      contents_bin               = it_attachment
+      contents_txt               = it_message
+      receivers                  = it_receivers
+    EXCEPTIONS
+      too_many_receivers         = 1
+      document_not_sent          = 2
+      document_type_not_exist    = 3
+      operation_no_authorization = 4
+      parameter_error            = 5
+      x_error                    = 6
+      enqueue_error              = 7
+      OTHERS                     = 8.
+  IF sy-subrc = 0 .
+    MESSAGE i098 .
+  ELSE.
+  ENDIF .
+ENDFORM.                    " SEND_MAIL
+*&---------------------------------------------------------------------*
+*&      Form  MOVE_DATA_TO_GT_ATTACH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM move_data_to_gt_attach .
+*Begin of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+*  CONCATENATE gw_final-matnr
+*              gw_final-mtart
+*              gw_final-werks
+*              gw_final-classtype
+*              gw_final-matnr_atwrt
+*              gw_final-charg
+*              gw_final-batch_atwrt INTO  gw_attach  SEPARATED BY c_tab.
+  CONCATENATE gw_final2-matnr
+              gw_final2-mtart
+              gw_final2-werks
+              gw_final2-classtype
+              gw_final2-matnr_atwrt
+              gw_final2-charg
+              gw_final2-batch_atwrt INTO  gw_attach  SEPARATED BY c_tab.
+*End of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955020
+  CONCATENATE c_cret gw_attach INTO gw_attach.
+  APPEND gw_attach TO gt_attach.
+ENDFORM.                    " MOVE_DATA_TO_GT_ATTACH
+
+*&---------------------------------------------------------------------*
+*&      Form  get_MATNR_data
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_matnr_data .
+*Select MAterial Plant data
+  SELECT matnr werks
+     FROM marc
+     INTO TABLE gt_marc
+     WHERE matnr IN s_matnr
+     AND   werks IN s_werks
+     AND   lvorm = ''
+     AND   xchpf = 'X'.
+
+*Select Material Master data
+  IF gt_marc IS NOT INITIAL .
+    SELECT matnr mtart
+      FROM mara
+      INTO TABLE gt_mara
+      FOR ALL ENTRIES IN gt_marc
+      WHERE matnr = gt_marc-matnr
+      AND   mtart IN s_mtart
+      AND   lvorm EQ ' ' .
+  ENDIF .
+
+  LOOP AT gt_marc INTO gw_marc.
+    gw_inob_tmp-objek = gw_marc-matnr.
+    APPEND  gw_inob_tmp TO gt_inob_tmp.
+  ENDLOOP.
+
+*  *Pass Class type 022 in INOB-KLART, INOB-OBTAB=MARA, INOB-OBJEK=<material number> and Select CUOBJ
+  IF gt_inob_tmp IS NOT INITIAL .
+    SELECT cuobj objek
+      FROM inob
+      INTO TABLE gt_inob
+      FOR ALL ENTRIES IN gt_inob_tmp
+       WHERE klart = c_022
+       AND obtab = c_mara
+       AND objek = gt_inob_tmp-objek.
+
+*Move INOB-CUOBJ into gt_ausp_tmp ITAB.
+    LOOP AT gt_inob INTO gw_inob.
+      gw_ausp_tmp-objek = gw_inob-cuobj.
+      APPEND gw_ausp_tmp TO gt_ausp_tmp.
+    ENDLOOP.
+  ENDIF .
+
+*Select Material Batches from AUSP
+  IF gt_ausp_tmp IS NOT INITIAL .
+    SELECT objek atwrt
+      FROM ausp
+      INTO TABLE gt_ausp
+      FOR ALL ENTRIES IN gt_ausp_tmp
+      WHERE objek = gt_ausp_tmp-objek
+      AND   klart = c_022.
+  ENDIF .
+
+ENDFORM .                    "get_data
+*&---------------------------------------------------------------------*
+*&      Form  GET_MATNR_BATCH_VALUES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_matnr_batch_values .
+  SORT gt_inob BY objek.
+  SORT gt_ausp BY objek.
+  SORT gt_mara BY matnr.
+
+  LOOP AT gt_marc INTO gw_marc .
+    gv_key = gw_marc-matnr .
+    CLEAR gw_mara .
+    READ TABLE gt_mara INTO gw_mara WITH KEY matnr = gw_marc-matnr  BINARY SEARCH.
+    IF sy-subrc = 0.
+*Check if Classificatio View Exists in Material master using INOB read stmt
+      CLEAR gw_inob.
+      READ TABLE gt_inob INTO gw_inob WITH KEY objek = gw_marc-matnr BINARY SEARCH.
+      IF sy-subrc = 0 .
+        gv_objek = gw_inob-cuobj.
+*GT_AUSP contains Material Master BATCH values.
+        LOOP AT gt_ausp INTO gw_ausp  WHERE objek = gv_objek .
+          gw_final-matnr = gw_marc-matnr .
+          gw_final-mtart = gw_mara-mtart .
+          gw_final-werks = gw_marc-werks .
+          gw_final-classtype = c_022 .
+          gw_final-matnr_atwrt = gw_ausp-atwrt .
+          APPEND gw_final TO gt_final .
+          CLEAR gw_final .
+        ENDLOOP .
+*IF sy-subrc <> 0 .....means Material Master has no Batch values
+        IF sy-subrc <> 0 .
+          gw_final-matnr = gw_marc-matnr .
+          gw_final-mtart = gw_mara-mtart .
+          gw_final-werks = gw_marc-werks .
+          gw_final-classtype = c_022 .
+          APPEND gw_final TO gt_final .
+          CLEAR gw_final .
+        ENDIF .
+*Else means Classificatio View does not Exists in Material master-MM01
+      ELSE.
+        gw_final-matnr = gw_marc-matnr .
+        gw_final-mtart = gw_mara-mtart .
+        gw_final-werks = gw_marc-werks .
+        gw_final-classtype = '' .
+        APPEND gw_final TO gt_final .
+        CLEAR gw_final .
+      ENDIF .
+    ENDIF .
+  ENDLOOP .
+ENDFORM.                    " GET_MATNR_BATCH_VALUES
+*&---------------------------------------------------------------------*
+*&      Form  GET_BATCH_CHAR_VALUES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_batch_char_values .
+*Begin of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+  IF gt_final IS NOT INITIAL .
+    SELECT matnr werks charg
+      FROM mcha
+      INTO TABLE gt_mcha
+      FOR ALL ENTRIES IN gt_final
+      WHERE matnr = gt_final-matnr
+      AND   werks = gt_final-werks .
+  ENDIF .
+
+  SORT gt_final BY matnr werks matnr_atwrt .
+  LOOP AT gt_mcha INTO gw_mcha.
+    READ TABLE gt_final INTO gw_final WITH KEY matnr = gw_mcha-matnr
+                                               werks = gw_mcha-werks
+                                               matnr_atwrt = gw_mcha-charg BINARY SEARCH.
+    IF sy-subrc <> 0 .
+      gw_final-matnr = gw_mcha-matnr .
+      CLEAR gw_mara .
+      READ TABLE gt_mara INTO gw_mara WITH KEY matnr = gw_mcha-matnr  BINARY SEARCH.
+      IF sy-subrc = 0.
+        gw_final-mtart = gw_mara-mtart .
+      ENDIF .
+      gw_final-werks = gw_mcha-werks .
+      gw_final-classtype = c_022 .
+      gw_final-matnr_atwrt = ' ' .
+      gw_final-charg = gw_mcha-charg .
+      gw_final-batch_atwrt = ' ' .
+      APPEND gw_final TO gt_final_tmp .                                "*Begin of CR#CHG0479283    Mallikarjun  Nov-24-2014     DE3K955664
+      CLEAR gw_final .
+    ENDIF .
+  ENDLOOP.
+*End of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+
+*Begin of CR#CHG0479283    Mallikarjun  Nov-24-2014     DE3K955664
+*gt_final_tmp contains the records which are not there in GT_FINAL.So Append them.
+  LOOP AT gt_final_tmp INTO gw_final.
+    APPEND gw_final TO gt_final .
+  ENDLOOP.
+*End  of CR#CHG0479283    Mallikarjun  Nov-24-2014     DE3K955664
+
+
+  LOOP AT gt_final INTO gw_final .
+    gw_inob_tmp2-objek+0(18) = gw_final-matnr.
+    gw_inob_tmp2-objek+18(4) = gw_final-werks.
+*Begin of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+*   gw_inob_tmp2-objek+22(2) = gw_final-matnr_atwrt.
+    IF gw_final-matnr_atwrt IS NOT INITIAL .
+      gw_inob_tmp2-objek+22(2) = gw_final-matnr_atwrt.
+    ELSE.
+      gw_inob_tmp2-objek+22(2) = gw_final-charg.
+    ENDIF.
+*End of CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+    APPEND  gw_inob_tmp2 TO gt_inob_tmp2.
+    gw_final-objek = gw_inob_tmp2-objek.
+    MODIFY gt_final FROM gw_final INDEX sy-tabix TRANSPORTING objek .
+  ENDLOOP.
+
+  IF gt_inob_tmp2 IS NOT INITIAL .
+    SELECT cuobj objek
+      FROM inob
+      INTO TABLE gt_inob2
+      FOR ALL ENTRIES IN gt_inob_tmp2
+       WHERE klart = c_022
+       AND obtab = 'MCHA'
+       AND objek = gt_inob_tmp2-objek.
+
+*Move INOB-CUOBJ into gt_ausp_tmp ITAB.
+    LOOP AT gt_inob2 INTO gw_inob2.
+      gw_ausp_tmp2-objek = gw_inob2-cuobj.
+      APPEND gw_ausp_tmp2 TO gt_ausp_tmp2.
+    ENDLOOP.
+  ENDIF .
+
+*Select BATCH Characterstics from AUSP.
+  IF gt_ausp_tmp2 IS NOT INITIAL .
+    SELECT objek atwrt
+      FROM ausp
+      INTO TABLE gt_ausp2
+      FOR ALL ENTRIES IN gt_ausp_tmp2
+      WHERE objek = gt_ausp_tmp2-objek
+      AND  klart = c_022.
+  ENDIF .
+
+ENDFORM.                    " GET_BATCH_CHAR_VALUES
+*&---------------------------------------------------------------------*
+*&      Form  move_data_to_final
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM move_data_to_final .
+  SORT gt_inob2 BY objek .
+
+  LOOP AT gt_final INTO gw_final .
+    MOVE-CORRESPONDING gw_final TO gw_final2.
+*Check if BATCH Number is maintained in MSC3N Tcode.
+    CLEAR gw_inob2.
+    READ TABLE gt_inob2 INTO gw_inob2 WITH KEY objek = gw_final-objek BINARY SEARCH.
+    IF sy-subrc = 0 .
+      gv_objek = gw_inob2-cuobj.
+**GT_AUSP contains BATCH Characterstic values for above BATCH Number.
+      LOOP AT gt_ausp2 INTO gw_ausp2  WHERE objek = gv_objek .
+        IF gw_final2-matnr_atwrt IS NOT INITIAL .                              "CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+          gw_final2-charg = gw_final2-matnr_atwrt.
+        ENDIF .                                                                "CR#CHG0479283    Mallikarjun  Nov-18-2014 DE3K955032
+        gw_final2-batch_atwrt = gw_ausp2-atwrt .
+        IF gw_final2-matnr_atwrt = gw_final2-charg AND gw_final2-charg = gw_final2-batch_atwrt .
+*       When Material Batch and Batch No and Batch CHaracterstic are same..........dont append
+        ELSE.
+          APPEND gw_final2 TO gt_final2 .
+          PERFORM move_data_to_gt_attach .
+          CLEAR  gw_final2.
+        ENDIF .
+      ENDLOOP.
+      IF sy-subrc <> 0 .
+        gw_final2-charg = gw_final-matnr_atwrt.
+        APPEND gw_final2 TO gt_final2 .
+        PERFORM move_data_to_gt_attach .
+        CLEAR  gw_final2.
+      ENDIF .
+    ELSE.
+*No BATCH Number is maintained in MSC3N Tcode.
+      APPEND gw_final2 TO gt_final2 .
+      PERFORM move_data_to_gt_attach .
+      CLEAR  gw_final2.
+    ENDIF .
+  ENDLOOP .
+
+  IF gt_attach IS NOT INITIAL .
+    CONCATENATE text-001 text-002 text-003 text-004 text-005 text-006 text-007  INTO  gw_attach  SEPARATED BY c_tab.
+    INSERT gw_attach INTO gt_attach INDEX 1 .
+  ENDIF .
+ENDFORM .                    "move_data_to_final
+

@@ -1,0 +1,59 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_DATA_AVAILABILITY_TOP
+*&---------------------------------------------------------------------*
+TYPES : BEGIN OF ty_ret_table,
+  name(20) TYPE c,
+  info(50) TYPE c,
+  count TYPE i,
+END OF ty_ret_table,
+BEGIN OF ty_po_table,
+  doc_no TYPE ekbe-ebeln,
+  item TYPE ekbe-ebelp,
+END OF ty_po_table,
+BEGIN OF ty_aufk,
+  aufnr TYPE aufnr,
+  objnr TYPE j_objnr,
+ END OF ty_aufk,
+ BEGIN OF ty_ekpo_be,
+   ebeln TYPE ebeln,
+   ebelp TYPE ebelp,
+   menge TYPE menge_d,
+   bpmng TYPE menge_bpr,
+   wesbs TYPE wesbs,
+   shkzg TYPE shkzg,
+   END OF ty_ekpo_be,
+   BEGIN OF ty_wo,
+   aufnr TYPE aufk-aufnr,
+   END OF ty_wo.
+DATA: gt_wo TYPE TABLE OF ty_wo,
+      gt_ret TYPE TABLE OF ty_ret_table,
+      gi_ret TYPE ty_ret_table,
+      gw_total_job TYPE i,
+      gw_info(50) TYPE c,
+      gw_doc_no TYPE ebeln,
+      gw_item TYPE ebelp,
+      gw_current_index TYPE i VALUE 1,
+      gw_order_qty TYPE menge_d,
+      gw_line_count TYPE i,
+      gt_aufk TYPE TABLE OF ty_aufk,
+      gw_werks TYPE werks_d,
+      gw_vkorg TYPE vkorg,
+      gw_bukrs TYPE bukrs,
+      gw_ekorg TYPE ekorg,
+      gw_lgnum TYPE lgnum,
+      gw_received_qty TYPE menge_d,
+      gt_po TYPE TABLE OF ty_po_table,
+      gi_po TYPE ty_po_table,
+      gt_ekpo_be TYPE TABLE OF ty_ekpo_be,
+      gi_ekpo_be TYPE ty_ekpo_be.
+TYPE-POOLS : slis.
+DATA: gt_fieldcat           TYPE slis_t_fieldcat_alv,
+      gw_fieldcat_ln        TYPE slis_fieldcat_alv,
+      gs_layout          TYPE slis_layout_alv.
+CONSTANTS:
+       gc_n   VALUE 'N',
+       gc_x   VALUE 'X',
+       gc_m   VALUE 'M',
+       gc_en(2) VALUE 'EN'.
+.
+

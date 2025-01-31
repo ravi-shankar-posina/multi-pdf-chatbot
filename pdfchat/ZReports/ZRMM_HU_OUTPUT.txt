@@ -1,0 +1,286 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_HU_OUTPUT
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRMM_HU_OUTPUT
+*
+*
+* RICEF             : RICEF715
+*
+* Program function  : This Program create Inbound Delivery for each HU in Shipment.This program in Configured in 'ZINB'
+*                     Output Type so that when 'ZINB' output type is triggered from 'VT01N', this program executes
+*                     and create Inb Delivery.
+*
+* Transaction code  : NA
+*
+* Limitations       : NA
+*
+* Table updates     : NA
+*
+* Authorizations    : NA
+*
+* Selection screen  : NA
+
+* TR#               : DE3K917972
+*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***************************************************************************************
+* DATE               | CR No.          |CHANGED BY   |DESCRIPTION OF CHANG
+**************************************************************************************
+*11-March-2014       | CHG0479115      |502055609    | Initial Development.
+
+REPORT  zrmm_hu_output.
+TABLES:  nast.
+
+TYPES : BEGIN OF ty_vepo,
+         venum TYPE venum,
+         vepos TYPE vepos,
+         vbeln TYPE vbeln_vl,
+         posnr TYPE posnr_vl,
+         vemng TYPE vemng,
+         vemeh TYPE vemeh,
+        END OF ty_vepo.
+TYPES : BEGIN OF ty_lips,
+        vbeln TYPE vbeln_vl,
+        posnr TYPE posnr_vl,
+        vgbel TYPE vgbel,
+        vgpos TYPE vgpos,
+        END OF ty_lips.
+TYPES : BEGIN OF ty_ekpo_tmp,
+        ebeln TYPE ebeln,
+        ebelp TYPE ebelp,
+        END OF ty_ekpo_tmp.
+
+TYPES : BEGIN OF ty_ekpo,
+        ebeln TYPE ebeln,
+        ebelp TYPE ebelp,
+        matnr TYPE matnr,
+        menge TYPE bstmg,
+        meins TYPE bstme,
+        END OF ty_ekpo.
+
+DATA : gt_vepo TYPE TABLE OF ty_vepo .
+DATA : gw_vepo TYPE  ty_vepo .
+DATA : gt_lips TYPE TABLE OF ty_lips .
+DATA : gw_lips TYPE ty_lips .
+DATA : gt_ekpo_tmp TYPE TABLE OF ty_ekpo_tmp .
+DATA : gw_ekpo_tmp TYPE ty_ekpo_tmp .
+DATA : gt_ekpo  TYPE TABLE OF ty_ekpo.
+DATA : gw_ekpo TYPE  ty_ekpo.
+DATA : gv_venum TYPE vepo-venum .
+DATA : gv_exidv2 TYPE vekp-exidv2 .
+DATA : gv_exidv  TYPE vekp-exidv  .
+DATA : gw_header TYPE bbp_inbd_l.
+DATA : gt_items TYPE TABLE OF bbp_inbd_d.
+DATA : gw_items TYPE bbp_inbd_d.
+DATA : gt_return TYPE TABLE OF bapireturn .
+DATA : gw_return TYPE bapireturn.
+DATA : gv_vbeln TYPE likp-vbeln .
+DATA : gv_hu_flag TYPE char1 .
+DATA ls_flags TYPE v51p_select_flags.
+DATA gt_hus TYPE hum_exidv_t.
+DATA gw_hu TYPE hum_exidv.
+DATA gt_objects TYPE hum_object_t.
+DATA gw_object TYPE hum_object.
+DATA gv_rcode TYPE sysubrc.
+DATA gt_header TYPE TABLE OF vekpvb.
+DATA gt_items2 TYPE TABLE OF vepovb.
+DATA gt_history TYPE TABLE OF vevwvb.
+DATA gt_high TYPE hum_venum_t.
+DATA gt_messages TYPE huitem_messages_t.
+DATA gt_new_values TYPE hum_update_header_t.
+DATA gw_new_values LIKE LINE OF gt_new_values.
+DATA gt_messages2 TYPE huitem_messages_t.
+
+CONSTANTS  C_VHILM_KU TYPE CHAR8  VALUE 'VHILM_KU'.
+*&---------------------------------------------------------------------*
+*&      Form  sto_id_creation
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->RC         text
+*      -->US_SCREEN  text
+*----------------------------------------------------------------------*
+FORM sto_id_creation USING rc us_screen.
+*NAST-OBJKY(10) CONTAINS INTERNAL HU from NAST table
+  gv_venum = nast-objky(10).
+
+*From VEKP...get the External HU2 No using Internal HU No.
+  SELECT SINGLE exidv exidv2
+    FROM vekp
+    INTO (gv_exidv,gv_exidv2)
+    WHERE venum = gv_venum  .
+
+*From VEPO..we get the outbound delivery no and item.
+  SELECT venum vepos vbeln posnr vemng vemeh
+    FROM vepo
+    INTO TABLE gt_vepo
+    WHERE venum = gv_venum .
+
+*Goto LIPS using above del.no and item ...get the correspodning PO and item
+  IF gt_vepo IS NOT INITIAL .
+    SELECT vbeln posnr vgbel vgpos
+    FROM lips
+    INTO TABLE gt_lips
+    FOR ALL ENTRIES IN gt_vepo
+    WHERE vbeln = gt_vepo-vbeln
+    AND   posnr = gt_vepo-posnr .
+  ENDIF.
+
+*Move the PO and Item into Temp ITAB
+  REFRESH gt_ekpo_tmp.
+  LOOP AT gt_lips INTO gw_lips.
+    gw_ekpo_tmp-ebeln = gw_lips-vgbel .
+    gw_ekpo_tmp-ebelp = gw_lips-vgpos .
+    APPEND gw_ekpo_tmp TO gt_ekpo_tmp .
+  ENDLOOP.
+
+
+*Goto EKPO and get PO Item Data
+  IF gt_ekpo_tmp IS NOT INITIAL .
+    SELECT ebeln ebelp matnr menge meins
+    FROM ekpo
+    INTO TABLE gt_ekpo
+    FOR ALL ENTRIES IN gt_ekpo_tmp
+    WHERE ebeln = gt_ekpo_tmp-ebeln
+    AND   ebelp = gt_ekpo_tmp-ebelp  .
+  ENDIF .
+
+*MOVE HEADER DATA
+  CLEAR gw_header.
+  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+    EXPORTING
+      input  = gv_exidv2
+    IMPORTING
+      output = gv_exidv2.
+
+  gw_header-deliv_ext = gv_exidv2 . "Move the Ext HU2 so that It updates in IBD-Header data-EXIDV field.
+  gw_header-deliv_date = sy-datum .
+  gw_header-ship_point = 'CNW2' .
+  gw_header-transp_id = 'TEST' .
+
+*MOVE ITEM DATA
+  REFRESH  gt_items.
+  SORT gt_lips BY vgbel vgpos .
+  LOOP AT gt_ekpo INTO gw_ekpo .
+    gw_items-material = gw_ekpo-matnr .
+    gw_items-po_number = gw_ekpo-ebeln .
+    gw_items-po_item = gw_ekpo-ebelp .
+
+*Read the Delivery No from gt_LIPS
+    CLEAR gw_lips .
+    READ TABLE gt_lips INTO gw_lips WITH KEY vgbel =  gw_ekpo-ebeln
+                                            vgpos =  gw_ekpo-ebelp .
+    IF sy-subrc = 0 .
+      gw_items-delivery = gw_lips-vbeln .
+      gw_items-deliv_item = gw_lips-posnr .
+*Read the Packed QTY and Units
+      READ TABLE gt_vepo INTO gw_vepo WITH KEY vbeln =  gw_lips-vbeln
+                                              posnr =  gw_lips-posnr  .
+      IF sy-subrc = 0 .
+        gw_items-deliv_qty = gw_vepo-vemng .
+        gw_items-unit = gw_vepo-vemeh .
+      ENDIF .
+    ENDIF .
+    APPEND gw_items TO gt_items .
+    CLEAR gw_items .
+  ENDLOOP.
+*The FLAG value is exported to Enh Imp: ZMM_IMPORT_HU_FLG to execute specific logic
+* related to this program.
+  FREE MEMORY ID 'GV_HU_FLAG' .
+  gv_hu_flag = 'X' .
+  EXPORT gv_hu_flag TO MEMORY ID 'GV_HU_FLAG' .
+
+  CALL FUNCTION 'ZMM_BBP_INB_DELIVERY_CREATE_FM'
+    EXPORTING
+      is_inb_delivery_header = gw_header
+    IMPORTING
+      ef_delivery            = gv_vbeln
+    TABLES
+      it_inb_delivery_detail = gt_items
+      return                 = gt_return.
+  IF gv_vbeln IS NOT INITIAL ."Means IBD is Created.
+    CLEAR rc.
+*Below Routine is to Update IBD Nr in HU-CustPkg Material field(VHILM_KU).
+    PERFORM update_ibd_in_hu.
+  ENDIF .
+
+* Update the messages.
+  LOOP AT gt_return INTO gw_return.
+    CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+      EXPORTING
+        msg_arbgb = sy-msgid
+        msg_nr    = sy-msgno
+        msg_ty    = sy-msgty
+        msg_v1    = sy-msgv1
+        msg_v2    = sy-msgv2
+      EXCEPTIONS
+        OTHERS    = 0.
+  ENDLOOP.
+
+ENDFORM .                    "sto_id_creation
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_IBD_IN_HU
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM update_ibd_in_hu .
+*Move Handling Unit Number
+  gw_hu-exidv = gv_exidv.
+  APPEND gw_hu TO gt_hus.
+  ls_flags-no_db_select = ' '.
+  ls_flags-lock_hu      = 'X'.
+  ls_flags-add_and_exp  = 'X'.
+  APPEND gw_object TO gt_objects.
+
+*Get The HU information
+  CALL FUNCTION 'V51P_FILL_GT'
+    EXPORTING
+      is_flags         = ls_flags
+      it_hus           = gt_hus
+    IMPORTING
+      ef_rcode         = gv_rcode
+      et_vekp          = gt_header
+      et_vepo          = gt_items2
+      et_vevw          = gt_history
+      et_highest_level = gt_high
+      et_messages      = gt_messages
+    EXCEPTIONS
+      hu_locked        = 01
+      no_hu_found      = 02
+      OTHERS           = 99.
+
+*Set Int and Ext Handling Unit Number along with 'FIELD' name and 'VALUE' to be changed.
+  gw_new_values-hdl_unit_itid = gv_venum. " Internal Handling Unit Number
+  gw_new_values-hdl_unit_exid = gv_exidv. " External Handling Unit Identification
+  gw_new_values-field_name = C_VHILM_KU . " Field name of changed field
+  gw_new_values-field_value = gv_vbeln          .  " IBD No or Value of field to be changed
+  APPEND gw_new_values TO gt_new_values.
+
+*Update Handling Unit.
+  CALL FUNCTION 'HU_HEADER_UPDATE'
+    EXPORTING
+      it_new_values = gt_new_values
+    IMPORTING
+      et_messages   = gt_messages2
+    EXCEPTIONS
+      not_possible  = 1
+      OTHERS        = 2.
+*Update Packing Also
+  CALL FUNCTION 'HU_PACKING_UPDATE'
+    EXPORTING
+      if_synchron = 'X'.
+
+ENDFORM.                    " UPDATE_IBD_IN_HU
+

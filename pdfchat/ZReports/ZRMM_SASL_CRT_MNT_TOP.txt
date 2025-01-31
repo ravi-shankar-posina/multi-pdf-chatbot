@@ -1,0 +1,294 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_SASL_CRT_MNT_TOP
+*&---------------------------------------------------------------------*
+************************************************************************
+*Declaration of Types
+************************************************************************
+*USPRRAJ1 |27-Aug-2024 | DE3K9A0SXT | APT 203762 |1.To update Indicator: Unlimited Overdelivery Tolerance on the basis of material.
+*                                                 2.To upadte Overdelivery Tolerance Limit on the basis of material
+*                                                 3.Indicator:Update Info Record(updating as blank for already created SA and newly created SA).
+************************************************************************
+TYPES: BEGIN OF ty_plants,
+         werks TYPE werks_d,
+       END OF ty_plants,
+
+       BEGIN OF ty_spk,
+         werks TYPE werks_d, "Change by 503187592 CHG0191538 DE3K9A0BIO
+         sobsl TYPE sobsl,
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+         sobes TYPE esobs,
+         addin TYPE md_addin,
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+       END OF ty_spk,
+
+       ""BOC by Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+       BEGIN OF ty_spk1,
+         sobsl TYPE zsobsl2,
+         ltext TYPE ltext,
+       END OF ty_spk1,
+       ""EOC by Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+
+       BEGIN OF ty_validmats,
+         matnr TYPE matnr,
+         ekwsl TYPE ekwsl,        "+++ DE3K9A0SXT -> USPRRAJ1
+         brgew TYPE brgew,
+         ntgew TYPE ntgew,
+         gewei TYPE gewei,
+         volum TYPE volum,
+         voleh TYPE voleh,
+         ekgrp TYPE ekgrp,
+*       plifz TYPE plifz, "Change by 503187592 CHG0191538 DE3K9A0BIO
+         webaz TYPE webaz,
+         sobsl TYPE sobsl,  "Change by 503187592 CHG0191538 DE3K9A0BIO
+         lgfsb TYPE lgfsb,
+         wrk02 TYPE werks_d,
+         bukrs TYPE bukrs,
+         vkorg TYPE vkoiv,  "Change by 503187592 CHG0191538 DE3K9A0BIO
+*Start Of Change DE3K9A0SXT by USPRRAJ1
+         untto TYPE string,
+         uebto TYPE string,
+         uebtk TYPE uebtk,
+*END OF Change DE3K9A0SXT by USPRRAJ1
+       END OF ty_validmats,
+
+       BEGIN OF ty_schagr,
+         ebeln   TYPE ebeln,
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+         bukrs   TYPE bukrs,
+         lifnr   TYPE elifn,
+         reswk   TYPE reswk,
+         knumv   TYPE knumv,                       "Added by USSIGAD1 ON 23.12.2022 -
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+         ebelp   TYPE ebelp,
+         bsart   TYPE esart,
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+         ekorg   TYPE ekorg,
+         waers   TYPE waers,
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+         matnr   TYPE matnr,
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+         werks   TYPE ewerk,
+*      menge TYPE bstmg,
+         meins   TYPE bstme,
+         netpr   TYPE bprei,
+         peinh   TYPE epein,
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+         webaz   TYPE webaz,
+*Start Of Change DE3K9A0SXT by USPRRAJ1
+         spinf   TYPE spinf,
+         untto   TYPE untto,
+         uebtk   TYPE uebtk,
+         uebto   TYPE uebto,
+*End Of Change DE3K9A0SXT by USPRRAJ1
+         etfz1   TYPE etfz1,
+         plifz   TYPE eplif,
+         ntgew   TYPE entge,
+         gewei   TYPE egewe,
+         brgew   TYPE brgew,
+         volum   TYPE volum,
+         voleh   TYPE voleh,
+         reslo   TYPE reslo,  "Change by 503187592 CHG0191538 DE3K9A0BIO
+         etenr   TYPE eeten,
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+         menge   TYPE etmen,  "from EKET table
+         vkorg   TYPE vkoiv,
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+         multi   TYPE c,
+         multitm TYPE c,    "Change by 503187592 CHG0191538 DE3K9A0BIO
+       END OF ty_schagr,
+
+       BEGIN OF ty_t001w,
+         werks TYPE werks_d,
+         lifnr TYPE lifnr_wk,
+       END OF ty_t001w,
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      BEGIN OF ty_t001,
+*      bukrs TYPE bukrs,
+*      waers TYPE waers,
+*      END OF ty_t001,
+
+*      BEGIN OF ty_a501,
+*      ekorg TYPE ekorg,
+*      reswk TYPE reswk,
+*      werks TYPE werks_d,
+*      matnr TYPE matnr,
+*      knumh TYPE knumh,
+*      END OF ty_a501,
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+
+       BEGIN OF ty_konp,
+         knumh TYPE knumh,
+         kbetr TYPE kbetr_kond,
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+         konwa TYPE konwa,
+         kpein TYPE kpein,
+         kmein TYPE kmein,
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+       END OF ty_konp,
+
+       BEGIN OF ty_output,
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      operation TYPE char10,
+         operation TYPE char23,
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+         matnr     TYPE matnr,
+         msgtype   TYPE c,
+         suplant   TYPE werks_d,
+         purgrp    TYPE ekorg,
+         supcoco   TYPE bukrs,
+         sa        TYPE ebeln,
+         saitem    TYPE ebelp,
+         satype    TYPE bsart,
+         msg       TYPE bapi_msg,
+       END OF ty_output.
+
+************************************************************************
+*Declaration of Variables
+************************************************************************
+DATA: gw_matnr       TYPE matnr,
+      gw_ekgrp       TYPE ekgrp,
+      gw_sobsl       TYPE sobsl,
+      gw_dispo       TYPE dispo,
+*      gw_werks TYPE t001w-werks,  "Change by 503187592 CHG0191538 DE3K9A0BIO
+      gw_lgort       TYPE char4, "USPRADI JE3K905057 17.02.2022
+      gw_gew         TYPE char17,
+      gw_dec         TYPE char3,
+      gw_bukrs       TYPE bukrs,
+      gw_ekorg       TYPE ekorg,
+      gt_plants      TYPE STANDARD TABLE OF ty_plants,
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      gi_t001 TYPE ty_t001,
+*      gt_t001 TYPE STANDARD TABLE OF ty_t001,
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      gi_t001w       TYPE ty_t001w,
+      gt_t001w       TYPE STANDARD TABLE OF ty_t001w,
+      gi_validmats   TYPE ty_validmats,
+      gt_validmats   TYPE STANDARD TABLE OF ty_validmats,
+      gi_schagr      TYPE ty_schagr,
+      gi_schagr_copy TYPE ty_schagr,
+      gt_schagr      TYPE STANDARD TABLE OF ty_schagr,
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      gi_a501 TYPE ty_a501,
+*      gt_a501 TYPE STANDARD TABLE OF ty_a501,
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      gi_konp        TYPE ty_konp,
+      gt_konp        TYPE STANDARD TABLE OF ty_konp,
+      gi_ztuhcd1     TYPE ztuhcd1,
+      gt_ztuhcd1     TYPE STANDARD TABLE OF ztuhcd1,
+      gi_output      TYPE ty_output,
+      gt_output      TYPE STANDARD TABLE OF ty_output,
+      gw_ktmng       TYPE char17,
+      gw_ktwrt       TYPE char20,
+      gi_bdcdata     TYPE bdcdata,
+      gt_bdcdata     TYPE STANDARD TABLE OF bdcdata,
+      gt_messtab     TYPE STANDARD TABLE OF bdcmsgcoll,
+      gw_agr_date    TYPE char10,
+      gw_beg_date    TYPE char10,
+      gw_end_date    TYPE char10,
+      gw_beg_datum   TYPE sydatum,
+      gw_end_datum   TYPE sydatum,
+      gw_message     TYPE bapi_msg,
+      gw_pricing     TYPE c,
+      gw_s           TYPE c,
+      gw_ebeln       TYPE ebeln,
+      gw_tabix       TYPE sytabix,
+      gi_sa_head     TYPE bapimeoutheader,
+      gi_sa_headx    TYPE bapimeoutheaderx,
+      gi_sa_item     TYPE bapimeoutitem,
+      gi_sa_itemx    TYPE bapimeoutitemx,
+      gt_sa_return   TYPE STANDARD TABLE OF bapiret2,
+      gi_sa_return   TYPE bapiret2,
+      gt_sa_item     TYPE STANDARD TABLE OF bapimeoutitem,
+      gt_sa_itemx    TYPE STANDARD TABLE OF bapimeoutitemx,
+      gi_fcat_ds     TYPE slis_fieldcat_alv,
+      gt_fcat        TYPE slis_t_fieldcat_alv,
+      gi_layout_ds   TYPE slis_layout_alv,
+      gr_bsart       TYPE RANGE OF bsart.
+
+************************************************************************
+*Declaration of Constants
+************************************************************************
+CONSTANTS: gc_ebelp TYPE ebelp VALUE '00010',
+           gc_zlu   TYPE bsart VALUE 'ZLU',
+           gc_zlp   TYPE bsart VALUE 'ZLP',
+           gc_m     TYPE kappl VALUE 'M',
+           gc_z101  TYPE kscha VALUE 'Z101',
+           gc_9000  TYPE eeten VALUE '9000',
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*           gc_in TYPE mmsta VALUE 'I%',
+*           gc_01 TYPE mmsta VALUE '01',
+*           gc_02 TYPE mmsta VALUE '02',
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+           gc_f     TYPE beskz VALUE 'F',
+           gc_7     TYPE esobs VALUE '7'.
+
+************************************************************************
+*Declaration of Macro
+************************************************************************
+DEFINE m_fieldcat.
+  gi_fcat_ds-fieldname = &1.
+  gi_fcat_ds-seltext_l = &2.
+  APPEND gi_fcat_ds TO gt_fcat.
+  CLEAR gi_fcat_ds.
+END-OF-DEFINITION.
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+TYPES: BEGIN OF ty_a557,
+         ekorg TYPE ekorg,
+         bukrs TYPE bukrs,
+         vkorg TYPE vkorg,
+         matnr TYPE matnr,
+         knumh TYPE knumh,
+       END OF ty_a557,
+
+       BEGIN OF ty_pdt,
+         zspplnt  TYPE reswk,
+         zrecplnt TYPE  ewerk,
+         zplifz   TYPE plifz,
+       END OF ty_pdt,
+
+       BEGIN OF ty_lfm1,
+         lifnr TYPE elifn,
+         ekorg TYPE ekorg,
+         waers TYPE waers,  " Added by USVICHI on 04.08.2022 - DE3K9A0F1V
+         inco1 TYPE inco1,
+         inco2 TYPE inco2,
+       END OF ty_lfm1,
+
+       BEGIN OF ty_atch_rec,
+         matnr   TYPE matnr,
+         wrk02   TYPE werks_d,
+         werks   TYPE werks_d,
+         ebeln   TYPE ebeln,
+         ebelp   TYPE ebelp,
+         multi   TYPE c,
+         multitm TYPE c,
+       END OF ty_atch_rec,
+
+       BEGIN OF ty_ekpo,
+         ebeln TYPE ebeln,
+         ebelp TYPE ebelp,
+         matnr TYPE matnr,
+       END OF ty_ekpo.
+
+DATA : gw_mstae    TYPE mstae,
+       gw_mmsta    TYPE mmsta,
+       gw_menge    TYPE etmen,
+       gi_spk      TYPE ty_spk,
+       gt_spk      TYPE STANDARD TABLE OF ty_spk,
+       gw_spl      TYPE string,
+       gi_a557     TYPE ty_a557,
+       gt_a557     TYPE STANDARD TABLE OF ty_a557,
+       gw_cntbef   TYPE i,
+       gw_cntaft   TYPE i,
+       gi_lfm1     TYPE ty_lfm1,
+       gt_lfm1     TYPE STANDARD TABLE OF ty_lfm1,
+       gi_pdt      TYPE ty_pdt,
+       gt_pdt      TYPE STANDARD TABLE OF ty_pdt,
+       gw_etfz1    TYPE etfz1,
+       gi_atch_rec TYPE ty_atch_rec,
+       gt_atch_rec TYPE STANDARD TABLE OF ty_atch_rec,
+       gt_ekpo     TYPE STANDARD TABLE OF ty_ekpo.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+

@@ -1,0 +1,71 @@
+*&---------------------------------------------------------------------*
+* Name                          : ZRMM_PHANTOM_EXPLOSION
+* Tcode                         : ZMM110
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 12 Sep 2023
+* Transport Request #           : DE3K9A0MKH
+* RICEF Object No #             : RICEF2684
+* Description                   : Phantom Explosion and store the data in
+*                                 ZTMM_PICT
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 25.09.2023   | RICEF-2684|USSOSUB1  |Dispalay the data in ALV as output
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 26.09.2023   | RICEF-2684|USSOSUB1  |Quality bug fix
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 09.10.2023   | RICEF-2684|USSOSUB1  |Quality bug fix
+*----------------------------------------------------------------------*
+* 06.02.2024   | RICEF-2684|USANBOD11 | Phantom Explosion requirement  *
+*----------------------------------------------------------------------*
+* 03.03.2024   | RICEF-2684|USANBOD11 | Phantom Explosion UAT Defects  *
+*----------------------------------------------------------------------*
+*****************************************************************************************
+* CHANGED BY  | DATE        | TR #       |CR No(INCUM | DESCRIPTION OF CHANG
+*****************************************************************************************
+* CHTAMUR     | 09/09/2024  | DE3K9A0T02 | CHG2078268 | PI tool issue fixes and improvements   *
+*----------------------------------------------------------------------*
+* CHTAMUR    | 08/Nov/2024 | DE3K9A0U0J | 87274 | PICT Minor issue fixes
+*----------------------------------------------------------------------*
+INCLUDE zrmm_phantom_explosion_top.
+
+INITIALIZATION.
+
+  DATA : lv_year TYPE gjahr,
+         lv_werk TYPE werks_d,
+         lv_vers TYPE zde_version.
+  ""imported from Z_M_PHYSICAL_INVENTORY_F01 (Tcode-zmm109) line no-63
+  IMPORT lv_year FROM  MEMORY ID 'YEAR'.
+  IF sy-subrc  = 0.
+    p_year = lv_year.
+  ENDIF.
+  IMPORT lv_werk FROM  MEMORY ID 'WERK'.
+  IF sy-subrc  = 0.
+    p_plant = lv_werk.
+  ENDIF.
+  IMPORT lv_vers FROM  MEMORY ID 'VERS'.
+  IF sy-subrc  = 0.
+    p_ver = lv_vers.
+  ENDIF.
+  FREE MEMORY ID 'YEAR'.
+  FREE MEMORY ID 'WERK'.
+  FREE MEMORY ID 'VERS'.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_ver.
+  PERFORM f4_ver.
+** BOC  USANBOD11 06/02/2024
+AT SELECTION-SCREEN OUTPUT .
+  PERFORM dynamic_screen.
+** EOC  USANBOD11 06/02/2024
+START-OF-SELECTION.
+  PERFORM set_titles.                 " +++ DE3K9A0T02 -> CHTAMUR
+  PERFORM get_data.
+  PERFORM process_data.
+  PERFORM build_cat.
+  PERFORM display.
+
+END-OF-SELECTION.
+
+  INCLUDE zrmm_phantom_explosion_f01.
+

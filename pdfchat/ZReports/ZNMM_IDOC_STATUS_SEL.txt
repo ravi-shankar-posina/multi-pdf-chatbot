@@ -1,0 +1,14 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_IDOC_STATUS_SEL
+*&---------------------------------------------------------------------*
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+SELECT-OPTIONS :
+          s_status     FOR gw_status OBLIGATORY,
+          s_docnum     FOR gw_docnum,
+          s_credat     FOR gw_credat,
+          s_stamno     FOR gw_stamno,
+          s_direct     FOR gw_direct, "EDI_DIRECT CHAR  1 0 Direction for IDoc
+          s_mestyp     FOR gw_mestyp. "EDI_MESTYP  CHAR  30  0 Message Type
+SELECTION-SCREEN END OF BLOCK b1.
+

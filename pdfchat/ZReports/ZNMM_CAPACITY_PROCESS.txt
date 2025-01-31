@@ -1,0 +1,1520 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_CAPACITY_PROCESS
+*&---------------------------------------------------------------------*
+FORM f_get_afpo.
+*Fteching the data from AFPO table based on the selection screen .
+  SELECT aufnr posnr plnum kdauf kdpos  matnr psmng wemng
+         dfrei dwerk   projn  FROM afpo
+ INTO CORRESPONDING FIELDS OF TABLE gt_afpo WHERE  aufnr IN s_aufnr AND
+                                                   dwerk IN p_dwerk AND
+                                                   dfrei IN s_dfrei AND
+                                                   elikz NE  gc_flag AND
+                                                   dnrel NE gc_flag.
+**Start of Changes by Chiranjeevi chintam CHG0479115  DE3K925723 .
+  " AND
+*                                                   ( kdauf NE ' ' OR
+*                                                     projn NE ' ') .
+**End of Changes by Chiranjeevi chintam CHG0479115  DE3K925723 .
+*  IF sy-subrc IS INITIAL AND gt_afpo IS NOT INITIAL.  "INC4460759 DE3K942507 502199780
+  IF sy-subrc IS INITIAL AND gt_afpo[] IS NOT INITIAL. "INC4460759 DE3K942507 502199780
+    SORT gt_afpo BY aufnr.
+
+    REFRESH gt_afpo_temp[].                         "INC4460759 DE3K942632 502199780
+    gt_afpo_temp[] = gt_afpo[].                     "INC4460759 DE3K942632 502199780
+    DELETE gt_afpo_temp[] WHERE projn IS INITIAL.   "INC4460759 DE3K942632 502199780
+    IF gt_afpo_temp[] IS NOT INITIAL.               "INC4460759 DE3K942632 502199780
+
+*Fetching the data from AFPO table based on entries in the internal table
+* gt_afpo table.
+      SELECT  *
+                 FROM afpo
+                 INTO TABLE gt_afpo1
+*                 FOR ALL ENTRIES IN gt_afpo        "INC4460759 DE3K942632 502199780
+*                 WHERE projn = gt_afpo-projn.      "INC4460759 DE3K942632 502199780
+                 FOR ALL ENTRIES IN gt_afpo_temp[]  "INC4460759 DE3K942632 502199780
+                 WHERE projn = gt_afpo_temp-projn.  "INC4460759 DE3K942632 502199780
+*    IF  sy-subrc IS INITIAL AND gt_afpo1 IS NOT INITIAL.   "INC4460759 DE3K942507 502199780
+      IF  sy-subrc IS INITIAL AND gt_afpo1[] IS NOT INITIAL.  "INC4460759 DE3K942507 502199780
+        SORT gt_afpo1 BY aufnr .
+*Fetching the data from AFKO table based on entries in the internal table
+* gt_afpo1 table.
+        SELECT  *
+                  FROM afko
+                  INTO TABLE gt_afko1
+                  FOR ALL ENTRIES IN gt_afpo1
+                  WHERE aufnr = gt_afpo1-aufnr.
+        IF  sy-subrc IS INITIAL.
+*Fetching the data from AUFK table based on entries in the internal table
+* gt_afpo1 table.
+          SELECT  *
+                    FROM aufk
+                    INTO TABLE gt_aufk1
+                    FOR ALL ENTRIES IN gt_afpo1
+                    WHERE aufnr = gt_afpo1-aufnr AND autyp EQ gc_twenty .
+          IF sy-subrc IS  INITIAL.
+            SORT gt_aufk1 BY  aufnr.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.    "INC4460759 DE3K942632 502199780
+  ENDIF.
+  LOOP AT gt_afpo INTO gi_afpo WHERE  projn IS NOT INITIAL.
+* Begin of changes 502765654 GECHG0267410 17.08.2018
+*    IF sy-subrc EQ 0.
+*      REFRESH gt_afpo1_c[].
+*      gt_afpo1_c[] = gt_afpo1[].  "INC4444936 DE3K942288 sreeni Pemi
+*      DELETE gt_afpo1_c[] WHERE projn <> gi_afpo-projn.
+*      PERFORM process_nwrk_pronr.
+*    ENDIF.
+* End of changes 502765654 GECHG0267410 17.08.2018
+    PERFORM process_nwrk_pronr.  "Added by 502765654 GECHG0267410 17.08.2018
+    CLEAR: gi_afpo.
+  ENDLOOP.
+*  IF gt_afpo IS NOT INITIAL.  "INC4460759 DE3K942507 502199780
+  IF gt_afpo[] IS NOT INITIAL. "INC4460759 DE3K942507 502199780
+*Fetching the data from AUFK table based on entries in the internal table
+* gt_afpo table.
+    SELECT *
+     FROM aufk
+     INTO TABLE gt_aufk2
+     FOR ALL ENTRIES IN gt_afpo
+     WHERE aufnr EQ gt_afpo-aufnr.
+    IF sy-subrc IS  INITIAL.
+      SORT gt_aufk2 BY  aufnr.
+    ENDIF.
+  ENDIF.
+ENDFORM.                               " F_GET_AFPO
+
+*----------------------------------------------------------------------*
+*      Form  F_GET_AFKO
+*----------------------------------------------------------------------*
+FORM f_get_afko.
+  IF NOT gt_afpo[] IS INITIAL.
+*Fetching the data from AFKO table based on entries in the internal table
+* gt_afpo1 table.
+    SELECT aufnr dispo gltrs ftrmi aufpl rsnum
+           FROM afko
+           INTO TABLE  gt_afko
+           FOR ALL ENTRIES IN gt_afpo
+           WHERE aufnr EQ gt_afpo-aufnr
+            AND  dispo IN s_dispo.
+    IF NOT gt_afko[] IS INITIAL.
+      SELECT rsnum rspos matnr aufnr xloek bdart FROM resb
+                   INTO TABLE gt_resb
+                   FOR ALL ENTRIES IN gt_afko
+                   WHERE rsnum EQ gt_afko-rsnum
+                     AND xloek <> gc_flag
+                     AND bdart EQ gc_ar.
+    ENDIF.
+  ENDIF.
+ENDFORM.                               " F_GET_AFKO
+*----------------------------------------------------------------------*
+*      Form  F_GET_AFVC
+*----------------------------------------------------------------------*
+FORM f_get_afvc.
+  IF NOT gt_afko[] IS INITIAL.
+*Fetching the data from AFVC table based on entries in the internal table
+* gt_afko table.
+    SELECT aufpl aplzl arbid vornr FROM afvc INTO TABLE gt_afvc
+                       FOR ALL ENTRIES IN  gt_afko
+                       WHERE aufpl EQ  gt_afko-aufpl.
+    IF sy-subrc IS INITIAL.
+      SORT gt_afvc[] BY aufpl.
+    ENDIF.
+  ENDIF.
+ENDFORM.                               " F_GET_AFVC
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_AFVV
+*&---------------------------------------------------------------------*
+FORM f_get_afvv.
+  IF NOT gt_afvc[] IS INITIAL.
+*Fetching the data from AFVV table based on entries in the internal table
+* gt_afvc table.
+    SELECT aufpl aplzl lmnga mgvrg
+           vge01 vgw01 vge02 vgw02 ism01 ism02 bmsch                                             "Fetching the data from afvv table.
+           FROM afvv
+           INTO  TABLE gt_afvv
+           FOR ALL ENTRIES IN gt_afvc
+           WHERE aufpl EQ gt_afvc-aufpl AND
+           aplzl EQ gt_afvc-aplzl.
+* Begin of changes 502765654 GECHG0267410 17.08.2018
+    IF sy-subrc IS INITIAL.
+      SORT gt_afvv[] BY aufpl aplzl.
+    ENDIF.
+*End of changes 502765654 GECHG0267410 17.08.2018
+  ENDIF.
+ENDFORM.                               " F_GET_AFVV
+*&---------------------------------------------------------------------*
+*&      Form  F_CAL_LABOUR
+*&---------------------------------------------------------------------*
+FORM f_cal_labour.
+  LOOP AT gt_afvv INTO gi_afvv.
+    IF gi_afvv-vge01 EQ gc_min  AND gi_afvv-vgw01 NE 0.
+      gi_afvv-vgw01 = gi_afvv-vgw01 / gc_sixty.
+    ELSEIF gi_afvv-vge01 EQ gc_s  AND gi_afvv-vgw01 NE 0.
+      gi_afvv-vgw01 = gi_afvv-vgw01 / gc_thirtysix.
+    ENDIF.
+    IF gi_afvv-vge02 EQ gc_min  AND gi_afvv-vgw02 NE 0.
+      gi_afvv-vgw02 = gi_afvv-vgw02 / gc_sixty.
+    ELSEIF gi_afvv-vge02 EQ gc_s  AND gi_afvv-vgw02 NE 0.
+      gi_afvv-vgw02 = gi_afvv-vgw02 / gc_thirtysix.
+    ENDIF.
+    IF gi_afvv-lmnga GT gi_afvv-mgvrg.
+      DELETE gt_afvv.
+      CONTINUE.
+    ENDIF.
+    IF  gi_afvv-lmnga EQ 0.
+      gi_afvv-rem_setup =  gi_afvv-vgw01 - gi_afvv-ism01.
+    ELSE.
+      gi_afvv-rem_setup = 0.
+    ENDIF.
+    gi_afvv-rem_processing =
+ ( gi_afvv-vgw02  / gi_afvv-bmsch ) * ( gi_afvv-mgvrg - gi_afvv-lmnga ).
+    gi_afvv-rem_labour = gi_afvv-rem_setup + gi_afvv-rem_processing.
+    gi_afvv-qty = gi_afvv-mgvrg - gi_afvv-lmnga.
+    MODIFY  gt_afvv FROM gi_afvv.
+    CLEAR gi_afvv.
+  ENDLOOP.
+ENDFORM.                               " F_CAL_LABOUR
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_CRHD
+*&---------------------------------------------------------------------*
+FORM f_get_crhd.
+  IF NOT gt_afvc[] IS INITIAL.
+*Fetching the data from CHRD table based on entries in the internal table
+* gt_afvc table.
+    SELECT objty objid arbpl veran FROM crhd
+                INTO TABLE gt_crhd
+                  FOR ALL ENTRIES IN gt_afvc
+                    WHERE objid EQ gt_afvc-arbid AND
+                          objty EQ gc_a AND
+                          arbpl IN s_arbpl.
+    SORT gt_crhd.
+  ENDIF.
+ENDFORM.                               " F_GET_CRHD
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_SOQTY
+*&---------------------------------------------------------------------*
+FORM f_get_soqty.
+  IF NOT gt_afpo[] IS INITIAL.
+*Fetching the data from MDKP table based on entries in the internal table
+* gt_afpo table.
+    SELECT dtart matnr plwrk dtnum  FROM mdkp
+                   INTO TABLE gt_mdkp FOR ALL ENTRIES IN gt_afpo
+                     WHERE matnr EQ gt_afpo-matnr AND
+                           plwrk EQ gt_afpo-dwerk AND
+                           dtart EQ gc_md.
+    IF sy-subrc IS INITIAL.
+      SORT gt_mdkp BY matnr.
+    ENDIF.
+  ENDIF.
+  IF NOT gt_mdkp[] IS INITIAL.
+*Fetching the data from MDTB table based on entries in the internal table
+* gt_mdkp table.
+    SELECT dtnum dtpos mng01 delkz                                                                     "Fetching the data from mdtb table.
+           FROM mdtb
+           INTO TABLE gt_mdtb
+           FOR ALL ENTRIES IN gt_mdkp
+           WHERE dtnum EQ gt_mdkp-dtnum
+           AND  delkz EQ gc_vc OR delkz EQ gc_u1.
+
+    CLEAR gw_mng01.
+    LOOP AT gt_mdtb INTO gi_mdtb.
+      gw_mng01 = gw_mng01 + gi_mdtb-mng01.
+      AT END OF dtnum.
+        gi_mdtb1-dtnum = gi_mdtb-dtnum.
+        gi_mdtb1-soqty = gw_mng01.
+        APPEND gi_mdtb1 TO gt_mdtb1.
+        CLEAR gi_mdtb1.
+        CLEAR gw_mng01.
+      ENDAT.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.                               " F_GET_SOQTY
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_DSNAM
+*&---------------------------------------------------------------------*
+FORM f_get_dsnam.
+  IF NOT gt_afko[] IS INITIAL.
+*Fetching the data from t024d table based on entries in the internal table
+* gt_afko table.
+    SELECT werks dispo dsnam  FROM t024d                                                               "Fetching the data from t024d table.
+                         INTO TABLE gt_t024d
+                         FOR ALL ENTRIES IN gt_afko
+                         WHERE dispo = gt_afko-dispo.
+    SORT gt_t024d BY dispo. "DE3K943340  changes has done by 502286348 on 22-7-2014
+  ENDIF.
+ENDFORM.                               " F_GET_DSNAM
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_KUNNER
+*&---------------------------------------------------------------------*
+FORM f_get_kunnr.
+  IF NOT gt_afpo[] IS INITIAL.
+*Fetching the data from vbak table based on entries in the internal table
+* gt_afpo table.
+    SELECT vbeln kunnr aufnr FROM vbak INTO TABLE gt_vbak                                              "Fetching the data from vbak table.
+                      FOR ALL ENTRIES IN gt_afpo
+                       WHERE vbeln EQ gt_afpo-kdauf.
+  ENDIF.
+ENDFORM.                               " F_GET_KUNNER
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_CRTX
+*&---------------------------------------------------------------------*
+FORM f_get_crtx.
+  IF NOT gt_afvc[] IS INITIAL.
+*Fetching the data from crtx table based on entries in the internal table
+* gt_afvc table.
+    SELECT objty objid spras ktext FROM crtx INTO TABLE gt_crtx                                          "Fetching the data from crtx table.
+                     FOR ALL ENTRIES IN gt_afvc
+                      WHERE objid EQ gt_afvc-arbid  AND
+                            objty = gc_a AND
+                            spras = sy-langu.
+    SORT gt_crtx.
+    IF sy-subrc IS INITIAL AND gt_crtx IS NOT INITIAL.
+*Fetching the data from crtx table based on entries in the internal table
+* gt_crtx table.
+      SELECT objty objid spras ktext FROM crtx INTO TABLE gt_crtx_t
+                     FOR ALL ENTRIES IN gt_crtx
+                      WHERE objid EQ gt_crtx-objid  AND
+                            objty = gt_crtx-objty   AND
+                            spras = gc_lang.
+      SORT gt_crtx_t.
+    ENDIF.
+  ENDIF.
+ENDFORM.                               " F_GET_CRTX
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_STPRS
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+FORM f_get_mbew.
+  IF NOT gt_afpo[] IS INITIAL.
+*Fetching the data from mbew table based on entries in the internal table
+* gt_afpo table.
+    SELECT matnr bwkey stprs bwprs peinh bwps1 vjbws
+           FROM mbew
+           INTO TABLE gt_mbew
+           FOR ALL ENTRIES IN gt_afpo
+           WHERE matnr EQ gt_afpo-matnr AND
+                 bwkey EQ gt_afpo-dwerk.
+  ENDIF.
+ENDFORM.                               " F_GET_STPRS
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_AUFK
+*&---------------------------------------------------------------------*
+FORM f_get_aufk.
+  IF NOT gt_afpo[] IS INITIAL.
+*Fetching the data from aufk table based on entries in the internal table
+* gt_afpo table.
+    SELECT aufnr erdat                                                                                       "Fetching the data from aufk table.
+           FROM aufk
+           INTO TABLE gt_aufk
+           FOR ALL ENTRIES IN gt_afpo
+           WHERE aufnr EQ gt_afpo-aufnr.
+  ENDIF.
+ENDFORM.                               " F_GET_AUFK
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_MARC
+*&---------------------------------------------------------------------*
+FORM f_get_marc.
+  IF NOT gt_afpo[] IS INITIAL.
+*Fetching the data from marc table based on entries in the internal table
+* gt_afpo table.
+    SELECT matnr werks zlclid                                                                                 "Fetching the data from marc table.
+           FROM marc
+           INTO TABLE gt_marc
+           FOR ALL ENTRIES IN gt_afpo
+           WHERE matnr EQ  gt_afpo-matnr AND
+                 werks EQ gt_afpo-dwerk.
+    SORT gt_marc.
+  ENDIF.
+ENDFORM.                               " F_GET_MARC
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_MAKT
+*&---------------------------------------------------------------------*
+FORM f_get_makt.
+  IF NOT gt_afpo[] IS INITIAL.
+*Fetching the data from makt table based on entries in the internal table
+* gt_afpo table.
+    SELECT matnr spras maktx                                                                                   "Fetching the data from makt table.
+           FROM makt
+           INTO TABLE gt_makt
+           FOR ALL ENTRIES IN gt_afpo
+           WHERE matnr EQ gt_afpo-matnr AND
+*                 spras EQ gc_lang.                 "RITM2740509 DE3K942735 502199780
+                 spras IN (sy-langu, gc_lang).      "RITM2740509 DE3K942735 502199780
+    IF sy-subrc = 0.
+      DELETE gt_makt WHERE maktx = ''.
+    ENDIF.
+  ENDIF.
+  SORT gt_makt.
+ENDFORM.                               " F_GET_MAKT
+*&---------------------------------------------------------------------*
+*&      Form  F_OUTPUT
+*&---------------------------------------------------------------------*
+FORM f_output.
+
+  LOOP AT gt_afko INTO gi_afko.
+    READ TABLE gt_resb INTO gi_resb WITH KEY rsnum = gi_afko-rsnum
+                                rspos =  gc_one BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gi_output-index1 = gi_resb-matnr.
+    ENDIF.
+    READ TABLE gt_resb INTO gi_resb WITH KEY rsnum = gi_afko-rsnum
+                                rspos = gc_two BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gi_output-index2 = gi_resb-matnr.
+    ENDIF.
+    READ TABLE gt_resb INTO gi_resb WITH KEY rsnum = gi_afko-rsnum
+                                rspos = gc_three BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gi_output-index3 = gi_resb-matnr.
+    ENDIF.
+    CLEAR gw_maktx.
+    READ TABLE gt_afvc INTO gi_afvc WITH KEY aufpl = gi_afko-aufpl BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gw_tabix = sy-tabix. "Added by 502765654 GECHG0267410 17.08.2018
+      PERFORM process_data.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.                               " F_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  f_excel_download
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f_excel_download.
+*** Downloading the final data.
+*Begin of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+  IF NOT gt_output[] IS INITIAL.
+    gw_filename = p_exfile.
+    CALL FUNCTION 'GUI_DOWNLOAD'
+      EXPORTING
+        filename                = gw_filename
+        filetype                = 'DAT'
+*        append                  = 'X' "by Rajesh  "GERITM5629368  DE3K993879 on 27/10/2019
+        append                  = ' '  "by Rajesh "GERITM5629368  DE3K993879 on 27/10/2019
+      TABLES
+        data_tab                = gt_output
+        fieldnames              = gt_title
+      EXCEPTIONS
+        file_write_error        = 1
+        no_batch                = 2
+        gui_refuse_filetransfer = 3
+        invalid_type            = 4
+        no_authority            = 5
+        unknown_error           = 6
+        header_not_allowed      = 7
+        separator_not_allowed   = 8
+        filesize_not_allowed    = 9
+        header_too_long         = 10
+        dp_error_create         = 11
+        dp_error_send           = 12
+        dp_error_write          = 13
+        unknown_dp_error        = 14
+        access_denied           = 15
+        dp_out_of_memory        = 16
+        disk_full               = 17
+        dp_timeout              = 18
+        file_not_found          = 19
+        dataprovider_exception  = 20
+        control_flush_error     = 21
+        OTHERS                  = 22.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      EXIT.
+    ELSE .
+      MESSAGE i070(zmm) WITH  text-005.
+    ENDIF.
+  ENDIF.
+*End of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+ENDFORM.                               " F_EXCEL_DOWNLOAD
+*&---------------------------------------------------------------------*
+*&      Form  GET_FM
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_fm USING    gw_date TYPE any
+            CHANGING gw_fw  TYPE any.
+  CALL FUNCTION 'DATE_GET_WEEK'
+    EXPORTING
+      date         = gw_date
+    IMPORTING
+      week         = gw_fw
+    EXCEPTIONS
+      date_invalid = 1
+      OTHERS       = 2.
+  IF sy-subrc <> 0.
+    CASE sy-subrc.
+      WHEN '1'.
+        MESSAGE e090(zsd) WITH text-e23.
+        EXIT.
+      WHEN '2'.
+        MESSAGE e090(zsd) WITH text-e22.
+        EXIT.
+    ENDCASE.
+  ENDIF.
+ENDFORM.                               " GET_FM
+*&---------------------------------------------------------------------*
+*&      Form  GET_TIMECODE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_timecode USING    gw_gltrs TYPE any
+                  CHANGING gw_tcode TYPE any.
+  gi_rdd_date = gw_gltrs.
+  gi_sys_date = sy-datum.
+
+  gw_months   =   ( gi_rdd_date-year -  gi_sys_date-year ) * 12
+                + ( gi_rdd_date-month  - gi_sys_date-month ).
+  IF gw_months EQ '0'.
+    IF gi_rdd_date-date LT gi_sys_date-date.
+      gw_tcode = gc_ovd.
+    ELSE.
+      gw_tcode = gc_crm.
+    ENDIF.
+  ENDIF.
+  IF gw_months EQ gc_onenum.
+    gw_tcode = gc_m1.
+  ENDIF.
+  IF gw_months EQ gc_twonum.
+    gw_tcode = gc_m2.
+  ENDIF.
+  IF gw_months GT gc_twonum.
+    gw_tcode = gc_ftr.
+  ENDIF.
+  IF gw_months LT 0.
+    gw_tcode = gc_ovd.
+  ENDIF.
+ENDFORM.                    "GET_TIMECODE
+*****Start of Comment By 502237354(Sumit) - 12/06/2014
+*&---------------------------------------------------------------------*
+*&      Form  F_MOVE_UNIX
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+*FORM f_move_unix.
+*  gi_unix-dispo     = text-051.
+*  gi_unix-dsnam     = text-052.
+*  gi_unix-kdauf     = text-053.
+*  gi_unix-kdpos     = text-054.
+*  gi_unix-kunnr     = text-055.
+*  gi_unix-dfrei     =  text-056.
+*  gi_unix-aufnr     = text-057.
+*  gi_unix-vornr     = text-058.
+*  gi_unix-veran     = text-059.
+*  gi_unix-arbpl     = text-060.
+*  gi_unix-mgvrg     =  text-061.
+*  gi_unix-ktext     = text-062.
+*  gi_unix-qty       =  text-063.
+*  gi_unix-value     =  text-064.
+*  gi_unix-gltrs     = text-065.
+*  gi_unix-erdat     = text-066.
+*  gi_unix-ftrmi     =  text-067.
+*  gi_unix-fw        =   text-068.
+*  gi_unix-timecode  = text-069.
+*  gi_unix-year      = text-070.
+*  gi_unix-matnr     = text-023.
+*  gi_unix-zlclid    = text-024.
+*  gi_unix-maktx     = text-027.
+*  gi_unix-labour    = text-025.
+*  gi_unix-matcost   = text-071.
+*  gi_unix-labourcost = text-072.
+*  gi_unix-ovhcost   = text-048.
+*  gi_unix-materialall = text-040.
+*  gi_unix-soqty     =  text-041.
+*  gi_unix-index1    = text-042.
+*  gi_unix-index2    = text-043.
+*  gi_unix-index3    =  text-044.
+*  gi_unix-pronr    = text-231.
+*  gi_unix-nwrk     = text-232.
+*  PERFORM f_fill_delimiter.
+*  APPEND gi_unix TO gt_unix.
+*  LOOP AT  gt_output INTO gi_output.
+*    gi_unix-dispo =       gi_output-dispo.
+*    gi_unix-dsnam =       gi_output-dsnam.
+*    gi_unix-kdauf =       gi_output-kdauf.
+*    gi_unix-kdpos =       gi_output-kdpos.
+*    gi_unix-kunnr =       gi_output-kunnr.
+*    gi_unix-dfrei =       gi_output-dfrei.
+*    gi_unix-aufnr =       gi_output-aufnr.
+*    gi_unix-vornr =       gi_output-vornr.
+*    gi_unix-veran =       gi_output-veran.
+*    gi_unix-arbpl =       gi_output-arbpl.
+*    gi_unix-ktext =       gi_output-ktext.
+*    gi_unix-mgvrg =       gi_output-mgvrg .
+*    gi_unix-qty   =       gi_output-qty.
+*    gi_unix-value =       gi_output-value.
+*    gi_unix-gltrs =       gi_output-gltrs.
+*    gi_unix-erdat =       gi_output-erdat.
+*    gi_unix-ftrmi =       gi_output-ftrmi.
+*    gi_unix-fw    =       gi_output-fw.
+*    gi_unix-timecode  =   gi_output-timecode.
+*    gi_unix-year  =       gi_output-year.
+*    gi_unix-matnr =       gi_output-matnr.
+*    gi_unix-zlclid =      gi_output-zlclid.
+*    gi_unix-maktx  =      gi_output-maktx.
+*    gi_unix-materialall = gi_output-materialall.
+*    gi_unix-index1 =      gi_output-index1.
+*    gi_unix-index2 =      gi_output-index2.
+*    gi_unix-index3 =      gi_output-index3.
+*    gi_unix-labour =      gi_output-labour.
+*    gi_unix-matcost =    gi_output-matcost.
+*    gi_unix-labourcost   = gi_output-labourcost.
+*    gi_unix-ovhcost =    gi_output-ovhcost.
+*    gi_unix-soqty   =    gi_output-soqty.
+*    gi_unix-pronr   =    gi_output-pronr.
+*    gi_unix-nwrk    =    gi_output-nwrk.
+*    PERFORM f_fill_delimiter.
+*    APPEND gi_unix TO gt_unix.
+*    CLEAR: gi_output,gi_unix.
+*  ENDLOOP.
+*ENDFORM.                               " F_MOVE_UNIX
+
+*&---------------------------------------------------------------------*
+*&      Form  F_FILL_DELIMITER
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+*FORM f_fill_delimiter.
+*  gi_unix-fill1 = ';'.
+*  gi_unix-fill2 = ';'.
+*  gi_unix-fill3 = ';'.
+*  gi_unix-fill4 = ';'.
+*  gi_unix-fill5 = ';'.
+*  gi_unix-fill6 = ';'.
+*  gi_unix-fill7 = ';'.
+*  gi_unix-fill8 = ';'.
+*  gi_unix-fill9 = ';'.
+*  gi_unix-fill10 = ';'.
+*  gi_unix-fill11 = ';'.
+*  gi_unix-fill12 = ';'.
+*  gi_unix-fill13 = ';'.
+*  gi_unix-fill13 = ';'.
+*  gi_unix-fill14 = ';'.
+*  gi_unix-fill15 = ';'.
+*  gi_unix-fill16 = ';'.
+*  gi_unix-fill17 = ';'.
+*  gi_unix-fill18 = ';'.
+*  gi_unix-fill19 = ';'.
+*  gi_unix-fill20 = ';'.
+*  gi_unix-fill21 = ';'.
+*  gi_unix-fill22 = ';'.
+*  gi_unix-fill23 = ';'.
+*  gi_unix-fill24 = ';'.
+*  gi_unix-fill25 = ';'.
+*  gi_unix-fill26 = ';'.
+*  gi_unix-fill27 = ';'.
+*  gi_unix-fill28 = ';'.
+*  gi_unix-fill29 = ';'.
+*  gi_unix-fill30 = ';'.
+*  gi_unix-fill31 = ';'.
+*ENDFORM.                               " F_FILL_DELIMITER
+*&---------------------------------------------------------------------*
+*&      Form  F_UNIX_DOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+*FORM f_unix_download.
+*  CONCATENATE : p_uxfile sy-datum sy-uzeit INTO p_uxfile
+*    SEPARATED BY '_'.
+*
+*  OPEN DATASET p_uxfile FOR OUTPUT IN TEXT MODE ENCODING DEFAULT.
+*  IF sy-subrc NE 0.
+*    MESSAGE i070(zmm) WITH text-030.
+*  ELSE.
+*    LOOP AT gt_unix INTO gi_unix.
+*      TRANSFER gi_unix TO p_uxfile.
+*      CLEAR gi_unix.
+*    ENDLOOP.
+*    CLOSE DATASET p_uxfile.
+*
+*    gw_len = strlen( p_uxfile ).
+*    IF gw_len > 40.
+*      gw_remlen = gw_len - 40.
+*      gw_offset1 = p_uxfile(40).
+*      gw_offset2 = p_uxfile+40(gw_remlen).
+*      MESSAGE i083(zmm) WITH gw_offset1 gw_offset2  text-031.
+*    ELSE.
+*      MESSAGE i083(zmm) WITH p_uxfile text-031.
+*    ENDIF.
+*
+*  ENDIF.
+*ENDFORM.                               " F_UNIX_DOWNLOAD
+*****End of Comment By 502237354(Sumit) - 12/06/2014
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_field_catalog .
+  CONSTANTS: lc_prps TYPE tabname VALUE 'PRPS',
+             lc_aufk TYPE tabname VALUE 'AUFK',
+             lc_posid TYPE fieldname VALUE 'POSID',
+             lc_aufnr TYPE fieldname VALUE 'AUFNR'.
+
+*Begin of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+  gi_fcat-fieldname   = gc_dispo.
+  gi_fcat-seltext_m   = text-007.
+  gi_title-title      = text-007.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-052.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_projn.
+  gi_fcat-seltext_m   = text-050.
+  gi_fcat-ref_tabname = lc_prps.
+  gi_fcat-ref_fieldname = lc_posid.
+  gi_fcat-no_convext = gc_flag.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_kdauf.
+  gi_fcat-seltext_m   = text-008.
+  gi_title-title      = text-008.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_kdpos.
+  gi_fcat-seltext_m   = text-009.
+  gi_title-title      = text-009.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_kunnr.
+  gi_fcat-seltext_m   = text-010.
+  gi_title-title      = text-010.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_dfrei.
+  gi_fcat-seltext_m   = text-011.
+  gi_title-title      = text-011.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_aufnr.
+  gi_fcat-seltext_m   = text-012.
+  gi_title-title      = text-012.
+  gi_fcat-ref_tabname = lc_aufk.
+  gi_fcat-ref_fieldname = lc_aufnr.
+  gi_fcat-no_convext = gc_flag.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_vornr.
+  gi_fcat-seltext_m   = text-013.
+  gi_title-title      = text-013.
+  APPEND gi_title TO gt_title.
+*  gi_fcat-seltext_l   = text-009.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_veran.
+  gi_fcat-seltext_m   = text-014.
+  gi_title-title      = text-014.
+  APPEND gi_title TO gt_title.
+*  gi_fcat-seltext_l   = text-010.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_arbpl.
+  gi_fcat-seltext_m   = text-015.
+  gi_title-title      = text-015.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-062.
+  APPEND gi_title TO gt_title.
+*  gi_fcat-seltext_l   = text-011.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_qty.
+  gi_fcat-seltext_m   = text-016. "open poper qty
+  gi_title-title      = text-061.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-016.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_value.
+  gi_fcat-seltext_m   = text-017.
+  gi_title-title      = text-017.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_gltrs.
+  gi_fcat-seltext_m   = text-018.
+  gi_title-title      = text-018.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_erdat.
+  gi_fcat-seltext_m   = text-019.
+  gi_title-title      = text-019.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_ftrmi.
+  gi_fcat-seltext_m   = text-020.
+  gi_title-title      = text-020.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_fw.
+  gi_fcat-seltext_m   = text-021.
+  gi_title-title      = text-021.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_timecode.
+  gi_fcat-seltext_m   = text-022.
+  gi_title-title      = text-022.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-070.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_matnr.
+  gi_fcat-seltext_m   = text-023.
+  gi_title-title      = text-023.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_zlclid.
+  gi_fcat-seltext_m   = text-024.
+  gi_title-title      = text-024.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_maktx.
+  gi_fcat-seltext_m   = text-027.
+  gi_title-title      = text-027.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_labour.
+  gi_fcat-seltext_m   = text-025.
+  gi_title-title      = text-025.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-071.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-072.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-048.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-040.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_soqty .
+  gi_fcat-seltext_m   = text-026.
+  gi_title-title      = text-041.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-042.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-043.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-044.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_pronr.
+  gi_fcat-seltext_m   = text-231.
+  gi_title-title      = text-231.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = gc_nwrk.
+  gi_fcat-seltext_m   = text-232.
+  gi_title-title      = text-232.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-050.
+  APPEND gi_title TO gt_title.
+  gi_title-title      = text-075.
+  APPEND gi_title TO gt_title.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+*End of changes by Chiranjeev chintam CHG0479115 DE3K924311 SIT1 Defect 5699
+ENDFORM.                    " BUILD_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output .
+  DATA: li_layout_ds TYPE slis_layout_alv.
+  li_layout_ds-colwidth_optimize = gc_flag.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-repid
+      is_layout          = li_layout_ds
+      it_fieldcat        = gt_fcat
+    TABLES
+      t_outtab           = gt_output
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+    CASE sy-subrc.
+      WHEN '1'.
+        MESSAGE e090(zsd) WITH text-e24.
+        EXIT.
+      WHEN '2'.
+        MESSAGE e090(zsd) WITH text-e22.
+        EXIT.
+    ENDCASE.
+  ENDIF.
+ENDFORM.                    " DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_NWRK_PRONR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_nwrk_pronr .
+* Begin of changes done by 502765654 GECHG0267410 17.08.2018
+*  LOOP AT gt_afpo1_c[] INTO gi_afpo1_c.
+  LOOP AT gt_afpo1 INTO gi_afpo1_c WHERE projn = gi_afpo-projn.
+* End of changes done by 502765654 GECHG0267410 17.08.2018
+    READ TABLE gt_afko1 INTO gi_afko1 WITH KEY aufnr = gi_afpo1_c-aufnr BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      READ TABLE gt_aufk1 INTO gi_aufk1 WITH KEY aufnr = gi_afpo1_c-aufnr BINARY SEARCH .
+      IF sy-subrc IS INITIAL AND gi_aufk1-autyp EQ 20.
+        gi_afpo-nwrk = gi_afpo1_c-aufnr .
+        gi_afpo-pronr =  gi_afko1-pronr.
+        MODIFY gt_afpo FROM gi_afpo TRANSPORTING  nwrk pronr .
+      ENDIF.
+    ENDIF.
+    CLEAR:gi_afpo1_c,gi_aufk1,gi_afko1.
+  ENDLOOP.
+ENDFORM.                    " PROCESS_NWRK_PRONR
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_data .
+  DATA: lw_year(4) TYPE n,
+        lw_month(2) TYPE n,
+        lw_date(2) TYPE n.
+* Begin of changes done by 502765654 GECHG0267410 17.08.2018
+*  LOOP AT gt_afvc INTO gi_afvc WHERE aufpl EQ gi_afko-aufpl.
+  LOOP AT gt_afvc INTO gi_afvc FROM gw_tabix WHERE aufpl EQ gi_afko-aufpl.
+* End of changes done by 502765654 GECHG0267410 17.08.2018
+    gi_output-dispo = gi_afko-dispo.
+    lw_year = gi_afko-gltrs(4).
+    lw_month = gi_afko-gltrs+4(2).
+    lw_date = gi_afko-gltrs+6(2).
+    CONCATENATE lw_year '.' lw_month '.' lw_date INTO gi_output-gltrs.
+
+    CLEAR: lw_year,
+           lw_month,
+           lw_date.
+    lw_year = gi_afko-ftrmi(4).
+    lw_month = gi_afko-ftrmi+4(2).
+    lw_date = gi_afko-ftrmi+6(2).
+    CONCATENATE lw_year '.' lw_month '.' lw_date INTO gi_output-ftrmi.
+
+    gw_date = gi_afko-gltrs.
+    gi_output-year =  gw_date(4).
+    READ TABLE gt_afpo INTO gi_afpo WITH KEY  aufnr = gi_afko-aufnr BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gi_output-kdauf = gi_afpo-kdauf.
+      gi_output-kdpos = gi_afpo-kdpos.
+      gi_output-dfrei = gi_afpo-dfrei.
+      gi_output-aufnr = gi_afpo-aufnr.
+*Start og changes by chiranjeevi Chintham CHG0479115 DE3K926058 Defect 5919.
+*      gw_matnr = gi_afpo-matnr.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+        EXPORTING
+          input  = gi_afpo-matnr
+        IMPORTING
+          output = gi_output-matnr.
+      gw_matnr = gi_output-matnr.
+*End og changes by chiranjeevi Chintham CHG0479115 DE3K926058 Defect 5919.
+*      gi_output-matnr = gi_afpo-matnr.
+      READ TABLE  gt_aufk2 INTO gi_aufk2 WITH KEY aufnr = gi_afpo-nwrk BINARY SEARCH.
+
+      IF  sy-subrc IS INITIAL AND gi_aufk2-autyp = gc_twenty.
+        gi_output-stru = text-001.
+        gi_output-nwrk = gi_afpo-nwrk.
+        CALL FUNCTION 'CONVERSION_EXIT_KONPD_OUTPUT'
+          EXPORTING
+            input  = gi_afpo-pronr
+          IMPORTING
+            output = gi_output-pronr
+*           PSELT  =
+          EXCEPTIONS
+            OTHERS = 1.
+        IF sy-subrc <> 0.
+          CASE sy-subrc.
+            WHEN '1'.
+              MESSAGE e090(zsd) WITH text-e22.
+              EXIT.
+          ENDCASE.
+        ENDIF.
+      ENDIF.
+      CALL FUNCTION 'CONVERSION_EXIT_KONPR_OUTPUT'
+        EXPORTING
+          input  = gi_afpo-projn
+        IMPORTING
+          output = gw_projn
+        EXCEPTIONS
+          OTHERS = 1.
+      IF sy-subrc <> 0.
+        CASE sy-subrc.
+          WHEN '1'.
+            MESSAGE e090(zsd) WITH text-e22.
+            EXIT.
+        ENDCASE.
+      ENDIF.
+      gi_output-projn = gw_projn.
+      CALL FUNCTION 'CONVERSION_EXIT_KONPR_INPUT'
+        EXPORTING
+          input     = gw_projn
+        IMPORTING
+          output    = gi_afpo-projn
+          prpswa    = gi_prps
+        EXCEPTIONS
+          not_found = 1
+          OTHERS    = 2.
+      IF sy-subrc <> 0.
+        CASE sy-subrc.
+          WHEN '1'.
+            MESSAGE e090(zsd) WITH text-e25.
+            EXIT.
+          WHEN '2'.
+            MESSAGE e090(zsd) WITH text-e22.
+            EXIT.
+        ENDCASE.
+      ENDIF.
+      gi_output-post1 = gi_prps-post1.
+      gi_output-matnr = gw_matnr.
+      gw_gr_qty = ( gi_afpo-psmng - gi_afpo-wemng ) .
+      gi_output-qty = gw_gr_qty.
+      READ TABLE gt_vbak INTO gi_vbak WITH KEY vbeln = gi_afpo-kdauf BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gi_output-kunnr = gi_vbak-kunnr.
+      ENDIF.
+      READ TABLE gt_marc  INTO gi_marc WITH KEY matnr = gi_afpo-matnr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        gi_output-zlclid = gi_marc-zlclid.
+      ENDIF.
+*      READ TABLE gt_makt INTO gi_makt WITH KEY matnr = gi_afpo-matnr BINARY SEARCH.
+      "RITM2740509 DE3K942735 502199780
+      CLEAR gi_makt.                                                   "RITM2740509 DE3K942735 502199780
+      READ TABLE gt_makt INTO gi_makt WITH KEY matnr = gi_afpo-matnr   "RITM2740509 DE3K942735 502199780
+                                               spras = sy-langu        "RITM2740509 DE3K942735 502199780
+                                               BINARY SEARCH.          "RITM2740509 DE3K942735 502199780
+      IF sy-subrc EQ 0.                                                "RITM2740509 DE3K942735 502199780
+        gi_output-maktx = gi_makt-maktx.                               "RITM2740509 DE3K942735 502199780
+        gw_maktx = gi_makt-maktx.                                      "RITM2740509 DE3K942735 502199780
+      ELSE.                                                            "RITM2740509 DE3K942735 502199780
+        READ TABLE gt_makt INTO gi_makt WITH KEY matnr = gi_afpo-matnr "RITM2740509 DE3K942735 502199780
+                                                 spras = gc_lang       "RITM2740509 DE3K942735 502199780
+                                                 BINARY SEARCH.        "RITM2740509 DE3K942735 502199780
+        IF sy-subrc EQ 0.
+          gi_output-maktx = gi_makt-maktx.
+          gw_maktx = gi_makt-maktx.
+        ENDIF.
+      ENDIF.                                                           "RITM2740509 DE3K942735 502199780
+* Begin of changes done by 502765654 GECHG0267410 17.08.2018
+      READ TABLE gt_afvv INTO gi_afvv WITH KEY aufpl = gi_afvc-aufpl aplzl = gi_afvc-aplzl BINARY SEARCH.
+*           READ TABLE gt_afvv INTO gi_afvv WITH KEY aufpl = gi_afvc-aufpl aplzl = gi_afvc-aplzl.
+* End of changes done by 502765654 GECHG0267410 17.08.2018
+      IF sy-subrc EQ 0.
+        gw_mgvrg = ( gi_afvv-mgvrg - gi_afvv-lmnga ).
+        gi_output-mgvrg = gw_mgvrg.
+      ENDIF.
+      READ TABLE gt_mbew INTO gi_mbew WITH KEY matnr = gi_afpo-matnr BINARY SEARCH.
+      IF sy-subrc EQ  0.
+        gw_vlue1 = ( gw_gr_qty * gi_mbew-stprs / gi_mbew-peinh ).
+        MOVE :  gw_vlue1 TO gi_output-value.
+        gi_output-matcost = ( gw_gr_qty * gi_mbew-bwprs ) / gi_mbew-peinh.
+        DATA v_labour TYPE p DECIMALS 2.
+        v_labour =   ( gw_gr_qty * gi_mbew-bwps1 ) / gi_mbew-peinh.
+        MOVE :  v_labour TO     gi_output-labourcost .
+        DATA v_ovhcost(14).
+        v_ovhcost = ( gw_gr_qty * gi_mbew-vjbws ) / gi_mbew-peinh.
+        MOVE :  v_ovhcost TO  gi_output-ovhcost .
+      ENDIF.
+      READ TABLE gt_mdkp INTO gi_mdkp WITH KEY matnr = gi_afpo-matnr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        READ TABLE gt_mdtb1 INTO gi_mdtb1 WITH KEY dtnum = gi_mdkp-dtnum BINARY SEARCH.
+        IF sy-subrc EQ 0.
+          gw_soqty = gi_mdtb1-soqty .
+          MOVE :  gw_soqty TO gi_output-soqty .
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    READ TABLE gt_t024d INTO gi_t024d WITH KEY dispo = gi_afko-dispo BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gi_output-dsnam = gi_t024d-dsnam.
+    ENDIF.
+    gi_output-vornr = gi_afvc-vornr.
+    READ TABLE gt_crtx INTO gi_crtx WITH KEY objid = gi_afvc-arbid BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      IF gi_crtx-ktext NE ' '.
+        gi_output-ktext = gi_crtx-ktext.
+      ELSE.
+        READ TABLE gt_crtx_t INTO  gi_crtx_t WITH KEY  objty = gi_crtx-objty
+                                                      objid = gi_crtx-objid
+                                                      spras = gc_lang BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          gi_output-ktext = gi_crtx_t-ktext .
+        ENDIF.
+
+      ENDIF.
+    ENDIF.
+    READ TABLE gt_crhd INTO gi_crhd WITH KEY objid = gi_afvc-arbid BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gi_output-veran = gi_crhd-veran.
+      gi_output-arbpl = gi_crhd-arbpl.
+    ENDIF.
+* Begin of changes done by 502765654 GECHG0267410 17.08.2018
+*    READ TABLE  gt_afvv INTO gi_afvv  WITH KEY aufpl = gi_afvc-aufpl aplzl = gi_afvc-aplzl BINARY SEARCH.
+    READ TABLE  gt_afvv INTO gi_afvv  WITH KEY aufpl = gi_afvc-aufpl aplzl = gi_afvc-aplzl.   " changes added by 502287934
+* End of changes done by 502765654 GECHG0267410 17.08.2018
+    IF sy-subrc EQ 0.
+      MOVE :  gi_afvv-rem_labour TO gi_output-labour.
+    ENDIF.
+    READ TABLE gt_aufk INTO gi_aufk WITH KEY aufnr = gi_afko-aufnr ."BINARY SEARCH. changed by 502347739 CHG0996276 INC5660050 DE3K957692 on 30.12.2014
+    IF sy-subrc EQ 0.
+      CLEAR: lw_year,
+             lw_month,
+             lw_date.
+      lw_year = gi_aufk-erdat(4).
+      lw_month = gi_aufk-erdat+4(2).
+      lw_date = gi_aufk-erdat+6(2).
+      CONCATENATE lw_year '.' lw_month '.' lw_date INTO gi_output-erdat.
+    ENDIF.
+    CLEAR :gw_date, gw_fw .
+*    gw_date = gi_output-gltrs.
+    gw_date = gi_afko-gltrs.
+    PERFORM get_fm USING gw_date CHANGING gw_fw .
+    gi_output-fw = gw_fw+4(2).
+    CLEAR gw_qty.
+    gw_qty = gi_output-qty .
+    CONCATENATE gi_output-zlclid ',' gw_maktx ',' gw_qty
+                                 INTO gi_output-materialall.
+    CONDENSE gi_output-materialall.
+*    gw_gltrs = gi_output-gltrs.
+    gw_gltrs = gi_afko-gltrs.
+    PERFORM get_timecode USING gw_gltrs CHANGING gw_tcode.
+    gi_output-timecode = gw_tcode.
+
+
+    APPEND  gi_output TO gt_output.
+    CLEAR: gi_output,gi_afpo,gi_makt,gi_crtx_t,gi_crtx,gi_afvv,gi_afvc,gi_aufk2,gi_vbak,gi_marc,gw_mgvrg.
+  ENDLOOP .
+ENDFORM.                    " PROCESS_DATA
+*****Start of Comment By 502237354(Sumit) - 12/06/2014
+*&---------------------------------------------------------------------*
+*&      Form  GETUNIXPATH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+*FORM getunixpath .
+*  gi_ztuhcd1-name = gc_name .
+*  APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+*  CLEAR gi_ztuhcd1.
+**fecthing the hard code entries
+*  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+*    TABLES
+*      t_ztuhcd1     = gt_ztuhcd1
+*    EXCEPTIONS
+*      no_data_found = 1
+*      OTHERS        = 2.
+*
+*  IF sy-subrc IS INITIAL.
+*    SORT gt_ztuhcd1 BY field.
+*    READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH  KEY name = gc_name
+*                                                     field = gc_filepath.
+*
+*    IF sy-subrc IS INITIAL.
+*      gw_path = gi_ztuhcd1-low.
+*      p_uxfile = gw_path.
+*    ENDIF.
+*  ELSE.
+*    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*        WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+*  ENDIF.
+*ENDFORM.                    " GETUNIXPATH
+*****End of Comment By 502237354(Sumit) - 12/06/2014
+* Begin of f_ftp_download by DE3K954562 INC5327054 502347739 on 11.11.2014
+*&---------------------------------------------------------------------*
+*&      Form  F_APPSERVER_DOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_appserver_download .
+  DATA: lv_message(20),
+        lv_ptext TYPE symsgv,
+        lv_str TYPE string,
+        lv_str1 TYPE string.
+  IF gt_output IS NOT INITIAL.
+
+    CONCATENATE text-006 p_fname
+        INTO lv_ptext.
+    CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+      EXPORTING
+        text = lv_ptext.
+    OPEN DATASET p_fname
+              FOR APPENDING
+              IN TEXT MODE ENCODING DEFAULT.
+    LOOP AT gt_title INTO gi_title.
+      CONCATENATE gi_final gi_title INTO gi_final SEPARATED BY cl_abap_char_utilities=>horizontal_tab.
+    ENDLOOP.
+    SHIFT gi_final .
+    TRANSFER gi_final TO p_fname.
+
+    LOOP AT gt_output INTO gi_output.
+      gi_final-dispo = gi_output-dispo.
+      gi_final-dsnam = gi_output-dsnam.
+      gi_final-kdauf = gi_output-kdauf.
+      gi_final-kdpos = gi_output-kdpos.
+      gi_final-kunnr = gi_output-kunnr.
+      gi_final-dfrei = gi_output-dfrei.
+      gi_final-aufnr = gi_output-aufnr.
+      gi_final-vornr = gi_output-vornr.
+      gi_final-veran = gi_output-veran.
+      gi_final-arbpl = gi_output-arbpl.
+      gi_final-ktext = gi_output-ktext.
+*Begin of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+*    gi_final-mgvrg = gi_output-mgvrg.
+*    gi_final-qty = gi_output-qty.
+*    gi_final-value = gi_output-value.
+      WRITE gi_output-mgvrg TO lw_mgvrg .
+      WRITE gi_output-qty TO lw_qty .
+      WRITE gi_output-value TO lw_value .
+      WRITE gi_output-labour TO lw_labour .
+      WRITE gi_output-matcost TO lw_matcost .
+      WRITE gi_output-labourcost TO lw_labourcost .
+      WRITE gi_output-ovhcost TO lw_ovhcost .
+      WRITE gi_output-soqty TO lw_soqty .
+*End of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+      gi_final-gltrs = gi_output-gltrs.
+      gi_final-erdat = gi_output-erdat.
+      gi_final-ftrmi = gi_output-ftrmi.
+      gi_final-fw = gi_output-fw.
+      gi_final-timecode = gi_output-timecode.
+      gi_final-year = gi_output-year.
+      gi_final-matnr = gi_output-matnr.
+      gi_final-zlclid = gi_output-zlclid.
+      gi_final-maktx = gi_output-maktx.
+*Begin of comments 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+*      gi_final-labour = gi_output-labour.
+*      gi_final-matcost = gi_output-matcost.
+*      gi_final-labourcost = gi_output-labourcost.
+*      gi_final-ovhcost = gi_output-ovhcost.
+*End of comments 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+      gi_final-materialall = gi_output-materialall.
+*      gi_final-soqty = gi_output-soqty. "added by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+      gi_final-index1 = gi_output-index1.
+      gi_final-index2 = gi_output-index2.
+      gi_final-index3 = gi_output-index3.
+      gi_final-pronr = gi_output-pronr.
+      gi_final-nwrk = gi_output-nwrk.
+      gi_final-projn = gi_output-projn.
+      gi_final-post1 = gi_output-post1.
+      gi_final-stru = gi_output-stru.
+      APPEND gi_final TO gt_final.
+      CONCATENATE gi_final-dispo gi_final-dsnam gi_final-kdauf gi_final-kdpos gi_final-kunnr gi_final-dfrei gi_final-aufnr gi_final-vornr
+       gi_final-veran  gi_final-arbpl  gi_final-ktext
+        lw_mgvrg lw_qty  lw_value  "gi_final-mgvrg   gi_final-qty   gi_final-value  "commented by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+          gi_final-gltrs  gi_final-erdat
+       gi_final-ftrmi   gi_final-fw  gi_final-timecode  gi_final-year gi_final-matnr  gi_final-zlclid  gi_final-maktx
+        lw_labour lw_matcost  lw_labourcost  lw_ovhcost "gi_final-labour gi_final-matcost   gi_final-labourcost   gi_final-ovhcost  "commented by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+       gi_final-materialall
+      lw_soqty "gi_final-soqty  "commented by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+       gi_final-index1  gi_final-index2
+       gi_final-index3  gi_final-pronr  gi_final-nwrk  gi_final-projn gi_final-post1  gi_final-stru  INTO lv_str
+       SEPARATED BY cl_abap_char_utilities=>horizontal_tab.
+      TRANSFER lv_str TO p_fname.
+      CLEAR: gi_final, lv_str, gi_output.
+    ENDLOOP.
+    CLOSE DATASET p_fname.
+
+    lv_message = text-t07.
+    WRITE:/ lv_message, p_fname.
+  ELSE.
+    lv_message = text-m01.
+  ENDIF.
+ENDFORM.                    " F_APPSERVER_DOWNLOAD
+* End of f_ftp_download by DE3K954562 INC5327054 502347739 on 11.11.2014
+*&---------------------------------------------------------------------*
+*&      Form  PROXY_SEND_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM proxy_send_data .
+* Begin of changes by 502347739 DE3K956910 CHG0993110 RITM3672060 on 15.12.2014
+*Sending data to Proxy
+  DATA : proxy                        TYPE REF TO zmmco_si_generic_data_out,
+         t_zmmdt_generic_data_row_tab TYPE zmmdt_generic_data_row_tab,
+         w_zmmdt_generic_data_row     TYPE zmmdt_generic_data_row,
+         t_output                     TYPE zmmmt_generic_data,
+         l_exception_msg              TYPE string,
+         l_sys_exc                    TYPE REF TO cx_ai_system_fault,
+* Begin of 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+          lw_count                     TYPE sy-tabix,
+          lw_fill                      TYPE sy-tfill,
+          lw_count1                    TYPE p,
+*Begin of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+          lo_async_messaging TYPE REF TO if_wsprotocol_async_messaging,
+          lw_lenth(8) TYPE n.
+*End of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+  IF gt_output IS NOT INITIAL .
+    DESCRIBE TABLE gt_output LINES lw_fill.
+    lw_lenth = strlen( p_file ).
+    lw_lenth = lw_lenth - 4.
+    CONCATENATE p_file+0(lw_lenth) '_' sy-datum '.TXT' INTO p_file.
+    LOOP AT gt_title INTO gi_title.
+      CONCATENATE w_zmmdt_generic_data_row-string gi_title INTO w_zmmdt_generic_data_row-string SEPARATED BY  cl_abap_char_utilities=>horizontal_tab.
+    ENDLOOP.
+    SHIFT w_zmmdt_generic_data_row-string.
+    APPEND w_zmmdt_generic_data_row TO t_zmmdt_generic_data_row_tab.
+
+    CLEAR gw_filename.
+*    CONCATENATE text-t09 gc_fname1 sy-datum text-t08  INTO gw_filename.
+    t_output-mt_generic_data-file_name = p_file. "gw_filename.  changes by 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+    CONCATENATE text-t09 gc_fname1 p_dwerk-low INTO gw_filename1.
+    t_output-mt_generic_data-identifier = gw_filename1.
+    t_output-mt_generic_data-row       =  t_zmmdt_generic_data_row_tab[].
+
+    IF NOT t_output-mt_generic_data IS INITIAL.
+      TRY.
+          CREATE OBJECT proxy.
+        CATCH cx_ai_system_fault INTO l_sys_exc.
+          l_exception_msg = l_sys_exc->get_text( ).
+      ENDTRY.
+      IF l_exception_msg IS INITIAL.
+        TRY.
+*Begin of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+            lo_async_messaging ?=
+         proxy->get_protocol( if_wsprotocol=>async_messaging ).
+            lo_async_messaging->set_serialization_context('XBTO65').
+*End of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+            CALL METHOD proxy->si_generic_data_out
+              EXPORTING
+                output = t_output.
+          CATCH cx_ai_system_fault INTO l_sys_exc.
+            l_exception_msg = l_sys_exc->get_text( ).
+        ENDTRY.
+      ENDIF.
+    ENDIF.
+
+    COMMIT WORK.
+    WAIT UP TO 5 SECONDS."2 SECONDS.
+    CLEAR lw_count.
+    REFRESH t_zmmdt_generic_data_row_tab[].
+*    lw_count = 1.
+*  LOOP AT gt_title INTO gi_title.
+*    CONCATENATE gi_final gi_title INTO gi_final SEPARATED BY  cl_abap_char_utilities=>horizontal_tab.
+*  ENDLOOP.
+*  SHIFT gi_final.
+*  MOVE gi_final TO w_zmmdt_generic_data_row-string.
+*  APPEND w_zmmdt_generic_data_row TO t_zmmdt_generic_data_row_tab.
+    LOOP AT gt_output INTO gi_output.
+      lw_count  = lw_count + 1.
+* End of 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+      gi_final-dispo = gi_output-dispo.
+      gi_final-dsnam = gi_output-dsnam.
+      gi_final-kdauf = gi_output-kdauf.
+      gi_final-kdpos = gi_output-kdpos.
+      gi_final-kunnr = gi_output-kunnr.
+      gi_final-dfrei = gi_output-dfrei.
+      gi_final-aufnr = gi_output-aufnr.
+      gi_final-vornr = gi_output-vornr.
+      gi_final-veran = gi_output-veran.
+      gi_final-arbpl = gi_output-arbpl.
+      gi_final-ktext = gi_output-ktext.
+*Begin of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+*    gi_final-mgvrg = gi_output-mgvrg.
+*    gi_final-qty = gi_output-qty.
+*    gi_final-value = gi_output-value.
+      WRITE gi_output-mgvrg TO lw_mgvrg .
+      WRITE gi_output-qty TO lw_qty .
+      WRITE gi_output-value TO lw_value .
+      WRITE gi_output-labour TO lw_labour .
+      WRITE gi_output-matcost TO lw_matcost .
+      WRITE gi_output-labourcost TO lw_labourcost .
+      WRITE gi_output-ovhcost TO lw_ovhcost .
+      WRITE gi_output-soqty TO lw_soqty .
+*End of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+      gi_final-gltrs = gi_output-gltrs.
+      gi_final-erdat = gi_output-erdat.
+      gi_final-ftrmi = gi_output-ftrmi.
+      gi_final-fw = gi_output-fw.
+      gi_final-timecode = gi_output-timecode.
+      gi_final-year = gi_output-year.
+      gi_final-matnr = gi_output-matnr.
+      gi_final-zlclid = gi_output-zlclid.
+      gi_final-maktx = gi_output-maktx.
+*Begin of comments 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+*    gi_final-labour = gi_output-labour.
+*    gi_final-matcost = gi_output-matcost.
+*    gi_final-labourcost = gi_output-labourcost.
+*    gi_final-ovhcost = gi_output-ovhcost.
+*End of comments 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+      gi_final-materialall = gi_output-materialall.
+*    gi_final-soqty = gi_output-soqty. "commented by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+      gi_final-index1 = gi_output-index1.
+      gi_final-index2 = gi_output-index2.
+      gi_final-index3 = gi_output-index3.
+      gi_final-pronr = gi_output-pronr.
+      gi_final-nwrk = gi_output-nwrk.
+      gi_final-projn = gi_output-projn.
+      gi_final-post1 = gi_output-post1.
+      gi_final-stru = gi_output-stru.
+      APPEND gi_final TO gt_final.
+      CONCATENATE gi_final-dispo gi_final-dsnam gi_final-kdauf gi_final-kdpos gi_final-kunnr gi_final-dfrei gi_final-aufnr gi_final-vornr
+        gi_final-veran  gi_final-arbpl  gi_final-ktext
+        lw_mgvrg lw_qty  lw_value "gi_final-mgvrg   gi_final-qty   gi_final-value "commented by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+         gi_final-gltrs  gi_final-erdat
+        gi_final-ftrmi   gi_final-fw  gi_final-timecode  gi_final-year gi_final-matnr  gi_final-zlclid  gi_final-maktx
+         lw_labour lw_matcost  lw_labourcost  lw_ovhcost"gi_final-labour  gi_final-matcost   gi_final-labourcost   gi_final-ovhcost "commented by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+         gi_final-materialall
+         lw_soqty  "gi_final-soqty "commented by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+
+          gi_final-index1  gi_final-index2
+        gi_final-index3  gi_final-pronr  gi_final-nwrk  gi_final-projn gi_final-post1  gi_final-stru INTO  w_zmmdt_generic_data_row-string
+        SEPARATED BY  cl_abap_char_utilities=>horizontal_tab.
+      APPEND w_zmmdt_generic_data_row TO t_zmmdt_generic_data_row_tab.
+* Begin of 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+      IF lw_count = p_count .
+        lw_fill =  lw_fill - p_count.
+        CLEAR gw_filename.
+*        CONCATENATE text-t09 gc_fname1 sy-datum text-t08 INTO gw_filename.
+        t_output-mt_generic_data-file_name = p_file. "gw_filename.  changes by 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+
+        CONCATENATE text-t09 gc_fname1 p_dwerk-low "gi_final-werks
+        INTO gw_filename1.
+
+        t_output-mt_generic_data-identifier = gw_filename1.
+        t_output-mt_generic_data-row        =  t_zmmdt_generic_data_row_tab[].
+
+        IF NOT t_output-mt_generic_data IS INITIAL AND t_zmmdt_generic_data_row_tab IS NOT INITIAL..
+          TRY.
+              CREATE OBJECT proxy.
+            CATCH cx_ai_system_fault INTO l_sys_exc.
+              l_exception_msg = l_sys_exc->get_text( ).
+          ENDTRY.
+          IF l_exception_msg IS INITIAL.
+            TRY.
+*Begin of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+                lo_async_messaging ?=
+             proxy->get_protocol( if_wsprotocol=>async_messaging ).
+                lo_async_messaging->set_serialization_context('XBTO65').
+*End of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+                CALL METHOD proxy->si_generic_data_out
+                  EXPORTING
+                    output = t_output.
+              CATCH cx_ai_system_fault INTO l_sys_exc.
+                l_exception_msg = l_sys_exc->get_text( ).
+            ENDTRY.
+          ENDIF.
+        ENDIF.
+        COMMIT WORK.
+        CLEAR lw_count.
+        REFRESH t_zmmdt_generic_data_row_tab[].
+      ENDIF.
+      IF lw_count = lw_fill.
+        CLEAR gw_filename.
+*        CONCATENATE text-t09 gc_fname1 sy-datum TEXT-T08 INTO gw_filename.
+        t_output-mt_generic_data-file_name = p_file. "gw_filename.  changes by 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+        CONCATENATE text-t09 gc_fname1 p_dwerk-low "gi_final-werks
+        INTO gw_filename1.
+
+        t_output-mt_generic_data-identifier = gw_filename1.
+        t_output-mt_generic_data-row       =  t_zmmdt_generic_data_row_tab[].
+
+        IF NOT t_output-mt_generic_data IS INITIAL AND t_zmmdt_generic_data_row_tab IS NOT INITIAL.
+          TRY.
+              CREATE OBJECT proxy.
+            CATCH cx_ai_system_fault INTO l_sys_exc.
+              l_exception_msg = l_sys_exc->get_text( ).
+          ENDTRY.
+          IF l_exception_msg IS INITIAL.
+            TRY.
+*Begin of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+                lo_async_messaging ?=
+             proxy->get_protocol( if_wsprotocol=>async_messaging ).
+                lo_async_messaging->set_serialization_context('XBTO65').
+*End of 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+                CALL METHOD proxy->si_generic_data_out
+                  EXPORTING
+                    output = t_output.
+              CATCH cx_ai_system_fault INTO l_sys_exc.
+                l_exception_msg = l_sys_exc->get_text( ).
+            ENDTRY.
+          ENDIF.
+        ENDIF.
+        COMMIT WORK.
+        CLEAR lw_count.
+        REFRESH t_zmmdt_generic_data_row_tab[].
+      ENDIF.
+      CLEAR w_zmmdt_generic_data_row.
+*    CLEAR w_zmmdt_generic_data_row.
+*  ENDLOOP.
+*  CLEAR gw_filename.
+*  CONCATENATE "sy-tcode
+*       text-t09 gc_fname1 sy-datum TEXT-T08 INTO gw_filename.  "changed by 502347739 DE3K957684 CHG0993110 RITM3672060 on 29.12.2014
+*  t_output-mt_generic_data-file_name = gw_filename.
+*  t_output-mt_generic_data-identifier = sy-tcode.
+*  t_output-mt_generic_data-row       =  t_zmmdt_generic_data_row_tab.
+*
+*  IF NOT t_output-mt_generic_data IS INITIAL.
+*    TRY.
+*        CREATE OBJECT proxy.
+*      CATCH cx_ai_system_fault INTO l_sys_exc.
+*        l_exception_msg = l_sys_exc->get_text( ).
+*    ENDTRY.
+*    IF l_exception_msg IS INITIAL.
+*      TRY.
+*          CALL METHOD proxy->si_generic_data_out
+*            EXPORTING
+*              output = t_output.
+*        CATCH cx_ai_system_fault INTO l_sys_exc.
+*          l_exception_msg = l_sys_exc->get_text( ).
+*      ENDTRY.
+*    ENDIF.
+*  ENDIF.
+*  IF l_exception_msg IS INITIAL.
+*    COMMIT WORK.
+*    MESSAGE s016 WITH text-006.
+    ENDLOOP.
+    MESSAGE i000(zcc_c) WITH text-t13.   "msg class added by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+  ELSE.
+    MESSAGE i000(zcc_c) WITH text-039.   "msg class added by 09/02/2015  CHG0993110 DE3K959174  502347739  RITM3672060
+  ENDIF.
+* End of 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+ENDFORM.                    " PROXY_SEND_DATA
+

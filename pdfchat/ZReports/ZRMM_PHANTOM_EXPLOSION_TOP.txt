@@ -1,0 +1,166 @@
+*&---------------------------------------------------------------------*
+* Name                          : ZRMM_PHANTOM_EXPLOSION
+* Tcode                         : ZMM110
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 12 Sep 2023
+* Transport Request #           : DE3K9A0MKH
+* RICEF Object No #             : RICEF2684
+* Description                   : Phantom Explosion and store the data in
+*                                 ZTMM_PICT
+*----------------------------------------------------------------------*
+* 06.02.2024   | RICEF-2684|USANBOD11 | Phantom Explosion requirement  *
+*----------------------------------------------------------------------*
+* 03.03.2024   | RICEF-2684|USANBOD11 | Phantom Explosion UAT Defects  *
+*----------------------------------------------------------------------*
+*03/15/2024   | RICEF-2684|USANBOD11 | Phantom Explosion UAT Defects   *
+*05/09/2024   | RICEF-2684|USANBOD11 | card lock-Get from PICT_1 table
+*---------------------------------------------------------------------
+*****************************************************************************************
+* CHANGED BY  | DATE        | TR #       |CR No(INCUM | DESCRIPTION OF CHANG
+*****************************************************************************************
+* CHTAMUR     | 09/09/2024  | DE3K9A0T02 | CHG2078268 | PI tool issue fixes and improvements   *
+*----------------------------------------------------------------------*
+
+REPORT zrmm_phantom_explosion.
+
+TABLES:ztmm_pict , ztmm_pict_1. " DE3K9A0QXS        USANBOD11
+
+TYPES:BEGIN OF ty_mara,
+        matnr TYPE mara-matnr,
+        bismt TYPE mara-bismt,
+      END OF ty_mara,
+
+      BEGIN OF ty_mbew,
+        matnr TYPE mbew-matnr,
+        bwkey TYPE mbew-bwkey,
+        lbkum TYPE mbew-lbkum,
+        salk3 TYPE mbew-salk3,
+        vmbkl TYPE mbew-vmbkl,
+      END OF ty_mbew,
+
+      BEGIN OF ty_marc,
+        matnr TYPE marc-matnr,
+        werks TYPE marc-werks,
+        schgt TYPE marc-schgt,
+      END OF ty_marc.
+
+DATA: BEGIN OF gi_stb.
+        INCLUDE STRUCTURE stpox.
+      DATA: END OF gi_stb,
+      gt_stb LIKE TABLE OF gi_stb,
+      gs_stb LIKE  gi_stb.
+DATA: BEGIN OF gi_matcat.
+        INCLUDE STRUCTURE cscmat.
+      DATA: END OF gi_matcat,
+      gt_matcat LIKE TABLE OF gi_matcat,
+      lv_topmat TYPE cstmat,
+      lv_dstst  TYPE csdata-xfeld.
+** BOC  USANBOD11 06/02/2024
+TYPES : BEGIN OF gi_final.
+          INCLUDE STRUCTURE ztmm_pict_1.  " DE3K9A0QXS        USANBOD11
+          TYPES : compqty TYPE  erfmg.
+TYPES : step(2).
+TYPES : fgmat TYPE matnr .
+TYPES : qty_bom TYPE cs_e_mnglg .
+TYPES : sel     TYPE flag .
+TYPES : sub_pht TYPE dumps .  " DE3K9A0PP7       USANBOD11
+TYPES : END OF gi_final .
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+
+DATA: "gt_final         TYPE TABLE OF  gi_final,
+      gt_final         TYPE TABLE OF zsmm_pict_inv,
+*      gt_final_cmp     TYPE TABLE OF gi_final,
+      gt_final_cmp     TYPE TABLE OF zsmm_pict_inv,
+*      gs_final         TYPE gi_final,
+      gs_final         TYPE zsmm_pict_inv,
+*      gs_final1        TYPE gi_final,
+      gs_final1        TYPE zsmm_pict_inv,
+*      wa_ztmm_pict     TYPE gi_final,
+      wa_ztmm_pict     TYPE zsmm_pict_inv,
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+** EOC  USANBOD11 06/02/2024
+*DATA: gt_final         TYPE TABLE OF ztmm_pict,
+*      gs_final         TYPE ztmm_pict,
+*      gs_final1        TYPE ztmm_pict,
+*      wa_ztmm_pict     TYPE ztmm_pict,
+      gt_mara          TYPE TABLE OF ty_mara,
+      gt_mbew          TYPE TABLE OF  ty_mbew,
+      gt_marc          TYPE TABLE OF  ty_marc,
+      gt_ztmm_pict     TYPE TABLE OF ztmm_pict_1,  " DE3K9A0QXS        USANBOD11
+      gs_ztmm_pict     TYPE ztmm_pict_1,           " DE3K9A0QXS        USANBOD11
+      gt_ztmm_pict1    TYPE TABLE OF ztmm_pict_1, " DE3K9A0QXS        USANBOD11
+      gt_ztmm_pict2    TYPE TABLE OF ztmm_pict_1, " DE3K9A0QXS        USANBOD11
+      gt_fieldcatalog1 TYPE slis_t_fieldcat_alv, "TYPE lvc_t_fcat,
+      gw_layo          TYPE          slis_layout_alv,       "#EC NEEDED
+      wa_fcat1         TYPE slis_fieldcat_alv, "lvc_s_fcat,
+      gs_layout        TYPE lvc_s_layo.
+
+SELECTION-SCREEN:BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-000.
+
+PARAMETERS: p_plant TYPE ztmm_pict-werks OBLIGATORY,
+            p_year  TYPE ztmm_pict-gjahr OBLIGATORY,
+            p_ver   TYPE ztmm_picc_log-version OBLIGATORY.
+
+
+SELECTION-SCREEN:END OF BLOCK b1.
+** BOC DE3K9A0PP7       USANBOD11
+DATA: it_listheader TYPE slis_t_listheader,
+      wa_listheader TYPE slis_listheader.
+** EOC DE3K9A0PP7       USANBOD11
+** BOC  USANBOD11 06/02/2024
+
+SELECTION-SCREEN BEGIN OF BLOCK b01 WITH FRAME TITLE TEXT-b01 . " DE3K9A0PP7       USANBOD11
+
+SELECTION-SCREEN BEGIN OF BLOCK b03 WITH FRAME TITLE TEXT-b03.
+
+** BOC  DE3K9A0PS6 USANBOD11 SCM-2684
+SELECTION-SCREEN BEGIN OF LINE .
+SELECTION-SCREEN POSITION 1.
+PARAMETERS: p_but1 RADIOBUTTON GROUP r03 DEFAULT 'X' MODIF ID id1 .
+SELECTION-SCREEN COMMENT (51) TEXT-c01 FOR FIELD p_but1. " DE3K9A0PP7       USANBOD11
+SELECTION-SCREEN END OF LINE .
+
+SELECTION-SCREEN SKIP 1.   " DE3K9A0PP7       USANBOD11
+
+SELECTION-SCREEN BEGIN OF LINE .
+SELECTION-SCREEN POSITION 1.
+PARAMETERS:  p_but2 RADIOBUTTON GROUP r03 MODIF ID id2.
+SELECTION-SCREEN COMMENT (40) TEXT-c02 FOR FIELD p_but2.
+SELECTION-SCREEN END OF LINE .
+
+
+SELECTION-SCREEN SKIP 1. " DE3K9A0PP7       USANBOD11
+
+SELECTION-SCREEN BEGIN OF LINE .
+SELECTION-SCREEN POSITION 1.
+PARAMETERS:  p_but4 RADIOBUTTON GROUP r03 MODIF ID id2.
+SELECTION-SCREEN COMMENT (40) TEXT-c04 FOR FIELD p_but4.
+SELECTION-SCREEN END OF LINE .
+
+SELECTION-SCREEN SKIP 1. " DE3K9A0PP7       USANBOD11
+
+SELECTION-SCREEN BEGIN OF LINE .
+SELECTION-SCREEN POSITION 1.
+PARAMETERS:  p_but6 RADIOBUTTON GROUP r03 MODIF ID id2.
+SELECTION-SCREEN COMMENT (40) TEXT-c06 FOR FIELD p_but6.
+SELECTION-SCREEN END OF LINE .
+
+SELECTION-SCREEN SKIP 1. " DE3K9A0PP7       USANBOD11
+
+SELECTION-SCREEN BEGIN OF LINE .
+SELECTION-SCREEN POSITION 1.
+PARAMETERS:  p_but8 RADIOBUTTON GROUP r03 MODIF ID id2.
+SELECTION-SCREEN COMMENT (40) TEXT-c08 FOR FIELD p_but8.
+SELECTION-SCREEN END OF LINE .
+
+SELECTION-SCREEN SKIP 1. " DE3K9A0PP7       USANBOD11
+
+PARAMETERS: p_cre RADIOBUTTON GROUP r03 MODIF ID id9.
+
+SELECTION-SCREEN END OF BLOCK b03.
+SELECTION-SCREEN END OF BLOCK b01 . " DE3K9A0PP7       USANBOD11
+** EOC DE3K9A0PS6 USANBOD11 SCM-2684
+******** EOC  USANBOD11 06/02/2024
+

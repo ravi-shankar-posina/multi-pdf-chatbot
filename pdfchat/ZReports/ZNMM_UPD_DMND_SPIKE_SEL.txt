@@ -1,0 +1,74 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_UPD_DMND_SPIKE_SEL
+*&---------------------------------------------------------------------*
+*&***------------------------------------------------------------------***
+*** Created by            : Manas MIsra
+*** Creation Date         : 27/02/2023
+*** Transport Request #   : DE3K9A0J08
+*** RICEF Object No #     : 2635
+*** TC ode                : ZMM2635
+*** Description           : Conversion & maintaince program to upload
+***                         Demand Spike ELIP  table
+***                         Data would be uploaded via  a file from PC
+*&---------------------------------------------------------------------*
+
+*********selection with Radio buttons ( Mode of operations )***********
+SELECTION-SCREEN BEGIN OF BLOCK mode_op WITH FRAME TITLE TEXT-030.
+SELECTION-SCREEN : BEGIN OF LINE.
+PARAMETERS : p_r1 RADIOBUTTON GROUP rg1 USER-COMMAND sy-ucomm DEFAULT 'X'.
+SELECTION-SCREEN COMMENT 10(10) FOR FIELD p_r1.
+PARAMETERS : p_r4 RADIOBUTTON GROUP rg1.
+SELECTION-SCREEN COMMENT 25(15) FOR FIELD p_r4.
+PARAMETERS : p_r2 RADIOBUTTON GROUP rg1.
+SELECTION-SCREEN COMMENT 45(10) FOR FIELD p_r2.
+PARAMETERS : p_r3 RADIOBUTTON GROUP rg1.
+SELECTION-SCREEN COMMENT 60(20) FOR FIELD p_r3.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN END OF BLOCK mode_op.
+
+********Selection screen block for xls/csv file uploader***********
+SELECTION-SCREEN BEGIN OF BLOCK xls_file WITH FRAME TITLE TEXT-000.
+PARAMETERS: p_is1    TYPE dd02l-tabname DEFAULT 'ZDS911E' OBLIGATORY MODIF ID x,
+            p_infile LIKE rlgrap-filename  MODIF ID m.
+SELECTION-SCREEN : BEGIN OF LINE.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN END OF BLOCK xls_file.
+
+********Selection screen with key field for table record maintaince*************
+SELECTION-SCREEN BEGIN OF BLOCK sel_scr WITH FRAME TITLE TEXT-006.
+PARAMETERS: p_is2 TYPE dd02l-tabname DEFAULT 'ZDS911E' OBLIGATORY MODIF ID z.
+SELECT-OPTIONS : s_yrmon   FOR zds911e-spmon  MODIF ID z,
+                 s_plant FOR zds911e-werks MODIF ID z,
+                 s_mat FOR zds911e-matnr MODIF ID z.
+PARAMETERS: p_bgexc AS CHECKBOX MODIF ID x.
+PARAMETERS: p_purge AS CHECKBOX MODIF ID y USER-COMMAND sy-ucomm.
+SELECTION-SCREEN END OF BLOCK sel_scr.
+
+******Selection screen for output Mail triggering**********
+SELECTION-SCREEN BEGIN OF BLOCK email WITH FRAME TITLE TEXT-048.
+SELECT-OPTIONS: s_email FOR somlreci1-receiver NO INTERVALS MODIF ID x.
+SELECTION-SCREEN : BEGIN OF LINE,
+COMMENT 20(79) TEXT-033 MODIF ID x.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN END OF BLOCK email.
+
+********Selection screen for File Download parameters*************
+SELECTION-SCREEN BEGIN OF BLOCK send_email WITH FRAME TITLE TEXT-026.
+PARAMETERS p_sucess AS CHECKBOX MODIF ID x.
+SELECTION-SCREEN : BEGIN OF LINE,
+COMMENT 20(79) TEXT-036 MODIF ID x.
+SELECTION-SCREEN END OF LINE.
+PARAMETERS p_error AS CHECKBOX MODIF ID x DEFAULT 'X'.
+SELECTION-SCREEN : BEGIN OF LINE,
+COMMENT 20(79) TEXT-047 MODIF ID x.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN END OF BLOCK send_email.
+
+****Selection screen check box for test run functionality**********
+SELECTION-SCREEN BEGIN OF BLOCK test_run WITH FRAME TITLE TEXT-015.
+PARAMETERS p_test AS CHECKBOX MODIF ID x.
+SELECTION-SCREEN : BEGIN OF LINE,
+  COMMENT 20(79) TEXT-016 MODIF ID x.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN END OF BLOCK test_run.
+

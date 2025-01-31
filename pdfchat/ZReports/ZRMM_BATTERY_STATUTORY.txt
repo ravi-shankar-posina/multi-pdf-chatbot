@@ -1,0 +1,43 @@
+*****************************************************************************************
+*** Created by             : 502225516 & 502213303
+*** Creation Date          : 11-March-2014
+*** Transport Request #    : DE3K919311
+*** RICEF Object No #      : RICEF750&751
+*** Description            : Is to display the characteristic values of the
+*                            Battery indicator class for the SKU’s (i.e. materials)
+*                            which has this particular class assignment.
+*                            And according to the business requirement
+*                            this particular report is part of the statutory report.
+*****************************************************************************************************
+* DATE               | CR No.      |TR No         |Created BY          |DESCRIPTION
+*****************************************************************************************************
+* 11-Mar-10          | CHG0479115  | DE3K919311   |502225516&502213303 | New Report for
+*                                                                        Battery Statutory
+*****************************************************************************************************
+REPORT  zrmm_battery_statutory.
+TABLES : mara,klah,t001w,makt,ausp,cabnt,cawn,cawnt.
+*Declaration of includes
+INCLUDE znmm_select_screen.
+INCLUDE znmm_battery_stru.
+INCLUDE znmm_battery_forms.
+**&---------------------------------------------------------------------*
+**&  At Selection Screen on value request *
+**&  F4 HELP  FOR SELECTION SCREEN
+**&---------------------------------------------------------------------*
+*---TO GET CLASS name
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR s_class-low.
+  PERFORM f4help_class.
+*---TO GET Characteristic Name
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR s_atnam-low.
+  PERFORM f4help_class_name.
+*&---------------------------------------------------------------------*
+*&  START-OF-SELECTION
+*&---------------------------------------------------------------------*
+START-OF-SELECTION.
+  PERFORM get_batt_data.
+
+END-OF-SELECTION.
+  PERFORM get_final_data.
+  PERFORM build_field_catalog.
+  PERFORM display_output.
+

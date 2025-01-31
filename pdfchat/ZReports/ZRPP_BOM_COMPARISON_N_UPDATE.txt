@@ -1,0 +1,5522 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRPP_BOM_COMPARISON_N_UPDATE
+*&
+*&---------------------------------------------------------------------*
+*&*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Name             : ZRPP_BOM_COMPARISON_N_UPDATE                      *
+* Created by       : Laxma Reddy K (502199780)                         *
+* Transport Request: DE3K943344                                        *
+* RICEF Object No  : RICEF-1301                                        *
+* Transaction code : ZPP908                                            *
+* Description:       Compares Engg BOM to Production BOM and allows the*
+*                    user to update the Production BOM with EnggBOM    *
+*                    details using a change. This program is a copy of *
+*                    report ZPP8I020 in SAP 4.7 GE-IS system with some *
+*                    coding standard related modifications. Program    *
+*                    ZPP8I020 is copy of standard SAP program RCS14001 *
+*                    meant for BOM Comparsion, with some customization.*
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 25-July-2014       | CHG0479283      |502199780  | Initial Development
+***------------------------------------------------------------------****
+
+REPORT  zrpp_bom_comparison_n_update MESSAGE-ID 29 NO STANDARD PAGE HEADING
+                             LINE-SIZE 132 LINE-COUNT 65.
+
+
+*----------------------------------------------------------------------*
+*   INCLUDE RCS14DAT                                                   *
+*----------------------------------------------------------------------*
+INCLUDE <icon>.
+
+*----------------------------------------------------------------------*
+* TABLE Declarations
+*----------------------------------------------------------------------*
+TABLES: rc29l,
+        csin,
+        csbomex,
+        dntab,
+        indx,
+        stpo,
+        rc29p,
+        rc29v,
+        x030l,
+        afko,
+        resb,
+        marc,
+        t418,
+        tcc08,
+        vbap,
+        prst,
+        lklah,
+        message.
+
+*----------------------------------------------------------------------*
+* TYPE POOLS Declarations
+*----------------------------------------------------------------------*
+TYPE-POOLS: cc01,
+            slis.
+
+*----------------------------------------------------------------------*
+* TYPEs Declarations
+*----------------------------------------------------------------------*
+TYPES:  BEGIN OF type_fcode_stru,
+          fcode(4),
+       END OF type_fcode_stru.
+TYPES: type_fcode_tab TYPE type_fcode_stru OCCURS 0.
+
+TYPES: BEGIN OF updbom,
+       posnr LIKE stpox-posnr,
+       idnrk LIKE stpox-idnrk,
+       menge LIKE stpox-menge,
+       meins LIKE stpox-meins,
+       postp LIKE stpox-postp,
+       potx1 LIKE stpox-potx1,
+       sortf LIKE stpox-sortf,
+       schgt LIKE stpox-schgt,
+       lgort LIKE stpox-lgort,
+       upskz LIKE stpox-upskz,
+       stlty LIKE stpox-stlty,
+       stlnr LIKE stpox-stlnr,
+       stlkn LIKE stpox-stlkn,
+       stpoz LIKE stpox-stpoz,
+       alpgr LIKE stpo-alpgr,
+       alprf LIKE stpo-alprf,
+       alpst LIKE stpo-alpst,
+       ewahr TYPE char3,
+       END OF updbom.
+
+*----------------------------------------------------------------------*
+* CONSTANT Declarations
+*----------------------------------------------------------------------*
+CONSTANTS: gc_icon_sum               TYPE icon_d VALUE '@3Z@',
+           gc_icon_failure           TYPE icon_d VALUE '@03@',
+           gc_icon_equal_green       TYPE icon_d VALUE '@20@',
+           gc_icon_not_equal_red     TYPE icon_d VALUE '@2B@',
+           gc_icon_mat               TYPE icon_d VALUE '@A6@',
+           gc_icon_doc               TYPE icon_d VALUE '@AR@',
+           gc_icon_kla               TYPE icon_d VALUE '@7C@',
+           gc_icon_txt               TYPE icon_d VALUE '@0Q@',
+
+           gc_x                      TYPE c        VALUE 'X',
+           gc_a                      TYPE c        VALUE 'A',
+           gc_e                      TYPE c        VALUE 'E',
+           gc_n                      TYPE c        VALUE 'N',
+           gc_blank                  TYPE c        VALUE ' ',
+           gc_pos_k                  TYPE i        VALUE 3,
+           gc_pos_b                  TYPE i        VALUE 1,
+           gc_pos_se                 TYPE i        VALUE 59,
+           gc_pos_pr                 TYPE i        VALUE 34,
+           gc_pos_p_m                TYPE i        VALUE 34,
+           gc_pos_v_e                TYPE i        VALUE 70,
+           gc_max_step               TYPE i        VALUE 6,
+           gc_text_len               TYPE i        VALUE 40,
+           gc_pos_end                TYPE i        VALUE 131,
+           gc_pos_end_sim            TYPE i        VALUE 78,
+           gc_g_val_shift            TYPE sy-cucol VALUE '1',
+           gc_g_newln_flg            TYPE ccxfeld  VALUE 'X',
+           gc_comp_alv               TYPE tabname  VALUE 'CSCOMP_ALV',
+           gc_pf_status_set          TYPE slis_formname VALUE 'PF_STATUS_SET',
+           gc_usr_comm               TYPE slis_formname VALUE 'USER_COMMAND',
+           gc_plant_all              TYPE werks_d       VALUE '*   ',
+           gc_min_grg                TYPE sy-datum      VALUE '19000101'.
+
+*----------------------------------------------------------------------*
+* FIELD-SYMBOL Declarations
+*----------------------------------------------------------------------*
+FIELD-SYMBOLS: <f1>,
+               <f2>,
+               <fsa>,
+               <fsb>,
+               <fsc>,
+               <fsd>,
+               <fse>.
+
+*----------------------------------------------------------------------*
+* VARIABLE Declarations
+*----------------------------------------------------------------------*
+DATA: gw_fa01 TYPE fieldname,
+      gw_fa02 TYPE fieldname,
+      gw_fa03 TYPE fieldname,
+      gw_fa04 TYPE fieldname,
+      gw_fa05 TYPE fieldname,
+      gw_fa06 TYPE fieldname,
+      gw_fa07 TYPE fieldname,
+      gw_fa08 TYPE fieldname,
+      gw_fa09 TYPE fieldname,
+      gw_fa10 TYPE fieldname,
+      gw_fa11 TYPE fieldname,
+      gw_fa12 TYPE fieldname,
+      gw_fa13 TYPE fieldname,
+      gw_fa14 TYPE fieldname,
+      gw_fa15 TYPE fieldname,
+      gw_fa16 TYPE fieldname,
+      gw_fa17 TYPE fieldname,
+      gw_fa18 TYPE fieldname,
+      gw_fa19 TYPE fieldname,
+      gw_fa20 TYPE fieldname,
+      gw_fm01 TYPE fieldname,
+      gw_fm02 TYPE fieldname,
+      gw_fm03 TYPE fieldname,
+      gw_fm04 TYPE fieldname,
+      gw_fm05 TYPE fieldname,
+      gw_fm06 TYPE fieldname,
+      gw_fm07 TYPE fieldname,
+      gw_fm08 TYPE fieldname,
+      gw_fm09 TYPE fieldname,
+      gw_fm10 TYPE fieldname,
+      gw_fm11 TYPE fieldname,
+      gw_fm12 TYPE fieldname,
+      gw_fm13 TYPE fieldname,
+      gw_fm14 TYPE fieldname,
+      gw_fm15 TYPE fieldname,
+      gw_fm16 TYPE fieldname,
+      gw_fm17 TYPE fieldname,
+      gw_fm18 TYPE fieldname,
+      gw_fm19 TYPE fieldname,
+      gw_fm20 TYPE fieldname,
+      gw_fm21 TYPE fieldname,
+      gw_fm22 TYPE fieldname,
+      gw_fm23 TYPE fieldname,
+      gw_fm24 TYPE fieldname,
+      gw_fm25 TYPE fieldname,
+      gw_fm26 TYPE fieldname,
+      gw_fm27 TYPE fieldname,
+      gw_fm28 TYPE fieldname,
+      gw_fm29 TYPE fieldname,
+      gw_fm30 TYPE fieldname,
+      gw_fd01 TYPE fieldname,
+      gw_fd02 TYPE fieldname,
+      gw_fd03 TYPE fieldname,
+      gw_fd04 TYPE fieldname,
+      gw_fd05 TYPE fieldname,
+      gw_fd06 TYPE fieldname,
+      gw_fd07 TYPE fieldname,
+      gw_fd08 TYPE fieldname,
+      gw_fd09 TYPE fieldname,
+      gw_fd10 TYPE fieldname,
+      gw_fd11 TYPE fieldname,
+      gw_fd12 TYPE fieldname,
+      gw_fd13 TYPE fieldname,
+      gw_fd14 TYPE fieldname,
+      gw_fd15 TYPE fieldname,
+      gw_fd16 TYPE fieldname,
+      gw_fd17 TYPE fieldname,
+      gw_fd18 TYPE fieldname,
+      gw_fd19 TYPE fieldname,
+      gw_fd20 TYPE fieldname,
+      gw_fd21 TYPE fieldname,
+      gw_fd22 TYPE fieldname,
+      gw_fd23 TYPE fieldname,
+      gw_fd24 TYPE fieldname,
+      gw_fd25 TYPE fieldname,
+      gw_fd26 TYPE fieldname,
+      gw_fd27 TYPE fieldname,
+      gw_fd28 TYPE fieldname,
+      gw_fd29 TYPE fieldname,
+      gw_fd30 TYPE fieldname,
+      gw_fk01 TYPE fieldname,
+      gw_fk02 TYPE fieldname,
+      gw_fk03 TYPE fieldname,
+      gw_fk04 TYPE fieldname,
+      gw_fk05 TYPE fieldname,
+      gw_fk06 TYPE fieldname,
+      gw_fk07 TYPE fieldname,
+      gw_fk08 TYPE fieldname,
+      gw_fk09 TYPE fieldname,
+      gw_fk10 TYPE fieldname,
+      gw_fk11 TYPE fieldname,
+      gw_fk12 TYPE fieldname,
+      gw_fk13 TYPE fieldname,
+      gw_fk14 TYPE fieldname,
+      gw_fk15 TYPE fieldname,
+      gw_fk16 TYPE fieldname,
+      gw_fk17 TYPE fieldname,
+      gw_fk18 TYPE fieldname,
+      gw_fk19 TYPE fieldname,
+      gw_fk20 TYPE fieldname,
+      gw_fk21 TYPE fieldname,
+      gw_fk22 TYPE fieldname,
+      gw_fk23 TYPE fieldname,
+      gw_fk24 TYPE fieldname,
+      gw_fk25 TYPE fieldname,
+      gw_fk26 TYPE fieldname,
+      gw_fk27 TYPE fieldname,
+      gw_fk28 TYPE fieldname,
+      gw_fk29 TYPE fieldname,
+      gw_fk30 TYPE fieldname,
+      gw_ft01 TYPE fieldname,
+      gw_ft02 TYPE fieldname,
+      gw_ft03 TYPE fieldname,
+      gw_ft04 TYPE fieldname,
+      gw_ft05 TYPE fieldname,
+      gw_ft06 TYPE fieldname,
+      gw_ft07 TYPE fieldname,
+      gw_ft08 TYPE fieldname,
+      gw_ft09 TYPE fieldname,
+      gw_ft10 TYPE fieldname,
+      gw_ft11 TYPE fieldname,
+      gw_ft12 TYPE fieldname,
+      gw_ft13 TYPE fieldname,
+      gw_ft14 TYPE fieldname,
+      gw_ft15 TYPE fieldname,
+      gw_ft16 TYPE fieldname,
+      gw_ft17 TYPE fieldname,
+      gw_ft18 TYPE fieldname,
+      gw_ft19 TYPE fieldname,
+      gw_ft20 TYPE fieldname,
+      gw_ft21 TYPE fieldname,
+      gw_ft22 TYPE fieldname,
+      gw_ft23 TYPE fieldname,
+      gw_ft24 TYPE fieldname,
+      gw_ft25 TYPE fieldname,
+      gw_ft26 TYPE fieldname,
+      gw_ft27 TYPE fieldname,
+      gw_ft28 TYPE fieldname,
+      gw_ft29 TYPE fieldname,
+      gw_ft30 TYPE fieldname,
+      gw_fi01 TYPE fieldname,
+      gw_fi02 TYPE fieldname,
+      gw_fi03 TYPE fieldname,
+      gw_fi04 TYPE fieldname,
+      gw_fi05 TYPE fieldname,
+      gw_fi06 TYPE fieldname,
+      gw_fi07 TYPE fieldname,
+      gw_fi08 TYPE fieldname,
+      gw_fi09 TYPE fieldname,
+      gw_fi10 TYPE fieldname,
+      gw_fi11 TYPE fieldname,
+      gw_fi12 TYPE fieldname,
+      gw_fi13 TYPE fieldname,
+      gw_fi14 TYPE fieldname,
+      gw_fi15 TYPE fieldname,
+      gw_fi16 TYPE fieldname,
+      gw_fi17 TYPE fieldname,
+      gw_fi18 TYPE fieldname,
+      gw_fi19 TYPE fieldname,
+      gw_fi20 TYPE fieldname,
+      gw_fi21 TYPE fieldname,
+      gw_fi22 TYPE fieldname,
+      gw_fi23 TYPE fieldname,
+      gw_fi24 TYPE fieldname,
+      gw_fi25 TYPE fieldname,
+      gw_fi26 TYPE fieldname,
+      gw_fi27 TYPE fieldname,
+      gw_fi28 TYPE fieldname,
+      gw_fi29 TYPE fieldname,
+      gw_fi30 TYPE fieldname,
+      gw_wu_flag,
+      gw_pa_wu,
+      gw_f TYPE char30,
+      gw_pos TYPE i,
+      gw_prog TYPE sy-repid VALUE 'RCS14001',
+      gw_ztext TYPE cstext,
+      gw_stlnr TYPE stnum,
+      gw_color_save TYPE i,
+      gw_chkbox,
+      gw_displayed,
+      gw_linecount TYPE sytabix,
+      gw_a_tabix TYPE sytabix,
+      gw_b_tabix TYPE sytabix,
+      gw_updindx TYPE sytabix,
+      gw_save_subrc1 TYPE sy-subrc,
+      gw_save_subrc2 TYPE sy-subrc,
+      gw_show_dif,
+      gw_show_sim,
+      gw_show_equ,
+      gw_already_done,
+      gw_found,
+      gw_brutto,
+      gw_gleich,
+      gw_hell VALUE ' ',
+      gw_empty VALUE space,
+      gw_show TYPE char4,
+      gw_max_posnr TYPE i,
+      gw_key_a TYPE fieldname,
+      gw_key_b TYPE fieldname,
+      gw_key_c TYPE fieldname,
+      gw_key_d TYPE fieldname,
+      gw_key_e TYPE fieldname,
+      gw_comp TYPE char40,
+      gw_dbl_lin TYPE text150,
+      gw_akt_text TYPE ojtxp,
+      gw_field_a TYPE char21,
+      gw_field_b TYPE char21,
+      gw_akt_komp TYPE char27,
+      gw_last_komp TYPE char27,
+      gw_ups_faktor TYPE f,
+      gw_old_b_posnr TYPE sposn,
+      gw_g_first_flg TYPE ccxfeld,
+      gw_g_eoblc_flg TYPE ccxfeld,
+      gw_g_lnmpt_flg TYPE ccxfeld,
+      gw_pos_s TYPE i,
+      gw_pos_s_e TYPE i,
+      gw_pos_p_e TYPE i,
+      gw_pos_p_t TYPE i,
+      gw_pos_p_g TYPE i,
+      gw_pos_p_s TYPE i,
+      gw_pos_s_g TYPE i,
+      gw_pos_s_t TYPE i,
+      gw_pos_s_s TYPE i,
+      gw_upd8ok VALUE 'X',
+      gw_upd8sv VALUE 'X',
+      gw_chkline VALUE 'X',
+      gw_pos_v_s TYPE i VALUE 67,
+      gw_pos_v_m TYPE i VALUE 85,
+      gw_pos_p_i TYPE i VALUE 32,
+      gw_diff_len TYPE i VALUE 18,
+      gw_komp_len TYPE i VALUE 27.
+
+*----------------------------------------------------------------------*
+* WORKAREA & INTERNAL TABLE Declarations
+*----------------------------------------------------------------------*
+DATA: gt_wultb TYPE STANDARD TABLE OF stpov,
+      gt_equicat TYPE STANDARD TABLE OF cscequi,
+      gt_kndcat TYPE STANDARD TABLE OF cscknd,
+      gt_matcat TYPE STANDARD TABLE OF cscmat,
+      gt_stdcat TYPE STANDARD TABLE OF cscstd,
+      gt_tplcat TYPE STANDARD TABLE OF csctpl.
+
+DATA: BEGIN OF bdcdata OCCURS 0.
+        INCLUDE STRUCTURE bdcdata.
+DATA: END OF bdcdata.
+
+DATA  BEGIN OF stb OCCURS 0.
+        INCLUDE STRUCTURE rc29v2.
+DATA  END   OF stb.
+
+DATA  BEGIN OF bom_a OCCURS 0.
+        INCLUDE STRUCTURE rc29v2.
+DATA  END   OF bom_a.
+
+DATA  BEGIN OF bom_b OCCURS 0.
+        INCLUDE STRUCTURE rc29v2.
+DATA  END   OF bom_b.
+
+DATA: BEGIN OF bom_a_cum OCCURS 100.
+        INCLUDE STRUCTURE rc29v1.
+DATA: END OF bom_a_cum.
+
+DATA: BEGIN OF bom_b_cum OCCURS 100.
+        INCLUDE STRUCTURE rc29v2.
+DATA: END OF bom_b_cum.
+
+*data: diff like rc29v occurs 0 with header line.
+DATA: BEGIN OF differ,
+        a_tabix TYPE sytabix,         " Zeile in bom_a
+        b_tabix TYPE sytabix,         " Zeile in bom_b
+        difference TYPE char20,         " Klassifizierung bei differnz.
+        icon TYPE iconname,
+        mnglg_diff TYPE cs_e_mnglg,   " Primär minus Sekundärmenge
+        akt_komp TYPE ojtxp,     " allgemeiner Komp.name
+        akt_text TYPE ojtxp,     " allgemeiner Komp.kurztext
+*       Typ, Schlüssel und Menge der Väter merken (für Positionsbild)
+        bmtyp_a TYPE stlty,
+        matnr_a TYPE matnr,
+        doknr_a TYPE doknr,
+        dokar_a TYPE dokar,
+        doktl_a TYPE doktl_d,
+        dokvr_a TYPE dokvr,
+        equnr_a TYPE equnr,
+        tplnr_a TYPE tplnr,
+        vbeln_a TYPE cs_vbeln,
+        vbpos_a TYPE cs_vbpos,
+        aufnr_a TYPE aufnr,
+        pspnr_a TYPE cs_pspnr,
+        mnglg_a TYPE cs_e_mnglg,
+        posnr_a TYPE sposn,
+        idnrk_a TYPE matnr,
+        sortf_a TYPE sortp,
+        sitem_a TYPE text1000,
+        bmtyp_b TYPE stlty,
+        matnr_b TYPE matnr,
+        doknr_b TYPE doknr,
+        dokar_b TYPE dokar,
+        doktl_b TYPE doktl_d,
+        dokvr_b TYPE dokvr,
+        equnr_b TYPE equnr,
+        tplnr_b TYPE tplnr,
+        vbeln_b TYPE cs_vbeln,
+        vbpos_b TYPE cs_vbpos,
+        aufnr_b TYPE aufnr,
+        pspnr_b TYPE cs_pspnr,
+        mnglg_b TYPE cs_e_mnglg,
+        posnr_b TYPE sposn,
+        idnrk_b TYPE matnr,
+        sortf_b TYPE sortp,
+        sitem_b TYPE text1000,
+        delete,
+      END OF differ.
+
+DATA: BEGIN OF diff OCCURS 0.
+        INCLUDE STRUCTURE differ.
+DATA: END OF diff.
+
+DATA: BEGIN OF diff2 OCCURS 0.
+        INCLUDE STRUCTURE differ.
+DATA: END OF diff2.
+
+DATA: BEGIN OF fcode_tab OCCURS 3,
+          fcode(4),
+      END OF fcode_tab.
+DATA: BEGIN OF fcode_tab1 OCCURS 3,
+          fcode(4),
+      END OF fcode_tab1.
+
+DATA: BEGIN OF b_rest OCCURS 0,
+          index LIKE sy-tabix,
+      END OF b_rest.
+DATA: BEGIN OF b_read OCCURS 0,
+          index LIKE sy-tabix,
+      END OF b_read.
+
+DATA: BEGIN OF matcat_a OCCURS 0.
+        INCLUDE STRUCTURE cscmat.
+DATA: END OF matcat_a.
+
+DATA: BEGIN OF matcat_b OCCURS 0.
+        INCLUDE STRUCTURE cscmat.
+DATA: END OF matcat_b.
+
+DATA: BEGIN OF doccat_a OCCURS 0.
+        INCLUDE STRUCTURE cscdoc.
+DATA: END OF doccat_a.
+
+DATA: BEGIN OF doccat_b OCCURS 0.
+        INCLUDE STRUCTURE cscdoc.
+DATA: END OF doccat_b.
+
+DATA: BEGIN OF tplcat_a OCCURS 0.
+        INCLUDE STRUCTURE csctpl.
+DATA: END OF tplcat_a.
+
+DATA: BEGIN OF tplcat_b OCCURS 0.
+        INCLUDE STRUCTURE csctpl.
+DATA: END OF tplcat_b.
+
+DATA  BEGIN OF wa1 OCCURS 0.
+        INCLUDE STRUCTURE stpub.
+DATA: END OF wa1.
+
+DATA  BEGIN OF wa2 OCCURS 0.
+        INCLUDE STRUCTURE stpub.
+DATA: END OF wa2.
+
+DATA: BEGIN OF range_knobj OCCURS 0.
+        INCLUDE STRUCTURE cukr_04.
+DATA: END OF range_knobj.
+
+DATA: BEGIN OF icuob OCCURS 0.
+        INCLUDE STRUCTURE cuob.
+DATA: END OF icuob.
+
+DATA: BEGIN OF range_knnum1 OCCURS 0.
+        INCLUDE STRUCTURE cukr_02.
+DATA: END OF range_knnum1.
+
+DATA: BEGIN OF range_knnum2 OCCURS 0.
+        INCLUDE STRUCTURE cukr_02.
+DATA: END OF range_knnum2.
+
+DATA: BEGIN OF range_knnum1_rest OCCURS 0,
+        knnum LIKE cukb-knnum,
+      END OF range_knnum1_rest.
+
+DATA: BEGIN OF range_knnum2_rest OCCURS 0,
+        knnum LIKE cukb-knnum,
+      END OF range_knnum2_rest.
+
+DATA: BEGIN OF source_tab,
+        knnum       LIKE cukr_03-knnum,
+        line(2000)  TYPE c,
+        found(1)    TYPE c,
+      END OF source_tab.
+
+DATA: BEGIN OF code_tab1 OCCURS 0.
+        INCLUDE STRUCTURE cukr_01.
+DATA: END OF code_tab1.
+
+DATA: BEGIN OF code_tab2 OCCURS 0.
+        INCLUDE STRUCTURE cukr_01.
+DATA: END OF code_tab2.
+
+DATA: BEGIN OF icukb.
+        INCLUDE STRUCTURE cukb.
+DATA: END OF icukb.
+
+DATA: BEGIN OF icukb1 OCCURS 0.
+        INCLUDE STRUCTURE cukb.
+DATA: END OF icukb1.
+
+DATA: BEGIN OF icukb2 OCCURS 0.
+        INCLUDE STRUCTURE cukb.
+DATA: END OF icukb2.
+
+DATA: BEGIN OF source_tab1 OCCURS 0.
+        INCLUDE STRUCTURE source_tab.
+DATA: END OF source_tab1.
+
+DATA: BEGIN OF source_tab2 OCCURS 0.
+        INCLUDE STRUCTURE source_tab.
+DATA: END OF source_tab2.
+
+DATA: BEGIN OF knowledge_tab_a OCCURS 0,
+        knobj LIKE stpox-knobj.
+        INCLUDE STRUCTURE source_tab.
+DATA:   knnam LIKE cukb-knnam,
+      END OF knowledge_tab_a.
+
+DATA: BEGIN OF knowledge_tab_b OCCURS 0,
+        knobj LIKE stpox-knobj.
+        INCLUDE STRUCTURE source_tab.
+DATA:   knnam LIKE cukb-knnam,
+      END OF knowledge_tab_b.
+
+DATA: BEGIN OF kt_relation OCCURS 0,
+        knobj_a LIKE stpox-knobj,
+        knnum_a LIKE cukb-knnum,
+        knobj_b LIKE stpox-knobj,
+        knnum_b LIKE cukb-knnum,
+      END OF kt_relation.
+
+DATA: BEGIN OF updtab OCCURS 0,
+      chk,
+      a TYPE updbom,
+      b TYPE updbom,
+      END OF updtab.
+
+DATA: updtab2 LIKE updtab OCCURS 0 WITH HEADER LINE.
+DATA: gt_watab      LIKE cltable OCCURS 0 WITH HEADER LINE.
+DATA:  gt_cscomp LIKE cscomp_alv OCCURS 0 WITH HEADER LINE.
+
+*----------------------------------------------------------------------*
+* Selection screen
+*----------------------------------------------------------------------*
+SELECTION-SCREEN: BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+PARAMETERS: gp_mat1 LIKE rc29l-matnr MATCHCODE OBJECT mat1
+                                     MEMORY ID mat,
+            gp_wrk1  TYPE rc29l-werks,
+            gp_lan1  TYPE rc29l-stlan DEFAULT '1',
+            gp_dat1  TYPE rc29l-datuv DEFAULT sy-datum MODIF ID us2,
+            gp_aen1  TYPE rc29l-aennr MATCHCODE OBJECT aen1.
+SELECTION-SCREEN: END OF BLOCK b1.
+
+SELECTION-SCREEN: BEGIN OF BLOCK b2 WITH FRAME TITLE text-002.
+PARAMETERS: gp_mat2 TYPE rc29l-matnr MATCHCODE OBJECT mat1
+                                     MEMORY ID mat MODIF ID us2,
+            gp_wrk2 TYPE rc29l-werks,
+            gp_lan2 TYPE rc29l-stlan DEFAULT '2' MODIF ID us2,
+            gp_dat2 TYPE rc29l-datuv DEFAULT sy-datum.
+
+SELECTION-SCREEN: END OF BLOCK b2.
+PARAMETERS: gp_igsub AS CHECKBOX DEFAULT gc_x,
+            gp_igsrt AS CHECKBOX DEFAULT gc_x,
+            gp_mode(1) TYPE c DEFAULT gc_e.
+SELECTION-SCREEN: SKIP 1.
+
+SELECTION-SCREEN: BEGIN OF BLOCK b3 WITH FRAME TITLE text-003.
+PARAMETERS: gp_awu AS CHECKBOX DEFAULT gc_blank.
+SELECTION-SCREEN: END OF BLOCK b3.
+
+*SELECTION-SCREEN: BEGIN OF BLOCK b4 WITH FRAME TITLE text-060.
+*PARAMETERS: gp_alt AS CHECKBOX DEFAULT gc_blank.
+PARAMETERS: gp_alt NO-DISPLAY.
+*SELECTION-SCREEN: END OF BLOCK b4.
+
+INCLUDE rcs14com.                      " Common Data with SAPMC29V
+
+*----------------------------------------------------------------------*
+* INITIALIZATION Event
+*----------------------------------------------------------------------*
+INITIALIZATION.
+
+  MOVE sy-repid TO gw_prog.
+  gp_mat2 = gp_mat1.
+  gp_wrk2 = gp_wrk1.
+
+*             "12345678901234567890123456789012345678901234567890"
+  CONCATENATE '##################################################'
+              '##################################################'
+              '##################################################'
+              INTO gw_dbl_lin.
+
+*----------------------------------------------------------------------*
+* AT SELECTION-SCREEN OUTPUT Event
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN OUTPUT.
+
+  PERFORM force_input.
+
+*----------------------------------------------------------------------*
+* START-OF-SELECTION Event
+*----------------------------------------------------------------------*
+START-OF-SELECTION.
+* DL1K988896
+*  AUTHORITY-CHECK OBJECT 'Z_PP_COST'
+*                    ID 'ACTVT' FIELD '02'
+*                    ID 'WERKS' FIELD pa_wrk1.
+*
+*  IF sy-subrc NE 0.
+*    MESSAGE e638 WITH text-059 pa_wrk1.
+*    EXIT.
+*  ENDIF.
+*  AUTHORITY-CHECK OBJECT 'Z_PP_COST'
+*                    ID 'ACTVT' FIELD '02'
+*                    ID 'WERKS' FIELD pa_wrk2.
+*
+*  IF sy-subrc NE 0.
+*    MESSAGE e638 WITH text-059 pa_wrk2.
+*    EXIT.
+*  ENDIF.
+
+  PERFORM force_input.
+
+  IF gp_mode NE gc_a AND
+     gp_mode NE gc_e.
+    gp_mode = gc_n.
+  ENDIF.
+
+  IF gp_awu = gc_x.
+    gw_pa_wu = gc_x.
+    CLEAR gw_upd8sv.
+  ENDIF.
+
+  IF gp_mat1 = gp_mat2 AND
+     gp_wrk1 = gp_wrk2 AND
+     gp_lan1 = gp_lan2 AND
+     gp_dat1 = gp_dat2.
+    MESSAGE i899 WITH 'Must use different BOM, Plant, Usage, or Date.'(006).
+    EXIT.
+  ENDIF.
+
+  IF gp_mat1 = gp_mat2 AND
+     gp_wrk1 = gp_wrk2 AND
+     gp_lan1 = gp_lan2 AND
+     gp_lan1 = '2'.
+    MESSAGE i899 WITH 'Must use different BOM, Plant, or Usage.'(007).
+    EXIT.
+  ENDIF.
+*break-point.
+  IF sy-batch NE gc_x AND ( gp_awu =  gc_x OR gw_pa_wu  =  gc_x ).
+    MESSAGE i899 WITH 'Must use Background when Selecting Uniques.'(010).
+    EXIT.
+  ENDIF.
+
+  IF NOT gp_aen1 IS INITIAL.
+    SELECT SINGLE datuv
+                  INTO   gp_dat1
+                  FROM   aenr
+                  WHERE  aennr = gp_aen1.
+    MESSAGE s042 WITH gp_dat1.
+  ELSE.
+
+    CLEAR gw_upd8sv.
+    IF gp_dat1 IS INITIAL AND
+       sy-batch = space.
+      MESSAGE i899 WITH 'Must enter either a "Change Number" to Update'(011)
+                        'or else a "Valid from" date'(017)
+                        'to do a Comparison only.'(018).
+      EXIT.
+    ENDIF.
+    IF gp_dat1 IS INITIAL AND sy-batch = gc_x.
+      gp_dat1 = sy-datum.
+      MESSAGE s899 WITH 'Defaulting "Valid from" to'(019) gp_dat1.
+    ENDIF.
+  ENDIF.
+
+  REFRESH bom_key.
+
+  WRITE gp_mat1 TO gw_comp NO-ZERO.
+  SHIFT gw_comp LEFT DELETING LEADING space.
+  CONCATENATE gw_comp gp_wrk1 gp_lan1 gp_dat1 gp_aen1
+           INTO bom_key-text1
+           SEPARATED BY '/'.
+
+  WRITE gp_mat2 TO gw_comp NO-ZERO.
+  SHIFT gw_comp LEFT DELETING LEADING space.
+  CONCATENATE gw_comp gp_wrk2 gp_lan2 gp_dat2
+           INTO bom_key-text2
+           SEPARATED BY '/'.
+
+  MOVE:'X'         TO bom_key-write_text,
+       'M'         TO bom_key-objty1,
+       gp_mat1     TO bom_key-matnr1,
+       gp_wrk1     TO bom_key-werks1,
+       gp_lan1     TO bom_key-stlan1,
+       gp_dat1     TO bom_key-datuv1,
+       gp_aen1     TO bom_key-aennr1,
+
+       'M'         TO bom_key-objty2,
+       gp_mat2     TO bom_key-matnr2,
+       gp_wrk2     TO bom_key-werks2,
+       gp_lan2     TO bom_key-stlan2,
+       gp_dat2     TO bom_key-datuv2.
+  APPEND bom_key.
+  READ TABLE bom_key INDEX 1.
+
+* DLGK909443 - update header text
+  SELECT SINGLE z~ztext
+                INTO gw_ztext
+                FROM  stzu AS z
+                JOIN  stko AS s
+                ON  ( z~stlty = s~stlty AND  z~stlnr = s~stlnr )
+                JOIN mast AS m
+                ON z~stlnr = m~stlnr
+                WHERE  z~stlty  =  bom_key-objty2
+                AND    z~stlan  =  bom_key-stlan2
+                AND    m~matnr  =  bom_key-matnr2
+                AND    s~datuv  LE bom_key-datuv2.
+
+  MOVE:'IDNRK'         TO key_fields-field,
+       'BOM component' TO key_fields-fieldtext.
+  APPEND key_fields.
+  MOVE:'POTX1'      TO key_fields-field,
+       'BOM item text (line 1)' TO key_fields-fieldtext.
+  APPEND key_fields.
+  MOVE:'POTX2'      TO key_fields-field,
+       'BOM item text (line 2)' TO key_fields-fieldtext.
+  APPEND key_fields.
+  MOVE:'DOKAR'      TO key_fields-field,
+       'Document type' TO key_fields-fieldtext.
+  APPEND key_fields.
+  MOVE:'DOKNR'      TO key_fields-field,
+       'Document number' TO key_fields-fieldtext.
+  APPEND key_fields.
+  MOVE:'DOKVR'      TO key_fields-field,
+       'Document version' TO key_fields-fieldtext.
+  APPEND key_fields.
+  MOVE:'DOKTL'      TO key_fields-field,
+       'Document part' TO key_fields-fieldtext.
+  APPEND key_fields.
+  MOVE:'CLASS'      TO key_fields-field,
+       'Class number' TO key_fields-fieldtext.
+  MOVE:'KLART'      TO key_fields-field,
+       'Class type' TO key_fields-fieldtext.
+  APPEND key_fields.
+* Relev
+  MOVE:'IDNRK'      TO relev-field,
+       'X'          TO relev-objtya.
+  APPEND relev.
+  MOVE:'OJTXP'      TO relev-field,
+       'X'          TO relev-objtya.
+  APPEND relev.
+  MOVE:'MENGE'      TO relev-field,
+       'X'          TO relev-objtya.
+  APPEND relev.
+  MOVE: 'MEINS'     TO relev-field,
+        'X'         TO relev-objtya.
+  APPEND relev.
+
+  IF gp_igsrt = space.
+    MOVE:'SORTF'      TO relev-field,
+         'X'          TO relev-objtya.
+    APPEND relev.
+  ENDIF.
+
+  MOVE:'POSTP'      TO relev-field,
+       'X'          TO relev-objtya.
+  APPEND relev.
+
+  MOVE:'ALPGR'    TO relev-field,
+     'X'          TO relev-objtya.
+  APPEND relev.
+  MOVE:'ALPRF'    TO relev-field,
+      'X'          TO relev-objtya.
+  APPEND relev.
+  MOVE:'ALPST'    TO relev-field,
+      'X'          TO relev-objtya.
+  APPEND relev.
+  MOVE:'EWAHR'    TO relev-field,
+      'X'          TO relev-objtya.
+  APPEND relev.
+
+* non_relev
+  MOVE 'MULTIPLE'   TO non_relev-field.
+  APPEND non_relev.
+* All_fields
+  MOVE:'STPOX'              TO all_fields-tabname,
+       'OJTXP'              TO all_fields-field,
+       'Object Description(Item)' TO all_fields-fieldtext.
+  APPEND all_fields.
+  MOVE:'STPOX'              TO all_fields-tabname,
+       'STPRS'              TO all_fields-field,
+       'Standard Price'     TO all_fields-fieldtext.
+  APPEND all_fields.
+  MOVE:'STPOX'              TO all_fields-tabname,
+       'MENGE'              TO all_fields-field,
+       'Quantity'           TO all_fields-fieldtext.
+  APPEND all_fields.
+  MOVE:'STPOX'              TO all_fields-tabname,
+       'SORTF'              TO all_fields-field,
+       'SortStrng'          TO all_fields-fieldtext.
+  APPEND all_fields.
+  MOVE:'STPOX'              TO all_fields-tabname,
+       'POSTP'              TO all_fields-field,
+       'Item Category'      TO all_fields-fieldtext.
+  APPEND all_fields.
+  MOVE:'STPOX'              TO all_fields-tabname,
+       'POSNR'              TO all_fields-field,
+       'Item Number'        TO all_fields-fieldtext.
+  APPEND all_fields.
+  MOVE:'     '              TO all_fields-tabname,
+       'MULTIPLE'           TO all_fields-field,
+       'Multiple Indicator' TO all_fields-fieldtext.
+  APPEND all_fields.
+* RC29L
+  MOVE:'X'          TO rc29l-zbgrp,
+       'X'          TO rc29l-upsaz.
+*
+  PERFORM compare_bom_2_to_1.
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_SIMILARITY
+*&---------------------------------------------------------------------*
+FORM compare_bom_2_to_1.
+
+  FORMAT INTENSIFIED OFF COLOR COL_NORMAL.
+*
+  PERFORM bom_explosions.
+  IF ( gw_save_subrc1 NE 0 ) OR ( gw_save_subrc2 NE 0 ).
+    EXIT.
+  ENDIF.
+
+  REFRESH knowledge_tab_a.
+  REFRESH knowledge_tab_b.
+  REFRESH kt_relation.
+*     Vergleich differenziert nach auftretenden Positionen
+*break-point.
+  PERFORM tables_compare
+     USING   gw_gleich.
+  IF ( gw_gleich EQ 'X' ).
+    MESSAGE ID '29' TYPE 'I' NUMBER '590'.
+  ENDIF.
+  PERFORM fcode_differentiated.
+*    ausgabe der übersicht der zugeordneten positionen
+  PERFORM diff_output TABLES diff
+                             bom_a
+                             bom_b
+                             bom_key.
+
+
+ENDFORM.                               " COMPARE_BOM_2_TO_1
+
+*----------------------------------------------------------------------*
+*   INCLUDE RCS14F01                                                   *
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+*      Form  DIFF_OUTPUT
+*----------------------------------------------------------------------*
+*                                                                      *
+*----------------------------------------------------------------------*
+FORM diff_output TABLES diff STRUCTURE differ
+                        bom_a STRUCTURE rc29v1
+                        bom_b STRUCTURE rc29v2
+                        bom_key STRUCTURE bom_key.
+
+  DATA: last_a    LIKE sy-tabix,
+        anz_meins LIKE stpox-meins.
+
+  SET PF-STATUS 'STAT2' EXCLUDING fcode_tab.
+*  SET TITLEBAR 'T20'.
+*  Check Disply Method
+  IF bom_key-displ_method EQ 'V'.
+
+    CLEAR diff.
+  ELSEIF bom_key-displ_method EQ 'A'.
+
+  ELSE.
+    LEAVE TO LIST-PROCESSING.
+    CLEAR gw_last_komp.
+    CLEAR gw_akt_komp.
+    CLEAR last_a.
+*   Formatierung
+    gw_pos_p_e = gc_pos_p_m + 23.
+    gw_pos_p_t = gw_pos_p_e + 4.
+    gw_pos_p_s = gw_pos_p_t + 3.
+    gw_pos_v_s = 81.
+    gw_komp_len = gw_pos_v_s - gc_pos_p_m - 1.
+    gw_pos_v_m = 84.
+*change 64 to 76 and 76 to 79 above then 81 and 84
+    gw_diff_len = gw_pos_v_m - gw_pos_v_s - 1.
+    gw_pos_s_e = gw_pos_v_m + 23.
+    gw_pos_s_t = gw_pos_s_e + 4.
+    gw_pos_s_s = gw_pos_s_t + 3.
+
+*   Inhalt ausgeben
+    LOOP AT diff.
+      IF  ( ( gw_show_dif = 'X' ) AND ( diff-difference EQ 'different' ) )
+       OR ( ( gw_show_sim = 'X' ) AND ( diff-difference EQ 'similar' ) ).
+
+        CLEAR: bom_a, bom_b.
+        gw_akt_komp = diff-akt_komp.
+        gw_akt_text = diff-akt_text.
+
+        IF diff-difference NE 'equal'.
+          READ TABLE bom_b INDEX diff-b_tabix.
+          READ TABLE bom_a INDEX diff-a_tabix.
+          gw_old_b_posnr = bom_b-posnr.       " save Usage 2 item #
+          MOVE-CORRESPONDING bom_a TO updtab-a.
+          MOVE-CORRESPONDING bom_b TO updtab-b.
+          APPEND updtab.
+          gw_updindx = sy-tabix.
+          gw_upd8ok = gw_upd8sv.
+
+          IF ( diff-a_tabix = 0 ) .
+*
+            WRITE: AT 1(gc_pos_end) gw_dbl_lin INTENSIFIED ON.
+
+            IF ( diff-b_tabix > 0 ).
+              IF NOT bom_b-idnrk IS INITIAL.
+                SELECT DISTINCT
+                       posnr
+                       datuv
+                       aennr
+                       alpgr
+                       alprf
+                       alpst
+                       ewahr
+                INTO  (stpo-posnr,
+                       stpo-datuv,
+                       stpo-aennr,
+                       stpo-alpgr,
+                       stpo-alprf,
+                       stpo-alpst,
+                       stpo-ewahr)
+                FROM   stpo
+                WHERE  stlnr = gw_stlnr      AND
+                     ( idnrk = bom_b-idnrk OR
+                       posnr = bom_b-posnr ) AND
+                       sortf = bom_b-sortf   AND
+                       datuv > gp_dat1       AND
+                       lkenz = space
+                ORDER BY datuv
+                         posnr.
+                  FORMAT COLOR COL_NEGATIVE INTENSIFIED.
+                  WRITE: / 'Warning: Update Prohibited - Component',
+                           '(Item',
+                           stpo-posnr NO-GAP,
+                           ') affected by Future Change',
+                           stpo-aennr,
+                           'on',
+                           stpo-datuv,
+                           AT gc_pos_end space.
+                  FORMAT COLOR OFF INTENSIFIED OFF.
+                  WRITE AT gc_pos_end sy-vline.
+                  CLEAR gw_upd8ok.
+                ENDSELECT.
+                NEW-LINE.
+                IF bom_a-posnr IS INITIAL AND
+                   gw_upd8ok    IS INITIAL.
+                  gw_max_posnr = gw_max_posnr - 10." reuse # if no update
+                ENDIF.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+
+
+        ENDIF.
+
+        IF ( diff-a_tabix = 0 ) .
+*                Reste in B abarbeiten (i.d.R alle complete)
+          IF ( diff-b_tabix > 0 ).
+            READ TABLE bom_b INDEX diff-b_tabix.
+*                     ev. Zwischenbaugruppen unterdrücken
+            IF ( rc29l-zbgrp IS INITIAL ).
+              CHECK bom_b-xtlnr IS INITIAL.
+            ENDIF.
+            PERFORM color_switch.
+            WRITE / ' '.
+            PERFORM akt_komp_write USING gc_pos_k gw_akt_komp
+                                               gw_last_komp.
+            gw_pos = gc_pos_p_m - 1.
+            WRITE AT gw_pos sy-vline.
+*                     leerer A-Eintrag
+            PERFORM entry_empty USING gc_pos_p_m.
+*                     leerer Unterschied
+            PERFORM difference_write
+                    USING gw_pos_v_s gc_pos_v_e gw_diff_len.
+*                     B-Komponente schreiben
+            PERFORM anz_meins_get USING bom_b anz_meins.
+            IF diff-difference NE 'equal'.
+              PERFORM entry_b_write
+                     USING bom_b-posnr bom_b-mngko anz_meins
+*                          using  bom_b-mngko anz_meins
+                     bom_b-postp bom_b-sortf ' ' bom_b-stufe .
+            ENDIF.
+*                     bei Bedarf Beschreibung der Komponente ausgeben
+            IF ( bom_key-write_text EQ 'X' )
+               AND ( gw_akt_komp NE gw_last_komp ).
+              PERFORM akt_line_hide.
+*break-point.
+              IF sy-batch NE 'X'.
+                PERFORM text_write.
+              ELSE.
+                PERFORM text_write_a.
+              ENDIF.
+            ENDIF.
+            gw_last_komp = gw_akt_komp.
+          ENDIF.
+        ELSE.   " A_TABIX > 0
+          READ TABLE bom_a INDEX diff-a_tabix.
+*                ev. Zwischenbaugruppen unterdrücken
+          IF ( rc29l-zbgrp IS INITIAL ).
+            CHECK bom_a-xtlnr IS INITIAL.
+          ENDIF.
+
+* Check if where used indicator is set
+          IF gw_pa_wu = 'X'.
+            PERFORM check_where_used USING gw_wu_flag.
+            IF gp_awu = 'X' AND gw_wu_flag = 'X'.
+              CONTINUE.
+            ENDIF.
+          ENDIF.
+          PERFORM color_switch.
+          WRITE / ' '.
+
+          IF NOT bom_a-posnr IS INITIAL.
+            SELECT DISTINCT
+                   datuv
+                   aennr
+            INTO  (stpo-datuv,
+                   stpo-aennr)
+            FROM   stpo
+            WHERE  stlnr = bom_a-stlnr AND
+                   posnr = bom_a-posnr AND
+                   datuv > gp_dat1     AND
+                   lkenz = space
+            ORDER BY datuv.
+              FORMAT COLOR COL_NEGATIVE INTENSIFIED.
+              WRITE: / 'Warning: Update Prohibited - Item',
+                       bom_a-posnr,
+                       'affected by Future Change',
+                       stpo-aennr,
+                       'on',
+                       stpo-datuv,
+                       AT gc_pos_end space.
+              FORMAT COLOR OFF INTENSIFIED OFF.
+              WRITE AT gc_pos_end sy-vline.
+              CLEAR gw_upd8ok.
+            ENDSELECT.
+            NEW-LINE.
+          ENDIF.
+          PERFORM akt_komp_write USING gc_pos_k gw_akt_komp gw_last_komp.
+          gw_pos = gc_pos_p_m - 1.
+          WRITE AT gw_pos sy-vline.
+*                A-Komponente
+          IF diff-a_tabix NE last_a.
+            PERFORM anz_meins_get USING bom_a anz_meins.
+            IF diff-difference NE 'equal'.
+              PERFORM entry_a_write
+                       USING bom_a-posnr bom_a-mngko anz_meins
+                       bom_a-postp bom_a-sortf ' ' bom_a-stufe bom_a-alpgr
+                       bom_a-alprf bom_a-alpst bom_a-ewahr.
+            ENDIF.
+            last_a = diff-a_tabix.
+          ELSE.
+*                   Komp. in A hat mehrere B-Bezüge, nicht ausgeben
+            PERFORM entry_repeat USING gc_pos_p_m.
+          ENDIF.
+*                Differenz beschreiben
+          PERFORM difference_write
+                       USING gw_pos_v_s gc_pos_v_e gw_diff_len.
+          IF ( diff-b_tabix > 0 ).
+*                    A-Komp. hat eine bezogene B-Komp.
+            READ TABLE bom_b INDEX diff-b_tabix.
+            PERFORM anz_meins_get USING bom_b anz_meins.
+            IF diff-difference NE 'equal'.
+              PERFORM entry_b_write
+                         USING bom_b-posnr bom_b-mngko anz_meins
+*                             using  bom_b-mngko anz_meins
+                          bom_b-postp bom_b-sortf ' ' bom_b-stufe .
+            ENDIF.
+
+          ELSE.
+*                    es gibt keinen B-Bezug zur A-Komponente
+            PERFORM entry_empty USING gw_pos_v_m.
+          ENDIF.
+
+*                Komponente und Text ausgeben
+          IF ( gw_akt_komp NE gw_last_komp ).
+            gw_last_komp = gw_akt_komp.
+          ENDIF.
+*                    neue a-b kombination
+          IF bom_key-write_text EQ 'X'.
+            PERFORM akt_line_hide.
+*break-point.
+            IF sy-batch NE 'X'.
+              PERFORM text_write.
+            ELSE.
+              PERFORM text_write_a.
+            ENDIF.
+          ENDIF.
+          gw_last_komp = gw_akt_komp.
+*                 endif.
+        ENDIF.  "  A_TABIX > 0
+        PERFORM color_switch.
+        IF ( gw_akt_komp NE gw_last_komp ).
+          gw_last_komp = gw_akt_komp.
+        ENDIF.
+        PERFORM akt_line_hide.
+      ENDIF.   " Zu-/Wegschaltung different/similar/equal Positionsausg.
+    ENDLOOP.   " AT DIFF über alle Positionenbezüge
+    ULINE.
+  ENDIF.
+
+ENDFORM.                    " DIFF_OUTPUT
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_SIMILARITY
+*&---------------------------------------------------------------------*
+*        Ausgabe von zwei Stücklistenpositionen
+*        bom's und tabix's müssen richtig stehen
+*----------------------------------------------------------------------*
+FORM display_similarity
+          TABLES bom_a           STRUCTURE stpox
+                 bom_b           STRUCTURE stpox
+                 knowledge_tab_a STRUCTURE knowledge_tab_a
+                 knowledge_tab_b STRUCTURE knowledge_tab_b
+           USING diff            STRUCTURE differ
+                 gw_brutto          LIKE csdata-xfeld.
+  DATA: objtyp TYPE c.
+  DATA: knowledge_1(1) TYPE c VALUE ' ',
+        knowledge_2(1) TYPE c VALUE ' ',
+        subpos_found(1) TYPE c VALUE ' '.
+
+  CHECK ( diff-a_tabix NE 0 ) OR ( diff-b_tabix NE 0 ) .
+  CLEAR bom_a.
+  CLEAR bom_b.
+  gw_a_tabix = diff-a_tabix.  " wurde in diff_output gehidet, ebenso akt_komp
+  gw_b_tabix = diff-b_tabix.
+  READ TABLE bom_a INDEX gw_a_tabix.
+  READ TABLE bom_b INDEX gw_b_tabix.
+  IF rc29l-upsaz EQ 'X'.
+    REFRESH: wa1, wa2.
+    PERFORM subposition_get
+        TABLES wa1
+               wa2
+        USING subpos_found.
+  ENDIF.
+  PERFORM prepare_similarity USING subpos_found.
+*   Ausgabe Titel
+  FORMAT INTENSIFIED ON.
+  FORMAT COLOR 1.
+  WRITE diff-akt_komp.
+  gw_pos = gc_pos_pr - 2.
+  WRITE AT gw_pos text-023.   "Vergleichsrelevante Felder
+  WRITE '                      '.
+*   Ausgabe markierte vergleichsrelevante Felder
+  LOOP AT relev.
+    CONCATENATE 'BOM_A-' relev-field INTO gw_field_a.
+    CONCATENATE 'BOM_B-' relev-field INTO gw_field_b.
+    PERFORM assign_f1_f2.
+    READ TABLE all_fields WITH KEY field = relev-field.
+    WRITE  / all_fields-fieldtext(30).
+    PERFORM write_f1_f2.
+  ENDLOOP.   " at RELEV
+  ULINE AT (gc_pos_end_sim).
+* Beziehungswissen
+  IF ( rc29l-bzvgl             EQ 'X' ) AND
+     ( bom_key-knowledge_found EQ 'X' ) .
+    PERFORM knowledge_display
+      TABLES knowledge_tab_a
+             knowledge_tab_b
+             kt_relation.
+  ENDIF.
+* Unterpositionen
+  IF ( rc29l-upsaz EQ 'X' ) AND
+     ( subpos_found EQ 'X' ).
+    PERFORM subposition_display.
+  ENDIF.
+*   Ausgabe nicht vergleichsrelevanter Felder
+  IF gw_brutto = 'X'.
+    FORMAT INTENSIFIED ON.
+    FORMAT COLOR 1.
+    WRITE /27 text-009.
+    WRITE '                   '.
+    gw_found = ' '.
+    LOOP AT non_relev.
+*  zuerst die Felder mit verschiedenen Werten
+      CONCATENATE 'BOM_A-' non_relev-field INTO gw_field_a.
+      CONCATENATE 'BOM_B-' non_relev-field INTO gw_field_b.
+      PERFORM assign_f1_f2.
+      READ TABLE all_fields WITH KEY field = non_relev-field.
+      IF <f1> NE <f2>.
+        gw_found = 'X'.
+        WRITE  / all_fields-fieldtext(30).
+        PERFORM write_f1_f2.
+      ENDIF.
+    ENDLOOP.   " at non_relev
+    IF gw_found EQ 'X'.
+      ULINE AT (gc_pos_end_sim).
+      gw_found = ' '.
+    ENDIF.
+    LOOP AT non_relev.
+*  dann die gleichen, die nicht leer sind
+      CONCATENATE 'BOM_A-' non_relev-field INTO gw_field_a.
+      CONCATENATE 'BOM_B-' non_relev-field INTO gw_field_b.
+      PERFORM assign_f1_f2.
+      READ TABLE all_fields WITH KEY field = non_relev-field.
+      IF ( <f1> EQ <f2> ) AND NOT ( <f1> IS INITIAL ) .
+        gw_found = 'X'.
+        WRITE  / all_fields-fieldtext(30).
+        PERFORM write_f1_f2.
+      ENDIF.
+    ENDLOOP.   " at non_relev
+    IF gw_found EQ 'X'.
+      ULINE AT (gc_pos_end_sim).
+      gw_found = ' '.
+    ENDIF.
+    LOOP AT non_relev.
+*  und am Ende dann die, die leer sind
+      CONCATENATE 'BOM_A-' non_relev-field INTO gw_field_a.
+      CONCATENATE 'BOM_B-' non_relev-field INTO gw_field_b.
+      PERFORM assign_f1_f2.
+      READ TABLE all_fields WITH KEY field = non_relev-field.
+      IF ( <f1> EQ <f2> ) AND ( <f1> IS INITIAL ) .
+        gw_found = 'X'.
+        WRITE  / all_fields-fieldtext(30).
+        PERFORM write_f1_f2.
+      ENDIF.
+    ENDLOOP.   " at non_relev
+    IF gw_found EQ 'X'.
+      ULINE AT (gc_pos_end_sim).
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " DISPLAY_SIMILARITY
+
+*&---------------------------------------------------------------------*
+*&      Form  SUBPOSITION_display
+*&---------------------------------------------------------------------*
+*       vergleichende Ausgabe von wa1 und wa2
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM subposition_display.
+* bom_a und bom_b muessen sitzen !
+  DATA: BEGIN OF found OCCURS 0,
+           tabix LIKE sy-tabix,
+        END OF found.
+  DATA: menge LIKE stpox-mnglg.
+  REFRESH found.
+*    Überschrift
+  FORMAT INTENSIFIED ON.
+  FORMAT COLOR 1.
+  WRITE / ' '.
+  WRITE AT gc_pos_pr text-030.         "Unterpositionen
+  WRITE '                               '.
+  FORMAT RESET.
+  WRITE / ' '.
+  WRITE AT gc_pos_pr text-001.
+  WRITE AT gc_pos_se text-002.
+  IF bom_key-upos_pos EQ 'X'.
+    WRITE / text-056.            "UnterpositionsNr.
+    WRITE AT gc_pos_pr text-031.
+    gw_pos = gc_pos_pr + 23.
+    WRITE AT gw_pos text-012.           " Menge
+    WRITE AT gc_pos_se text-031.
+    gw_pos = gc_pos_se + 22.
+    WRITE AT gw_pos text-012.
+  ELSE.
+    WRITE / text-031.            "Einbauort
+    WRITE AT gc_pos_pr text-056.
+    gw_pos = gc_pos_pr + 23.
+    WRITE AT gw_pos text-012.           " Menge
+    WRITE AT gc_pos_se text-056.
+    gw_pos = gc_pos_se + 22.
+    WRITE AT gw_pos text-012.
+  ENDIF.
+  NEW-LINE.
+  ULINE AT (gc_pos_end_sim).
+
+
+  IF bom_key-upos_pos EQ 'X'.
+*         Vergleich mit Position als Schlüssel
+    LOOP AT wa1.
+      CLEAR wa2.
+      READ TABLE wa2 WITH KEY uposz = wa1-uposz.
+*             uposz ist höchstens einmal enthalten
+      IF sy-subrc EQ 0.
+        found-tabix = sy-tabix.
+*               merken aller schon gefundenen wa2-Zeilen
+        APPEND found.
+      ENDIF.
+      WRITE /1  wa1-uposz.
+      gw_pos = gc_pos_pr - 1.
+      WRITE AT gw_pos sy-vline.
+      IF ( sy-subrc NE 0 ) OR ( wa1-ebort NE wa2-ebort ) OR
+         ( wa1-upmng NE wa2-upmng ).
+        FORMAT COLOR 6.
+      ENDIF.
+      WRITE AT gc_pos_pr wa1-ebort.
+      PERFORM upos_a_menge USING menge.
+      gw_pos = gc_pos_pr + 5.
+      WRITE AT gw_pos menge UNIT rc29p-meins.
+      gw_pos = gc_pos_se - 1.
+      WRITE AT gw_pos sy-vline.
+      IF sy-subrc EQ 0.
+        WRITE AT gc_pos_se wa2-ebort.
+        PERFORM upos_b_menge USING menge.
+        gw_pos = gc_pos_se + 6.
+        WRITE AT gw_pos menge UNIT rc29p-meins.
+      ELSE.
+        WRITE AT gc_pos_se '                    '.
+      ENDIF.
+      WRITE AT gc_pos_end_sim sy-vline.
+      FORMAT COLOR OFF.
+    ENDLOOP.                                                "at wa1
+*           nicht bezogene in Sekundärstl. ausgeben (ohne Primärbezug)
+    LOOP AT wa2.
+      READ TABLE found WITH KEY tabix = sy-tabix.
+      IF sy-subrc NE 0.
+        WRITE /1  wa2-uposz.
+        gw_pos = gc_pos_pr - 1.
+        WRITE AT gw_pos sy-vline.
+        FORMAT COLOR 6.
+        WRITE AT gc_pos_pr '                      '.
+        gw_pos = gc_pos_se - 1.
+        WRITE AT gw_pos sy-vline.
+        WRITE AT gc_pos_se wa2-ebort.
+        PERFORM upos_b_menge USING menge.
+        gw_pos = gc_pos_se + 6.
+        WRITE AT gw_pos menge UNIT rc29p-meins.
+        WRITE AT gc_pos_end_sim sy-vline.
+        FORMAT COLOR OFF.
+      ENDIF.
+    ENDLOOP.                                                " at wa2
+  ELSE.
+*         Vergleich mit Einbauort als Schlüssel
+    LOOP AT wa1.
+      CLEAR wa2.
+      READ TABLE wa2 WITH KEY ebort = wa1-ebort.
+*             uposz ist höchstens einmal enthalten
+      IF sy-subrc EQ 0.
+        found-tabix = sy-tabix.
+*               merken aller schon gefundenen wa2-Zeilen
+        APPEND found.
+      ENDIF.
+      WRITE /1  wa1-ebort.
+      gw_pos = gc_pos_pr - 1.
+      WRITE AT gw_pos sy-vline.
+      IF ( sy-subrc NE 0 ) OR ( wa1-uposz NE wa2-uposz ) OR
+          ( wa1-upmng NE wa2-upmng ).
+        FORMAT COLOR 6.
+      ENDIF.
+      WRITE AT gc_pos_pr wa1-uposz.
+      PERFORM upos_a_menge USING menge.
+      gw_pos = gc_pos_pr + 5.
+      WRITE AT gw_pos menge UNIT rc29p-meins.
+      gw_pos = gc_pos_se - 1.
+      WRITE AT gw_pos sy-vline.
+      IF sy-subrc EQ 0.
+        WRITE AT gc_pos_se wa2-uposz.
+        PERFORM upos_b_menge USING menge.
+        gw_pos = gc_pos_se + 6.
+        WRITE AT gw_pos menge UNIT rc29p-meins.
+      ELSE.
+        WRITE AT gc_pos_se '                    '.
+      ENDIF.
+      WRITE AT gc_pos_end_sim sy-vline.
+      FORMAT COLOR OFF.
+    ENDLOOP.                                                "at wa1
+*           nicht bezogene in Sekundärstl. ausgeben (ohne Primärbezug)
+    LOOP AT wa2.
+      READ TABLE found WITH KEY tabix = sy-tabix.
+      IF sy-subrc NE 0.
+        WRITE /1  wa2-ebort.
+        gw_pos = gc_pos_pr - 1.
+        WRITE AT gw_pos sy-vline.
+        FORMAT COLOR 6.
+        WRITE AT gc_pos_pr '                      '.
+        gw_pos = gc_pos_se - 1.
+        WRITE AT gw_pos sy-vline.
+        WRITE AT gc_pos_se wa2-uposz.
+        PERFORM upos_b_menge USING menge.
+        gw_pos = gc_pos_se + 6.
+        WRITE AT gw_pos menge UNIT rc29p-meins.
+        WRITE AT gc_pos_end_sim sy-vline.
+        FORMAT COLOR OFF.
+      ENDIF.
+    ENDLOOP.                                                " at wa2
+  ENDIF.
+  ULINE AT (gc_pos_end_sim).
+ENDFORM.                    " SUBPOSITION_display
+
+*&---------------------------------------------------------------------*
+*&      Form  COLOR_SWITCH
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM color_switch.
+  IF gw_hell = 'X'.
+    FORMAT COLOR 1.
+    gw_color_save = 1.
+    gw_hell = ' '.
+  ELSE.
+    FORMAT COLOR 2.
+    gw_color_save = 2.
+    gw_hell = 'X'.
+  ENDIF.
+ENDFORM.                               " COLOR_SWITCH
+
+*&---------------------------------------------------------------------*
+*&      Form  COLOR_BACKGROUND
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM color_background_and_save.
+
+
+  IF gw_hell = ' '.
+    gw_color_save = 1.
+  ELSE.
+    gw_color_save = 2.                    " hell auf 'X'
+  ENDIF.
+  FORMAT COLOR OFF.
+ENDFORM.                               " COLOR_BACKGROUND
+
+*&---------------------------------------------------------------------*
+*&      Form  COLOR_RESET
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM color_reset_save_color.
+  FORMAT COLOR 1.       " Farbe war auf 1 d.h. hell auf ' '
+ENDFORM.                               " COLOR_RESET
+
+*&---------------------------------------------------------------------*
+*&      Form  WRITE_F1_F2
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM write_f1_f2.
+  IF <f1> NE <f2>.
+    FORMAT COLOR 6.
+  ENDIF.
+  gw_pos = gc_pos_pr - 1.
+  gw_pos = gc_pos_pr - 1.
+  WRITE AT gw_pos sy-vline.
+  IF gw_a_tabix NE 0.
+    WRITE AT gc_pos_pr(40) <f1>.
+  ENDIF.
+  gw_pos = gw_pos_v_s - 1.
+  WRITE AT gw_pos sy-vline.
+  gw_pos = gw_pos_v_m - 1.
+  WRITE AT gw_pos sy-vline.
+  IF gw_b_tabix NE 0.
+    WRITE AT gw_pos_v_m(40) <f2>.
+  ENDIF.
+  WRITE AT gc_pos_end sy-vline.
+  FORMAT COLOR OFF.
+ENDFORM.                               " WRITE_F1_F2
+
+*&---------------------------------------------------------------------*
+*&      Form  ASSIGN_F1_F2
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM assign_f1_f2.
+  ASSIGN gw_empty TO <f1>.
+  ASSIGN gw_empty TO <f2>.
+  IF gw_a_tabix NE 0.
+    ASSIGN (gw_field_a) TO <f1>.
+  ENDIF.
+  IF gw_b_tabix NE 0.
+    ASSIGN (gw_field_b) TO <f2>.
+  ENDIF.
+ENDFORM.                               " ASSIGN_F1_F2
+
+
+*&---------------------------------------------------------------------*
+*&      Form  difference_write
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM difference_write USING gw_pos_v_s  TYPE i
+                            pos_v_e  TYPE i
+                            gw_diff_len TYPE i.
+  DATA: pos TYPE i.
+
+  pos = gw_pos_v_s - 1.
+  WRITE AT pos sy-vline.
+  CASE diff-difference.
+    WHEN 'different'.
+      IF bom_key-cumulated = 'X'.
+        PERFORM color_reset_save_color.
+        WRITE AT gw_pos_v_s ' '.
+        pos = gw_pos_v_s + gw_diff_len - 1.
+        WRITE AT pos ' '.
+        WRITE AT gw_pos_v_s icon_failure AS ICON.
+        PERFORM color_background_and_save.
+      ELSE.
+        PERFORM color_reset_save_color.
+        WRITE AT gw_pos_v_s icon_failure AS ICON.
+        PERFORM color_background_and_save.
+      ENDIF.
+    WHEN 'similar'.
+      PERFORM color_reset_save_color.
+      IF bom_key-cumulated = 'X'.
+        pos = gw_pos_v_s + gw_diff_len - 1.
+        WRITE AT pos ' '.
+        pos = gw_pos_v_s + 1.
+        WRITE AT pos diff-mnglg_diff UNIT rc29p-meins.
+        WRITE AT gw_pos_v_s icon_not_equal_red AS ICON.
+      ELSE.
+        WRITE AT gw_pos_v_s icon_not_equal_red AS ICON.
+      ENDIF.
+      PERFORM color_background_and_save.
+    WHEN 'equal'.
+      PERFORM color_reset_save_color.
+      IF bom_key-cumulated = 'X'.
+        pos = gw_pos_v_s + gw_diff_len - 1.
+        WRITE AT pos ' '.
+        pos = gw_pos_v_s + 1.
+        WRITE AT pos diff-mnglg_diff UNIT rc29p-meins.
+        WRITE AT gw_pos_v_s icon_equal_green AS ICON.
+      ELSE.
+        WRITE AT gw_pos_v_s icon_equal_green AS ICON.
+      ENDIF.
+      PERFORM color_background_and_save.
+  ENDCASE.
+  pos = gw_pos_v_s + gw_diff_len.
+  WRITE AT pos sy-vline.
+
+ENDFORM.                               " DIFFERENCE_WRITE
+
+*&---------------------------------------------------------------------*
+*&      Form  ACTIVATE_SHOW
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM activate_show TABLES fcode_tab USING gw_show TYPE c.
+  CASE gw_show.
+    WHEN 'SDIF'.
+      gw_show_dif = 'X'.
+      fcode_tab = 'HDIF'.
+      READ TABLE fcode_tab.
+      fcode_tab = 'SDIF'.
+      MODIFY fcode_tab INDEX sy-tabix.
+    WHEN 'HDIF'.
+      gw_show_dif = ' '.
+      fcode_tab = 'SDIF'.
+      READ TABLE fcode_tab.
+      fcode_tab = 'HDIF'.
+      MODIFY fcode_tab INDEX sy-tabix.
+    WHEN 'SSIM'.
+      gw_show_sim = 'X'.
+      fcode_tab = 'HSIM'.
+      READ TABLE fcode_tab.
+      fcode_tab = 'SSIM'.
+      MODIFY fcode_tab INDEX sy-tabix.
+    WHEN 'HSIM'.
+      gw_show_sim = ' '.
+      fcode_tab = 'SSIM'.
+      READ TABLE fcode_tab.
+      fcode_tab = 'HSIM'.
+      MODIFY fcode_tab INDEX sy-tabix.
+    WHEN 'SEQU'.
+      gw_show_equ = 'X'.
+      fcode_tab = 'HEQU'.
+      READ TABLE fcode_tab.
+      fcode_tab = 'SEQU'.
+      MODIFY fcode_tab INDEX sy-tabix.
+    WHEN 'HEQU'.
+      gw_show_equ = ' '.
+      fcode_tab = 'SEQU'.
+      READ TABLE fcode_tab.
+      fcode_tab = 'HEQU'.
+      MODIFY fcode_tab INDEX sy-tabix.
+  ENDCASE.                             " of gw_show
+
+ENDFORM.                               " ACTIVATE_SHOW
+
+*----------------------------------------------------------------------
+*       Form  TABLES_COMPARE
+*----------------------------------------------------------------------
+*       text
+*----------------------------------------------------------------------
+
+FORM tables_compare
+       USING gleich          TYPE c.
+  DATA: bom_cum                LIKE rc29v1.
+
+  DATA: BEGIN OF posnrt OCCURS 0,
+        mposnr LIKE stpo-posnr.
+  DATA: END OF posnrt.
+  DATA: b_subrc                LIKE sy-subrc.
+  DATA: stufe                  LIKE stpox-stufe VALUE '1'.
+  DATA: knowledge_different(1) TYPE c VALUE ' ',
+        subpos_found(1)        TYPE c VALUE ' '.
+* Zum Vergle. der UPos
+  DATA: i_wa1_lines TYPE i,
+        i_wa2_lines TYPE i,
+        i_upos      TYPE i.
+
+* zurücksetzen des für den Vergleich irrelevaten OJTXB
+*(Vorbereit.Mark.)
+  LOOP AT bom_a.
+    bom_a-ojtxb = ' '.
+    MODIFY bom_a.
+    IF NOT bom_a-stlnr IS INITIAL.
+      gw_stlnr = bom_a-stlnr.
+    ENDIF.
+  ENDLOOP.
+  LOOP AT bom_b.
+    bom_b-ojtxb = ' '.
+    MODIFY bom_b.
+  ENDLOOP.
+  gw_max_posnr = 0.
+  SELECT posnr
+    FROM   stpo INTO posnrt
+    WHERE  stlnr = gw_stlnr AND
+           lkenz = space.
+    IF sy-subrc IS INITIAL AND posnrt GT gw_max_posnr.
+      gw_max_posnr = posnrt.
+    ENDIF.
+  ENDSELECT.
+
+  gw_max_posnr = ( gw_max_posnr + 5 ) / 10 * 10.   " forces rounding up by 10
+
+  gleich = 'X'.
+  REFRESH b_rest.
+  REFRESH diff.
+
+  PERFORM relevant_fields_assign.
+
+  LOOP AT bom_a.
+
+    REFRESH b_read.
+    CLEAR diff.
+    gw_a_tabix = sy-tabix.
+    PERFORM read_related_b_entry TABLES bom_a bom_b.
+    b_subrc = sy-subrc.
+    IF ( b_subrc = 0 ) OR ( b_subrc = 2 ).
+      WHILE ( b_subrc = 0 ) OR ( b_subrc = 2 ).
+        CLEAR diff.
+        gw_b_tabix = sy-tabix.
+*           die gleichen und ähnlichen speichern
+        diff-a_tabix = gw_a_tabix.
+        diff-b_tabix = gw_b_tabix.
+*           Unterpositionen vergleichen
+        IF rc29l-upsaz = 'X'.
+          CLEAR wa1.
+          REFRESH wa1.
+          CLEAR wa2.
+          REFRESH wa2.
+
+          PERFORM subposition_get
+                   TABLES
+                      wa1
+                      wa2
+                   USING
+                      subpos_found.
+          IF subpos_found EQ 'X'.
+            IF bom_key-upos_ort IS INITIAL.
+              SORT wa1 BY uposz.
+              SORT wa2 BY uposz.
+            ELSE.
+              SORT wa1 BY ebort.
+              SORT wa2 BY ebort.
+            ENDIF.
+            DESCRIBE TABLE wa1 LINES i_wa1_lines.
+            DESCRIBE TABLE wa2 LINES i_wa2_lines.
+            IF i_wa1_lines EQ i_wa2_lines.
+              i_upos = 1.
+              WHILE i_upos LE i_wa1_lines.
+                READ TABLE wa1 INDEX i_upos.
+                READ TABLE wa2 INDEX i_upos.
+                IF wa1-uposz NE wa2-uposz AND
+                   bom_key-upos_ort IS INITIAL OR
+                   bom_key-upos_pos IS INITIAL AND
+                   wa1-ebort NE wa2-ebort OR
+                   wa1-upmng NE wa2-upmng.
+                  diff-difference = 'similar'.
+                  diff-icon       = 'ICON_NOT_EQUAL_RED'.
+                  gleich = ' '.
+                  EXIT.
+                ELSE.
+                  i_upos = i_upos + 1.
+                ENDIF.
+              ENDWHILE.
+            ELSE.
+              diff-difference = 'similar'.
+              diff-icon       =  'ICON_NOT_EQUAL_RED'.
+              gleich = ' '.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+*           ev. Beziehungswissen suchen und vergleichen
+        PERFORM knowledge_analyze
+            TABLES knowledge_tab_a
+                   knowledge_tab_b
+                   kt_relation
+            USING  bom_a-knobj
+                   bom_b-knobj
+                   knowledge_different.
+        IF ( b_subrc = 0 ) AND       " auch bzgl. comparing gleich
+           ( knowledge_different EQ ' ' ) .
+          IF diff-difference NE 'similar'.
+            diff-difference = 'equal'.
+            diff-icon       = 'ICON_EQUAL_GREEN'.
+          ENDIF.
+        ELSE.
+          diff-difference = 'similar'.
+          diff-icon       = 'ICON_NOT_EQUAL_RED'.
+          gleich = ' '.
+        ENDIF.
+        MOVE-CORRESPONDING bom_a TO bom_cum.
+        PERFORM build_akt_komp USING bom_cum.
+        diff-akt_komp = gw_akt_komp.
+        diff-akt_text = gw_akt_text.
+*           Vater-Schlüssel zu Position in Hide-Bereich in Diff merken
+        PERFORM build_hide_a.
+        PERFORM build_hide_b.
+        APPEND diff.
+*           markieren der gelesenen Zeile in B zu aktueller A-Zeile
+*           damit sie beim nächsten read nicht nochmal gefunden wird
+        bom_b-ojtxb = 'X'.
+        MODIFY bom_b INDEX gw_b_tabix.
+
+        IF diff-difference = 'equal'.                       "note569453
+          EXIT.                                             "note569453
+        ENDIF.                                              "note569453
+
+*           merken der schon gelesenen Zeilen in B für reset ojtxb
+        b_read-index = gw_b_tabix.
+        APPEND b_read.
+*           Lesen des nächsten ähnlichen oder gleichen in B
+        PERFORM read_related_b_entry TABLES bom_a bom_b.
+        b_subrc = sy-subrc.
+      ENDWHILE.
+*    Markierung "B-Zeile schon gelesen" zurücksetzen
+      LOOP AT b_read.
+        READ TABLE bom_b INDEX b_read-index.
+
+        bom_b-ojtxb = ' '.
+        MODIFY bom_b INDEX b_read-index.
+      ENDLOOP.
+    ELSE.
+      gleich = ' '.
+*   es wurden keine ähnlichen zu A-Zeile gefunden
+      CLEAR diff.
+      diff-a_tabix = gw_a_tabix.
+      diff-b_tabix = 0.
+      diff-difference = 'different'.
+      diff-icon       = 'ICON_FAILURE'.
+      MOVE-CORRESPONDING bom_a TO bom_cum.
+      PERFORM build_akt_komp USING bom_cum.
+      diff-akt_komp = gw_akt_komp.
+      diff-akt_text = gw_akt_text.
+      PERFORM build_hide_a.
+      APPEND diff.
+    ENDIF.
+  ENDLOOP.  " at BOM_A
+  CLEAR bom_a.
+
+  LOOP AT bom_b                                              "note 569453
+    WHERE NOT ojtxb IS INITIAL.                              "note 569453
+
+    bom_b-ojtxb = ' '.                                       "note 569453
+    MODIFY bom_b.                                            "note 569453
+  ENDLOOP.                                                   "note 569453
+
+  DATA: BEGIN OF lt_equ OCCURS 0,
+            indx1 LIKE sy-tabix,
+            indx2 LIKE sy-tabix,
+         END OF lt_equ.
+
+  DATA: BEGIN OF lt_sim OCCURS 0,
+            indx1 LIKE sy-tabix,
+            indx2 LIKE sy-tabix,
+         END OF lt_sim.
+
+  DATA: BEGIN OF lt_fail OCCURS 0,
+            index LIKE sy-tabix,
+         END OF lt_fail.
+
+  LOOP AT diff.
+
+    CASE diff-difference.
+      WHEN  'equal'.
+        lt_equ-indx1 = diff-a_tabix.
+        lt_equ-indx2 = diff-b_tabix.
+        APPEND lt_equ.
+      WHEN 'similar'.
+        lt_sim-indx1 = diff-a_tabix.
+        lt_sim-indx2 = diff-b_tabix.
+        APPEND lt_sim.
+    ENDCASE.
+
+  ENDLOOP.
+
+  SORT lt_equ.
+  SORT lt_sim.
+
+  LOOP AT lt_equ.
+    DELETE lt_sim
+       WHERE indx1 EQ lt_equ-indx1.
+    DELETE lt_sim
+       WHERE indx2 EQ lt_equ-indx2.
+  ENDLOOP.
+
+  LOOP AT diff.
+
+    READ TABLE lt_equ WITH KEY indx1 = diff-a_tabix
+                               indx2 = diff-b_tabix
+                               BINARY SEARCH.
+
+*     Equal
+    IF sy-subrc EQ 0.
+      b_rest-index = diff-b_tabix.
+      APPEND b_rest.
+    ELSE.
+
+      READ TABLE lt_equ WITH KEY indx1 = diff-a_tabix
+                                 BINARY SEARCH.
+
+      IF sy-subrc EQ 0.
+        DELETE diff.
+      ELSE.
+        READ TABLE lt_sim WITH KEY indx1 = diff-a_tabix
+                                   indx2 = diff-b_tabix
+                                   BINARY SEARCH.
+
+        IF sy-subrc EQ 0.
+          b_rest-index = diff-b_tabix.
+          APPEND b_rest.
+        ELSE.
+          READ TABLE lt_sim WITH KEY indx1 = diff-a_tabix
+                                     BINARY SEARCH.
+
+          IF sy-subrc EQ 0.
+            DELETE diff.
+          ELSE.
+            READ TABLE lt_fail WITH KEY
+                               index = diff-a_tabix
+                               BINARY SEARCH.
+
+            IF sy-subrc EQ 0.
+              DELETE diff.
+            ELSE.
+              lt_fail-index = diff-a_tabix.
+              INSERT lt_fail INDEX sy-tabix.
+              diff-difference = 'different'.
+              diff-icon       = 'ICON_FAILURE'.
+              CLEAR diff-b_tabix.
+              MODIFY diff.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+  SORT b_rest.
+  DELETE ADJACENT DUPLICATES FROM b_rest.
+
+
+* aufarbeiten der B's, die noch kein A-Pendant hatten
+  LOOP AT bom_b.
+    gw_b_tabix = sy-tabix.
+    gw_already_done = ' '.
+    LOOP AT b_rest.   " B_REST enthält schon entdeckte B-Positionen
+      IF gw_b_tabix EQ b_rest-index.
+        gw_already_done = 'X'.
+        EXIT.
+      ENDIF.
+    ENDLOOP.  " at B_REST
+    IF gw_already_done EQ ' '.   " aktuelle B-Zeile hat kein A-Pendant
+      gleich = ' '.
+      CLEAR diff.
+      diff-a_tabix = 0.
+      diff-b_tabix = gw_b_tabix.
+      PERFORM knowledge_analyze
+          TABLES knowledge_tab_a
+                 knowledge_tab_b
+                 kt_relation
+          USING  bom_a-knobj                      " cleared
+                 bom_b-knobj
+                 knowledge_different.
+      diff-difference = 'different'.
+      diff-icon       = 'ICON_FAILURE'.
+      MOVE-CORRESPONDING bom_b TO bom_cum.
+      PERFORM build_akt_komp USING bom_cum.
+      diff-akt_komp = gw_akt_komp.
+      diff-akt_text = gw_akt_text.
+      PERFORM build_hide_b.
+      APPEND diff.
+    ENDIF.
+  ENDLOOP. " at BOM_B
+  IF ( NOT knowledge_tab_a IS INITIAL ) OR
+     ( NOT knowledge_tab_b IS INITIAL ).
+    bom_key-knowledge_found = 'X'.
+  ELSE.
+    bom_key-knowledge_found = ' '.
+  ENDIF.
+
+ENDFORM.                    " TABLES_COMPARE
+
+*----------------------------------------------------------------------*
+*       Form  BUILD_AKT_KOMP
+*----------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+FORM build_akt_komp
+        USING bom STRUCTURE rc29v1.
+
+  DATA: doknr LIKE bom-doknr.
+
+  CLEAR: gw_akt_komp,
+         gw_akt_text.
+  CASE bom-objty.
+    WHEN 'M'.                           " Material
+      WRITE bom-idnrk TO gw_akt_komp.
+      gw_akt_text = bom-ojtxp.
+    WHEN '1'.                           " Material
+      WRITE bom-idnrk TO gw_akt_komp.
+      gw_akt_text = bom-ojtxp.
+    WHEN '2'.              " Textpos. oder Nichtlagermat. ohne Mat-Nr.
+      gw_akt_komp = bom-potx1.
+      gw_akt_text = bom-potx2.
+    WHEN '3'.                            " Dokument
+      WRITE bom-doknr TO doknr.
+      CONCATENATE
+            doknr
+            bom-dokar
+            bom-doktl
+            bom-dokvr
+      INTO gw_akt_komp
+      SEPARATED BY '/'.
+      gw_akt_text = bom-ojtxp.
+    WHEN '4'.                            " Klasse
+      CONCATENATE
+            bom-klart
+            bom-class
+      INTO gw_akt_komp
+      SEPARATED BY '/'.
+      gw_akt_text = bom-ojtxp.
+    WHEN '5'.                            " Intra-Material ohne Mat-Nr.
+      CONCATENATE
+            bom-potx1
+            bom-potx2
+      INTO gw_akt_text.
+  ENDCASE.
+ENDFORM.                    " BUILD_AKT_KOMP
+
+*&---------------------------------------------------------------------*
+*&      Form  WRITE_STEP
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM write_step
+        USING value(step)       LIKE stpox-stufe
+              value(position)   TYPE i
+              value(max_length) TYPE i.
+  DATA: point_count TYPE i,
+        positioned VALUE ' '.
+  IF step > 1.
+    point_count = step - 1.
+    DO point_count TIMES.
+      IF sy-index >= max_length.       " auf keinen Fall tiefer
+        EXIT.                          " (restliche auf gleicher Ebene)
+      ENDIF.
+      IF positioned EQ 'X'.            " restliche Punkte anschließend
+        WRITE '.' NO-GAP.
+      ELSE.
+        WRITE AT position '.' NO-GAP.  " erster Punkt an position
+        positioned = 'X'.
+      ENDIF.
+    ENDDO.
+    WRITE step LEFT-JUSTIFIED NO-GAP.
+  ELSE.
+    WRITE AT position step LEFT-JUSTIFIED NO-GAP.
+  ENDIF.
+ENDFORM.                               " WRITE_STEP
+
+*----------------------------------------------------------------------*
+*       Form  READ_RELATED_B_ENTRY
+*----------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+FORM read_related_b_entry
+       TABLES bom_a STRUCTURE rc29v1
+              bom_b STRUCTURE rc29v2.
+* zu vergleichende Felder für comparing-Zugriff in Kopf BOM_B u. merken
+  MOVE-CORRESPONDING bom_a TO bom_b.
+  CLEAR: gw_key_a,
+         gw_key_b,
+         gw_key_c,
+         gw_key_d,
+         gw_key_e.
+
+  ASSIGN space TO <fsa>.
+  ASSIGN space TO <fsb>.
+  ASSIGN space TO <fsc>.
+  ASSIGN space TO <fsd>.
+  ASSIGN space TO <fse>.
+* zum Objekttyp der A-Position werden die typspezifischen Schlüssel-
+* felder für die Suche nach B-Positionen bestimmt
+* -> es werden nur B-Positionen mit gleichem Objekttyp gesucht,
+*    wenn auch mit verschiedenem Positionstyp (-> Customizing!)
+*break-point.
+  CASE bom_a-objty.
+*    Material
+    WHEN 'M' OR '1'.
+      gw_key_a = 'IDNRK'.
+      ASSIGN bom_a-idnrk TO <fsa>.
+*       OJTXB zusätzlich für Markierung schon gelesener Zeilen
+      IF gp_igsrt = space.
+* DL1K9A09EP End
+        gw_key_c = 'SORTF'.
+        ASSIGN bom_a-sortf TO <fsc>.
+      ENDIF.
+*       OJTXB zusätzlich für Markierung schon gelesener Zeilen
+      READ TABLE bom_b WITH KEY (gw_key_a) =  <fsa>
+                                (gw_key_b) =  <fsb>
+                                (gw_key_c) =  <fsc>
+                                (gw_key_d) =  <fsd>
+                                ojtxb   =  bom_a-ojtxb
+             COMPARING (gw_fa01) (gw_fa02) (gw_fa03) (gw_fa04) (gw_fa05)
+                       (gw_fa06) (gw_fa07) (gw_fa08) (gw_fa09) (gw_fa10).
+
+    WHEN '2'.              " Textpos. oder Nichtlagermat. ohne Mat-Nr.
+      gw_key_a = 'POTX1'.
+      ASSIGN bom_a-potx1 TO <fsa>.
+      gw_key_b = 'POTX2'.
+      ASSIGN bom_a-potx2 TO <fsb>.
+      gw_key_c = 'IDNRK'.
+      ASSIGN bom_a-idnrk TO <fsc>.
+      gw_key_d = 'DOKNR'.
+      ASSIGN bom_a-doknr TO <fsd>.
+      gw_key_e = 'CLASS'.
+      ASSIGN bom_a-class TO <fse>.
+      READ TABLE bom_b WITH KEY (gw_key_a) =  <fsa>
+                                (gw_key_b) =  <fsb>
+                                (gw_key_c) =  <fsc>
+                                (gw_key_d) =  <fsd>
+                                (gw_key_e) =  <fse>
+                                ojtxb   =  bom_a-ojtxb
+              COMPARING (gw_fa01) (gw_fa02) (gw_fa03) (gw_fa04) (gw_fa05)
+                        (gw_fa06) (gw_fa07) (gw_fa08) (gw_fa09) (gw_fa10)
+                        (gw_fa11) (gw_fa12) (gw_fa13) (gw_fa14) (gw_fa15)
+                        (gw_fa16) (gw_fa17) (gw_fa18) (gw_fa19) (gw_fa20)
+                        (gw_ft01) (gw_ft02) (gw_ft03) (gw_ft04) (gw_ft05)
+                        (gw_ft06) (gw_ft07) (gw_ft08) (gw_ft09) (gw_ft10)
+                        (gw_ft11) (gw_ft12) (gw_ft13) (gw_ft14) (gw_ft15)
+                        (gw_ft16) (gw_ft17) (gw_ft18) (gw_ft19) (gw_ft20)
+                        (gw_ft21) (gw_ft22) (gw_ft23) (gw_ft24) (gw_ft25)
+                        (gw_ft26) (gw_ft27) (gw_ft28) (gw_ft29) (gw_ft30).
+    WHEN '3'.                            " Dokument
+      gw_key_a = 'DOKNR'.
+      ASSIGN bom_a-doknr TO <fsa>.
+      gw_key_b = 'DOKAR'.
+      ASSIGN bom_a-dokar TO <fsb>.
+      gw_key_c = 'DOKTL'.
+      ASSIGN bom_a-doktl TO <fsc>.
+      gw_key_d = 'DOKVR'.
+      ASSIGN bom_a-dokvr TO <fsd>.
+      READ TABLE bom_b WITH KEY (gw_key_a) =  <fsa>
+                                (gw_key_b) =  <fsb>
+                                (gw_key_c) =  <fsc>
+                                (gw_key_d) =  <fsd>
+                                ojtxb   =  bom_a-ojtxb
+              COMPARING (gw_fa01) (gw_fa02) (gw_fa03) (gw_fa04) (gw_fa05)
+                        (gw_fa06) (gw_fa07) (gw_fa08) (gw_fa09) (gw_fa10)
+                        (gw_fa11) (gw_fa12) (gw_fa13) (gw_fa14) (gw_fa15)
+                        (gw_fa16) (gw_fa17) (gw_fa18) (gw_fa19) (gw_fa20)
+                        (gw_fd01) (gw_fd02) (gw_fd03) (gw_fd04) (gw_fd05)
+                        (gw_fd06) (gw_fd07) (gw_fd08) (gw_fd09) (gw_fd10)
+                        (gw_fd11) (gw_fd12) (gw_fd13) (gw_fd14) (gw_fd15)
+                        (gw_fd16) (gw_fd17) (gw_fd18) (gw_fd19) (gw_fd20)
+                        (gw_fd21) (gw_fd22) (gw_fd23) (gw_fd24) (gw_fd25)
+                        (gw_fd26) (gw_fd27) (gw_fd28) (gw_fd29) (gw_fd30).
+    WHEN '4'.                            " Klasse
+      gw_key_a = 'KLART'.
+      ASSIGN bom_a-klart TO <fsa>.
+      gw_key_b = 'CLASS'.
+      ASSIGN bom_a-class TO <fsb>.
+      READ TABLE bom_b WITH KEY (gw_key_a) =  <fsa>
+                                (gw_key_b) =  <fsb>
+                                (gw_key_c) =  <fsc>
+                                (gw_key_d) =  <fsd>
+                                ojtxb   =  bom_a-ojtxb
+              COMPARING (gw_fa01) (gw_fa02) (gw_fa03) (gw_fa04) (gw_fa05)
+                        (gw_fa06) (gw_fa07) (gw_fa08) (gw_fa09) (gw_fa10)
+                        (gw_fa11) (gw_fa12) (gw_fa13) (gw_fa14) (gw_fa15)
+                        (gw_fa16) (gw_fa17) (gw_fa18) (gw_fa19) (gw_fa20)
+                        (gw_fk01) (gw_fk02) (gw_fk03) (gw_fk04) (gw_fk05)
+                        (gw_fk06) (gw_fk07) (gw_fk08) (gw_fk09) (gw_fk10)
+                        (gw_fk11) (gw_fk12) (gw_fk13) (gw_fk14) (gw_fk15)
+                        (gw_fk16) (gw_fk17) (gw_fk18) (gw_fk19) (gw_fk20)
+                        (gw_fk21) (gw_fk22) (gw_fk23) (gw_fk24) (gw_fk25)
+                        (gw_fk26) (gw_fk27) (gw_fk28) (gw_fk29) (gw_fk30).
+    WHEN '5'.                            " Intra-Material ohne Mat-Nr.
+      gw_key_a = 'POTX1'.
+      ASSIGN bom_a-potx1 TO <fsa>.
+      gw_key_b = 'POTX2'.
+      ASSIGN bom_a-potx2 TO <fsb>.
+      READ TABLE bom_b WITH KEY (gw_key_a) =  <fsa>
+                                (gw_key_b) =  <fsb>
+                                (gw_key_c) =  <fsc>
+                                (gw_key_d) =  <fsd>
+                                ojtxb   =  bom_a-ojtxb
+              COMPARING (gw_fa01) (gw_fa02) (gw_fa03) (gw_fa04) (gw_fa05)
+                        (gw_fa06) (gw_fa07) (gw_fa08) (gw_fa09) (gw_fa10)
+                        (gw_fa11) (gw_fa12) (gw_fa13) (gw_fa14) (gw_fa15)
+                        (gw_fa16) (gw_fa17) (gw_fa18) (gw_fa19) (gw_fa20)
+                        (gw_fi01) (gw_fi02) (gw_fi03) (gw_fi04) (gw_fi05)
+                        (gw_fi06) (gw_fi07) (gw_fi08) (gw_fi09) (gw_fi10)
+                        (gw_fi11) (gw_fi12) (gw_fi13) (gw_fi14) (gw_fi15)
+                        (gw_fi16) (gw_fi17) (gw_fi18) (gw_fi19) (gw_fi20)
+                        (gw_fi21) (gw_fi22) (gw_fi23) (gw_fi24) (gw_fi25)
+                        (gw_fi26) (gw_fi27) (gw_fi28) (gw_fi29) (gw_fi30).
+  ENDCASE.
+ENDFORM.                    " READ_RELATED_B_ENTRY
+
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  KNOWLEDGE_display
+*&---------------------------------------------------------------------*
+*      vergleichende Ausgabe von sourcetab1 und sourcetab2             *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM knowledge_display
+      TABLES  knowledge_tab_a STRUCTURE knowledge_tab_a
+              knowledge_tab_b STRUCTURE knowledge_tab_b
+              kt_relation     STRUCTURE kt_relation.
+
+  DATA: BEGIN OF found OCCURS 0,
+           tabix LIKE sy-tabix,
+        END OF found.
+  DATA: new_line(1) TYPE c,
+        last_tabix LIKE sy-tabix,
+        save1 LIKE sy-subrc,
+        save2 LIKE sy-subrc,
+        pos_len TYPE i,
+        last_knnum LIKE cukb-knnum.
+
+  READ TABLE knowledge_tab_a
+           WITH KEY knobj = bom_a-knobj.
+  save1 = sy-subrc.
+  READ TABLE knowledge_tab_b
+           WITH KEY knobj = bom_b-knobj.
+  save2 = sy-subrc.
+*    nichts zu zeigen, wenn kein Wissen zu diesen Positionen
+  CHECK ( save1 EQ 0 ) OR ( save2 EQ 0 ).
+  REFRESH found.
+  pos_len = gc_pos_se - gc_pos_pr - 3.
+  PERFORM knowledge_header_display.
+  LOOP AT knowledge_tab_a
+          WHERE knobj = bom_a-knobj.
+    WRITE /1  knowledge_tab_a-knnam.
+    gw_pos = gc_pos_pr - 1.
+    WRITE AT gw_pos sy-vline.
+*       gibt es diese KNNUM auch in der Sekundärstl. ?
+    READ TABLE kt_relation
+          WITH KEY knobj_a = knowledge_tab_a-knobj
+                   knnum_a = knowledge_tab_a-knnum
+                   knobj_b = bom_b-knobj.
+    IF ( sy-subrc NE 0 ) .
+      FORMAT COLOR 6.
+    ENDIF.
+    WRITE AT gc_pos_pr '         X            '.
+    gw_pos = gc_pos_se - 1.
+    WRITE AT gw_pos sy-vline.
+    IF sy-subrc EQ 0.
+*           es wurde gleiches Wissen gefunden
+      READ TABLE knowledge_tab_b
+           WITH KEY knobj = kt_relation-knobj_b
+                    knnum = kt_relation-knnum_b.
+      found-tabix = sy-tabix.
+      APPEND found.
+      IF kt_relation-knnum_a = kt_relation-knnum_b.
+*              bezogene B-Zeile hat gleiche KNNUM
+        WRITE AT gc_pos_se '         X          '.
+      ELSE.
+*              bezogene B-Zeile hat andere KNNUM
+        WRITE AT gc_pos_se '( = '.
+        WRITE AT (pos_len) knowledge_tab_b-knnam.
+        gw_pos = gc_pos_end - 1.
+        WRITE AT gw_pos ')'.
+*              Komplettausgabe der Gleich-Zeile !!!!
+        WRITE AT gc_pos_end sy-vline.
+        WRITE /1  knowledge_tab_b-knnam.
+        gw_pos = gc_pos_pr - 1.
+        WRITE AT gw_pos sy-vline.
+        WRITE AT gc_pos_pr '( = '.
+        WRITE AT (pos_len) knowledge_tab_a-knnam.
+        gw_pos = gc_pos_se - 2.
+        WRITE AT gw_pos ')'.
+        gw_pos = gc_pos_se - 1.
+        WRITE AT gw_pos sy-vline.
+        WRITE AT gc_pos_se '         X          '.
+      ENDIF.
+    ELSE.
+      WRITE AT gc_pos_se '                    '.
+    ENDIF.
+    WRITE AT gc_pos_end sy-vline.
+    FORMAT COLOR OFF.
+  ENDLOOP.
+*    nicht bezogene in Sekundärstl. ausgeben (ohne Primärbezug)
+  LOOP AT knowledge_tab_b
+           WHERE knobj = bom_b-knobj.
+    READ TABLE found WITH KEY tabix = sy-tabix.
+    IF sy-subrc NE 0.
+      WRITE /1  knowledge_tab_b-knnam.
+      gw_pos = gc_pos_pr - 1.
+      WRITE AT gw_pos sy-vline.
+      FORMAT COLOR 6.
+      WRITE AT gc_pos_pr '                    '.
+      gw_pos = gc_pos_se - 1.
+      WRITE AT gw_pos sy-vline.
+      WRITE AT gc_pos_se '         X          '.
+      WRITE AT gc_pos_end sy-vline.
+      FORMAT COLOR OFF.
+      WRITE ' '.
+    ENDIF.
+  ENDLOOP.
+  ULINE AT (gc_pos_end).
+ENDFORM.                               " KNOWLEDGE_DISPLAY
+
+*&---------------------------------------------------------------------*
+*&      Form  KNOWLEDGE_COMPARE
+*&---------------------------------------------------------------------*
+*      vergleicht sourcetab1 und sourcetab2                            *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM knowledge_compare
+TABLES source_tab1     STRUCTURE source_tab
+source_tab2     STRUCTURE source_tab
+knowledge_tab_a STRUCTURE knowledge_tab_a
+knowledge_tab_b STRUCTURE knowledge_tab_b
+kt_relation     STRUCTURE kt_relation
+code_tab1       STRUCTURE code_tab1
+code_tab2       STRUCTURE code_tab2
+range_knnum1    STRUCTURE range_knnum1
+range_knnum2    STRUCTURE range_knnum2
+USING  knobj_a         LIKE      stpox-knobj
+knobj_b         LIKE      stpox-knobj
+knowledge_different TYPE c.
+
+  DATA: BEGIN OF found OCCURS 0,
+           tabix LIKE sy-tabix,
+        END OF found.
+  DATA: knnum_different(1) TYPE c.
+  DATA: knnum_found(1) TYPE c.
+  DATA: 1_subrc LIKE sy-subrc,
+        2_subrc LIKE sy-subrc,
+        knnum_1 LIKE cukb-knnum,
+        knnum_2 LIKE cukb-knnum,
+        tabix_1 LIKE sy-tabix,
+        tabix_2 LIKE sy-tabix.
+
+  REFRESH found.
+  REFRESH: range_knnum1_rest, range_knnum1_rest.
+  knnum_different = ' '.
+*1. Schritt: die knnum vergleichen (globales /lokales Wissen)
+  LOOP AT source_tab1.
+*       gibt es dieses Wissen auch in der Sekundärstl. ?  (global)
+    READ TABLE source_tab2 WITH KEY knnum = source_tab1-knnum.
+*       knnum ist global eindeutig
+    IF sy-subrc EQ 0.
+      tabix_2 = sy-tabix.
+      PERFORM kt_relation_append USING knobj_a knobj_b.
+      source_tab1-found = 'X'.
+      MODIFY source_tab1.
+      source_tab2-found = 'X'.
+      MODIFY source_tab2 INDEX tabix_2.
+    ELSE.
+      knnum_different = 'X'.
+      range_knnum1_rest-knnum = source_tab1-knnum.
+      APPEND range_knnum1_rest.        " enthält nicht in 2 gefundene
+    ENDIF.
+  ENDLOOP.
+  LOOP AT source_tab2
+          WHERE found IS INITIAL.
+*       gibt es dieses Wissen auch in der Primärstl. ?
+    READ TABLE source_tab1 WITH KEY knnum = source_tab2-knnum
+                                    found = ' '.
+*       knnum ist eindeutig
+    IF sy-subrc EQ 0.
+      tabix_1 = sy-tabix.
+      PERFORM kt_relation_append USING knobj_a knobj_b.
+      source_tab2-found = 'X'.
+      MODIFY source_tab2.
+      source_tab1-found = 'X'.
+      MODIFY source_tab1 INDEX tabix_1.
+    ELSE.
+      knnum_different = 'X'.
+      range_knnum2_rest-knnum = source_tab2-knnum.
+      APPEND range_knnum2_rest.        " enthält nicht in 1 gefundene
+    ENDIF.
+  ENDLOOP.
+  IF knnum_different = ' '.            "bei gleichen knnums wird der
+    knowledge_different = ' '.         "Vergleich mit 'gleich' beendet.
+    EXIT.
+  ENDIF.                         "sonst Vergleich Kompilate notwend.
+*2. Schritt: die Kompliate der nicht übereinstimmenden knnum vergleichen
+*         (gleiches globales oder gleiches lokales Wissen)
+  CLEAR: tabix_1, tabix_2.
+  LOOP AT range_knnum1_rest.
+    READ TABLE code_tab1 WITH KEY knnum = range_knnum1_rest-knnum.
+    tabix_1 = sy-tabix.
+    knnum_found = 'X'.
+    DO.
+*             Versuch, in 2 erste Zeile gleichen Codes zu finden
+      READ TABLE code_tab2 WITH KEY code = code_tab1-code.
+      IF sy-subrc NE 0.
+*                keine weitere erste gleiche Zeile mehr gefunden
+        knnum_found = ' '.
+        EXIT.                          " aus do
+      ENDIF.
+      tabix_2 = sy-tabix + 1.
+      knnum_2 = code_tab2-knnum.
+*             es gibt in tab2 eine Zeile gleichen Wissens
+*             mit unterschiedlicher knnum
+      tabix_1 = tabix_1 + 1.
+      knnum_found = 'X'.
+      LOOP AT code_tab1 FROM tabix_1.
+        IF code_tab1-knnum NE range_knnum1_rest-knnum.
+*                    am Ende dieser knnum in 1 angelangt, bisher gleich
+*                    geht das Wissen auch nicht in der 2. weiter ?
+          READ TABLE code_tab2 INDEX tabix_2.
+          IF       ( sy-subrc        EQ 0       )
+               AND ( code_tab2-knnum EQ knnum_2 ) .
+*                       geht in 2 weiter, Unterschied gefunden, Ausstieg
+            knnum_found = ' '.
+            EXIT.
+          ELSE.
+*                       hört auch in 2 auf, i.O.
+            knnum_found = 'X'.
+            EXIT.
+          ENDIF.
+        ENDIF.
+        READ TABLE code_tab2 INDEX tabix_2.
+        IF       ( sy-subrc        EQ 0              )
+             AND ( code_tab2-knnum EQ knnum_2        )
+             AND ( code_tab1-code  EQ code_tab2-code ).
+*                     alles gleich bisher, weiterprobieren
+          tabix_2 = tabix_2 + 1.
+        ELSE.
+*                     Unterschied gefunden, Ausstieg
+          knnum_found = ' '.
+          EXIT.
+        ENDIF.
+      ENDLOOP.                         " at code_tab1
+      IF knnum_found EQ 'X'.
+        EXIT.      " aus do, kein weiterer Versuch nötig
+      ENDIF.
+    ENDDO. " Versuch erste Zeile gleichen Codes zu finden
+    IF knnum_found EQ 'X'.
+*         merken der gefundenen gleichen Knnum in anderer Tabelle
+      CLEAR kt_relation.
+      kt_relation-knobj_a = knobj_a.
+      kt_relation-knnum_a = range_knnum1_rest-knnum.
+      kt_relation-knobj_b = knobj_b.
+      kt_relation-knnum_b = knnum_2.
+      APPEND kt_relation.
+      DELETE range_knnum2_rest WHERE knnum = knnum_2.
+    ELSE.
+*         für diese knnum wurde kein gleiches Wissen gefunden
+      knowledge_different = 'X'.
+    ENDIF.
+  ENDLOOP. " über alle nicht in 2 gefundenen knnums des bom_a-Eintrags
+  LOOP AT range_knnum2_rest.
+    READ TABLE code_tab2 WITH KEY knnum = range_knnum2_rest-knnum.
+    tabix_2 = sy-tabix.
+    knnum_found = 'X'.
+    DO.
+*             Versuch, in 1 erste Zeile gleichen Codes zu finden
+      READ TABLE code_tab1 WITH KEY code = code_tab2-code.
+      IF sy-subrc NE 0.
+*                keine weitere erste gleiche Zeile mehr gefunden
+        knnum_found = ' '.
+        EXIT.                          " aus do
+      ENDIF.
+      tabix_1 = sy-tabix + 1.
+      knnum_1 = code_tab1-knnum.
+*             es gibt in tab1 eine Zeile gleichen Wissens
+*             mit unterschiedlicher knnum
+      tabix_2 = tabix_2 + 1.
+      knnum_found = 'X'.
+      LOOP AT code_tab2 FROM tabix_2.
+        IF code_tab2-knnum NE range_knnum2_rest-knnum.
+*                    am Ende dieser knnum in 2 angelangt, bisher gleich
+*                    geht das Wissen auch nicht in der 1. weiter ?
+          READ TABLE code_tab1 INDEX tabix_1.
+          IF       ( sy-subrc        EQ 0       )
+               AND ( code_tab1-knnum EQ knnum_1 ) .
+*                       geht in 1 weiter, Unterschied gefunden, Ausstieg
+            knnum_found = ' '.
+            EXIT.
+          ELSE.
+*                       hört auch in 1 auf, i.O.
+            knnum_found = 'X'.
+            EXIT.
+          ENDIF.
+        ENDIF.
+        READ TABLE code_tab1 INDEX tabix_1.
+        IF       ( sy-subrc        EQ 0              )
+             AND ( code_tab1-knnum EQ knnum_1        )
+             AND ( code_tab2-code  EQ code_tab1-code ).
+*                     alles gleich bisher, weiterprobieren
+          tabix_1 = tabix_1 + 1.
+        ELSE.
+*                     Unterschied gefunden, Ausstieg
+          knnum_found = ' '.
+          EXIT.
+        ENDIF.
+      ENDLOOP.                         " at code_tab2
+      IF knnum_found EQ 'X'.
+        EXIT.      " aus do, kein weiterer Versuch nötig
+      ENDIF.
+    ENDDO. " Versuch erste Zeile gleichen Codes zu finden
+    IF knnum_found EQ 'X'.
+*         merken der gefundenen gleichen Knnum in anderer Tabelle
+      CLEAR kt_relation.
+      kt_relation-knobj_a = knobj_a.
+      kt_relation-knnum_a = knnum_1.
+      kt_relation-knobj_b = knobj_b.
+      kt_relation-knnum_b = range_knnum2_rest-knnum.
+      APPEND kt_relation.
+    ELSE.
+*         für diese knnum wurde kein gleiches Wissen gefunden
+      knowledge_different = 'X'.
+    ENDIF.
+  ENDLOOP. " über alle nicht in 1 gefundenen knnums des bom_b-Eintrags
+
+ENDFORM.                               " KNOWLEDGE_COMPARE
+
+
+*&---------------------------------------------------------------------*
+*&      Form  BOM_EXPLOSIONS
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM bom_explosions.
+  CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+     EXPORTING
+        capid                 = bom_key-capid1
+        datuv                 = bom_key-datuv1
+        mehrs                 = bom_key-mehrs
+        mtnrv                 = bom_key-matnr1
+        stlal                 = bom_key-stlal1
+        stlan                 = bom_key-stlan1
+        werks                 = bom_key-werks1
+*             aennr                 = bom_key-aennr1
+*             revlv                 = bom_key-revlv1
+        emeng                 = bom_key-emeng1
+*             Auflösungsparameter
+        altvo                 = rc29l-altvo
+        aumgb                 = rc29l-ausss
+        brems                 = rc29l-brems
+        postp                 = rc29l-postp
+        sanko                 = rc29l-sanko
+        sanka                 = rc29l-sanka
+        sanfr                 = rc29l-sanfe
+        sanin                 = rc29l-sanin
+        rvrel                 = rc29l-rvrel
+        schgt                 = rc29l-schgt
+        erskz                 = rc29l-erskz
+        stkkz                 = rc29l-stkkz
+        erssl                 = rc29l-erssl
+        bessl                 = rc29l-bessl
+        beikz                 = rc29l-beikz
+        bagrp                 = rc29l-bagrp
+     TABLES
+        stb                   = bom_a
+        matcat                = matcat_a
+     EXCEPTIONS
+        alt_not_found         = 24
+        call_invalid          = 02
+        material_not_found    = 4
+        missing_authorization = 28
+        no_bom_found          = 12
+        no_plant_data         = 8
+        no_suitable_bom_found = 16.
+  gw_save_subrc1 = sy-subrc.
+  PERFORM subrc_explr
+            USING gw_save_subrc1
+                  bom_key-objty1
+                  bom_key-matnr1
+                  bom_key-doknr1
+                  bom_key-dokar1
+                  bom_key-doktl1
+                  bom_key-dokvr1
+                  bom_key-equnr1
+                  bom_key-tplnr1
+                  bom_key-werks1
+                  bom_key-stlan1
+                  bom_key-stlal1
+                  bom_key-capid1
+                  bom_key-datuv1
+                  bom_a.
+*
+  CHECK gp_awu = space.
+
+  CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+       EXPORTING
+            capid                 = bom_key-capid2
+            datuv                 = bom_key-datuv2
+            mehrs                 = bom_key-mehrs
+            mtnrv                 = bom_key-matnr2
+            stlal                 = bom_key-stlal2
+            stlan                 = bom_key-stlan2
+            werks                 = bom_key-werks2
+*                aennr                 = bom_key-aennr2
+*                revlv                 = bom_key-revlv2
+            emeng                 = bom_key-emeng2
+*                Auflösungsparameter
+            altvo                 = rc29l-altvo
+            aumgb                 = rc29l-ausss
+            brems                 = rc29l-brems
+            postp                 = rc29l-postp
+            sanko                 = rc29l-sanko
+            sanka                 = rc29l-sanka
+            sanfr                 = rc29l-sanfe
+            sanin                 = rc29l-sanin
+            rvrel                 = rc29l-rvrel
+            schgt                 = rc29l-schgt
+            erskz                 = rc29l-erskz
+            stkkz                 = rc29l-stkkz
+            erssl                 = rc29l-erssl
+            bessl                 = rc29l-bessl
+            beikz                 = rc29l-beikz
+            bagrp                 = rc29l-bagrp
+       TABLES
+            stb                   = bom_b
+            matcat                = matcat_b
+       EXCEPTIONS
+            alt_not_found         = 24
+            call_invalid          = 02
+            material_not_found    = 4
+            missing_authorization = 28
+            no_bom_found          = 12
+            no_plant_data         = 8
+            no_suitable_bom_found = 16.
+  gw_save_subrc2 = sy-subrc.
+
+  LOOP AT bom_b.
+    CALL FUNCTION '2054_TRANSLATE_2_UPPERCASE'
+      EXPORTING
+        i_string      = bom_b-sortf
+      IMPORTING
+        e_string      = bom_b-sortf
+      EXCEPTIONS
+        error_occured = 1
+        OTHERS        = 2.
+    IF sy-subrc <> 0.
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+    ELSE.
+      MODIFY bom_b.
+    ENDIF.
+  ENDLOOP.
+* DL1K9A09EP
+  PERFORM subrc_explr
+           USING gw_save_subrc2
+                 bom_key-objty2
+                 bom_key-matnr2
+                 bom_key-doknr2
+                 bom_key-dokar2
+                 bom_key-doktl2
+                 bom_key-dokvr2
+                 bom_key-equnr2
+                 bom_key-tplnr2
+                 bom_key-werks2
+                 bom_key-stlan2
+                 bom_key-stlal2
+                 bom_key-capid2
+                 bom_key-datuv2
+                 bom_b.
+ENDFORM.                               " BOM_EXPLOSIONS
+*---------------------------------------------------------------------*
+*        SUBRC_EXPLR                                                 *
+*---------------------------------------------------------------------*
+*        Input :                                                      *
+*                                                                     *
+*        Output:                                                      *
+*                                                                     *
+*---------------------------------------------------------------------*
+FORM subrc_explr
+     USING save_subrc LIKE sy-subrc
+           pm_objty LIKE bom_key-objty1
+           pm_mtnrv LIKE stpox-idnrk
+           pm_doknr LIKE stpox-doknr
+           pm_dokar LIKE stpox-dokar
+           pm_doktl LIKE stpox-doktl
+           pm_dokvr LIKE stpox-dokvr
+           pm_equnr LIKE rc29n-equnr
+           pm_tplnr LIKE rc29n-tplnr
+           pm_werks LIKE stpox-werks
+           pm_stlan LIKE stpox-stlan
+           pm_stlal LIKE stpox-stlal
+           pm_capid LIKE rc29l-capid
+           pm_datuv LIKE stpox-datuv
+           stb      LIKE bom_a.
+  DATA: hlp_stlal LIKE stpox-stlal.
+  sy-subrc = save_subrc.
+  CASE save_subrc.
+*     alles klar
+    WHEN 0 .
+      CLEAR: csbomex.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+*     ungültiger Aufruf
+    WHEN 2 .
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '400'.
+      csbomex-mvar1 = 'E:'.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s400.
+      LEAVE.
+*     Dokument nicht vorhanden
+    WHEN 3 .
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '530'.
+      csbomex-mvar1 = 'E:'.
+      WRITE pm_doknr TO csbomex-mvar2.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s530 WITH 'E: ' pm_doknr.
+      LEAVE.
+*     Material nicht vorhanden
+    WHEN 4 .
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '500'.
+      csbomex-mvar1 = 'E:'.
+      WRITE pm_mtnrv TO csbomex-mvar2.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s500 WITH 'E: ' pm_mtnrv.
+      LEAVE.
+*     Stückliste nicht aktiv
+    WHEN 5 .
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '517'.
+      csbomex-mvar1 = 'E:'.
+      WRITE pm_doknr TO csbomex-mvar2.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s517 WITH pm_doknr.
+      LEAVE.
+*     Stückliste zum Löschen vorgemerkt
+    WHEN 7 .
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '516'.
+      csbomex-mvar1 = 'E:'.
+      WRITE pm_doknr TO csbomex-mvar2.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s516 WITH pm_doknr.
+      LEAVE.
+*     Material im Werk nicht gepflegt
+    WHEN 8 .
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '501'.
+      csbomex-mvar1 = 'E:'.
+      WRITE pm_mtnrv TO csbomex-mvar2.
+      csbomex-mvar2 = pm_werks.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s501 WITH 'E: ' pm_mtnrv pm_werks.
+      LEAVE.
+*     Stückliste ohne Positionen
+    WHEN 9 .
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '064'.
+      csbomex-mvar1 = 'E:'.
+      WRITE pm_doknr TO csbomex-mvar2.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s064 WITH pm_datuv.
+      LEAVE.
+*     Equipment nicht gefunden
+    WHEN 11.
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '700'.
+      csbomex-mvar1 = 'E:'.
+      WRITE pm_equnr TO csbomex-mvar2.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s700 WITH pm_equnr.
+      LEAVE.
+*     Stl zu Mat/Werk/Verw. nicht vorhanden
+    WHEN 12.
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '514'.
+      csbomex-mvar1 = 'E:'.
+      CASE pm_objty.
+        WHEN '1'.
+          WRITE pm_mtnrv TO csbomex-mvar2.
+        WHEN 'M'.
+          WRITE pm_mtnrv TO csbomex-mvar2.
+        WHEN 'D'.
+          WRITE pm_doknr TO csbomex-mvar2.
+        WHEN 'E'.
+          WRITE pm_equnr TO csbomex-mvar2.
+        WHEN 'T'.
+          WRITE pm_tplnr TO csbomex-mvar2.
+      ENDCASE.
+      csbomex-mvar3 = pm_werks.
+      IF NOT pm_stlan IS INITIAL.
+        csbomex-mvar4 = pm_stlan.
+        EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+        MESSAGE s514 WITH 'E: ' csbomex-mvar2 pm_werks pm_stlan.
+      ELSE.
+        csbomex-mvar4 = pm_capid.
+        EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+        MESSAGE s514 WITH 'E: ' csbomex-mvar2 pm_werks pm_capid.
+      ENDIF.
+      LEAVE.
+*     Technischer Platz nicht gefunden
+    WHEN 13.
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      csbomex-msgno = '750'.
+      csbomex-mvar1 = 'E:'.
+      WRITE pm_tplnr TO csbomex-mvar2.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s750 WITH pm_tplnr.
+      LEAVE.
+*     Stl nicht gueltig
+    WHEN 16.
+*        ungueltig wg. Datum, LOEKZ od. Status
+      CLEAR: csbomex.
+      csbomex-retcd = sy-subrc.
+      IF NOT pm_datuv EQ gc_min_grg.
+        csbomex-msgno = '503'.
+        csbomex-mvar1 = 'E:'.
+        WRITE pm_datuv TO csbomex-mvar2 DD/MM/YYYY.
+        EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+        MESSAGE s503 WITH 'E: ' pm_datuv.
+      ELSE.
+        csbomex-msgno = '505'.
+        csbomex-mvar1 = 'E:'.
+        EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+        MESSAGE s505 WITH 'E: '.
+      ENDIF.
+      IF NOT stb-loekz IS INITIAL.
+        IF stb-loekz = 'Y'.
+          CLEAR: csbomex.
+          csbomex-retcd = 24.
+          csbomex-msgno = '517'.
+          csbomex-mvar1 = 'E:'.
+          EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+          MESSAGE s517 WITH 'E: ' .
+        ELSE.
+          CLEAR: csbomex.
+          csbomex-retcd = 28.
+          csbomex-msgno = '516'.
+          csbomex-mvar1 = 'E:'.
+          EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+          MESSAGE s516 WITH 'E: ' .
+        ENDIF.
+      ENDIF.
+      LEAVE.
+*     Alternative nicht vorhanden
+    WHEN 24.
+      hlp_stlal = pm_stlal.
+      IF NOT stb-stlal IS INITIAL.
+        hlp_stlal = stb-stlal.
+      ENDIF.
+
+      CLEAR: csbomex.
+      csbomex-retcd = 32.
+      csbomex-msgno = '504'.
+      csbomex-mvar1 = 'E:'.
+      csbomex-mvar2 = hlp_stlal.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s504 WITH 'E: ' hlp_stlal.
+      LEAVE.
+*     keine Berechtigung zur Anzeige
+    WHEN 28.
+      CLEAR: csbomex.
+      csbomex-retcd = 36.
+      csbomex-msgno = '509'.
+      csbomex-mvar1 = 'E:'.
+      EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+      MESSAGE s509 WITH 'E: '.
+      LEAVE.
+  ENDCASE.
+
+ENDFORM.                               " SUBRC_EXPLR
+
+*----------------------------------------------------------------------*
+*       Form  DISPLAY_POSITION
+*----------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+FORM display_position
+     TABLES bom     STRUCTURE stpox
+     USING  tabix   LIKE      sy-tabix
+            datum   LIKE      sy-datum
+            pos     TYPE      c.
+
+  DATA tabix_tmp LIKE sy-tabix.
+
+  tabix_tmp = tabix.
+
+  CLEAR bom.
+  READ TABLE bom INDEX tabix.
+  CLEAR csin.
+  csin-datuv = datum.
+  csin-datub = datum.
+  csin-idnrk = bom-idnrk.
+  IF pos EQ 'P'.
+    READ TABLE matcat_a WITH KEY matnr = diff-matnr_a.
+    csin-stlty = diff-bmtyp_a.
+    CASE diff-bmtyp_a.
+      WHEN '1'.
+        csin-matnr = diff-matnr_a.
+        csin-werks = matcat_a-prwrk.
+      WHEN 'M'.
+        csin-matnr = diff-matnr_a.
+        csin-werks = matcat_a-prwrk.
+      WHEN 'D'.
+        csin-doknr = diff-doknr_a.
+        csin-dokar = diff-dokar_a.
+        csin-doktl = diff-doktl_a.
+        csin-dokvr = diff-dokvr_a.
+        csin-werks = matcat_a-prwrk.
+      WHEN '3'.
+        csin-doknr = diff-doknr_a.
+        csin-dokar = diff-dokar_a.
+        csin-doktl = diff-doktl_a.
+        csin-dokvr = diff-dokvr_a.
+        csin-werks = matcat_a-prwrk.
+      WHEN 'K'.
+        csin-vbeln = diff-vbeln_a.
+        csin-vbpos = diff-vbpos_a.
+        csin-matnr = diff-matnr_a.
+        csin-werks = matcat_a-prwrk.
+      WHEN 'P'.
+        csin-matnr = diff-matnr_a.
+        csin-pspnr = diff-pspnr_a.
+        csin-werks = matcat_a-prwrk.
+      WHEN 'E'.
+        csin-equnr = diff-equnr_a.
+        csin-werks = bom_key-werks1.
+      WHEN 'T'.
+        csin-tplnr = diff-tplnr_a.
+        csin-werks = bom_key-werks1.
+      WHEN 'F'.
+        PERFORM display_fert.
+        EXIT.
+      WHEN OTHERS.
+        EXIT.
+    ENDCASE.
+
+
+  ELSE.   " Sekundärposition
+    READ TABLE matcat_b WITH KEY matnr = diff-matnr_b.
+    csin-stlty = diff-bmtyp_b.
+    CASE diff-bmtyp_b.
+      WHEN '1'.
+        csin-matnr = diff-matnr_b.
+        csin-werks = matcat_b-prwrk.
+      WHEN 'M'.
+        csin-matnr = diff-matnr_b.
+        csin-werks = matcat_b-prwrk.
+      WHEN 'D'.
+        csin-doknr = diff-doknr_b.
+        csin-dokar = diff-dokar_b.
+        csin-doktl = diff-doktl_b.
+        csin-dokvr = diff-dokvr_b.
+        csin-werks = matcat_b-prwrk.
+      WHEN '3'.
+        csin-doknr = diff-doknr_b.
+        csin-dokar = diff-dokar_b.
+        csin-doktl = diff-doktl_b.
+        csin-dokvr = diff-dokvr_b.
+        csin-werks = matcat_b-prwrk.
+      WHEN 'K'.
+        csin-matnr = diff-matnr_b.
+        csin-vbeln = diff-vbeln_b.
+        csin-vbpos = diff-vbpos_b.
+        csin-werks = matcat_b-prwrk.
+      WHEN 'P'.
+        csin-matnr = diff-matnr_b.
+        csin-pspnr = diff-pspnr_b.
+        csin-werks = matcat_b-prwrk.
+      WHEN 'E'.
+        csin-equnr = diff-equnr_b.
+        csin-werks = bom_key-werks2.
+      WHEN 'T'.
+        csin-tplnr = diff-tplnr_b.
+        csin-werks = bom_key-werks2.
+      WHEN 'F'.
+        PERFORM display_fert.
+        EXIT.
+      WHEN OTHERS.
+        EXIT.
+    ENDCASE.
+  ENDIF.
+  csin-stlan = bom-stlan.
+  csin-stuez = bom-stpoz.
+  csin-stlkn = bom-stlkn.
+  csin-stlal = bom-stlal.
+  csin-trtyp = 'A'.
+  csin-cmode = '01'.
+  CALL DIALOG 'CS_BOM_DISPLAY'
+    EXPORTING
+      csin.
+ENDFORM.                    " DISPLAY_POSITION
+
+*&---------------------------------------------------------------------*
+*&      Form  FCODE_DIFFERENTIATED
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fcode_differentiated.
+*         fcode_tab enthält die inaktive Drucktasten
+  REFRESH fcode_tab.
+  gw_show_dif = 'X'.
+  fcode_tab-fcode = 'SDIF'.
+  APPEND fcode_tab.
+  gw_show_sim = 'X'.
+  fcode_tab-fcode = 'SSIM'.
+  APPEND fcode_tab.
+  gw_show_equ = 'X'.
+  fcode_tab-fcode = 'SEQU'.
+  APPEND fcode_tab.
+  fcode_tab-fcode = 'KUMU'.
+  APPEND fcode_tab.
+  fcode_tab-fcode = 'DIFF'.
+  APPEND fcode_tab.
+  fcode_tab-fcode = 'LEV1'.
+  APPEND fcode_tab.
+  fcode_tab-fcode = 'LEVM'.
+  APPEND fcode_tab.
+  fcode_tab-fcode = 'VIEW'.
+  APPEND fcode_tab.
+  IF bom_key-write_text = 'X'.
+    fcode_tab-fcode = 'TEXY'.
+  ELSE.
+    fcode_tab-fcode = 'TEXN'.
+  ENDIF.
+  APPEND fcode_tab.
+ENDFORM.                    " FCODE_DIFFERENTIATED
+
+*----------------------------------------------------------------------*
+*       BUILD_HIDE_A
+*----------------------------------------------------------------------*
+*       Hide A Bereich aufbauen (PrimärStl)
+*----------------------------------------------------------------------*
+FORM build_hide_a.
+  CASE bom_a-bmtyp.
+*  Typ des Vaters
+    WHEN 'M'.
+      diff-bmtyp_a = 'M'.
+      READ TABLE matcat_a INDEX bom_a-ttidx.
+*       Schlüssel des Vaters
+      diff-matnr_a = matcat_a-matnr.
+    WHEN '1'.
+      diff-bmtyp_a = '1'.
+      READ TABLE matcat_a INDEX bom_a-ttidx.
+      diff-matnr_a = matcat_a-matnr.
+    WHEN 'D'.
+      diff-bmtyp_a = 'D'.
+      READ TABLE doccat_a INDEX bom_a-ttidx.
+      diff-doknr_a = doccat_a-doknr.
+      diff-dokar_a = doccat_a-dokar.
+      diff-doktl_a = doccat_a-doktl.
+      diff-dokvr_a = doccat_a-dokvr.
+*        diff-mnglg_a = doccat_a-mnglg.
+    WHEN '3'.
+      diff-bmtyp_a = 'D'.
+      READ TABLE doccat_a INDEX bom_a-ttidx.
+      diff-doknr_a = doccat_a-doknr.
+      diff-dokar_a = doccat_a-dokar.
+      diff-doktl_a = doccat_a-doktl.
+      diff-dokvr_a = doccat_a-dokvr.
+    WHEN 'K'.
+      diff-bmtyp_a = 'K'.
+      READ TABLE matcat_a INDEX bom_a-ttidx.
+      diff-vbeln_a = bom_key-vbeln1.
+      diff-vbpos_a = bom_key-vbpos1.
+      diff-matnr_a = matcat_a-matnr.
+    WHEN 'P'.
+      diff-bmtyp_a = 'P'.
+      READ TABLE matcat_a INDEX bom_a-ttidx.
+      diff-pspnr_a = bom_key-pspnr1.
+      diff-matnr_a = matcat_a-matnr.
+    WHEN 'E'.
+      diff-bmtyp_a = 'E'.
+      READ TABLE matcat_a INDEX bom_a-ttidx.
+      diff-equnr_a = bom_key-equnr1.
+    WHEN 'T'.
+      diff-bmtyp_a = 'T'.
+      READ TABLE matcat_a INDEX bom_a-ttidx.
+      diff-tplnr_a = bom_key-tplnr1.
+    WHEN 'F'.
+      diff-bmtyp_a = 'F'.
+      READ TABLE matcat_a INDEX bom_a-ttidx.
+      diff-aufnr_a = bom_key-aufnr1.
+  ENDCASE.
+ENDFORM.                    " BUILD_HIDE_A
+
+*----------------------------------------------------------------------*
+*       BUILD_HIDE_B
+*----------------------------------------------------------------------*
+*       Hide B Bereich aufbauen (SekundärStl)
+*----------------------------------------------------------------------*
+FORM build_hide_b.
+  CASE bom_b-bmtyp.
+*  Typ des Vaters
+    WHEN 'M'.
+      diff-bmtyp_b = 'M'.
+      READ TABLE matcat_b INDEX bom_b-ttidx.
+*       Schlüssel des Vaters
+      diff-matnr_b = matcat_b-matnr.
+    WHEN '1'.
+      diff-bmtyp_b = '1'.
+      READ TABLE matcat_b INDEX bom_b-ttidx.
+      diff-matnr_b = matcat_b-matnr.
+    WHEN 'D'.
+      diff-bmtyp_b = 'D'.
+      READ TABLE doccat_b INDEX bom_b-ttidx.
+      diff-doknr_b = doccat_b-doknr.
+      diff-dokar_b = doccat_b-dokar.
+      diff-doktl_b = doccat_b-doktl.
+      diff-dokvr_b = doccat_b-dokvr.
+    WHEN '3'.
+      diff-bmtyp_b = 'D'.
+      READ TABLE doccat_b INDEX bom_b-ttidx.
+      diff-doknr_b = doccat_b-doknr.
+      diff-dokar_b = doccat_b-dokar.
+      diff-doktl_b = doccat_b-doktl.
+      diff-dokvr_b = doccat_b-dokvr.
+    WHEN 'K'.
+      diff-bmtyp_b = 'K'.
+      READ TABLE matcat_b INDEX bom_b-ttidx.
+      diff-matnr_b = matcat_b-matnr.
+      diff-vbeln_b = bom_key-vbeln2.
+      diff-vbpos_b = bom_key-vbpos2.
+    WHEN 'P'.
+      diff-bmtyp_b = 'P'.
+      READ TABLE matcat_b INDEX bom_b-ttidx.
+      diff-pspnr_b = bom_key-pspnr2.
+      diff-matnr_b = matcat_b-matnr.
+    WHEN 'E'.
+      diff-bmtyp_b = 'E'.
+      READ TABLE matcat_b INDEX bom_b-ttidx.
+      diff-equnr_b = bom_key-equnr2.
+    WHEN 'T'.
+      diff-bmtyp_b = 'T'.
+      READ TABLE matcat_b INDEX bom_b-ttidx.
+      diff-tplnr_b = bom_key-tplnr2.
+    WHEN 'F'.
+      diff-bmtyp_b = 'F'.
+      READ TABLE matcat_b INDEX bom_b-ttidx.
+      diff-aufnr_b = bom_key-aufnr2.
+  ENDCASE.
+ENDFORM.                    " BUILD_HIDE_B
+
+*&---------------------------------------------------------------------*
+*&      Form  SUBPOSITION_GET
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM subposition_get
+        TABLES wa1          STRUCTURE stpub
+               wa2          STRUCTURE stpub
+        USING  subpos_found TYPE c.
+*       bom_a und bom_b muessen sitzen !
+
+  CHECK ( NOT ( bom_a-upskz IS INITIAL ) ) OR
+        ( NOT ( bom_b-upskz IS INITIAL ) ).
+  gw_save_subrc1 = -1.
+  gw_save_subrc2 = -1.
+  CLEAR: wa1, wa2.
+  IF bom_a-upskz NE ' '.
+    wa1-stlty = bom_a-stlty.
+    wa1-stlnr = bom_a-stlnr.
+    wa1-stlkn = bom_a-stlkn.
+    wa1-stpoz = bom_a-stpoz.
+    APPEND wa1.
+    CALL FUNCTION 'GET_STPU'
+      EXPORTING
+        all             = 'X'
+        no_buffer       = 'X'
+        set             = 'X'
+      TABLES
+        wa              = wa1
+      EXCEPTIONS
+        call_invalid    = 01
+        end_of_table    = 02
+        get_without_set = 03
+        key_incomplete  = 04
+        no_record_found = 05.
+    gw_save_subrc1 = sy-subrc.
+  ENDIF.
+  IF bom_b-upskz NE ' '.
+    wa2-stlty = bom_b-stlty.
+    wa2-stlnr = bom_b-stlnr.
+    wa2-stlkn = bom_b-stlkn.
+    wa2-stpoz = bom_b-stpoz.
+    APPEND wa2.
+    CALL FUNCTION 'GET_STPU'
+      EXPORTING
+        all             = 'X'
+        no_buffer       = 'X'
+        set             = 'X'
+      TABLES
+        wa              = wa2
+      EXCEPTIONS
+        call_invalid    = 01
+        end_of_table    = 02
+        get_without_set = 03
+        key_incomplete  = 04
+        no_record_found = 05.
+    gw_save_subrc2 = sy-subrc.
+  ENDIF.
+  IF  gp_igsub NE 'X' OR NOT gp_aen1 IS INITIAL.
+    IF ( gw_save_subrc1 NE 0 ) AND ( gw_save_subrc2 NE 0 ).
+      subpos_found = ' '.
+    ELSE.
+      subpos_found = 'X'.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " SUBPOSITION_GET
+
+*&---------------------------------------------------------------------*
+*&      Form  PREPARE_SIMILARITY
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM prepare_similarity USING subpos_found TYPE c.
+  REFRESH fcode_tab1.
+  fcode_tab1-fcode = 'UPOS'.
+  APPEND fcode_tab1.
+  fcode_tab1-fcode = 'BEZI'.
+  APPEND fcode_tab1.
+  IF gw_brutto = ' '.
+    fcode_tab1-fcode = 'NETT'.
+  ELSE.
+    fcode_tab1-fcode = 'BRUT'.
+  ENDIF.
+  APPEND fcode_tab1.
+  IF subpos_found EQ 'X'.
+    IF bom_key-upos_pos = ' '.
+      fcode_tab1-fcode = 'EBOT'.
+    ELSE.
+      fcode_tab1-fcode = 'POSI'.
+    ENDIF.
+    APPEND fcode_tab1.
+  ELSE.
+    fcode_tab1-fcode = 'EBOT'.
+    APPEND fcode_tab1.
+    fcode_tab1-fcode = 'POSI'.
+    APPEND fcode_tab1.
+  ENDIF.
+*  SET TITLEBAR 'T50'.                                  "with akt_komp.
+*  SET PF-STATUS 'DSP_LINE' EXCLUDING fcode_tab1.
+  IF gw_brutto = 'X'.
+    WINDOW STARTING AT 1 1 ENDING AT 79 20.
+  ELSE.
+    WINDOW STARTING AT 1 1 ENDING AT 79 15.
+  ENDIF.
+
+ENDFORM.                    " PREPARE_SIMILARITY
+
+
+*&---------------------------------------------------------------------*
+*&      Form  KNOWLEDGE_GET
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM knowledge_get
+    TABLES source_tab1     STRUCTURE source_tab             " Quellcode
+           source_tab2     STRUCTURE source_tab             " für Paar
+           knowledge_tab_a STRUCTURE knowledge_tab_a    " Fortschreibung
+           knowledge_tab_b STRUCTURE knowledge_tab_b
+           code_tab1       STRUCTURE cukr_01            " Kompliat
+           code_tab2       STRUCTURE cukr_01            " für Paar
+           range_knnum1    STRUCTURE range_knnum1          " knnum für
+           range_knnum2    STRUCTURE range_knnum2          " Paar
+    USING  knobj_a         LIKE stpox-knobj
+           knobj_b         LIKE stpox-knobj
+           knowledge_1     TYPE      c
+           knowledge_2     TYPE      c.
+  DATA: line LIKE source_tab-line.
+  REFRESH: source_tab1, source_tab2.
+  CLEAR: source_tab1, source_tab2.
+  REFRESH: code_tab1, code_tab2.
+  CLEAR: code_tab1, code_tab2.
+  CLEAR: knowledge_tab_a, knowledge_tab_b.
+  knowledge_1 = ' '.
+  knowledge_2 = ' '.
+  gw_save_subrc1 = -1.
+  gw_save_subrc2 = -1.
+  IF ( NOT ( knobj_a IS INITIAL ) ).
+    REFRESH range_knobj.
+    CLEAR range_knobj.
+    range_knobj-low = knobj_a.
+    APPEND range_knobj.
+    CALL FUNCTION 'CUKR_GET_CUOBS'
+      EXPORTING
+           date         = bom_key-datuv1
+      TABLES
+*           enthält die KNNUM zur KNOBJ
+           icuob        = icuob
+           range_knobj  = range_knobj
+      EXCEPTIONS
+           no_rec_found = 01.
+    gw_save_subrc1 = sy-subrc.
+    IF gw_save_subrc1 EQ 0.
+      REFRESH range_knnum1.
+      LOOP AT icuob.
+        READ TABLE icuob.
+        IF sy-subrc EQ 0.
+          range_knnum1-low = icuob-knnum.
+          APPEND range_knnum1.
+        ENDIF.
+      ENDLOOP.
+      CALL FUNCTION 'CUKR_GET_SOURCES'
+           EXPORTING
+                date         = bom_key-datuv1
+           TABLES
+*                    enthält mehrere LINE zu KNNUM
+                source_tab   = source_tab1
+                range_knnum  = range_knnum1
+           EXCEPTIONS
+                no_rec_found = 01.
+      gw_save_subrc1 = sy-subrc.
+      IF gw_save_subrc1 EQ 0.
+        knowledge_1 = 'X'.
+      ENDIF.
+      CALL FUNCTION 'CUKR_GET_CUKBS'
+           EXPORTING
+                date                  = bom_key-datuv1
+           TABLES
+*                     enthält KNNAM der KNNUM
+                icukb                 = icukb1
+                range_knnum           = range_knnum1
+           EXCEPTIONS
+                found_recs_incomplete = 01.
+      LOOP AT range_knnum1.
+*              ist schon gespeichert?
+        READ TABLE knowledge_tab_a
+              WITH KEY knobj = knobj_a
+                       knnum = range_knnum1-low.
+        CHECK sy-subrc NE 0.
+*              nur weiter, wenn noch nicht gespeichert
+        CLEAR knowledge_tab_a.
+*              Schlüssel
+        knowledge_tab_a-knobj = knobj_a.
+        knowledge_tab_a-knnum = range_knnum1-low.
+*              Name KNNAM
+        READ TABLE icukb1 WITH KEY knnum = range_knnum1-low.
+        IF sy-subrc EQ 0.
+          knowledge_tab_a-knnam = icukb1-knnam.
+        ENDIF.
+*              Quellcode
+        CLEAR line.
+        LOOP AT source_tab1.
+          CONCATENATE line source_tab1-line INTO line.
+        ENDLOOP.
+        knowledge_tab_a-line = line.
+        APPEND knowledge_tab_a.
+      ENDLOOP.
+*           knowledge_tab enthält nun zu KNOBJ alle KNNUMs u. ev. KNNAMs
+      CALL FUNCTION 'CUKR_GET_CODES'
+        EXPORTING
+          date         = bom_key-datuv1
+        TABLES
+          code_tab     = code_tab1
+          range_knnum  = range_knnum1
+        EXCEPTIONS
+          no_rec_found = 01.
+    ENDIF.
+  ENDIF.
+  IF ( NOT ( knobj_b IS INITIAL ) ).
+    REFRESH range_knobj.
+    range_knobj-low = knobj_b.
+    APPEND range_knobj.
+    CALL FUNCTION 'CUKR_GET_CUOBS'
+      EXPORTING
+        date         = bom_key-datuv2
+      TABLES
+        icuob        = icuob
+        range_knobj  = range_knobj
+      EXCEPTIONS
+        no_rec_found = 01.
+    gw_save_subrc2 = sy-subrc.
+    IF gw_save_subrc2 EQ 0.
+      REFRESH range_knnum2.
+      LOOP AT icuob.
+        READ TABLE icuob.
+        IF sy-subrc EQ 0.
+          range_knnum2-low = icuob-knnum.
+          APPEND range_knnum2.
+        ENDIF.
+      ENDLOOP.
+      CALL FUNCTION 'CUKR_GET_SOURCES'
+        EXPORTING
+          date         = bom_key-datuv2
+        TABLES
+          source_tab   = source_tab2
+          range_knnum  = range_knnum2
+        EXCEPTIONS
+          no_rec_found = 01.
+      gw_save_subrc2 = sy-subrc.
+      IF gw_save_subrc2 EQ 0.
+        knowledge_2 = 'X'.
+      ENDIF.
+      CALL FUNCTION 'CUKR_GET_CUKBS'
+        EXPORTING
+          date                  = bom_key-datuv2
+        TABLES
+          icukb                 = icukb2
+          range_knnum           = range_knnum2
+        EXCEPTIONS
+          found_recs_incomplete = 01.
+      LOOP AT range_knnum2.
+*              ist schon gespeichert?
+        READ TABLE knowledge_tab_b
+              WITH KEY knobj = knobj_b
+                       knnum = range_knnum2-low.
+        CHECK sy-subrc NE 0.
+*              nur weiter, wenn noch nicht gespeichert
+        CLEAR knowledge_tab_b.
+*              Schlüssel
+        knowledge_tab_b-knobj = knobj_b.
+        knowledge_tab_b-knnum = range_knnum2-low.
+*              Name KNNAM
+        READ TABLE icukb2 WITH KEY knnum = range_knnum2-low.
+        IF sy-subrc EQ 0.
+          knowledge_tab_b-knnam = icukb2-knnam.
+        ENDIF.
+*              Quellcode
+        CLEAR line.
+        LOOP AT source_tab2.
+          CONCATENATE line source_tab2-line INTO line.
+        ENDLOOP.
+        knowledge_tab_b-line = line.
+        APPEND knowledge_tab_b.
+      ENDLOOP.
+      CALL FUNCTION 'CUKR_GET_CODES'
+        EXPORTING
+          date         = bom_key-datuv2
+        TABLES
+          code_tab     = code_tab2
+          range_knnum  = range_knnum2
+        EXCEPTIONS
+          no_rec_found = 01.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " KNOWLEDGE_GET
+
+*&---------------------------------------------------------------------*
+*&      Form  UPOS_B_MENGE
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM upos_b_menge USING menge LIKE stpox-mnglg.
+  IF bom_b-menge <> bom_b-mngko.
+*  Faktor der Anpassung ermitteln
+    gw_ups_faktor = bom_b-mngko / bom_b-menge .
+  ELSE.
+*   anzuzeigende Menge gleich Komponentenmenge
+    gw_ups_faktor = 1 .
+  ENDIF.
+* ?Rohteil liegt vor
+  IF bom_b-roanz <> 0.
+    gw_ups_faktor = gw_ups_faktor *
+           ( bom_b-menge / bom_b-roanz ).
+  ENDIF.
+  menge =  wa2-upmng * gw_ups_faktor .
+ENDFORM.                    " UPOS_B_MENGE
+
+*&---------------------------------------------------------------------*
+*&      Form  UPOS_A_MENGE
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM upos_a_menge USING menge LIKE stpox-mnglg.
+  IF bom_a-menge <> bom_a-mngko.
+*   Faktor der Anpassung ermitteln
+    gw_ups_faktor = bom_a-mngko / bom_a-menge .
+  ELSE.
+*   anzuzeigende Menge gleich Komponentenmenge
+    gw_ups_faktor = 1 .
+  ENDIF.
+* ?Rohteil liegt vor
+  IF bom_a-roanz <> 0.
+    gw_ups_faktor = gw_ups_faktor *
+           ( bom_a-menge / bom_a-roanz ).
+  ENDIF.
+  menge =  wa1-upmng * gw_ups_faktor .
+ENDFORM.                    " UPOS_A_MENGE
+
+*&---------------------------------------------------------------------*
+*&      Form  AKT_LINE_HIDE
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM akt_line_hide.
+  HIDE diff-a_tabix.
+  HIDE diff-b_tabix.
+  HIDE gw_akt_komp.
+* merken der Schlüssel der Väter
+  HIDE diff-bmtyp_a.
+  HIDE diff-bmtyp_b.
+  HIDE diff-matnr_a.
+  HIDE diff-matnr_b.
+  HIDE diff-doknr_a.
+  HIDE diff-doknr_b.
+  HIDE diff-dokar_a.
+  HIDE diff-dokar_b.
+  HIDE diff-doktl_a.
+  HIDE diff-doktl_b.
+  HIDE diff-dokvr_a.
+  HIDE diff-dokvr_b.
+  HIDE bom_a.
+  HIDE bom_b.
+  HIDE diff.
+  HIDE matcat_a.
+  HIDE matcat_b.
+
+ENDFORM.                    " AKT_LINE_HIDE
+
+*&---------------------------------------------------------------------*
+*&      Form  TEXT_WRITE_A
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM text_write_a.
+  DATA: len TYPE i.
+* Check where used if Indicator is set
+*    perform check_where_used using gw_wu_flag.
+* bei Bedarf Beschreibung der Komponente ausgeben
+  PERFORM color_reset_save_color.
+  WRITE / ' '.
+  WRITE AT gc_pos_b(gc_text_len) gw_akt_text .
+  WRITE /.
+  len = strlen( gw_akt_text ).
+  gw_pos = gc_pos_p_m - gc_pos_b.
+  IF len LT gw_pos.
+    gw_pos = gc_pos_p_m - 1.
+    WRITE AT gw_pos sy-vline.
+  ENDIF.
+* A-Komp
+  IF ( diff-a_tabix NE 0 ).
+    gw_pos = gc_pos_b + gc_text_len + 1.
+    WRITE AT gw_pos
+      '                                     '.
+  ELSE.
+    PERFORM color_background_and_save.
+    len = gc_pos_b + strlen( gw_akt_text ).
+    IF len > gc_pos_p_m.
+      gw_pos = gc_pos_b + len.
+    ELSE.
+      gw_pos = gc_pos_p_m.
+    ENDIF.
+    WRITE AT gw_pos
+     '                                             '.
+    PERFORM color_reset_save_color.
+  ENDIF.
+  gw_pos = gc_pos_p_m + gw_komp_len.
+  WRITE AT gw_pos sy-vline NO-GAP.
+* Unique indicator
+  IF gw_wu_flag = ' ' AND gw_pa_wu = 'X'.
+    WRITE 'U' NO-GAP.
+  ENDIF.
+* Differenz
+  gw_pos = gw_pos_v_s + 1.
+  IF ( diff-a_tabix = 0 ) OR ( diff-b_tabix = 0 ).
+    WRITE AT gw_pos(gw_diff_len) space.
+  ELSE.
+    WRITE AT gw_pos(gw_diff_len) space.
+  ENDIF.
+  gw_pos = gw_pos_v_s + gw_diff_len.
+  WRITE AT gw_pos sy-vline.
+* B-Komponente
+  len = gw_komp_len.
+  IF ( diff-b_tabix NE 0 ).
+    WRITE AT gw_pos_v_m(len) space.
+  ELSE.
+    PERFORM color_background_and_save.
+    WRITE AT gw_pos_v_m(len) space.
+    PERFORM color_reset_save_color.
+  ENDIF.
+  PERFORM color_background_and_save.
+ENDFORM.                               " TEXT_WRITE
+
+
+*----------------------------------------------------------------------*
+TOP-OF-PAGE.
+
+*TOP-OF-PAGE DURING LINE-SELECTION.
+
+  PERFORM output_header.
+
+*&---------------------------------------------------------------------*
+*&      Form  OUTPUT_HEADER
+*&---------------------------------------------------------------------*
+FORM output_header.
+*
+  CALL FUNCTION 'ZPP_REPORT_HEADER_FM'
+    EXPORTING
+      gw_r_title = sy-title
+      gw_a_title = ' '
+    EXCEPTIONS
+      OTHERS     = 1.
+
+  gw_hell = ' '.
+*   Überschrift 1./2. Stückliste                     1. Zeile
+  FORMAT RESET.
+  ULINE AT (gc_pos_end).
+  gw_pos = gc_pos_p_m - 1.
+  WRITE AT gw_pos sy-vline.
+  FORMAT COLOR 2.
+  gw_pos = gc_pos_p_m + 15.
+  WRITE AT gw_pos text-001 NO-GAP.        " Primär-Sl.
+  gw_pos = gc_pos_p_m + gw_komp_len.
+  WRITE AT gw_pos sy-vline.               " ------------
+  FORMAT RESET.
+  gw_pos = gw_pos_v_s + gw_diff_len.            " dunkel
+  WRITE AT gw_pos sy-vline.               " ------------
+  FORMAT COLOR 2.
+  gw_pos = gw_pos_v_m + 14.
+  WRITE AT gw_pos text-002 NO-GAP.        " Sekundär-Sl.
+  WRITE AT gc_pos_end sy-vline.
+  FORMAT RESET.
+*   Schlüsselfelder vom Kopf ausgeben              2. Zeile
+  WRITE / ' '.
+  gw_pos = gc_pos_p_m - 2.
+  WRITE AT gw_pos ' '.
+  gw_pos = gc_pos_p_m - 1.
+  WRITE AT gw_pos sy-vline.
+  FORMAT COLOR 2.
+  WRITE AT gc_pos_p_m(gw_komp_len) bom_key-text1.   " Kopf Primär
+  FORMAT RESET.
+  gw_pos = gc_pos_p_m + gw_komp_len.
+  WRITE AT gw_pos sy-vline.
+  IF bom_key-cumulated EQ ' '.
+    WRITE AT gw_pos_v_s ' '.
+  ELSE.
+    gw_pos = gw_pos_v_s + 7.
+    WRITE AT gw_pos icon_check AS ICON.
+  ENDIF.
+  gw_pos = gw_pos_v_s + gw_diff_len - 1.
+  WRITE AT gw_pos ' '.
+  gw_pos = gw_pos_v_s + gw_diff_len.
+  WRITE AT gw_pos sy-vline.
+  FORMAT COLOR 2.
+  gw_pos = gw_pos_v_m.
+  WRITE AT gw_pos(gw_komp_len) bom_key-text2." Kopf Sekundär
+  WRITE AT gc_pos_end sy-vline.
+  FORMAT RESET.
+*   Feldüberschriften                                 3. Zeile
+  WRITE / ' '.
+  WRITE AT gc_pos_k text-013.          " Komponente
+  gw_pos = gc_pos_p_m - 1.
+  WRITE AT gw_pos sy-vline.
+  gw_pos = gc_pos_p_m + 8.
+  WRITE AT gw_pos text-012.               " Menge
+  WRITE AT gw_pos_p_e text-015.           " ME Mengeneinheit
+  WRITE AT gw_pos_p_t text-024.           " Positionstyp
+  IF bom_key-cumulated EQ ' '.
+    WRITE AT gw_pos_p_s text-004.         " Stufe
+    WRITE AT gw_pos_p_g text-058.         " SortString
+  ELSE.
+    WRITE AT gw_pos_p_s text-016.         " Mehrf.
+  ENDIF.
+  gw_pos = gc_pos_p_m + gw_komp_len.
+  WRITE AT gw_pos sy-vline.
+  IF bom_key-cumulated EQ ' '.
+    WRITE AT gw_pos_v_s icon_check AS ICON.
+  ELSE.
+    gw_pos = gw_pos_v_s + 2.
+    WRITE AT gw_pos text-041.             " Mengendifferenz
+  ENDIF.
+  gw_pos = gw_pos_v_s + gw_diff_len.
+  WRITE AT gw_pos sy-vline.
+  gw_pos = gw_pos_v_m + 8.
+  WRITE AT gw_pos text-012.               " Menge
+  WRITE AT gw_pos_s_e text-015.           " ME Mengeneinheit
+  WRITE AT gw_pos_s_t text-024.           " Positionstyp
+  IF bom_key-cumulated EQ ' '.
+    WRITE AT gw_pos_s_s text-004.         " Stufe
+    WRITE AT gw_pos_s_g text-058.         " SortString
+  ELSE.
+    WRITE AT gw_pos_s_s text-016.         " Mehrf.
+  ENDIF.
+  WRITE AT gc_pos_end sy-vline.
+*   bei eingeblendeter Beschreibung                 4. Zeile optional
+  IF bom_key-write_text EQ 'X'.
+    WRITE / ' '.
+    WRITE AT gc_pos_b text-014.           " Beschreibung
+*    IF pa_alt  = 'X'.
+    WRITE AT 42 'Alt itm'.
+    WRITE AT 50 'rank ord'.
+    WRITE AT 60 'strategy'.
+    WRITE AT 70 'U P in %'.
+
+    WRITE AT 84  'Alt itm'.
+    WRITE AT 94  'rank ord'.
+    WRITE AT 104 'strategy'.
+    WRITE AT 114 'U P in % '.
+*    ENDIF.
+    gw_pos = gc_pos_p_m - 1.
+    WRITE AT gw_pos sy-vline.
+    gw_pos = gc_pos_p_m + gw_komp_len.
+    WRITE AT gw_pos sy-vline.
+    gw_pos = gw_pos_v_s + gw_diff_len.
+    WRITE AT gw_pos sy-vline.
+    WRITE AT gc_pos_end sy-vline.
+  ENDIF.
+  ULINE AT (gc_pos_end).
+  FORMAT RESET.
+
+ENDFORM.                               " OUTPUT_HEADER
+
+*&---------------------------------------------------------------------*
+*&      Form  ENTRY_B_WRITE
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM entry_b_write USING posnr LIKE stpox-posnr
+                         menge LIKE stpox-mngko
+                         anz_meins LIKE stpox-meins
+                         typ LIKE stpox-postp
+                         sortf LIKE stpox-sortf
+                         multiple TYPE c
+                         stufe LIKE stpox-stufe.
+
+  PERFORM color_reset_save_color.
+  WRITE AT gw_pos_v_m posnr .
+  WRITE: menge UNIT rc29p-meins.
+  WRITE AT gw_pos_s_e anz_meins.
+  WRITE AT gw_pos_s_t typ.
+  gw_pos_p_i = gw_pos_s_t + 7.
+  WRITE AT gw_pos_p_i sortf.
+  IF bom_key-cumulated = 'X'.
+    IF multiple EQ 'X'.
+      WRITE AT gw_pos_s_s icon_sum AS ICON.
+    ELSE.
+      WRITE AT gw_pos_s_s '  '.
+    ENDIF.
+  ELSE.
+    PERFORM write_step USING stufe gw_pos_s_s gc_max_step.
+  ENDIF.
+  gw_pos = gw_pos_v_m + gw_komp_len.
+  WRITE AT gw_pos ' '.
+  PERFORM color_background_and_save.
+ENDFORM.                    " ENTRY_B_WRITE
+
+*----------------------------------------------------------------------*
+*       Form  ENTRY_A_WRITE
+*----------------------------------------------------------------------*
+FORM entry_a_write
+     USING posnr     LIKE stpox-posnr
+           menge     LIKE stpox-mngko
+           anz_meins LIKE stpox-meins
+           typ       LIKE stpox-postp
+           sortf     LIKE stpox-sortf
+           multiple  TYPE c
+           stufe     LIKE stpox-stufe
+           alpgr     LIKE stpox-alpgr
+           alprf     LIKE stpox-alprf
+           alpst     LIKE stpox-alpst
+           ewahr     LIKE stpox-ewahr.
+
+  PERFORM color_reset_save_color.
+*write at gc_pos_p_m menge unit rc29p-meins.
+  WRITE AT gc_pos_p_m posnr .
+  WRITE: menge UNIT rc29p-meins.
+  WRITE AT gw_pos_p_e anz_meins.
+  WRITE AT gw_pos_p_t typ.
+  gw_pos_p_i = gw_pos_p_t + 7.
+  WRITE AT gw_pos_p_i sortf.
+
+  IF bom_key-cumulated = 'X'.
+    IF multiple EQ 'X'.
+      WRITE AT gw_pos_p_s icon_sum AS ICON.
+    ELSE.
+      WRITE AT gw_pos_p_s '  '.
+    ENDIF.
+  ELSE.
+    PERFORM write_step USING stufe gw_pos_p_s gc_max_step.
+  ENDIF.
+  gw_pos = gc_pos_p_m + gw_komp_len.
+  WRITE AT gw_pos ' '.
+  PERFORM color_background_and_save.
+ENDFORM.                    " ENTRY_A_WRITE
+
+*&---------------------------------------------------------------------*
+*&      Form  ENTRY_EMPTY
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM entry_empty
+      USING pos TYPE i.
+  PERFORM color_background_and_save.
+  WRITE AT pos(gw_komp_len)
+   '                                             '.
+  PERFORM color_reset_save_color.
+ENDFORM.                    " ENTRY_EMPTY
+
+*&---------------------------------------------------------------------*
+*&      Form  ENTRY_REPEAT
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM entry_repeat USING pos TYPE i.
+  PERFORM color_reset_save_color.
+  WRITE AT pos(gw_komp_len)
+   '                                             '.
+  PERFORM color_background_and_save.
+ENDFORM.                    " ENTRY_REPEAT
+
+*&---------------------------------------------------------------------*
+*&      Form  AKT_KOMP_WRITE
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM akt_komp_write USING pos_k     TYPE i
+                          akt_komp  TYPE c
+                          last_komp TYPE c.
+  WRITE akt_komp TO gw_comp NO-ZERO.
+  SHIFT gw_comp LEFT DELETING LEADING space.
+  NEW-LINE.
+  PERFORM color_reset_save_color.
+  IF  gw_upd8ok = 'X' AND gp_alt = 'X'.
+    WRITE gw_chkbox AS CHECKBOX.
+    HIDE gw_chkline.
+  ELSE.
+    IF gw_upd8ok = 'X' AND  updtab-b-alpgr IS INITIAL.
+      WRITE gw_chkbox AS CHECKBOX.
+      HIDE gw_chkline.
+    ENDIF.
+  ENDIF.
+
+  WRITE AT pos_k(gw_komp_len) gw_comp.
+  gw_pos = gc_pos_p_m - 1.
+  WRITE AT gw_pos ' '.
+  PERFORM color_background_and_save.
+ENDFORM.                    " AKT_KOMP_WRITE
+
+
+*&---------------------------------------------------------------------*
+*&      Form  USAGE_PRIMARY
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM usage_primary.
+  CLEAR csbomex.
+  csbomex-submf = 'X'.
+  EXPORT csbomex TO MEMORY ID 'CSNN_BOMEX'.
+  CASE bom_a-objty.
+    WHEN '1'.
+      CHECK NOT ( bom_a-idnrk IS INITIAL ).
+      SUBMIT rcs15001
+       WITH pm_idnrk INCL bom_a-idnrk
+       WITH pm_werks INCL gc_plant_all
+       WITH pm_stlan INCL ' '
+       WITH pm_datuv INCL bom_key-datuv1
+       WITH pm_datub INCL bom_key-datuv1
+       WITH pm_gbraz INCL 'X'
+       WITH pm_ltext INCL 'X'
+       WITH pm_equtp INCL 'x'
+       WITH pm_mattp INCL 'x'
+       WITH pm_stdtp INCL 'x'
+       WITH pm_tpltp INCL 'x'
+       WITH pm_kndtp INCL 'x'
+       WITH pm_prjtp INCL 'x'
+       WITH pm_dirkt INCL 'x'
+       AND RETURN.
+    WHEN '3'.
+      CHECK ( NOT ( bom_a-doknr IS INITIAL ) AND
+              NOT ( bom_a-dokar IS INITIAL ) ).
+      SUBMIT rcs15011
+       WITH pm_doknr INCL bom_a-doknr
+       WITH pm_dokar INCL bom_a-dokar
+       WITH pm_doktl INCL bom_a-doktl
+       WITH pm_dokvr INCL bom_a-dokvr
+       WITH pm_werks INCL '*'
+       WITH pm_stlan INCL ' '
+       WITH pm_datuv INCL bom_key-datuv1
+       WITH pm_datub INCL bom_key-datuv1
+*d    with pm_gbraz incl 'X'
+       WITH pm_ltext INCL 'X'
+       WITH pm_doctp INCL 'x'
+       WITH pm_equtp INCL 'x'
+       WITH pm_mattp INCL 'x'
+       WITH pm_stdtp INCL 'x'
+       WITH pm_tpltp INCL 'x'
+       WITH pm_dirkt INCL 'x'
+       AND RETURN.
+    WHEN '4'.
+      CHECK ( NOT ( bom_a-class IS INITIAL ) AND
+              NOT ( bom_a-klart IS INITIAL ) ).
+      SUBMIT rcs15021
+        WITH pm_class INCL bom_a-class
+        WITH pm_klart INCL bom_a-klart
+        WITH pm_werks INCL '*'
+        WITH pm_stlan INCL ' '
+        WITH pm_datuv INCL bom_key-datuv1
+        WITH pm_datub INCL bom_key-datuv1
+*d    with pm_gbraz incl 'X'
+        WITH pm_ltext INCL 'X'
+        WITH pm_dirkt INCL 'x'
+        AND RETURN.
+    WHEN OTHERS.
+      MESSAGE s150.
+  ENDCASE.
+ENDFORM.                    " USAGE_PRIMARY
+
+*----------------------------------------------------------------------*
+*       Form  USAGE_SECONDARY
+*----------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+FORM usage_secondary.
+  CASE bom_b-objty.
+    WHEN '1'.
+      CHECK NOT ( bom_b-idnrk IS INITIAL ).
+      SUBMIT rcs15001
+       WITH pm_idnrk INCL bom_b-idnrk
+       WITH pm_werks INCL gc_plant_all
+       WITH pm_stlan INCL ' '
+       WITH pm_datuv INCL bom_key-datuv2
+       WITH pm_datub INCL bom_key-datuv2
+       WITH pm_gbraz INCL 'X'
+       WITH pm_ltext INCL 'X'
+       WITH pm_equtp INCL 'x'
+       WITH pm_mattp INCL 'x'
+       WITH pm_stdtp INCL 'x'
+       WITH pm_tpltp INCL 'x'
+       WITH pm_kndtp INCL 'x'
+       WITH pm_prjtp INCL 'x'
+       WITH pm_dirkt INCL 'x'
+       AND RETURN.
+    WHEN '3'.
+      CHECK ( NOT ( bom_b-doknr IS INITIAL ) AND
+              NOT ( bom_b-dokar IS INITIAL ) ).
+      SUBMIT rcs15011
+       WITH pm_doknr INCL bom_b-doknr
+       WITH pm_dokar INCL bom_b-dokar
+       WITH pm_doktl INCL bom_b-doktl
+       WITH pm_dokvr INCL bom_b-dokvr
+       WITH pm_werks INCL '*'
+       WITH pm_stlan INCL ' '
+       WITH pm_datuv INCL bom_key-datuv2
+       WITH pm_datub INCL bom_key-datuv2
+*d    with pm_gbraz incl 'X'
+       WITH pm_ltext INCL 'X'
+       WITH pm_doctp INCL 'x'
+       WITH pm_equtp INCL 'x'
+       WITH pm_mattp INCL 'x'
+       WITH pm_stdtp INCL 'x'
+       WITH pm_tpltp INCL 'x'
+       WITH pm_dirkt INCL 'x'
+       AND RETURN.
+    WHEN '4'.
+      CHECK ( NOT ( bom_b-class IS INITIAL ) AND
+              NOT ( bom_b-klart IS INITIAL ) ).
+      SUBMIT rcs15021
+        WITH pm_class INCL bom_b-class
+        WITH pm_klart INCL bom_b-klart
+        WITH pm_werks INCL '*'
+        WITH pm_stlan INCL ' '
+        WITH pm_datuv INCL bom_key-datuv2
+        WITH pm_datub INCL bom_key-datuv2
+*d    with pm_gbraz incl 'X'
+        WITH pm_ltext INCL 'X'
+        WITH pm_dirkt INCL 'x'
+        AND RETURN.
+    WHEN OTHERS.
+      MESSAGE s150.
+  ENDCASE.
+ENDFORM.                    " USAGE_SECONDARY
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  DATAELEMENT_HELP
+*&---------------------------------------------------------------------*
+FORM dataelement_help USING dataelement LIKE dd04l-rollname.
+
+  TABLES: ddrefstruc, dd01l, dd04l, dd04t, tpara, tline, dsyst.
+  DATA: f(30) TYPE c.
+  DATA: BEGIN OF dd04l_1.
+          INCLUDE STRUCTURE dd04l.
+  DATA: END   OF dd04l_1.
+  DATA: BEGIN OF dd04l_2.
+          INCLUDE STRUCTURE dd04l.
+  DATA: END   OF dd04l_2.
+  DATA: BEGIN OF dd04t_a_tab OCCURS 0.
+          INCLUDE STRUCTURE dd04t.
+  DATA: END   OF dd04t_a_tab.
+  DATA: BEGIN OF dd04t_n_tab OCCURS 0.
+          INCLUDE STRUCTURE dd04t.
+  DATA: END   OF dd04t_n_tab.
+  DATA: BEGIN OF link_tab OCCURS 0.
+          INCLUDE STRUCTURE tline.
+  DATA: END   OF link_tab.
+
+  CALL FUNCTION 'DD_DTEL_GET'
+    EXPORTING
+*     get_state     = 'MXX'
+      langu         = '*'
+      prid          = 0
+      withtext      = 'X'
+      roll_name     = dataelement
+    IMPORTING
+      got_state     = ddrefstruc-state
+      dd04l_wa_a    = dd04l_1
+      dd04l_wa_n    = dd04l_2
+      dd01l_wa      = dd01l
+      tpara_wa      = tpara
+    TABLES
+      dd04t_tab_a   = dd04t_a_tab
+      dd04t_tab_n   = dd04t_n_tab
+    EXCEPTIONS
+      illegal_value = 01.
+  READ TABLE dd04t_a_tab INDEX 1.
+  MOVE: dd04t_a_tab-scrtext_l TO dsyst-doktitle.
+  CALL FUNCTION 'HELP_OBJECT_SHOW'
+    EXPORTING
+      dokclass         = 'DE'
+      doklangu         = sy-langu
+      dokname          = dataelement
+      doktitle         = dsyst-doktitle
+    TABLES
+      links            = link_tab
+    EXCEPTIONS
+      object_not_found = 01
+      sapscript_error  = 02.
+ENDFORM.                               " DATAELEMENT_HELP
+
+************************************************************************
+*&---------------------------------------------------------------------*
+*&      Form  RELEVANT_FIELDS_ASSIGN
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM relevant_fields_assign.
+  DATA: relev_save LIKE relev OCCURS 0.
+
+  relev_save[] = relev[].
+* neben den Schlüsselfeldern noch relevante Felder
+  DESCRIBE TABLE relev LINES gw_linecount.
+  DO gw_linecount TIMES.
+    IF sy-index > 20.
+*     es sind nur maximal 20 Vergleichsfelder erlaubt und definiert
+      EXIT.        " restliche werden missachtet
+    ENDIF.
+    READ TABLE relev WITH KEY objtya = 'X'.
+    IF sy-subrc EQ 0.
+      CASE sy-index.
+        WHEN 1.
+          MOVE relev-field TO gw_fa01.
+        WHEN 2.
+          MOVE relev-field TO gw_fa02.
+        WHEN 3.
+          MOVE relev-field TO gw_fa03.
+        WHEN 4.
+          MOVE relev-field TO gw_fa04.
+        WHEN 5.
+          MOVE relev-field TO gw_fa05.
+        WHEN 6.
+          MOVE relev-field TO gw_fa06.
+        WHEN 7.
+          MOVE relev-field TO gw_fa07.
+        WHEN 8.
+          MOVE relev-field TO gw_fa08.
+        WHEN 9.
+          MOVE relev-field TO gw_fa09.
+        WHEN 10.
+          MOVE relev-field TO gw_fa10.
+        WHEN 11.
+          MOVE relev-field TO gw_fa11.
+        WHEN 12.
+          MOVE relev-field TO gw_fa12.
+        WHEN 13.
+          MOVE relev-field TO gw_fa13.
+        WHEN 14.
+          MOVE relev-field TO gw_fa14.
+        WHEN 15.
+          MOVE relev-field TO gw_fa15.
+        WHEN 16.
+          MOVE relev-field TO gw_fa16.
+        WHEN 17.
+          MOVE relev-field TO gw_fa17.
+        WHEN 18.
+          MOVE relev-field TO gw_fa18.
+        WHEN 19.
+          MOVE relev-field TO gw_fa19.
+        WHEN 20.
+          MOVE relev-field TO gw_fa20.
+      ENDCASE.
+      DELETE relev INDEX sy-tabix.
+    ELSE.
+      EXIT.
+    ENDIF.
+  ENDDO.
+
+  DO gw_linecount TIMES.
+    IF sy-index > 30.
+*     es sind nur maximal 30 Vergleichsfelder erlaubt und definiert
+      EXIT.        " restliche werden missachtet
+    ENDIF.
+    READ TABLE relev WITH KEY objtym = 'X'.
+    IF sy-subrc EQ 0.
+      CASE sy-index.
+        WHEN 1.
+          MOVE relev-field TO gw_fm01.
+        WHEN 2.
+          MOVE relev-field TO gw_fm02.
+        WHEN 3.
+          MOVE relev-field TO gw_fm03.
+        WHEN 4.
+          MOVE relev-field TO gw_fm04.
+        WHEN 5.
+          MOVE relev-field TO gw_fm05.
+        WHEN 6.
+          MOVE relev-field TO gw_fm06.
+        WHEN 7.
+          MOVE relev-field TO gw_fm07.
+        WHEN 8.
+          MOVE relev-field TO gw_fm08.
+        WHEN 9.
+          MOVE relev-field TO gw_fm09.
+        WHEN 10.
+          MOVE relev-field TO gw_fm10.
+        WHEN 11.
+          MOVE relev-field TO gw_fm11.
+        WHEN 12.
+          MOVE relev-field TO gw_fm12.
+        WHEN 13.
+          MOVE relev-field TO gw_fm13.
+        WHEN 14.
+          MOVE relev-field TO gw_fm14.
+        WHEN 15.
+          MOVE relev-field TO gw_fm15.
+        WHEN 16.
+          MOVE relev-field TO gw_fm16.
+        WHEN 17.
+          MOVE relev-field TO gw_fm17.
+        WHEN 18.
+          MOVE relev-field TO gw_fm18.
+        WHEN 19.
+          MOVE relev-field TO gw_fm19.
+        WHEN 20.
+          MOVE relev-field TO gw_fm20.
+        WHEN 21.
+          MOVE relev-field TO gw_fm21.
+        WHEN 22.
+          MOVE relev-field TO gw_fm22.
+        WHEN 23.
+          MOVE relev-field TO gw_fm23.
+        WHEN 24.
+          MOVE relev-field TO gw_fm24.
+        WHEN 25.
+          MOVE relev-field TO gw_fm25.
+        WHEN 26.
+          MOVE relev-field TO gw_fm26.
+        WHEN 27.
+          MOVE relev-field TO gw_fm27.
+        WHEN 28.
+          MOVE relev-field TO gw_fm28.
+        WHEN 29.
+          MOVE relev-field TO gw_fm29.
+        WHEN 30.
+          MOVE relev-field TO gw_fm30.
+      ENDCASE.
+      DELETE relev INDEX sy-tabix.
+    ELSE.
+      EXIT.
+    ENDIF.
+  ENDDO.
+  DO gw_linecount TIMES.
+    IF sy-index > 30.
+      EXIT.
+    ENDIF.
+    READ TABLE relev WITH KEY objtyd = 'X'.
+    IF sy-subrc EQ 0.
+      CASE sy-index.
+        WHEN 1.
+          MOVE relev-field TO gw_fd01.
+        WHEN 2.
+          MOVE relev-field TO gw_fd02.
+        WHEN 3.
+          MOVE relev-field TO gw_fd03.
+        WHEN 4.
+          MOVE relev-field TO gw_fd04.
+        WHEN 5.
+          MOVE relev-field TO gw_fd05.
+        WHEN 6.
+          MOVE relev-field TO gw_fd06.
+        WHEN 7.
+          MOVE relev-field TO gw_fd07.
+        WHEN 8.
+          MOVE relev-field TO gw_fd08.
+        WHEN 9.
+          MOVE relev-field TO gw_fd09.
+        WHEN 10.
+          MOVE relev-field TO gw_fd10.
+        WHEN 11.
+          MOVE relev-field TO gw_fd11.
+        WHEN 12.
+          MOVE relev-field TO gw_fd12.
+        WHEN 13.
+          MOVE relev-field TO gw_fd13.
+        WHEN 14.
+          MOVE relev-field TO gw_fd14.
+        WHEN 15.
+          MOVE relev-field TO gw_fd15.
+        WHEN 16.
+          MOVE relev-field TO gw_fd16.
+        WHEN 17.
+          MOVE relev-field TO gw_fd17.
+        WHEN 18.
+          MOVE relev-field TO gw_fd18.
+        WHEN 19.
+          MOVE relev-field TO gw_fd19.
+        WHEN 20.
+          MOVE relev-field TO gw_fd20.
+        WHEN 21.
+          MOVE relev-field TO gw_fd21.
+        WHEN 22.
+          MOVE relev-field TO gw_fd22.
+        WHEN 23.
+          MOVE relev-field TO gw_fd23.
+        WHEN 24.
+          MOVE relev-field TO gw_fd24.
+        WHEN 25.
+          MOVE relev-field TO gw_fd25.
+        WHEN 26.
+          MOVE relev-field TO gw_fd26.
+        WHEN 27.
+          MOVE relev-field TO gw_fd27.
+        WHEN 28.
+          MOVE relev-field TO gw_fd28.
+        WHEN 29.
+          MOVE relev-field TO gw_fd29.
+        WHEN 30.
+          MOVE relev-field TO gw_fd30.
+      ENDCASE.
+      DELETE relev INDEX sy-tabix.
+    ELSE.
+      EXIT.
+    ENDIF.
+  ENDDO.
+  DO gw_linecount TIMES.
+    IF sy-index > 30.
+      EXIT.
+    ENDIF.
+    READ TABLE relev WITH KEY objtyk = 'X'.
+    IF sy-subrc EQ 0.
+      CASE sy-index.
+        WHEN 1.
+          MOVE relev-field TO gw_fk01.
+        WHEN 2.
+          MOVE relev-field TO gw_fk02.
+        WHEN 3.
+          MOVE relev-field TO gw_fk03.
+        WHEN 4.
+          MOVE relev-field TO gw_fk04.
+        WHEN 5.
+          MOVE relev-field TO gw_fk05.
+        WHEN 6.
+          MOVE relev-field TO gw_fk06.
+        WHEN 7.
+          MOVE relev-field TO gw_fk07.
+        WHEN 8.
+          MOVE relev-field TO gw_fk08.
+        WHEN 9.
+          MOVE relev-field TO gw_fk09.
+        WHEN 10.
+          MOVE relev-field TO gw_fk10.
+        WHEN 11.
+          MOVE relev-field TO gw_fk11.
+        WHEN 12.
+          MOVE relev-field TO gw_fk12.
+        WHEN 13.
+          MOVE relev-field TO gw_fk13.
+        WHEN 14.
+          MOVE relev-field TO gw_fk14.
+        WHEN 15.
+          MOVE relev-field TO gw_fk15.
+        WHEN 16.
+          MOVE relev-field TO gw_fk16.
+        WHEN 17.
+          MOVE relev-field TO gw_fk17.
+        WHEN 18.
+          MOVE relev-field TO gw_fk18.
+        WHEN 19.
+          MOVE relev-field TO gw_fk19.
+        WHEN 20.
+          MOVE relev-field TO gw_fk20.
+        WHEN 21.
+          MOVE relev-field TO gw_fk21.
+        WHEN 22.
+          MOVE relev-field TO gw_fk22.
+        WHEN 23.
+          MOVE relev-field TO gw_fk23.
+        WHEN 24.
+          MOVE relev-field TO gw_fk24.
+        WHEN 25.
+          MOVE relev-field TO gw_fk25.
+        WHEN 26.
+          MOVE relev-field TO gw_fk26.
+        WHEN 27.
+          MOVE relev-field TO gw_fk27.
+        WHEN 28.
+          MOVE relev-field TO gw_fk28.
+        WHEN 29.
+          MOVE relev-field TO gw_fk29.
+        WHEN 30.
+          MOVE relev-field TO gw_fk30.
+      ENDCASE.
+      DELETE relev INDEX sy-tabix.
+    ELSE.
+      EXIT.
+    ENDIF.
+  ENDDO.
+  DO gw_linecount TIMES.
+    IF sy-index > 30.
+      EXIT.
+    ENDIF.
+    READ TABLE relev WITH KEY objtyt = 'X'.
+    IF sy-subrc EQ 0.
+      CASE sy-index.
+        WHEN 1.
+          MOVE relev-field TO gw_ft01.
+        WHEN 2.
+          MOVE relev-field TO gw_ft02.
+        WHEN 3.
+          MOVE relev-field TO gw_ft03.
+        WHEN 4.
+          MOVE relev-field TO gw_ft04.
+        WHEN 5.
+          MOVE relev-field TO gw_ft05.
+        WHEN 6.
+          MOVE relev-field TO gw_ft06.
+        WHEN 7.
+          MOVE relev-field TO gw_ft07.
+        WHEN 8.
+          MOVE relev-field TO gw_ft08.
+        WHEN 9.
+          MOVE relev-field TO gw_ft09.
+        WHEN 10.
+          MOVE relev-field TO gw_ft10.
+        WHEN 11.
+          MOVE relev-field TO gw_ft11.
+        WHEN 12.
+          MOVE relev-field TO gw_ft12.
+        WHEN 13.
+          MOVE relev-field TO gw_ft13.
+        WHEN 14.
+          MOVE relev-field TO gw_ft14.
+        WHEN 15.
+          MOVE relev-field TO gw_ft15.
+        WHEN 16.
+          MOVE relev-field TO gw_ft16.
+        WHEN 17.
+          MOVE relev-field TO gw_ft17.
+        WHEN 18.
+          MOVE relev-field TO gw_ft18.
+        WHEN 19.
+          MOVE relev-field TO gw_ft19.
+        WHEN 20.
+          MOVE relev-field TO gw_ft20.
+        WHEN 21.
+          MOVE relev-field TO gw_ft21.
+        WHEN 22.
+          MOVE relev-field TO gw_ft22.
+        WHEN 23.
+          MOVE relev-field TO gw_ft23.
+        WHEN 24.
+          MOVE relev-field TO gw_ft24.
+        WHEN 25.
+          MOVE relev-field TO gw_ft25.
+        WHEN 26.
+          MOVE relev-field TO gw_ft26.
+        WHEN 27.
+          MOVE relev-field TO gw_ft27.
+        WHEN 28.
+          MOVE relev-field TO gw_ft28.
+        WHEN 29.
+          MOVE relev-field TO gw_ft29.
+        WHEN 30.
+          MOVE relev-field TO gw_ft30.
+      ENDCASE.
+      DELETE relev INDEX sy-tabix.
+    ELSE.
+      EXIT.
+    ENDIF.
+  ENDDO.
+  DO gw_linecount TIMES.
+    IF sy-index > 30.
+      EXIT.
+    ENDIF.
+    READ TABLE relev WITH KEY objtyi = 'X'.
+    IF sy-subrc EQ 0.
+      CASE sy-index.
+        WHEN 1.
+          MOVE relev-field TO gw_fi01.
+        WHEN 2.
+          MOVE relev-field TO gw_fi02.
+        WHEN 3.
+          MOVE relev-field TO gw_fi03.
+        WHEN 4.
+          MOVE relev-field TO gw_fi04.
+        WHEN 5.
+          MOVE relev-field TO gw_fi05.
+        WHEN 6.
+          MOVE relev-field TO gw_fi06.
+        WHEN 7.
+          MOVE relev-field TO gw_fi07.
+        WHEN 8.
+          MOVE relev-field TO gw_fi08.
+        WHEN 9.
+          MOVE relev-field TO gw_fi09.
+        WHEN 10.
+          MOVE relev-field TO gw_fi10.
+        WHEN 11.
+          MOVE relev-field TO gw_fi11.
+        WHEN 12.
+          MOVE relev-field TO gw_fi12.
+        WHEN 13.
+          MOVE relev-field TO gw_fi13.
+        WHEN 14.
+          MOVE relev-field TO gw_fi14.
+        WHEN 15.
+          MOVE relev-field TO gw_fi15.
+        WHEN 16.
+          MOVE relev-field TO gw_fi16.
+        WHEN 17.
+          MOVE relev-field TO gw_fi17.
+        WHEN 18.
+          MOVE relev-field TO gw_fi18.
+        WHEN 19.
+          MOVE relev-field TO gw_fi19.
+        WHEN 20.
+          MOVE relev-field TO gw_fi20.
+        WHEN 21.
+          MOVE relev-field TO gw_fi21.
+        WHEN 22.
+          MOVE relev-field TO gw_fi22.
+        WHEN 23.
+          MOVE relev-field TO gw_fi23.
+        WHEN 24.
+          MOVE relev-field TO gw_fi24.
+        WHEN 25.
+          MOVE relev-field TO gw_fi25.
+        WHEN 26.
+          MOVE relev-field TO gw_fi26.
+        WHEN 27.
+          MOVE relev-field TO gw_fi27.
+        WHEN 28.
+          MOVE relev-field TO gw_fi28.
+        WHEN 29.
+          MOVE relev-field TO gw_fi29.
+        WHEN 30.
+          MOVE relev-field TO gw_fi30.
+      ENDCASE.
+      DELETE relev INDEX sy-tabix.
+    ELSE.
+      EXIT.
+    ENDIF.
+  ENDDO.
+  relev[] = relev_save[].
+ENDFORM.                    " RELEVANT_FIELDS_ASSIGN
+
+*&---------------------------------------------------------------------*
+*&      Form  ANZ_MEINS_GET
+*&---------------------------------------------------------------------*
+FORM anz_meins_get
+       USING stb       LIKE bom_a
+             anz_meins LIKE stpox-meins.
+
+  IF stb-idnrk IS INITIAL.
+    anz_meins = stb-meins.
+  ELSE.
+    anz_meins = stb-meins.
+  ENDIF.
+
+ENDFORM.                               " ANZ_MEINS_GET
+
+*&---------------------------------------------------------------------*
+*&      Form  KNOWLEDGE_ANALYZE
+*&---------------------------------------------------------------------*
+FORM knowledge_analyze
+      TABLES knowledge_tab_a     STRUCTURE knowledge_tab_a
+             knowledge_tab_b     STRUCTURE knowledge_tab_a
+             kt_relation         STRUCTURE kt_relation
+      USING  knobj_a             LIKE      stpox-knobj
+             knobj_b             LIKE      stpox-knobj
+             knowledge_different TYPE      c.
+*     knowledge_tabs werden weitergeschrieben, k_different zurückgegeben
+*     kt_relation enthält Zuordnungen von Knowledge_tab-Zeilen a - b
+
+  DATA: knowledge_1(1) TYPE c VALUE ' ',
+        knowledge_2(1) TYPE c VALUE ' '.
+  knowledge_different = ' '.
+*NA 4.7 IF ( BOM_KEY-KNOWLEDGE EQ 'X'          ) AND
+
+  IF ( ( NOT knobj_a IS INITIAL ) OR
+    ( NOT knobj_b IS INITIAL )    ).
+*   Beziehungswissen suchen
+    PERFORM knowledge_get
+      TABLES source_tab1
+             source_tab2
+             knowledge_tab_a
+             knowledge_tab_b
+             code_tab1
+             code_tab2
+             range_knnum1
+             range_knnum2
+      USING  knobj_a
+             knobj_b
+             knowledge_1
+             knowledge_2.
+    IF ( knowledge_1 EQ 'X' ) AND ( knowledge_2 EQ 'X' ) .
+*      Beziehungswissen vergleichen
+      PERFORM knowledge_compare
+                    TABLES source_tab1
+                           source_tab2
+                           knowledge_tab_a
+                           knowledge_tab_b
+                           kt_relation
+                           code_tab1
+                           code_tab2
+                           range_knnum1
+                           range_knnum2
+                    USING  knobj_a
+                           knobj_b
+                           knowledge_different.
+    ELSEIF     ( knowledge_1 EQ ' ' )
+           AND ( knowledge_2 EQ ' ' ) .
+*      zu beiden kein Wissen vorhanden, also gleich
+      knowledge_different = ' '.
+    ELSE.
+*      bei einem Wissen beim anderen nicht, also verschieden
+      knowledge_different = 'X'.
+    ENDIF.
+  ENDIF.    " bom_key-knowledge: Wissen ist relevant und da
+
+ENDFORM.                               " KNOWLEDGE_ANALYZE
+*&---------------------------------------------------------------------*
+*&      Form  KNOWLEDGE_HEADER_DISPLAY
+*&---------------------------------------------------------------------*
+FORM knowledge_header_display.
+
+*    Überschrift
+  FORMAT INTENSIFIED ON.
+  FORMAT COLOR 1.
+  WRITE / ' '.
+  gw_pos = gc_pos_pr - 2.
+  WRITE AT gw_pos text-055.
+  WRITE '                                         '.
+  FORMAT RESET.
+  WRITE / text-051.
+  WRITE AT gc_pos_pr text-001.
+  WRITE AT gc_pos_se text-002.
+  ULINE.
+
+ENDFORM.                               " KNOWLEDGE_HEADER_DISPLAY
+
+*&---------------------------------------------------------------------*
+*&      Form  KT_RELATION_APPEND
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM kt_relation_append USING knobj_a LIKE stpox-knobj
+                              knobj_b LIKE stpox-knobj.
+
+  CLEAR kt_relation.
+  kt_relation-knobj_a = knobj_a.
+  kt_relation-knnum_a = source_tab1-knnum.
+  kt_relation-knobj_b = knobj_b.
+  kt_relation-knnum_b = source_tab2-knnum.
+  APPEND kt_relation.
+ENDFORM.                               " KT_RELATION_APPEND
+
+*---------------------------------------------------------------------*
+*       FORM CHECK_WHERE_USED                                         *
+*---------------------------------------------------------------------*
+*  -->  gw_wu_flag                                                       *
+*---------------------------------------------------------------------*
+FORM check_where_used USING gw_wu_flag.
+  DATA: n_lines LIKE sy-index.
+  IF NOT bom_a-idnrk IS INITIAL.
+    CALL FUNCTION 'CS_WHERE_USED_MAT'
+      EXPORTING
+        datub                      = bom_a-datub
+        datuv                      = bom_a-datuv
+        matnr                      = bom_a-idnrk
+        stlan                      = space  " bom_a-stlan
+        werks                      = bom_a-werks
+      TABLES
+        wultb                      = gt_wultb
+        equicat                    = gt_equicat
+        kndcat                     = gt_kndcat
+        matcat                     = gt_matcat
+        stdcat                     = gt_stdcat
+        tplcat                     = gt_tplcat
+      EXCEPTIONS
+        call_invalid               = 1
+        material_not_found         = 2
+        no_where_used_rec_found    = 3
+        no_where_used_rec_selected = 4
+        no_where_used_rec_valid    = 5
+        OTHERS                     = 6.
+  ELSEIF NOT bom_b-idnrk IS INITIAL.
+    CALL FUNCTION 'CS_WHERE_USED_MAT'
+      EXPORTING
+        datub                      = bom_b-datub
+        datuv                      = bom_b-datuv
+        matnr                      = bom_b-idnrk
+        stlan                      = space
+        werks                      = bom_b-werks
+      TABLES
+        wultb                      = gt_wultb
+        equicat                    = gt_equicat
+        kndcat                     = gt_kndcat
+        matcat                     = gt_matcat
+        stdcat                     = gt_stdcat
+        tplcat                     = gt_tplcat
+      EXCEPTIONS
+        call_invalid               = 1
+        material_not_found         = 2
+        no_where_used_rec_found    = 3
+        no_where_used_rec_selected = 4
+        no_where_used_rec_valid    = 5
+        OTHERS                     = 6.
+  ENDIF.
+  CLEAR gw_wu_flag.
+  SORT gt_wultb BY matnr.
+  DELETE ADJACENT DUPLICATES FROM gt_wultb COMPARING matnr.
+  DESCRIBE TABLE gt_wultb LINES n_lines.
+  IF n_lines > 1.
+    gw_wu_flag = 'X'.
+  ENDIF.
+
+ENDFORM.                               " CHECK_WHERE_USED
+
+*---------------------------------------------------------------------*
+*       FORM UPDATE_PRIMARY                                           *
+*---------------------------------------------------------------------*
+FORM update_primary.
+  DATA: subitems LIKE stpub OCCURS 10 WITH HEADER LINE,
+        w_qty(13) TYPE c.
+
+  PERFORM update_chkfield.
+
+  IF updtab2[] IS INITIAL.
+    MESSAGE w031 WITH 'NOT'.
+    EXIT.
+  ENDIF.
+
+  REFRESH bdcdata.
+  PERFORM bdc_dynpro      USING 'SAPLCSDI' '0100'.
+  PERFORM bdc_field       USING:'RC29N-MATNR' gp_mat1,
+                                'RC29N-WERKS' gp_wrk1,
+                                'RC29N-AENNR' gp_aen1,
+                                'RC29N-STLAN' '1',
+                                'BDC_OKCODE' 'ENT1'.
+
+  LOOP AT updtab2.
+* Del Item
+    IF NOT updtab2-a-idnrk IS INITIAL.
+      PERFORM bdc_dynpro      USING 'SAPLCSDI' '0150'.
+      PERFORM bdc_field       USING:'RC29B-BI_FCODE' '03',
+                                    'RC29B-BI_SPOSN' updtab2-a-posnr,
+                                    'BDC_OKCODE' '/00'.
+    ENDIF.
+
+* Add Item
+    IF NOT updtab2-b-idnrk IS INITIAL.
+      REFRESH subitems.
+      PERFORM get_subitems TABLES subitems.
+      PERFORM bdc_dynpro      USING 'SAPLCSDI' '0150'.
+      PERFORM bdc_field       USING:'RC29B-BI_FCODE' '01',
+                                    'RC29B-BI_SPOSN' updtab2-b-posnr,
+                                    'RC29B-BI_IDNRK' updtab2-b-idnrk,
+                                    'RC29B-BI_POSTP' updtab2-b-postp.
+
+      WRITE updtab2-b-menge TO w_qty DECIMALS 3.
+      PERFORM bdc_dynpro      USING 'SAPLCSDI' '0130'.
+      PERFORM bdc_field       USING:'RC29P-MENGE' w_qty.
+      PERFORM bdc_field       USING:'RC29P-MEINS' updtab2-b-meins.
+      PERFORM bdc_field       USING:'RC29P-SORTF' updtab2-b-sortf.
+
+*      IF gp_alt  = 'X'.
+*        IF (  updtab2-b-alpgr IS NOT INITIAL OR updtab2-b-alprf <> '00'
+*           OR updtab2-b-alpst IS NOT INITIAL OR updtab2-b-ewahr <> ' 0').
+*          PERFORM bdc_field       USING 'RC29P-ALPGR' updtab2-b-alpgr.
+*          PERFORM bdc_dynpro      USING 'SAPLCSDI' '0716'.
+*          PERFORM bdc_field       USING 'BDC_CURSOR' 'RC29P-EWAHR'.
+*          PERFORM bdc_field       USING 'BDC_OKCODE' '=CLWI'.
+*          PERFORM bdc_field       USING 'RC29P-ALPGR' updtab2-b-alpgr.
+*          PERFORM bdc_field       USING 'RC29P-ALPRF' updtab2-b-alprf.
+*          PERFORM bdc_field       USING 'RC29P-ALPST' updtab2-b-alpst.
+*          PERFORM bdc_field       USING 'RC29P-EWAHR' updtab2-b-ewahr.
+*        ENDIF.
+*      ELSE.
+*        PERFORM bdc_field       USING 'RC29P-ALPGR' updtab2-a-alpgr.
+*        PERFORM bdc_dynpro      USING 'SAPLCSDI' '0716'.
+*        PERFORM bdc_field       USING 'BDC_CURSOR' 'RC29P-EWAHR'.
+*        PERFORM bdc_field       USING 'BDC_OKCODE' '=CLWI'.
+*        PERFORM bdc_field       USING 'RC29P-ALPGR' updtab2-a-alpgr.
+*        PERFORM bdc_field       USING 'RC29P-ALPRF' updtab2-a-alprf.
+*        PERFORM bdc_field       USING 'RC29P-ALPST' updtab2-a-alpst.
+*        PERFORM bdc_field       USING 'RC29P-EWAHR' updtab2-a-ewahr.
+*      ENDIF.
+
+      PERFORM bdc_dynpro      USING 'SAPLCSDI' '0131'.
+      PERFORM bdc_field       USING:'RC29P-POTX1' updtab2-b-potx1.
+      PERFORM bdc_field       USING:'RC29P-SCHGT' updtab2-b-schgt.
+      PERFORM bdc_field       USING:'RC29P-LGORT' updtab2-b-lgort.
+
+      LOOP AT subitems.
+        WRITE subitems-upmng TO w_qty DECIMALS 3.
+        IF sy-tabix EQ 1.
+          PERFORM bdc_dynpro      USING 'SAPLCSDI' '0150'.
+          PERFORM bdc_field       USING 'BDC_CURSOR' 'RC29P-UPSKZ(1)'.
+          PERFORM bdc_field       USING 'BDC_OKCODE' '/02'.
+
+          PERFORM bdc_dynpro      USING 'SAPLCSDI' '0191'.
+          PERFORM bdc_field       USING 'BDC_OKCODE' 'FCUH'.
+
+          PERFORM bdc_dynpro      USING 'SAPLCSDI' '0191'.
+          PERFORM bdc_field       USING 'RC29U-EBORT(01)' subitems-ebort.
+          PERFORM bdc_field       USING 'RC29U-UPMNG(01)' w_qty.
+          PERFORM bdc_field       USING 'RC29U-UPTXT(01)' subitems-uptxt.
+          PERFORM bdc_field       USING 'BDC_OKCODE' 'FCUH'.
+        ELSE.
+          PERFORM bdc_dynpro      USING 'SAPLCSDI' '0191'.
+          PERFORM bdc_field       USING 'RC29U-EBORT(02)' subitems-ebort.
+          PERFORM bdc_field       USING 'RC29U-UPMNG(02)' w_qty.
+          PERFORM bdc_field       USING 'RC29U-UPTXT(02)' subitems-uptxt.
+          PERFORM bdc_field       USING 'BDC_OKCODE' 'FCUH'.
+        ENDIF.
+      ENDLOOP.
+      IF sy-subrc EQ 0.
+        PERFORM bdc_dynpro      USING 'SAPLCSDI'   '0191'.
+        PERFORM bdc_field       USING 'BDC_OKCODE' '/03'.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+  PERFORM bdc_dynpro      USING 'SAPLCSDI'   '0150'.
+  PERFORM bdc_field       USING 'BDC_OKCODE' '=KHPT'.
+  PERFORM bdc_dynpro      USING 'SAPLCSDI'   '0110'.
+  PERFORM bdc_field       USING 'BDC_CURSOR' 'RC29K-ZTEXT'.
+  PERFORM bdc_field       USING 'RC29K-ZTEXT' gw_ztext.
+  PERFORM bdc_field       USING 'BDC_OKCODE' '=FCBU'.
+
+  CALL TRANSACTION 'CS02' USING bdcdata MODE gp_mode UPDATE 'S'.
+
+  MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno WITH sy-msgv1
+                                                    sy-msgv2
+                                                    sy-msgv3
+                                                    sy-msgv4.
+
+ENDFORM.                               " UPDATE_PRIMARY
+
+*----------------------------------------------------------------------*
+*        Start new screen                                              *
+*----------------------------------------------------------------------*
+FORM bdc_dynpro USING program dynpro.
+
+  CLEAR bdcdata.
+  bdcdata-program  = program.
+  bdcdata-dynpro   = dynpro.
+  bdcdata-dynbegin = 'X'.
+  APPEND bdcdata.
+
+ENDFORM.                               " BDC_DYNPRO
+
+*----------------------------------------------------------------------*
+*        Insert field                                                  *
+*----------------------------------------------------------------------*
+FORM bdc_field USING fnam fval.
+
+  CLEAR bdcdata.
+  bdcdata-fnam = fnam.
+  bdcdata-fval = fval.
+  APPEND bdcdata.
+
+ENDFORM.                               " BDC_FIELD
+
+*&---------------------------------------------------------------------*
+*&   Event AT USER-COMMAND
+*&---------------------------------------------------------------------*
+AT USER-COMMAND.
+
+  CASE sy-ucomm.
+    WHEN 'ZURU'.
+      SET SCREEN 0.
+      LEAVE SCREEN.
+    WHEN 'BEEN'.
+      SET SCREEN 0.
+      LEAVE SCREEN.
+    WHEN 'UPD2'.
+      PERFORM update_primary.
+      PERFORM compare_bom_2_to_1.      " make another pass to verify
+    WHEN 'PICK'.
+*   in der Überschrift ?
+      CHECK sy-lilli GE 5.
+      IF ( sy-cucol < gc_pos_p_m ).
+*      Material-/Dokument-/... stammsatz anzeigen
+      ENDIF.
+      gw_pos = gc_pos_p_m + gw_komp_len.
+      IF ( sy-cucol GE gc_pos_p_m ) AND ( sy-cucol LE gw_pos ).
+*      Position Primärstückliste anzeigen
+        CHECK diff-a_tabix NE 0.
+        READ TABLE bom_a INDEX diff-a_tabix.
+        PERFORM display_position TABLES bom_a
+                                 USING diff-a_tabix bom_key-datuv1 'P'.
+      ENDIF.
+
+      gw_pos = gw_pos_v_s + gw_diff_len.
+      IF ( sy-cucol GE gw_pos_v_s ) AND ( sy-cucol LE gw_pos ).
+*      Differenz anzeigen
+        IF bom_key-cumulated = ' '.      " differenz. über alle Positionen
+          gw_brutto = ' '.
+          PERFORM display_similarity
+                   TABLES bom_a bom_b
+                          knowledge_tab_a knowledge_tab_b
+                   USING diff gw_brutto.
+        ELSE.                     " Übersicht über kumulierte Positionen
+        ENDIF.
+      ENDIF.
+
+      gw_pos = gw_pos_v_m + gw_komp_len.
+      IF ( sy-cucol GE gw_pos_v_m ) AND ( sy-cucol LE gw_pos ).
+*      Position Sekundärstückliste anzeigen
+        CHECK diff-b_tabix NE 0.
+        READ TABLE bom_b INDEX diff-b_tabix.
+        PERFORM display_position TABLES bom_b
+                                 USING diff-b_tabix bom_key-datuv2 'S'.
+      ENDIF.
+    WHEN 'ITEM'.
+*   in der Überschrift ?
+      CHECK sy-lilli GE 5.
+      IF ( sy-cucol < gc_pos_p_m ).
+*      Material-/Dokument-/... stammsatz anzeigen
+      ENDIF.
+    WHEN 'STLP'.
+*    Sprung in das Positionsbild der Stücklistenposition
+      gw_displayed = ' '.
+      CHECK sy-lilli GE 5.
+      gw_pos = gc_pos_p_m + gw_komp_len.
+      IF ( sy-cucol GE gc_pos_p_m ) AND ( sy-cucol LE gw_pos ).
+*      Sprung in das Positionsbild der Primärposition
+        CHECK diff-a_tabix NE 0.
+        READ TABLE bom_a INDEX diff-a_tabix.
+        PERFORM display_position TABLES bom_a
+                                 USING diff-a_tabix bom_key-datuv1 'P'.
+        gw_displayed = 'X'.
+      ENDIF.
+      gw_pos = gw_pos_v_m + gw_komp_len.
+      IF ( sy-cucol GE gw_pos_v_m ) AND
+         ( sy-cucol LE gw_pos ).
+*      Sprung in das Positionsbild der Sekundärposition
+        CHECK diff-b_tabix NE 0.
+        READ TABLE bom_b INDEX diff-b_tabix.
+        PERFORM display_position TABLES bom_b
+                                 USING diff-b_tabix bom_key-datuv2 'S'.
+        gw_displayed = 'X'.
+      ENDIF.
+      IF gw_displayed = ' '.
+        MESSAGE s302.
+      ENDIF.
+    WHEN 'BRUT'.
+*    Ausgabe von zwei Stücklistenpositionen
+      gw_brutto = 'X'.
+      sy-lsind = sy-lsind - 1.
+      PERFORM display_similarity TABLES bom_a bom_b
+                                       knowledge_tab_a knowledge_tab_b
+                                 USING diff gw_brutto.
+    WHEN 'NETT'.
+*    Ausgabe von zwei Stücklistenpositionen
+      gw_brutto = ' '.
+      sy-lsind = sy-lsind - 1.
+      PERFORM display_similarity TABLES bom_a bom_b
+                                       knowledge_tab_a knowledge_tab_b
+                                 USING diff gw_brutto.
+    WHEN 'POSI'.
+*    Position als Schlüssel der Unterpositionen
+      bom_key-upos_pos = 'X'.
+      bom_key-upos_ort = ' '.
+      sy-lsind = sy-lsind - 1.
+      PERFORM display_similarity TABLES bom_a bom_b
+                                       knowledge_tab_a knowledge_tab_b
+                                 USING diff gw_brutto.
+    WHEN 'EBOT'.
+*    Position als Schlüssel der Unterpositionen
+      bom_key-upos_pos = ' '.
+      bom_key-upos_ort = 'X'.
+      sy-lsind = sy-lsind - 1.
+      PERFORM display_similarity TABLES bom_a bom_b
+                                       knowledge_tab_a knowledge_tab_b
+                                 USING diff gw_brutto.
+    WHEN 'SDIF'.
+      gw_show = 'SDIF'.
+      PERFORM activate_show TABLES fcode_tab USING gw_show.
+      sy-lsind = sy-lsind - 1.
+      PERFORM diff_output  TABLES diff bom_a bom_b bom_key.
+    WHEN 'HDIF'.
+      gw_show = 'HDIF'.
+      PERFORM activate_show TABLES fcode_tab USING gw_show.
+      sy-lsind = sy-lsind - 1.
+      PERFORM diff_output  TABLES diff bom_a bom_b bom_key.
+    WHEN 'SSIM'.
+      gw_show = 'SSIM'.
+      PERFORM activate_show TABLES fcode_tab USING gw_show.
+      sy-lsind = sy-lsind - 1.
+      PERFORM diff_output  TABLES diff bom_a bom_b bom_key.
+    WHEN 'HSIM'.
+      gw_show = 'HSIM'.
+      PERFORM activate_show TABLES fcode_tab USING gw_show.
+      sy-lsind = sy-lsind - 1.
+      PERFORM diff_output  TABLES diff bom_a bom_b bom_key.
+    WHEN 'SEQU'.
+      gw_show = 'SEQU'.
+      PERFORM activate_show TABLES fcode_tab USING gw_show.
+      sy-lsind = sy-lsind - 1.
+      PERFORM diff_output  TABLES diff bom_a bom_b bom_key.
+    WHEN 'HEQU'.
+      gw_show = 'HEQU'.
+      PERFORM activate_show TABLES fcode_tab USING gw_show.
+      sy-lsind = sy-lsind - 1.
+      PERFORM diff_output  TABLES diff bom_a bom_b bom_key.
+    WHEN 'TEXY'.
+      bom_key-write_text = 'X'.
+      READ TABLE fcode_tab WITH KEY fcode = 'TEXN'.
+      fcode_tab-fcode = 'TEXY'.
+      MODIFY fcode_tab INDEX sy-tabix.
+      sy-lsind = sy-lsind - 1.
+      PERFORM diff_output TABLES diff bom_a bom_b bom_key .
+*    Rückgabe alle benötigter Daten an den Dialogeinstieg
+      REFRESH bom_key.
+      APPEND bom_key.
+      EXPORT bom_key    TO MEMORY ID 'BOM_KEY'.
+    WHEN 'TEXN'.
+      bom_key-write_text = ' '.
+      READ TABLE fcode_tab WITH KEY fcode = 'TEXY'.
+      fcode_tab-fcode = 'TEXN'.
+      MODIFY fcode_tab INDEX sy-tabix.
+      sy-lsind = sy-lsind - 1.
+      PERFORM diff_output  TABLES diff bom_a bom_b bom_key.
+*    Rückgabe alle benötigter Daten an den Dialogeinstieg
+      REFRESH bom_key.
+      APPEND bom_key.
+      EXPORT bom_key    TO MEMORY ID 'BOM_KEY'.
+    WHEN 'USAG'.
+*   in der Überschrift ?
+      CHECK sy-lilli GE 5.
+      CHECK bom_key-cumulated = ' '.
+      gw_pos = gc_pos_p_m + gw_komp_len.
+      gw_pos_s = gw_pos_v_m + gw_komp_len.
+      IF ( sy-cucol GE gc_pos_p_m ) AND
+         ( sy-cucol LE gw_pos ).
+*      Verwendung Primärposition anzeigen
+        PERFORM usage_primary.
+      ELSEIF ( sy-cucol GE gw_pos_v_m ) AND
+             ( sy-cucol LE gw_pos_s ).
+*      Verwendung Sekundärposition anzeigen
+        PERFORM usage_secondary.
+      ELSE.
+        MESSAGE s302.
+      ENDIF.
+    WHEN 'SALL'.
+      DO.
+        CLEAR gw_chkline.
+        READ LINE sy-index.
+        IF sy-subrc EQ 0.
+          IF gw_chkline NE space.
+            sy-lisel(1) = 'X'.
+            MODIFY LINE sy-index.
+          ENDIF.
+        ELSE.
+          EXIT.
+        ENDIF.
+      ENDDO.
+    WHEN 'DALL'.
+      DO.
+        CLEAR gw_chkline.
+        READ LINE sy-index.
+        IF sy-subrc EQ 0.
+          IF gw_chkline NE space.
+            sy-lisel(1) = ' '.
+            MODIFY LINE sy-index.
+          ENDIF.
+        ELSE.
+          EXIT.
+        ENDIF.
+      ENDDO.
+  ENDCASE.
+
+*&---------------------------------------------------------------------*
+*&   AT LINE-SELECTION Event
+*&---------------------------------------------------------------------*
+
+AT LINE-SELECTION.
+  CASE sy-pfkey.
+    WHEN 'STAT2'.
+      gw_displayed = ' '.
+*   in der Überschrift ?
+      CHECK sy-lilli GE 5.
+      IF ( sy-cucol < gc_pos_p_m ).
+*      Material-/Dokument-/... stammsatz anzeigen
+      ENDIF.
+      gw_pos = gc_pos_p_m + gw_komp_len.
+      IF ( sy-cucol GE gc_pos_p_m ) AND ( sy-cucol LE gw_pos ).
+*      Position Primärstückliste anzeigen
+        CHECK bom_key-cumulated = ' '.
+        CHECK diff-a_tabix NE 0.
+        READ TABLE bom_a INDEX diff-a_tabix.
+        PERFORM display_position TABLES bom_a
+                                 USING diff-a_tabix bom_key-datuv1 'P'.
+        gw_displayed = 'X'.
+      ENDIF.
+      gw_pos = gw_pos_v_s + gw_diff_len.
+      IF ( sy-cucol GE gw_pos_v_s ) AND ( sy-cucol LE gw_pos ).
+*      Differenz anzeigen
+        IF bom_key-cumulated = ' '.    " differenz. über alle Positionen
+          gw_brutto = ' '.
+          PERFORM display_similarity
+                   TABLES bom_a bom_b
+                          knowledge_tab_a knowledge_tab_b
+                   USING diff gw_brutto.
+          gw_displayed = 'X'.
+        ENDIF.
+      ENDIF.
+      gw_pos = gw_pos_v_m + gw_komp_len.
+      IF ( sy-cucol GE gw_pos_v_m ) AND ( sy-cucol LE gw_pos ).
+*      Position Sekundärstückliste anzeigen
+        CHECK bom_key-cumulated = ' '.
+        CHECK diff-b_tabix NE 0.
+        READ TABLE bom_b INDEX diff-b_tabix.
+        PERFORM display_position TABLES bom_b
+                                 USING diff-b_tabix bom_key-datuv2 'S'.
+        gw_displayed = 'X'.
+      ENDIF.
+      IF gw_displayed = ' '.
+        MESSAGE s302.
+      ENDIF.
+  ENDCASE.
+
+AT PF01.
+  GET CURSOR FIELD gw_f.
+  CASE gw_f.
+    WHEN 'AKT_KOMP'.
+      PERFORM dataelement_help USING 'BOMOB'.
+    WHEN 'AKT_TEXT'.
+      PERFORM dataelement_help USING 'KMPTX'.
+    WHEN 'ICON_FAILURE'.
+      PERFORM dataelement_help USING 'BOM_COMP_D'.
+    WHEN 'ICON_NOT_EQUAL_RED'.
+      PERFORM dataelement_help USING 'BOM_COMP_S'.
+    WHEN 'ICON_EQUAL_GREEN'.
+      PERFORM dataelement_help USING 'BOM_COMP_E'.
+    WHEN 'ICON_CHECK'.
+      PERFORM dataelement_help USING 'BOM_COMP_C'.
+    WHEN 'ICON_DISPLAY_TEXT'.
+      PERFORM dataelement_help USING 'BOM_COMP_T'.
+    WHEN 'ICON_SUM'.
+      PERFORM dataelement_help USING 'BOM_COMP_Z'.
+    WHEN 'DIFF-MNGLG_DIFF'.
+      PERFORM dataelement_help USING 'BOM_COMP_M'.
+    WHEN 'BOM_A_CUM-MNGLG'.
+      PERFORM dataelement_help USING 'KMPMG'.
+    WHEN 'BOM_A-MNGLG'.
+      PERFORM dataelement_help USING 'KMPMG'.
+    WHEN 'BOM_A_CUM-MEINS'.
+      PERFORM dataelement_help USING 'KMPME'.
+    WHEN 'BOM_A-MEINS'.
+      PERFORM dataelement_help USING 'KMPME'.
+    WHEN 'BOM_A_CUM-POSTP'.
+      PERFORM dataelement_help USING 'POSTP'.
+    WHEN 'BOM_A-POSTP'.
+      PERFORM dataelement_help USING 'POSTP'.
+    WHEN 'BOM_A-STUFE'.
+      PERFORM dataelement_help USING 'DGLVL'.
+    WHEN 'BOM_B_CUM-MNGLG'.
+      PERFORM dataelement_help USING 'KMPMG'.
+    WHEN 'BOM_B-MNGLG'.
+      PERFORM dataelement_help USING 'KMPMG'.
+    WHEN 'BOM_B_CUM-MEINS'.
+      PERFORM dataelement_help USING 'KMPME'.
+    WHEN 'BOM_B-MEINS'.
+      PERFORM dataelement_help USING 'KMPME'.
+    WHEN 'BOM_B_CUM-POSTP'.
+      PERFORM dataelement_help USING 'POSTP'.
+    WHEN 'BOM_B-POSTP'.
+      PERFORM dataelement_help USING 'POSTP'.
+    WHEN 'BOM_B-STUFE'.
+      PERFORM dataelement_help USING 'DGLVL'.
+    WHEN OTHERS.
+*     Überschrift
+      CHECK sy-curow = 3.
+      IF sy-cucol < gc_pos_p_m.
+        PERFORM dataelement_help USING 'BOMOB'.
+      ELSEIF sy-cucol < gw_pos_p_e.
+        PERFORM dataelement_help USING 'KMPMG'.
+      ELSEIF sy-cucol < gw_pos_p_t.
+        PERFORM dataelement_help USING 'KMPME'.
+      ELSEIF sy-cucol < gw_pos_p_s.
+        PERFORM dataelement_help USING 'POSTP'.
+      ELSEIF sy-cucol < gw_pos_v_m.
+        IF bom_key-cumulated = ' '.
+          IF sy-cucol < gw_pos_v_s.
+            PERFORM dataelement_help USING 'DGLVL'.
+          ELSE.
+            PERFORM dataelement_help USING 'BOM_COMP_C'.
+          ENDIF.
+        ELSE.
+          gw_pos = gw_pos_v_s + 3.
+          IF sy-cucol < gw_pos_v_s.
+            PERFORM dataelement_help USING 'BOM_COMP_Z'.
+          ELSEIF sy-cucol < gw_pos.
+            PERFORM dataelement_help USING 'BOM_COMP_C'.
+          ELSE.
+            PERFORM dataelement_help USING 'BOM_COMP_M'.
+          ENDIF.
+        ENDIF.
+      ELSEIF sy-cucol < gw_pos_s_e.
+        PERFORM dataelement_help USING 'KMPMG'.
+      ELSEIF sy-cucol < gw_pos_s_t.
+        PERFORM dataelement_help USING 'KMPME'.
+      ELSEIF sy-cucol < gw_pos_s_s.
+        PERFORM dataelement_help USING 'POSTP'.
+      ELSE.
+        IF bom_key-cumulated = ' '.
+          PERFORM dataelement_help USING 'DGLVL'.
+        ELSE.
+          PERFORM dataelement_help USING 'BOM_COMP_Z'.
+        ENDIF.
+      ENDIF.
+  ENDCASE.
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_CHKFIELD
+*&---------------------------------------------------------------------*
+FORM update_chkfield.
+  DATA: flag.
+  REFRESH updtab2.
+  gw_max_posnr = 0.
+  DO.
+    CLEAR gw_chkbox.
+    READ LINE sy-index FIELD VALUE gw_chkbox.
+    IF sy-subrc NE 0.
+      EXIT.
+    ENDIF.
+
+    CHECK sy-lisel(1) EQ 'X'.
+    READ TABLE updtab WITH KEY a-posnr = sy-lisel+33(4)
+    b-posnr = sy-lisel+83(4).
+    IF sy-subrc IS INITIAL AND NOT sy-lisel+33(4) IS INITIAL.
+      updtab-b-posnr = updtab-a-posnr.
+      APPEND updtab TO updtab2.
+    ELSE.
+      READ TABLE updtab WITH KEY a-posnr = sy-lisel+33(4).
+      IF sy-subrc IS INITIAL AND NOT sy-lisel+33(4) IS INITIAL.
+        APPEND updtab TO updtab2.
+      ELSE.
+        READ TABLE updtab WITH KEY b-posnr = sy-lisel+83(4).
+        IF sy-subrc IS INITIAL.
+          flag = 2.
+          gw_max_posnr = gw_max_posnr + 10.
+          WHILE flag NE 0 OR flag EQ 2.
+            flag = 0.
+            LOOP AT bom_a.
+              IF bom_a-posnr EQ gw_max_posnr.
+                flag = 1.
+              ENDIF.
+            ENDLOOP.
+            IF flag EQ 1.
+              gw_max_posnr = gw_max_posnr + 10.
+            ENDIF.
+          ENDWHILE.
+          updtab-b-posnr = gw_max_posnr.
+          CLEAR updtab-a-posnr. CLEAR updtab-a-idnrk.
+
+          APPEND updtab TO updtab2.
+
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDDO.
+
+ENDFORM.                               " UPDATE_CHKFIELD
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_SUBITEMS
+*&---------------------------------------------------------------------*
+FORM get_subitems TABLES   wa2 STRUCTURE stpub.
+
+  IF updtab2-b-upskz NE ' '.
+    wa2-stlty = updtab2-b-stlty.
+    wa2-stlnr = updtab2-b-stlnr.
+    wa2-stlkn = updtab2-b-stlkn.
+    wa2-stpoz = updtab2-b-stpoz.
+    APPEND wa2.
+    CALL FUNCTION 'GET_STPU'
+      EXPORTING
+        all             = 'X'
+        no_buffer       = 'X'
+        set             = 'X'
+      TABLES
+        wa              = wa2
+      EXCEPTIONS
+        call_invalid    = 01
+        end_of_table    = 02
+        get_without_set = 03
+        key_incomplete  = 04
+        no_record_found = 05.
+  ENDIF.
+
+ENDFORM.                               " GET_SUBITEMS
+
+*&---------------------------------------------------------------------*
+*&      Form  FORCE_INPUT
+*&---------------------------------------------------------------------*
+FORM force_input.
+
+  IF NOT gp_aen1 IS INITIAL.
+    gp_mat2 = gp_mat1.
+    gp_lan2 = '2'.
+
+    SELECT SINGLE datuv
+                  INTO   gp_dat1
+                  FROM   aenr
+                  WHERE  aennr = gp_aen1.
+
+    MESSAGE s042 WITH gp_dat1.
+  ENDIF.
+
+  LOOP AT SCREEN.
+    IF screen-group1 = 'US2'.
+      IF gp_aen1 IS INITIAL.
+        screen-input = '1'.
+      ELSE.
+        screen-input = '0'.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                               " FORCE_INPUT
+*----------------------------------------------------------------------*
+*       DISPLAY_FERT
+*----------------------------------------------------------------------*
+*       Fertigungsauftrag anzeigen
+*----------------------------------------------------------------------*
+FORM display_fert.
+
+  DATA aufnr_tmp LIKE afko-aufnr.
+
+* Schnittstelle sichern
+  GET PARAMETER ID 'ANR' FIELD aufnr_tmp.
+
+* Schnittstelle setzen
+  SET PARAMETER ID 'ANR' FIELD diff-aufnr_a.
+
+* Transaktion 'Fertigungsauftrag anzeigen' ausführen
+  CALL TRANSACTION 'CO03' AND SKIP FIRST SCREEN.
+
+* Restore 'Schnittstelle'
+  SET PARAMETER ID 'ANR' FIELD aufnr_tmp.
+
+ENDFORM.                    " DISPLAY_FERT
+
+*&---------------------------------------------------------------------*
+*&      Form  TEXT_WRITE
+*&---------------------------------------------------------------------*
+*       text                                                           *
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM text_write.
+  DATA: len TYPE i.
+
+* bei Bedarf Beschreibung der Komponente ausgeben
+  PERFORM color_reset_save_color.
+  WRITE / ' '.
+  WRITE AT gc_pos_b(gc_text_len) gw_akt_text .
+*  IF pa_alt  = 'X'.
+*  WRITE AT 42 bom_a-alpgr.
+*  WRITE AT 50 bom_a-alprf.
+*  WRITE AT 60 bom_a-alpst.
+*  WRITE AT 70 bom_a-ewahr .
+*
+*  WRITE AT 84 bom_b-alpgr.
+*  WRITE AT 94 bom_b-alprf.
+*  WRITE AT 104 bom_b-alpst.
+*  WRITE AT 114 bom_b-ewahr.
+*  ENDIF.
+  WRITE /.
+
+  len = strlen( gw_akt_text ).
+  IF len LT gc_pos_p_m.
+    gw_pos = gc_pos_p_m - 1.
+    WRITE AT gw_pos sy-vline.
+  ENDIF.
+* A-Komp
+  IF ( diff-a_tabix NE 0 ).
+    gw_pos = gc_pos_b + gc_text_len + 1.
+    WRITE AT gw_pos
+         '                                     '.
+  ELSE.
+    PERFORM color_background_and_save.
+    len = gc_pos_b + strlen( gw_akt_text ).
+    IF len >= gc_pos_p_m.
+      gw_pos = gc_pos_b + len.
+    ELSE.
+      gw_pos = gc_pos_p_m.
+    ENDIF.
+    WRITE AT gw_pos
+     '                                                           '.
+    PERFORM color_reset_save_color.
+  ENDIF.
+  gw_pos = gc_pos_p_m + gw_komp_len.
+  WRITE AT gw_pos sy-vline.
+* Differenz
+  IF ( diff-a_tabix = 0 ) OR ( diff-b_tabix = 0 ).
+    WRITE AT gw_pos_v_s(gw_diff_len)
+     '                                     '.
+  ELSE.
+    WRITE AT gw_pos_v_s(gw_diff_len)
+         '                                     '.
+  ENDIF.
+  gw_pos = gw_pos_v_s + gw_diff_len.
+  WRITE AT gw_pos sy-vline.
+* B-Komponente
+  len = gw_komp_len + 1.
+  IF ( diff-b_tabix NE 0 ).
+    WRITE AT gw_pos_v_m(len)
+      '                                      '.
+  ELSE.
+    PERFORM color_background_and_save.
+    WRITE AT gw_pos_v_m(len)
+      '                                      '.
+    PERFORM color_reset_save_color.
+  ENDIF.
+  PERFORM color_background_and_save.
+ENDFORM.                    " TEXT_WRITE
+
+*----------------------------------------------------------------------*
+*       Form  WRITE_BLOCK
+*----------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM write_block USING l_blcnm TYPE char18
+                       l_hide_flg  TYPE char1.
+
+  gw_g_first_flg = c_cross.
+  DO.
+    CALL FUNCTION 'CS_VLIST_BLOCK_PROCESSING'
+      EXPORTING
+        blcnm        = l_blcnm
+        first        = gw_g_first_flg
+        lstid        = 'SAPCSCOMP         '
+        newline      = gc_g_newln_flg
+        profl        = bom_key-displ_list
+        rshift       = gc_g_val_shift
+      IMPORTING
+        eoblc        = gw_g_eoblc_flg
+        lnmpt        = gw_g_lnmpt_flg
+      TABLES
+        watab        = gt_watab
+      EXCEPTIONS
+        call_invalid = 1
+        OTHERS       = 2.
+
+    IF l_hide_flg EQ c_cross.
+      HIDE diff.
+    ENDIF.
+
+    IF gw_g_eoblc_flg IS NOT INITIAL.
+      EXIT.
+    ENDIF.
+
+    IF bom_key-write_text EQ ' '
+       AND ( l_blcnm EQ 'COMP_ITEM_C' OR
+             l_blcnm EQ 'COMP_ITEM' ).
+      EXIT.
+    ENDIF.
+
+    CLEAR gw_g_first_flg.
+  ENDDO.
+
+ENDFORM.                               " WRITE_BLOCK
+
+*----------------------------------------------------------------------*
+*       Form  check_vl
+*----------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM check_vl.                                              "MBA167558
+  DATA:   l_usr_class        LIKE usr02-class.
+
+  SELECT SINGLE * FROM lklah WHERE
+     class EQ bom_key-displ_list.
+
+  IF sy-subrc NE 0.
+    SELECT SINGLE profl FROM tcsvl
+       INTO bom_key-displ_list
+       WHERE uname EQ sy-uname   AND
+             progr EQ 'RCS14001' AND
+             pverw EQ 'DSPL'.
+
+    IF sy-subrc EQ 0.
+      MODIFY bom_key INDEX 1 TRANSPORTING displ_list.
+    ELSE.
+      SELECT SINGLE class FROM usr02
+         INTO l_usr_class
+         WHERE bname EQ sy-uname.
+
+      IF l_usr_class IS INITIAL.
+        SELECT SINGLE profl FROM tcsvl
+           INTO bom_key-displ_list
+           WHERE     uname EQ 'DUMMY       '
+                 AND progr EQ 'RCS14001'
+                 AND pverw EQ 'DSPL'.
+
+        IF sy-subrc EQ 0.
+          MODIFY bom_key INDEX 1 TRANSPORTING displ_list.
+        ELSE.
+          bom_key-displ_list = 'SAPCSCOMPP01'.
+          MODIFY bom_key INDEX 1 TRANSPORTING displ_list.
+        ENDIF.
+      ELSE.
+        SELECT SINGLE profl FROM tcsvl
+           INTO bom_key-displ_list
+           WHERE     uname EQ l_usr_class
+                 AND progr EQ 'RCS14001'
+                 AND pverw EQ 'DSPL'.
+        IF sy-subrc EQ 0.
+          MODIFY bom_key INDEX 1 TRANSPORTING displ_list.
+        ELSE.
+          SELECT SINGLE profl FROM tcsvl
+             INTO bom_key-displ_list
+             WHERE     uname EQ 'DUMMY       '
+                   AND progr EQ 'RCS14001'
+                   AND pverw EQ 'DSPL'.
+
+          IF sy-subrc EQ 0.
+            MODIFY bom_key INDEX 1 TRANSPORTING displ_list.
+          ELSE.
+            bom_key-displ_list = 'SAPCSCOMPP01'.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " check_vl
+
+*----------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE list_pbo OUTPUT.
+  CLEAR gw_brutto.
+
+  LEAVE TO LIST-PROCESSING
+    AND RETURN TO SCREEN 0.
+
+  PERFORM display_similarity
+              TABLES
+                 bom_a
+                 bom_b
+                 knowledge_tab_a
+                 knowledge_tab_b
+              USING
+                 diff
+                 gw_brutto.
+  LEAVE SCREEN.
+ENDMODULE.                 " LIST_PBO  OUTPUT
+

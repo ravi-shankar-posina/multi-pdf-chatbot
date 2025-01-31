@@ -1,0 +1,11 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_BILLING_BLOCK_REMOVAL_SEL                   *
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-t01.
+SELECT-OPTIONS: s_bukrs  FOR gv_comp_code OBLIGATORY,
+                s_recdat FOR gv_rec_date DEFAULT sy-datum,
+                s_del_no FOR gv_del_no,
+                s_trxseq FOR gv_transeq NO INTERVALS.
+PARAMETERS: p_faksk  TYPE faksk DEFAULT '02' OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b1.
+

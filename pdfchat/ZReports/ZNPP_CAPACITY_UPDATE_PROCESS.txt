@@ -1,0 +1,211 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZNPP_CAPACITY_UPDATE_PROCESS .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+**** retriving all materials from marc from selection screenn inputs
+  SELECT matnr
+         werks
+         dispo
+         webaz FROM marc INTO TABLE gt_marc
+                         WHERE werks IN s_plant
+                          AND  dispo IN s_mrp.
+  IF sy-subrc EQ 0.
+    SORT gt_marc BY matnr werks dispo.
+  ENDIF.
+****** preparing RAANGE tables for retriving info from MSEG
+  IF s_date-low IS INITIAL.
+    lw_date1  = sy-datum - 90.
+  ELSE.
+    lw_date1 = s_date-low.
+  ENDIF.
+  s_budat-sign = 'I'.
+  s_budat-option = 'BT'.
+  s_budat-low =   lw_date1.
+  s_budat-high =   sy-datum.
+  APPEND s_budat.
+*****preparing movement type range table for  101 AND 102 types
+  s_bwart-sign = 'I'.
+  s_bwart-option = 'BT'.
+  s_bwart-low = '101'.
+  s_bwart-high = '102'.
+  APPEND s_bwart.
+****** Retriving all capacity records from mseg for all amterials in gt_marc
+  IF NOT gt_marc IS INITIAL.
+    SELECT mjahr
+           bwart
+           matnr
+           werks
+           menge
+           aufnr  FROM mseg INTO TABLE gt_mseg
+                            FOR ALL ENTRIES IN gt_marc
+                            WHERE matnr EQ gt_marc-matnr
+                             AND bwart IN s_bwart
+                             AND werks IN s_plant
+                             AND kzbew EQ 'F'
+                             AND budat_mkpf IN s_budat.
+    IF sy-subrc EQ 0.
+      SORT gt_mseg BY matnr werks bwart .
+    ENDIF.
+  ENDIF.
+****** Start of changes for CHG1178311 DE3K961760 by 502277866 on 29.04.2015
+*****selecting calender id for caluclating no of working days in a period for palnt.
+**** selecting fid
+  SELECT werks
+            fabkl FROM t001w INTO TABLE gt_fid
+                                 WHERE werks IN s_plant.
+
+  IF sy-subrc EQ 0.
+    SORT gt_fid BY werks.
+  ENDIF.
+***** caluclating no of working days.
+  LOOP AT gt_fid INTO gi_fid.
+    CALL FUNCTION 'RKE_SELECT_FACTDAYS_FOR_PERIOD'
+      EXPORTING
+        i_datab               = lw_date1
+        i_datbi               = sy-datum
+        i_factid              = gi_fid-fabkl
+      TABLES
+        eth_dats              = gt_date
+      EXCEPTIONS
+        date_conversion_error = 1
+        OTHERS                = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+    IF NOT gt_date IS INITIAL.
+      DESCRIBE TABLE gt_date LINES gi_days-days.
+      gi_days-werks  = gi_fid-werks.
+      APPEND gi_days TO gt_days.
+    ENDIF.
+    REFRESH : gt_date.
+    CLEAR : gi_fid , gi_days.
+  ENDLOOP.
+**** end of changes for CHG1178311 DE3K961760 by 502277866 on 29.04.2015
+*** start of changes for CHG1178311 DE3K961893 by  502277866 on 05.05.2015
+***** fetching Percentages from ztpp_capacity table.
+
+SELECT  plant
+        dispo
+        PERCENTAGE FROM ZTPP_CAPACITY INTO TABLE gt_capacity
+                                      WHERE plant in s_plant
+                                        AND dispo in s_mrp.
+  if sy-subrc eq 0.
+    sort gt_capacity by plant dispo.
+    endif.
+*** end of changes for CHG1178311 DE3K961893 by  502277866 on 05.05.2015
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  FINAL_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM final_data .
+***** summing all records into one list gt_mlsit
+  LOOP AT gt_mseg INTO gi_mseg.
+    READ TABLE gt_marc INTO gi_marc WITH KEY matnr = gi_mseg-matnr
+                                             werks = gi_mseg-werks BINARY SEARCH .
+
+    IF sy-subrc EQ 0.
+      gi_mlist-matnr = gi_marc-matnr.
+      gi_mlist-dispo = gi_marc-dispo.
+      gi_mlist-werks = gi_marc-werks.
+      gi_mlist-menge = gi_mseg-menge.
+      gi_mlist-bwart = gi_mseg-bwart.
+      COLLECT gi_mlist INTO gt_mlist.
+    ENDIF.
+    CLEAR : gi_mlist , gi_marc , gi_mseg.
+  ENDLOOP.
+  SORT gt_mlist BY  dispo bwart werks. "  Added for CHG1178311 DE3K961796  by 502277866 0n 30.04.2015
+
+  DATA : lw_val5 TYPE i.
+***** updating ztpp_capacity table
+  LOOP AT gt_mlist INTO gi_mlist.
+    IF gi_mlist-bwart = 102.
+      lw_capacity = lw_capacity - gi_mlist-menge.
+    ELSE.
+      lw_capacity = lw_capacity + gi_mlist-menge.
+    ENDIF.
+    gi_final-plant = gi_mlist-werks.
+    gi_final-dispo = gi_mlist-dispo.
+    AT END OF dispo.
+**** Start of changes for CHG1178311 DE3K961760 by 502277866 on 29.04.2015
+      READ TABLE gt_days INTO gi_days WITH KEY werks = gi_final-plant.
+      IF sy-subrc EQ 0.
+        IF gi_days-days IS NOT INITIAL.
+          lw_cap1 = lw_capacity / gi_days-days.
+        ELSE.
+          lw_cap1 = lw_capacity.
+        ENDIF.
+      ENDIF.
+**** end of changes for CHG1178311 DE3K961760 by 502277866 on 29.04.2015
+*** start of changes for CHG1178311 DE3K961893 by  502277866 on 05.05.2015
+      READ TABLE gt_capacity INTO gi_capacity with key plant = gi_final-plant
+                                                       dispo = gi_final-dispo BINARY SEARCH.
+      if sy-subrc eq 0.
+        gi_final-percentage = gi_capacity-percentage.
+        endif.
+*** end of changes for CHG1178311 DE3K961893 by  502277866 on 05.05.2015
+      lw_val5 = ceil( lw_cap1 ).
+      gi_final-quantity = lw_val5.
+      gi_final-createdby = sy-uname.
+      gi_final-createdon = sy-datum.
+      gi_final-time = sy-uzeit.
+      CLEAR : lw_capacity.
+      MODIFY ztpp_capacity FROM gi_final.
+      APPEND gi_final TO gt_final.
+    ENDAT.
+    CLEAR : gi_final , gi_mlist.
+  ENDLOOP.
+ENDFORM.                    " FINAL_DATA
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_data .
+  DATA :  lc_msg TYPE REF TO cx_salv_msg.
+  DATA: lo_cols TYPE REF TO cl_salv_columns,
+       lo_column TYPE REF TO cl_salv_column_table,
+       lo_column1 TYPE REF TO cl_salv_column_table,
+       lo_column2 TYPE REF TO cl_salv_column_table,
+       lo_function TYPE REF TO cl_salv_functions_list.
+  DATA: gt_alv TYPE REF TO cl_salv_table .
+  IF NOT gt_final IS INITIAL.
+    TRY.
+        cl_salv_table=>factory( IMPORTING r_salv_table = gt_alv
+                           CHANGING  t_table   = gt_final ).
+      CATCH cx_salv_msg INTO lc_msg .
+    ENDTRY.
+**        try.
+    lo_cols = gt_alv->get_columns( ).
+    TRY.
+        lo_column ?= lo_cols->get_column( 'MANDT' ).
+        lo_column1 ?= lo_cols->get_column( 'PERCENTAGE' ).
+        lo_column2 ?= lo_cols->get_column( 'QUANTITY' ).
+      CATCH cx_salv_not_found.
+    ENDTRY.
+    lo_column->set_visible( value  = if_salv_c_bool_sap=>false ).
+    lo_column1->set_visible( value  = if_salv_c_bool_sap=>false ).
+    lo_column2->set_long_text( 'QUANTITY' ).
+    lo_column2->set_medium_text( 'QUANTITY' ).
+    lo_column2->set_output_length( 20 ).
+    gt_alv->display( ).
+  ELSE.
+    MESSAGE 'No Data found'(001) TYPE 'I'.
+  ENDIF.
+ENDFORM.                    " DISPLAY_DATA
+

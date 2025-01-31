@@ -1,0 +1,58 @@
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*** Created by            : Teja Prathyusha Adiraju (USPRADI)
+*** Creation Date         : 11.02.2021
+*** Transport Request #   : DE3K9A04YR
+*** T-Code                : ZMM2364
+*** RICEF Object No #     : RICEF2364
+*** Change request No     : CHG0158498
+*** Description           : Purge open Inbound deliveries which are aged in-transit
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE               | CR No.          |TR NO.           |CHANGED BY |DESCRIPTION OF CHANGE
+* 11.02.2021         | CHG0158498      | DE3K9A04YR      |USPRADI    | Initial version
+* 16.03.2021         | CHG0191538      | JE3K905915      |USPRADI    | Skip 701 posting for ELIS plants
+*****************************************************************************************
+*&---------------------------------------------------------------------*
+*& Report  ZMM_INBOUND_PURGE
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+REPORT  zrmm_inbound_purge.
+
+CLASS lcl_event_handler DEFINITION DEFERRED.
+
+*&---------------------------------------------------------------------*
+*& Include for Data Declareation
+*&---------------------------------------------------------------------*
+INCLUDE znmm_inbound_purge_top.
+*&---------------------------------------------------------------------*
+*& Include for Class definition
+*&---------------------------------------------------------------------*
+INCLUDE znmm_inbound_purge_class.
+*&---------------------------------------------------------------------*
+*& Include for Selection screen
+*&---------------------------------------------------------------------*
+INCLUDE znmm_inbound_purge_sel.
+*&---------------------------------------------------------------------*
+*& Include for Subroutines
+*&---------------------------------------------------------------------*
+INCLUDE znmm_inbound_purge_form.
+
+
+INITIALIZATION.
+  PERFORM get_hardcoded_values.
+
+START-OF-SELECTION.
+  PERFORM data_validation.
+
+  PERFORM fetch_data.
+
+  PERFORM fill_output.
+
+  PERFORM display_output.
+

@@ -1,0 +1,304 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_OUTBOUNDMAIL_FORMS
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATION
+*&---------------------------------------------------------------------*
+
+FORM validation  CHANGING gw_retval TYPE c.
+*validations against plant, delivery type and goods movement status of the delivery document
+  CLEAR:   gi_ztuhcd1.
+  REFRESH: gt_ztuhcd1.
+  gi_ztuhcd1-name = gc_pname.
+  APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+  CLEAR  gi_ztuhcd1.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+    SORT  gt_ztuhcd1 BY name zkey field index_no low.
+    CLEAR: gi_ztuhcd1, gw_receiver,
+*           gi_werks, gi_lfart, Change 502199780 CHG2527291
+           gi_reswk, gi_lips1, gi_ekko,          "Added by 502683007 on 31/01/2017
+           gi_likp, gw_wbstk.
+    REFRESH: "gr_werks, gr_lfart, Change 502199780 CHG2527291
+             gr_reswk,                 "Added by 502683007  on 31/01/2017
+             gt_lips.
+    LOOP AT gt_ztuhcd1 INTO gi_ztuhcd1.
+      CASE gi_ztuhcd1-zkey.
+*Begin of changes by 502199780 CHG2527291
+*        WHEN gc_werks.
+*          gi_werks-sign = gc_i.
+*          gi_werks-option = gc_eq.
+*          gi_werks-low = gi_ztuhcd1-low.
+*          APPEND gi_werks TO gr_werks.
+*          CLEAR gi_werks.
+*        WHEN gc_lfart.
+*          gi_lfart-sign = gc_i.
+*          gi_lfart-option = gc_eq.
+*          gi_lfart-low = gi_ztuhcd1-low.
+*          APPEND gi_lfart TO gr_lfart.
+*          CLEAR gi_lfart.
+*End of changes by 502199780 CHG2527291
+*Begin of change 502683007   on  31/01/2017
+*        WHEN gc_mail.
+*          gw_receiver = gi_ztuhcd1-low.
+        WHEN gc_reswk.
+          gi_reswk-sign = gc_i.
+          gi_reswk-option = gc_eq.
+          gi_reswk-low = gi_ztuhcd1-low.
+*Begin of changes by 502199780 CHG2527291
+          MOVE gi_reswk TO gi_reswk_mail_ds-reswk.
+          gi_reswk_mail_ds-mailid = gi_ztuhcd1-high.
+          APPEND gi_reswk_mail_ds TO gt_reswk_mail.
+          CLEAR gi_reswk_mail_ds.
+*End of changes by 502199780 CHG2527291
+          APPEND gi_reswk TO gr_reswk.
+          CLEAR gi_reswk.
+*End of change 502683007    on  31/01/2017
+      ENDCASE.
+    ENDLOOP.
+*Begin of changes by 502199780 CHG2527291
+    IF gt_reswk_mail[] IS NOT INITIAL.
+      SORT gt_reswk_mail BY reswk-sign reswk-option reswk-low.
+    ENDIF.
+*End of changes by 502199780 CHG2527291
+*fetching the delivery details
+    SELECT SINGLE vbeln ernam lfart wadat_ist werks FROM likp INTO gi_likp
+      WHERE vbeln = nast-objky.
+*        AND lfart IN gr_lfart. Change 502199780 CHG2527291
+    IF gi_likp IS NOT INITIAL.
+*Begin of change 502683007    on 03/02/2017
+*      SELECT vbeln posnr matnr lfimg arktx vgbel vgpos uecha
+      SELECT vbeln posnr matnr werks lfimg arktx vgbel vgpos uecha
+*End of change 502683007    on 03/02/2017
+        FROM lips INTO TABLE gt_lips
+        WHERE vbeln = nast-objky.
+*          AND werks IN gr_werks. Change 502199780 CHG2527291
+      IF gt_lips IS NOT INITIAL.
+*Begin of changes by 502683007   on  30/01/2017
+        READ TABLE gt_lips INTO gi_lips1 INDEX 1.
+        SELECT SINGLE ebeln reswk FROM ekko INTO gi_ekko
+          WHERE ebeln EQ gi_lips1-vgbel
+            AND reswk IN gr_reswk.
+        IF gi_ekko IS NOT INITIAL.
+*End of changes by 502683007   on   30/01/2017
+*another validation is against whether the goods movement is processed completely
+          SELECT SINGLE wbstk FROM vbuk INTO gw_wbstk
+            WHERE vbeln = nast-objky.
+          IF gw_wbstk EQ gc_wbstk.
+            gw_retval = gc_x.
+          ENDIF.
+        ENDIF.                         "Added by 502683007   31/01/2017
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " VALIDATION
+
+*&---------------------------------------------------------------------*
+*&      Form  Prepare_mail_content
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM prepare_mail_content.
+  IF gt_lips IS NOT INITIAL.
+    FREE:  gt_objtext,
+           gt_packlist,
+           gt_lips_final,            "Added by 502631807 CHG2216498 15/11/2016
+           gt_receivers.
+    CLEAR: gi_objtext,
+           gi_packlist,
+           gi_receivers,
+           gi_user,
+           gi_sender,
+           gi_lips.                 "Added by 502683007     31/01/2017
+*Arrange the batch split item next to its higher level item
+    SORT gt_lips BY uecha.
+    LOOP AT gt_lips INTO gi_lips.
+      gw_posnr = gi_lips-posnr                   .
+      DELETE gt_lips INDEX sy-tabix.
+      APPEND gi_lips TO gt_lips_final.
+      READ TABLE gt_lips INTO gi_lips WITH KEY uecha = gw_posnr BINARY SEARCH.
+      IF sy-subrc = 0.
+        DELETE gt_lips INDEX sy-tabix.
+        APPEND gi_lips TO gt_lips_final.
+      ENDIF.
+      CLEAR gi_lips.
+    ENDLOOP.
+*Populating Planned goods movement Date field into resultant table
+    gi_lips-wadat = gi_likp-wadat.
+    MODIFY gt_lips_final FROM gi_lips TRANSPORTING wadat
+           WHERE vbeln = gi_likp-vbeln.
+*Begin of changes 6/2/2017
+*Populating supplying and Receiving plants in mail body
+    gi_objtext-line = text-003.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-004.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-025.
+    APPEND gi_objtext TO gt_objtext.
+    CONCATENATE text-006 text-022 gi_lips1-werks text-008 INTO gi_objtext-line.
+    APPEND gi_objtext TO gt_objtext.
+    CONCATENATE text-006 text-023 gi_ekko-reswk  text-008 INTO gi_objtext-line.
+    APPEND gi_objtext TO gt_objtext.
+    CONCATENATE text-006 text-008 INTO gi_objtext-line.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-009.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-010.
+    APPEND gi_objtext TO gt_objtext.
+*End of changes 6/2/2017
+*Populating mail Body using HTML tags.
+    gi_objtext-line = text-003.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-004.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-005.
+    APPEND gi_objtext TO gt_objtext.
+    CONCATENATE text-011 text-014 text-012 text-015 text-012 INTO gi_objtext-line.
+    CONCATENATE gi_objtext-line text-016 text-012 INTO gi_objtext-line.
+    CONCATENATE gi_objtext-line text-021 text-012 INTO gi_objtext-line.
+    CONCATENATE gi_objtext-line text-017 text-012 INTO gi_objtext-line.
+    CONCATENATE gi_objtext-line text-018 text-012 INTO gi_objtext-line.
+    CONCATENATE gi_objtext-line text-019 text-012 INTO gi_objtext-line.
+    CONCATENATE gi_objtext-line text-020 text-013 INTO gi_objtext-line.
+    APPEND gi_objtext TO gt_objtext.
+    LOOP AT gt_lips_final INTO gi_lips.
+      gw_qty = gi_lips-lfimg.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+        EXPORTING
+          input  = gi_lips-matnr
+        IMPORTING
+          output = gi_lips-matnr.
+      CONDENSE gw_qty.
+      CONCATENATE text-006 gi_lips-vgbel text-007 INTO gi_objtext-line.
+      CONCATENATE gi_objtext-line gi_lips-vgpos text-007 INTO gi_objtext-line.
+      CONCATENATE gi_objtext-line gi_lips-vbeln text-007 INTO gi_objtext-line.
+      CONCATENATE gi_objtext-line gi_lips-posnr text-007 INTO gi_objtext-line.
+      CONCATENATE gi_objtext-line gi_lips-wadat text-007 INTO gi_objtext-line.
+      CONCATENATE gi_objtext-line gi_lips-matnr text-007 INTO gi_objtext-line.
+      CONCATENATE gi_objtext-line gi_lips-arktx text-007 INTO gi_objtext-line.
+      CONCATENATE gi_objtext-line gw_qty        text-008 INTO gi_objtext-line.
+      APPEND gi_objtext TO gt_objtext.
+      CLEAR gi_objtext.
+    ENDLOOP.
+    gi_objtext-line = text-009.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-010.
+    APPEND gi_objtext TO gt_objtext.
+*Begin of changes on 6/2/2017
+    gi_objtext-line = text-003.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-004.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-025.
+    APPEND gi_objtext TO gt_objtext.
+    CONCATENATE text-006 text-008 INTO gi_objtext-line.
+    APPEND gi_objtext TO gt_objtext.
+    CONCATENATE text-006 text-008 INTO gi_objtext-line.
+    APPEND gi_objtext TO gt_objtext.
+    CONCATENATE text-006 text-024 text-007 INTO gi_objtext-line.
+    CONCATENATE gi_objtext-line text-027 text-026 INTO gi_objtext-line.
+    CONCATENATE gi_objtext-line text-028 INTO gi_objtext-line.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-009.
+    APPEND gi_objtext TO gt_objtext.
+    gi_objtext-line = text-010.
+    APPEND gi_objtext TO gt_objtext.
+*End of changes 6/2/2017
+    DESCRIBE TABLE gt_objtext LINES gw_lines.
+    READ TABLE gt_objtext INTO gi_objtext INDEX gw_lines.
+
+*Preparing document data
+    gi_docdata-doc_size = ( gw_lines - 1 )
+                                * 255 + strlen( gi_objtext ).
+    gi_docdata-obj_langu = sy-langu.
+    gi_docdata-obj_name  = 'SAPRPT'.
+    gi_docdata-sensitivty ='F'.
+*Preparing Subject
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+      EXPORTING
+        input  = gi_likp-vbeln
+      IMPORTING
+        output = gi_likp-vbeln.
+
+    CONCATENATE text-001 gi_lips-vgbel text-002 INTO gi_docdata-obj_descr SEPARATED BY space.
+
+*Populating Receivers
+    CLEAR gi_receivers.
+    FREE  gt_receivers.
+*Begin of change 502683007   on  02/02/2017
+    READ TABLE gr_reswk INTO gi_reswk WITH KEY low = gi_ekko-reswk.
+    IF gi_reswk IS NOT INITIAL.
+*Begin of changes by 502199780 CHG2527291
+*      CASE gi_reswk-low.
+*        WHEN gc_mxw2.
+*          gw_receiver = gc_dl1.
+*        WHEN gc_mxs2.
+*          gw_receiver = gc_dl2.
+*        WHEN gc_mx04.
+*          gw_receiver = gc_dl3.
+**Begin of change 502683007   on  10/04/2017
+*        WHEN gc_us11.
+*          gw_receiver = gc_dl4.
+**End  of change 502683007   on  10/04/2017
+*      ENDCASE.
+      CLEAR gi_reswk_mail_ds.
+      READ TABLE gt_reswk_mail INTO gi_reswk_mail_ds WITH KEY reswk-sign = gi_reswk-sign
+                                                              reswk-option = gi_reswk-option
+                                                              reswk-low = gi_reswk-low
+                                                              BINARY SEARCH.
+*      gi_receivers-receiver   = gw_receiver.
+*      gi_receivers-receiver   = gi_reswk-high.
+      IF sy-subrc IS INITIAL.
+        gi_receivers-receiver   = gi_reswk_mail_ds-mailid.
+        gi_receivers-rec_type   = gc_u.
+      ENDIF.
+*End of changes by 502199780 CHG2527291
+      APPEND gi_receivers TO gt_receivers.
+    ENDIF.
+*    gi_receivers-receiver   = gw_receiver.
+*    gi_receivers-rec_type   = 'U'.
+*    gi_receivers-com_type   = 'INT'.
+*    APPEND gi_receivers TO gt_receivers.
+*End of change 502683007   on  02/02/2017
+
+*Populating packing list
+    CLEAR gi_packlist.
+    REFRESH gt_packlist.
+    gi_packlist-transf_bin = space.
+    gi_packlist-head_start = 1.
+    gi_packlist-head_num = 0.
+    gi_packlist-body_start = 1.
+    DESCRIBE TABLE gt_objtext LINES gi_packlist-body_num.
+    gi_packlist-doc_type = 'HTM'.
+    APPEND gi_packlist TO gt_packlist.
+*populating document created user as the sender
+    SELECT SINGLE bname persnumber addrnumber FROM usr21
+      INTO gi_user WHERE bname EQ gi_likp-ernam.
+    IF sy-subrc EQ 0.
+      SELECT SINGLE addrnumber persnumber smtp_addr FROM adr6
+        INTO gi_sender
+        WHERE addrnumber EQ gi_user-addrnumber
+          AND persnumber EQ gi_user-persnumber.
+      IF sy-subrc = 0.
+        gw_sender_addr = gi_sender-smtp_addr.
+      ENDIF.
+    ENDIF.
+    CALL FUNCTION 'SO_DOCUMENT_SEND_API1'
+      EXPORTING
+        document_data       = gi_docdata
+        put_in_outbox       = gc_x
+        sender_address      = gw_sender_addr
+        sender_address_type = gc_int
+        commit_work         = gc_x
+      TABLES
+        packing_list        = gt_packlist
+        contents_txt        = gt_objtext
+        receivers           = gt_receivers.
+  ENDIF.
+ENDFORM.                    "Prepare_mail_content
+

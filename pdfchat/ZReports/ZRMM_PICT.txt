@@ -1,0 +1,302 @@
+*&---------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Created by            : Prakash Reddy K
+*** Creation Date         : 10/08/2015
+*** Transport Request #   : DE3K965305
+*** RICEF Object No #     : RICEF1559
+*** TCODE                 : ZMM999
+*** Description           : Report to dispay the data in
+***                         ZTMM_PICT table and combining all quantity values
+*                           into one recode if same material, count date,storage
+*                           location and Plant.
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 10-AUG-2015       | CHG1356222      |502209589  | Object created
+* 13-AUG-2015       | CHG1392842      |502209589  | Inv card deleted in selection screen
+* 26-AUG-2015       | CHG1419882      |502209589  | vendor and batch fields incorporated
+* 26-AUG-2015       | CHG1419882      |502209589  | Bug fixed on slection screen slection
+*************************************************************************
+
+REPORT  zrmm_pict MESSAGE-ID 29..
+
+TABLES:ztmm_pict.
+TYPES:BEGIN OF ty_table.
+        INCLUDE STRUCTURE ztmm_pict.
+TYPES: END OF ty_table.
+TYPES: BEGIN OF ty_mbew,
+       matnr TYPE matnr,
+       werks TYPE werks_d,
+       stprs TYPE stprs,
+       peinh TYPE peinh,
+       END OF ty_mbew.
+DATA: gt_table1 TYPE TABLE OF ty_table,
+      gi_table1 TYPE ty_table,
+      gt_table TYPE TABLE OF ztmm_pict,
+      gi_table TYPE ztmm_pict,
+      gt_fieldcat TYPE slis_t_fieldcat_alv,
+      gi_fieldcat TYPE slis_fieldcat_alv,
+      gw_layout_ds TYPE slis_layout_alv,
+      gt_table_tmp TYPE TABLE OF ztmm_pict,
+      gi_table_tmp TYPE ztmm_pict,
+      gt_mbew      TYPE TABLE OF ty_mbew,
+      gi_mbew      TYPE ty_mbew,
+      gt_del_table TYPE TABLE OF ztmm_pict,
+      gi_del_table TYPE ztmm_pict,
+      gw_flag TYPE c.
+
+*&---------------------------------------------------------------------*
+*&  CONSTANTS
+*&---------------------------------------------------------------------*
+CONSTANTS: gc_gjahr(5) TYPE c VALUE 'GJAHR',
+           gc_werks(5) TYPE c VALUE 'WERKS',
+           gc_gidat(5) TYPE c VALUE 'GIDAT',
+           gc_inccd(5) TYPE c VALUE 'INCCD',
+           gc_lgort(5) TYPE c VALUE 'LGORT',
+           gc_matnr(5) TYPE c VALUE 'MATNR',
+           gc_zuser(5) TYPE c VALUE 'ZUSER',
+           gc_bismt(5) TYPE c VALUE 'BISMT',
+           gc_alqty(5) TYPE c VALUE 'ALQTY',
+           gc_aluom(5) TYPE c VALUE 'ALUOM',
+           gc_bsqty(5) TYPE c VALUE 'BSQTY',
+           gc_bsuom(5) TYPE c VALUE 'BSUOM',
+           gc_bkqty(5) TYPE c VALUE 'BKQTY',
+           gc_vbkqty(6) TYPE c VALUE 'VBKQTY',
+           gc_ecount(6) TYPE c VALUE 'ECOUNT',
+           gc_dfqty(5) TYPE c VALUE 'DFQTY',
+           gc_total(5) TYPE c VALUE 'TOTAL',
+           gc_dumps(5) TYPE c VALUE 'DUMPS',
+           gc_sobkz(5) TYPE c VALUE 'SOBKZ',
+           gc_bstar(5) TYPE c VALUE 'BSTAR',
+           gc_iblnr(5) TYPE c VALUE 'IBLNR',
+           gc_zeili(5) TYPE c VALUE 'ZEILI',
+           gc_pspnr(5) TYPE c VALUE 'PSPNR',
+           gc_vbeln(5) TYPE c VALUE 'VBELN',
+           gc_posnr(5) TYPE c VALUE 'POSNR',
+           gc_ztext(5) TYPE c VALUE 'ZTEXT',
+           gc_adcom(5) TYPE c VALUE 'ADCOM',
+           gc_xloek(5) TYPE c VALUE 'XLOEK',
+           gc_lifnr(5) TYPE c VALUE 'LIFNR',
+           gc_charg(5) TYPE c VALUE 'CHARG'.
+*  Selection screen
+PARAMETERS:p_gjahr TYPE gjahr OBLIGATORY.
+SELECT-OPTIONS:s_werks FOR ztmm_pict-werks OBLIGATORY,
+               s_lgort FOR ztmm_pict-lgort,
+               s_gidat FOR ztmm_pict-gidat OBLIGATORY,
+               s_iblnr FOR ztmm_pict-iblnr,
+               s_zeili FOR ztmm_pict-zeili,
+*               s_inccd FOR ztmm_pict-inccd,
+               s_matnr FOR ztmm_pict-matnr,
+               s_sobkz FOR ztmm_pict-sobkz NO INTERVALS,
+               s_bstar FOR ztmm_pict-bstar.
+
+AT SELECTION-SCREEN.
+*  CHG1419882  DE3K965514 changes start by 502209589 prakash reddy
+  PERFORM sel_valid.
+*  CHG1419882  DE3K965514 changes end by 502209589 prakash reddy
+START-OF-SELECTION.
+  PERFORM get_data.
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+  REFRESH: gt_table_tmp,gt_del_table,gt_table,gt_table1.
+  SELECT *
+         FROM ztmm_pict
+         INTO TABLE gt_table
+         WHERE gjahr = p_gjahr
+         AND   werks IN s_werks
+         AND   lgort IN s_lgort
+         AND   gidat IN s_gidat
+         AND   iblnr IN s_iblnr
+         AND   zeili IN s_zeili
+         AND   sobkz IN s_sobkz
+         AND   bstar IN s_bstar
+         AND   matnr IN s_matnr.
+*         AND   inccd IN s_inccd
+*         AND   xloek = space.
+  IF sy-subrc = 0.
+    gt_table_tmp = gt_table.
+*  CHG1419882  DE3K965514 changes start by 502209589 prakash reddy
+    gt_del_table = gt_table.
+*  CHG1419882  DE3K965514 changes end by 502209589 prakash reddy
+    SORT gt_table BY gidat werks matnr lgort sobkz bstar xloek.
+    DELETE ADJACENT DUPLICATES FROM gt_table COMPARING gidat werks matnr lgort sobkz bstar.
+    PERFORM final_table.
+    PERFORM field_cat USING: gc_gjahr text-001 CHANGING gt_fieldcat,
+                             gc_werks text-002 CHANGING gt_fieldcat,
+                             gc_gidat text-003 CHANGING gt_fieldcat,
+                             gc_inccd text-004 CHANGING gt_fieldcat,
+                             gc_lgort text-005 CHANGING gt_fieldcat,
+                             gc_matnr text-006 CHANGING gt_fieldcat,
+                             gc_charg text-029 CHANGING gt_fieldcat,
+                             gc_zuser text-007 CHANGING gt_fieldcat,
+                             gc_bismt text-008 CHANGING gt_fieldcat,
+                             gc_alqty text-011 CHANGING gt_fieldcat,
+                             gc_aluom text-010 CHANGING gt_fieldcat,
+                             gc_bsqty text-009 CHANGING gt_fieldcat,
+                             gc_bsuom text-012 CHANGING gt_fieldcat,
+                             gc_bkqty text-013 CHANGING gt_fieldcat,
+                             gc_vbkqty text-014 CHANGING gt_fieldcat,
+                             gc_ecount text-015 CHANGING gt_fieldcat,
+                             gc_dfqty text-016 CHANGING gt_fieldcat,
+                             gc_dumps text-017 CHANGING gt_fieldcat,
+                             gc_sobkz text-018 CHANGING gt_fieldcat,
+                             gc_bstar text-019 CHANGING gt_fieldcat,
+                             gc_iblnr text-020 CHANGING gt_fieldcat,
+                             gc_zeili text-021 CHANGING gt_fieldcat,
+                             gc_pspnr text-022 CHANGING gt_fieldcat,
+                             gc_vbeln text-023 CHANGING gt_fieldcat,
+                             gc_posnr text-024 CHANGING gt_fieldcat,
+                             gc_lifnr text-030 CHANGING gt_fieldcat,
+                             gc_ztext text-025 CHANGING gt_fieldcat,
+                             gc_adcom text-026 CHANGING gt_fieldcat.
+    gw_layout_ds-colwidth_optimize = 'X'.
+    gw_layout_ds-zebra = 'X'.
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+     EXPORTING
+*       I_INTERFACE_CHECK                 = ' '
+*       I_BYPASSING_BUFFER                = ' '
+*       I_BUFFER_ACTIVE                   = ' '
+*       I_CALLBACK_PROGRAM                = ' '
+*       I_CALLBACK_PF_STATUS_SET          = ' '
+*       I_CALLBACK_USER_COMMAND           = ' '
+*       I_CALLBACK_TOP_OF_PAGE            = ' '
+*       I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*       I_CALLBACK_HTML_END_OF_LIST       = ' '
+*       I_STRUCTURE_NAME                  =
+*       I_BACKGROUND_ID                   = ' '
+*       I_GRID_TITLE                      =
+*       I_GRID_SETTINGS                   =
+       is_layout                         = gw_layout_ds
+       it_fieldcat                       = gt_fieldcat
+*       IT_EXCLUDING                      =
+*       IT_SPECIAL_GROUPS                 =
+*       IT_SORT                           =
+*       IT_FILTER                         =
+*       IS_SEL_HIDE                       =
+*       I_DEFAULT                         = 'X'
+*       I_SAVE                            = ' '
+*       IS_VARIANT                        =
+*       IT_EVENTS                         =
+*       IT_EVENT_EXIT                     =
+*       IS_PRINT                          =
+*       IS_REPREP_ID                      =
+*       I_SCREEN_START_COLUMN             = 0
+*       I_SCREEN_START_LINE               = 0
+*       I_SCREEN_END_COLUMN               = 0
+*       I_SCREEN_END_LINE                 = 0
+*       I_HTML_HEIGHT_TOP                 = 0
+*       I_HTML_HEIGHT_END                 = 0
+*       IT_ALV_GRAPHICS                   =
+*       IT_HYPERLINK                      =
+*       IT_ADD_FIELDCAT                   =
+*       IT_EXCEPT_QINFO                   =
+*       IR_SALV_FULLSCREEN_ADAPTER        =
+*     IMPORTING
+*       E_EXIT_CAUSED_BY_CALLER           =
+*       ES_EXIT_CAUSED_BY_USER            =
+      TABLES
+        t_outtab                          = gt_table1
+     EXCEPTIONS
+       program_error                     = 1
+       OTHERS                            = 2   .
+    IF sy-subrc <> 0.
+** Implement suitable error handling here
+      MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+                 WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+
+  ELSE.
+    MESSAGE i899 WITH text-i01.
+  ENDIF.
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  FIELD_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_GC_GJAHR  text
+*      -->P_TEXT_001  text
+*      <--P_GT_FIELDCAT  text
+*----------------------------------------------------------------------*
+FORM field_cat  USING    p_gc_gjahr
+                         p_text_001
+                CHANGING p_gt_fieldcat.
+  CLEAR gi_fieldcat.
+  gi_fieldcat-row_pos   = '1'.
+  gi_fieldcat-fieldname = p_gc_gjahr.
+  gi_fieldcat-tabname   = 'GT_TABLE'.
+  gi_fieldcat-seltext_l = p_text_001.
+  APPEND gi_fieldcat TO gt_fieldcat.
+ENDFORM.                    " FIELD_CAT
+*&---------------------------------------------------------------------*
+*&      Form  FINAL_TABLE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM final_table .
+  LOOP AT gt_table INTO gi_table WHERE xloek = space.
+    CLEAR:gi_table-bsqty,gi_table-alqty,gi_table-ecount,gi_table-dfqty.
+    LOOP AT gt_table_tmp INTO gi_table_tmp WHERE gidat = gi_table-gidat
+                                   AND   werks = gi_table-werks
+                                   AND   matnr = gi_table-matnr
+                                   AND   gidat = gi_table-gidat
+                                   AND   lgort = gi_table-lgort
+                                   AND   sobkz = gi_table-sobkz
+                                   AND   bstar = gi_table-bstar
+                                   AND   xloek = space.
+      gi_table-bsqty = gi_table-bsqty + gi_table_tmp-bsqty.
+      gi_table-alqty = gi_table-alqty + gi_table_tmp-alqty.
+      gi_table-ecount = gi_table-ecount + gi_table_tmp-ecount.
+    ENDLOOP.
+*  CHG1419882  DE3K965514 changes start by 502209589 prakash reddy
+    IF gi_table-bkqty IS INITIAL.
+      CLEAR gi_del_table.
+      READ TABLE gt_del_table INTO gi_del_table WITH KEY matnr = gi_table-matnr
+                                                         werks = gi_table-werks
+                                                         gidat = gi_table-gidat
+                                                         lgort = gi_table-lgort
+                                                         sobkz = gi_table-sobkz
+                                                         bstar = gi_table-bstar
+                                                         xloek = 'X'.
+      IF sy-subrc = 0.
+        gi_table-bkqty  = gi_del_table-bkqty.
+        gi_table-vbkqty = gi_del_table-vbkqty.
+      ENDIF.
+    ENDIF.
+*  CHG1419882  DE3K965514 changes end by 502209589 prakash reddy
+    gi_table-dfqty  = gi_table-ecount -  gi_table-vbkqty.
+    APPEND gi_table TO gt_table1.
+    CLEAR: gi_table1,gi_table_tmp.
+  ENDLOOP.
+ENDFORM.                    " FINAL_TA
+*&---------------------------------------------------------------------*
+*&      Form  SEL_VALID
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM sel_valid .
+  CLEAR gw_flag.
+  LOOP AT s_sobkz WHERE low = 'O'.
+    gw_flag = 'X'.
+  ENDLOOP.
+  IF gw_flag IS INITIAL AND s_lgort IS INITIAL.
+    MESSAGE e899 WITH text-e01.
+  ENDIF.
+ENDFORM.                    " SEL_VALID
+

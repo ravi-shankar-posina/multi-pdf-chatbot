@@ -1,0 +1,26 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_BOM_LOG_DISPLAY_TOP
+*&---------------------------------------------------------------------*
+DATA : gw_vbeln TYPE vbeln,
+       gw_posnr TYPE co_posnr,
+       gw_projn TYPE char24,
+       gw_aufnr TYPE aufnr,
+       gw_matnr TYPE matnr,
+       gw_vbkz TYPE vbkz,
+       gw_werks TYPE werks_d,
+       gw_beskz TYPE beskz,
+       gw_lgort TYPE lgort_d,
+       gw_ekgrp TYPE ekgrp,
+       gw_lifnr TYPE lifnr,
+       gw_date TYPE datum,
+      gt_log TYPE TABLE OF ztpp_prodbom_log,
+       gi_log TYPE ztpp_prodbom_log.
+
+DATA: gt_alv TYPE REF TO cl_salv_table .
+DATA :  gc_msg TYPE REF TO cx_salv_msg.
+DATA: go_cols TYPE REF TO cl_salv_columns,
+      gi_key TYPE salv_s_layout_key ,
+      go_layout TYPE REF TO cl_salv_layout,
+     go_column TYPE REF TO cl_salv_column_table,
+     go_function TYPE REF TO cl_salv_functions_list.
+

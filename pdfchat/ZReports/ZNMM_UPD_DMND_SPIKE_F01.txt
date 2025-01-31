@@ -1,0 +1,1938 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_UPD_DMND_SPIKE_F01
+*&---------------------------------------------------------------------*
+*&***------------------------------------------------------------------***
+*** Created by            : Manas MIsra
+*** Creation Date         : 27/02/2023
+*** Transport Request #   : DE3K9A0J08
+*** RICEF Object No #     : 2635
+*** TC ode                : ZMM2635
+*** Description           : Conversion & maintaince program to upload
+***                         Demand Spike ELIP  table
+***                         Data would be uploaded via  a file from PC
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_FILENAM
+*&---------------------------------------------------------------------*
+FORM get_filenam  CHANGING p_infile.
+  DATA : lv_filename TYPE string,
+         lv_path     TYPE string,
+         lv_fullpath TYPE string,
+         lv_def_file TYPE string.
+
+  CONSTANTS: lc_xls(3) VALUE 'XLS'.
+
+
+  IF p_r1 = abap_true.
+
+    CALL FUNCTION 'F4_FILENAME'
+      EXPORTING
+        program_name  = sy-cprog
+        dynpro_number = sy-dynnr
+      IMPORTING
+        file_name     = p_infile.
+
+  ELSEIF p_r3 = abap_true.
+    MOVE TEXT-091 TO lv_def_file.
+    CALL METHOD cl_gui_frontend_services=>file_save_dialog
+      EXPORTING
+        default_extension         = CONV string( lc_xls )
+        default_file_name         = lv_def_file
+      CHANGING
+        filename                  = lv_filename
+        path                      = lv_path
+        fullpath                  = lv_fullpath
+      EXCEPTIONS
+        cntl_error                = 1
+        error_no_gui              = 2
+        not_supported_by_gui      = 3
+        invalid_default_file_name = 4
+        OTHERS                    = 5.
+    IF sy-subrc IS INITIAL.
+      p_infile = lv_fullpath.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  SCREEN_CHANGES
+*&---------------------------------------------------------------------*
+FORM screen_changes  USING p_p_r1 p_p_r2 p_p_r3 p_p_r4 p_p_purge.
+  LOOP AT SCREEN.
+    IF p_p_r2 = abap_true.
+      IF screen-group1 = 'X' OR screen-group1 = 'Y' OR screen-group1 = 'M'.
+        screen-input = 0.
+        screen-invisible = 1.
+        screen-required = 0.
+        PERFORM refresh_upload.
+        PERFORM refresh_download_templ.
+      ENDIF.
+    ELSEIF p_p_r1 =  abap_true.
+      IF screen-group1 = 'Z'.
+        screen-input = 0.
+        screen-invisible = 1.
+        PERFORM refresh_edit.
+      ENDIF.
+    ELSEIF p_p_r3 = abap_true.
+      IF ( ( screen-group1 = 'X' ) OR
+           ( screen-group1 = 'Z' ) OR
+           ( screen-group1 = 'M' ) OR
+           ( screen-group1 = 'Y' ) ) AND
+        ( ( screen-name NE 'P_INFILE' ) AND ( screen-name NE '%_P_INFILE_%_APP_%-TEXT' ) ).
+        screen-input = 0.
+        screen-invisible = 1.
+        screen-required = 0.
+        PERFORM refresh_upload.
+        PERFORM refresh_edit.
+        PERFORM refresh_download_templ.
+      ENDIF.
+    ELSEIF p_p_r4 = abap_true.
+      IF screen-group1 = 'X' OR screen-group1 = 'M'.
+        screen-input = 0.
+        screen-invisible = 1.
+        screen-required = 0.
+        PERFORM refresh_upload.
+      ENDIF.
+      IF p_p_purge = 'X'.
+        IF screen-group1 = 'Z'.
+          screen-input = 0.
+          PERFORM refresh_edit.
+        ENDIF.
+        IF screen-group1 = 'M'.
+          screen-required = 0.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    MODIFY SCREEN.
+  ENDLOOP.
+ENDFORM.
+*-------------------------------------------------------*
+*&      Form  READ_XLSDATA
+*&---------------------------------------------------------------------*
+FORM read_xlsdata.
+  TYPES: BEGIN OF lty_xls_line,
+           data(256) TYPE x,
+         END OF lty_xls_line.
+
+  DATA : lt_bin_data TYPE STANDARD TABLE OF lty_xls_line,
+         dy_line     TYPE REF TO data.
+
+  CONSTANTS: lc_bin(3) VALUE 'BIN'.
+
+  FIELD-SYMBOLS: <lfs_data_tab> TYPE table,
+                 <lfs_data_wa>  TYPE any,
+                 <lfs>          TYPE any.
+
+  CLEAR: gv_error_message.
+
+  IF p_infile IS NOT INITIAL.
+
+    cl_gui_frontend_services=>gui_upload(
+      EXPORTING
+        filename   = CONV string( p_infile )
+        filetype   = CONV char10( lc_bin )
+      IMPORTING
+        filelength = DATA(lv_file_length)
+        header     = DATA(lv_xstring_header)
+      CHANGING
+        data_tab   = lt_bin_data
+      EXCEPTIONS
+        OTHERS     = 99
+        ).
+    IF sy-subrc = 0.
+
+      CALL FUNCTION 'SCMS_BINARY_TO_XSTRING'
+        EXPORTING
+          input_length = lv_file_length
+        IMPORTING
+          buffer       = lv_xstring_header
+        TABLES
+          binary_tab   = lt_bin_data
+        EXCEPTIONS
+          failed       = 1
+          OTHERS       = 2.
+
+      IF sy-subrc = 0.
+        TRY.
+            DATA(lo_excel) = NEW cl_fdt_xl_spreadsheet( document_name = CONV string( p_infile ) xdocument = lv_xstring_header ) .
+
+            lo_excel->if_fdt_doc_spreadsheet~get_worksheet_names(
+              IMPORTING
+                worksheet_names = DATA(lt_worksheets) ).
+
+            DATA(lv_woksheetname) = lt_worksheets[ 1 ].
+
+            DATA(lo_data_ref) = lo_excel->if_fdt_doc_spreadsheet~get_itab_from_worksheet( lv_woksheetname ).
+
+            ASSIGN lo_data_ref->* TO <lfs_data_tab>.
+
+            CREATE DATA dy_line LIKE LINE OF <lfs_data_tab>.
+            ASSIGN dy_line->* TO <lfs_data_wa>.
+
+            IF sy-subrc = 0 AND <lfs_data_tab> IS ASSIGNED.
+              LOOP AT <lfs_data_tab> INTO <lfs_data_wa> FROM 2.
+                ASSIGN COMPONENT 'A' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-tabname = to_upper( <lfs> ).
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'B' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-spmon = <lfs>.
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'C' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-vkorg = to_upper( <lfs> ).
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'D' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-vtweg = to_upper( <lfs> ).
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'E' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-spart = to_upper( <lfs> ).
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'F' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-mvgr1 = to_upper( <lfs> ).
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'G' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-matnr = to_upper( <lfs> ).
+                gw_upload-matnr = |{ gw_upload-matnr ALPHA = IN }|.
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'H' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-werks = to_upper( <lfs> ).
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'I' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-absat = <lfs>.
+                gw_upload-absat = floor( gw_upload-absat ).
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'J' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-wmeng = <lfs>.
+                gw_upload-wmeng = floor( gw_upload-wmeng ).
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'K' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-zsale_hist = <lfs>.
+                gw_upload-zsale_hist = floor( gw_upload-zsale_hist ).
+                UNASSIGN <lfs>.
+
+                ASSIGN COMPONENT 'L' OF STRUCTURE <lfs_data_wa> TO <lfs>.
+                gw_upload-basme = <lfs>.
+                UNASSIGN <lfs>.
+
+                APPEND gw_upload TO gt_upload.
+                CLEAR: gw_upload, <lfs_data_wa>.
+              ENDLOOP.
+            ENDIF.
+
+            CLEAR: lv_woksheetname, lv_file_length, lv_xstring_header, lt_bin_data.
+            UNASSIGN: <lfs_data_tab>, <lfs_data_wa>.
+
+          CATCH cx_fdt_excel_core INTO DATA(lx_fdt_excel).
+            gv_error_message = lx_fdt_excel->get_text( ).
+        ENDTRY.
+      ENDIF.
+    ELSE.
+      MESSAGE TEXT-m01 TYPE 'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_TABLEDATA
+*&---------------------------------------------------------------------*
+FORM get_tabledata TABLES p_gt_upload LIKE gt_upload
+                          p_gt_zds911e LIKE gt_zds911e
+                          p_gt_upload_s LIKE gt_upload_s
+                          p_gt_upload_e LIKE gt_upload_e
+                          p_gt_parameters LIKE gt_parameters
+                   CHANGING subrc TYPE sy-subrc.
+
+  DATA: lv_error_flag(1),
+        lv_error_string  TYPE string,
+        p_p_test(1),
+        p_p_purge(1),
+        p_p_is1          TYPE dd02l-tabname.
+
+  CLEAR: p_gt_zds911e, gw_zds911e, p_p_is1, p_p_test, p_p_purge.
+
+  IF sy-batch = 'X'.
+    IF p_gt_parameters[] IS NOT INITIAL.
+      TRY.
+          p_p_test = p_gt_parameters[ 1 ]-p_test.
+          p_p_purge = p_gt_parameters[ 1 ]-p_purge.
+          p_p_is1 = p_gt_parameters[ 1 ]-p_is1.
+        CATCH cx_sy_itab_line_not_found.
+      ENDTRY.
+    ENDIF.
+  ELSE.
+    p_p_test = p_test.
+    p_p_purge = p_purge.
+    p_p_is1 = p_is1.
+  ENDIF.
+
+  TRY.
+      IF p_gt_upload[] IS NOT INITIAL.
+
+        gv_total_records = lines( p_gt_upload[] ).
+
+        SELECT m~matnr, m~spart, m~meins,
+               v~vkorg, v~vtweg, v~mvgr1,
+               c~werks,
+               m1~meinh
+          INTO TABLE @DATA(lt_material)
+          FROM mara AS m
+          INNER JOIN mvke AS v ON m~matnr = v~matnr
+          INNER JOIN marc AS c ON m~matnr = c~matnr
+          LEFT OUTER JOIN marm AS m1 ON m~matnr = m1~matnr
+          FOR ALL ENTRIES IN @p_gt_upload[]
+          WHERE m~matnr = @p_gt_upload-matnr.
+
+        IF sy-subrc = 0 AND lt_material[] IS NOT INITIAL.
+          SORT lt_material[] BY matnr.
+        ENDIF.
+
+        LOOP AT p_gt_upload[] INTO gw_upload.
+          CLEAR: lv_error_string.
+
+          IF gw_upload-tabname = p_p_is1.
+            gw_zds911e-vrsio = '000'.
+            gw_zds911e-basme = gw_upload-basme.
+
+            gw_upload_e-tabname = gw_upload-tabname.
+            gw_upload_e-spmon = gw_upload-spmon.
+            gw_upload_e-vkorg = gw_upload-vkorg.
+            gw_upload_e-vtweg = gw_upload-vtweg.
+            gw_upload_e-spart = gw_upload-spart.
+            gw_upload_e-mvgr1 = gw_upload-mvgr1.
+            gw_upload_e-matnr = gw_upload-matnr.
+            gw_upload_e-werks = gw_upload-werks.
+            gw_upload_e-absat = gw_upload-absat.
+            gw_upload_e-wmeng = gw_upload-wmeng.
+            gw_upload_e-zsale_hist = gw_upload-zsale_hist.
+            gw_upload_e-basme = gw_upload-basme.
+
+* Validate SPMON
+            IF gw_upload-spmon IS NOT INITIAL.
+              DATA(lv_year) = sy-datum+0(4).
+              DATA(lv_month) = sy-datum+4(2).
+              DATA(lv_date_today) = |{ lv_year }{ lv_month }01 |.
+
+              CLEAR : lv_month , lv_year.
+              lv_year = sy-datum+0(4) - 2.
+              lv_month = sy-datum+4(2) .
+              DATA(lv_date_past) = |{ lv_year }{ lv_month }01 |.
+
+              CLEAR : lv_month , lv_year.
+              lv_year = sy-datum+0(4) + 2.
+              lv_month = sy-datum+4(2).
+              DATA(lv_date_future) = |{ lv_year }{ lv_month }01 |.
+
+              CLEAR : lv_month , lv_year.
+              lv_year = gw_upload-spmon+0(4).
+              lv_month = gw_upload-spmon+4(2).
+              DATA(lv_excel_date) = |{ lv_year }{ lv_month }01 |.
+
+              CONDENSE: lv_excel_date, lv_date_past, lv_date_future.
+
+              IF lv_excel_date BETWEEN lv_date_past AND lv_date_future.
+                gw_zds911e-spmon = |{ lv_year } { lv_month }|.
+              ELSE.
+                lv_error_string = |{ lv_error_string }X|.
+              ENDIF.
+            ELSE.
+              lv_error_string = |{ lv_error_string }X|.
+            ENDIF.
+
+* Validate MATNR
+            IF gw_upload-matnr IS NOT INITIAL.
+              SELECT SINGLE @abap_true FROM mara INTO @DATA(lv_exists) WHERE matnr = @gw_upload-matnr.
+              IF abap_true = lv_exists.
+                gw_zds911e-matnr = |{ gw_upload-matnr ALPHA = IN }|.
+              ELSE.
+                SELECT SINGLE @abap_true FROM mvke INTO @lv_exists WHERE matnr = @gw_upload-matnr.
+                IF abap_true = lv_exists.
+                  gw_zds911e-matnr = |{ gw_upload-matnr ALPHA = IN }|.
+                ELSE.
+                  lv_error_string = |{ lv_error_string }X|.
+                ENDIF.
+              ENDIF.
+              CLEAR: lv_exists.
+
+* Validate UoM
+              IF gw_upload-basme IS NOT INITIAL AND gw_zds911e-matnr IS NOT INITIAL.
+                SELECT SINGLE @abap_true FROM mara INTO @lv_exists WHERE matnr = @gw_zds911e-matnr AND meins = @gw_upload-basme.
+                IF abap_true = lv_exists.
+                  gw_zds911e-basme = gw_upload-basme.
+                ELSE.
+                  lv_error_string = |{ lv_error_string }X|.
+                ENDIF.
+              ENDIF.
+
+* Validate WERKS
+              IF gw_upload-werks IS NOT INITIAL AND gw_zds911e-matnr IS NOT INITIAL.
+                SELECT SINGLE @abap_true FROM marc INTO @lv_exists WHERE matnr = @gw_zds911e-matnr AND werks = @gw_upload-werks.
+                IF abap_true = lv_exists.
+                  gw_zds911e-werks = gw_upload-werks.
+                ELSE.
+                  lv_error_string = |{ lv_error_string }X|.
+                ENDIF.
+                CLEAR: lv_exists.
+              ELSE.
+                lv_error_string = |{ lv_error_string }X|.
+              ENDIF.
+            ELSE.
+              lv_error_string = |{ lv_error_string }X|.
+            ENDIF.
+
+* Validate VKORG
+            IF gw_upload-vkorg IS NOT INITIAL.
+              SELECT SINGLE @abap_true FROM tvko INTO @lv_exists WHERE vkorg = @gw_upload-vkorg .
+              IF abap_true <> lv_exists.
+                lv_error_string = |{ lv_error_string }X|.
+              ELSE.
+                gw_zds911e-vkorg = gw_upload-vkorg.
+                CLEAR: lv_exists.
+
+* Validate VTWEG
+                SELECT SINGLE @abap_true FROM tvkov INTO @lv_exists WHERE vtweg = @gw_upload-vtweg .
+                IF abap_true <> lv_exists.
+                  lv_error_string = |{ lv_error_string }X|.
+                ELSE.
+                  gw_zds911e-vtweg = gw_upload-vtweg.
+                ENDIF.
+                CLEAR: lv_exists.
+
+* Validate SPART
+                SELECT SINGLE @abap_true FROM tvta INTO @lv_exists WHERE spart = @gw_upload-spart.
+                IF abap_true <> lv_exists.
+                  lv_error_string = |{ lv_error_string }X|.
+                ELSE.
+                  gw_zds911e-spart = gw_upload-spart.
+                ENDIF.
+                CLEAR: lv_exists.
+
+* Validate MVGR1
+                SELECT  SINGLE @abap_true FROM mvke INTO @lv_exists
+                  WHERE matnr = @gw_upload-matnr
+                    AND vkorg = @gw_upload-vkorg
+                    AND vtweg = @gw_upload-vtweg.
+                IF abap_true = lv_exists.
+                  gw_zds911e-mvgr1 = gw_upload-mvgr1.
+                ELSE.
+                  lv_error_string = |{ lv_error_string }X|.
+                ENDIF.
+                CLEAR: lv_exists.
+              ENDIF.
+            ENDIF.
+
+* Sales History Qty Validation
+            IF gw_upload-zsale_hist GT 0.
+              gw_zds911e-zsale_hist = gw_upload-zsale_hist.
+            ELSE.
+              lv_error_string = |{ lv_error_string }X|.
+            ENDIF.
+
+            DATA(lv_result) = find_any_of( val = lv_error_string sub = `X` ).
+            IF lv_result < 0.
+              APPEND gw_zds911e TO p_gt_zds911e[].
+              gw_upload_s = CORRESPONDING #( gw_zds911e ).
+              gw_upload_s-tabname = gw_upload-tabname.
+              APPEND gw_upload_s TO p_gt_upload_s[].
+            ELSE.
+              APPEND gw_upload_e TO p_gt_upload_e[].
+            ENDIF.
+
+            CLEAR: gw_upload, gw_upload_e, gw_zds911e, gw_upload_s.
+          ENDIF.
+        ENDLOOP.
+
+        IF p_gt_upload_s[] IS NOT INITIAL.
+          gv_success_records = lines( p_gt_upload_s[] ).
+        ENDIF.
+
+        IF p_gt_upload_e[] IS NOT INITIAL.
+          gv_error_records = lines( p_gt_upload_e[] ).
+        ENDIF.
+      ENDIF.
+
+    CATCH cx_root INTO ex_root.
+      WRITE ex_root->get_text( ).
+  ENDTRY.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_DATA
+*&---------------------------------------------------------------------*
+FORM update_data TABLES p_gt_zds911e LIKE gt_zds911e
+                        p_gt_parameters LIKE gt_parameters
+                 CHANGING rs_selfield TYPE slis_selfield.
+
+  DATA: p_p_test(1),
+        p_p_purge(1),
+        p_p_is1      TYPE dd02l-tabname,
+        lt_zds911e   TYPE STANDARD TABLE OF zds911e.
+
+  IF sy-batch = 'X'.
+    IF p_gt_parameters[] IS NOT INITIAL.
+      TRY.
+          p_p_test = p_gt_parameters[ 1 ]-p_test.
+          p_p_purge = p_gt_parameters[ 1 ]-p_purge.
+          p_p_is1 = p_gt_parameters[ 1 ]-p_is1.
+        CATCH cx_sy_itab_line_not_found.
+      ENDTRY.
+    ENDIF.
+  ELSE.
+    p_p_test = p_test.
+    p_p_purge = p_purge.
+    p_p_is1 = p_is1.
+  ENDIF.
+
+  IF p_p_test IS INITIAL.
+    TRY.
+        IF p_p_purge = 'X'.
+          DO 5 TIMES.
+            CALL FUNCTION 'ENQUEUE_E_TABLEE'
+              EXPORTING
+                tabname        = p_p_is1
+              EXCEPTIONS
+                foreign_lock   = 1
+                system_failure = 2
+                OTHERS         = 3.
+            IF sy-subrc <> 0.
+              WAIT UP TO 2 SECONDS.
+            ELSE.
+              EXIT.
+            ENDIF.
+          ENDDO.
+          IF sy-subrc = 0.
+            SELECT * FROM (p_p_is1) INTO TABLE lt_zds911e.
+            IF sy-subrc = 0.
+              DELETE (p_p_is1) FROM TABLE lt_zds911e[].
+              IF sy-subrc = 0.
+                DO 5 TIMES.
+                  CALL FUNCTION 'DEQUEUE_E_TABLEE'
+                    EXPORTING
+                      tabname = p_p_is1.
+                  IF sy-subrc <> 0 ##FM_SUBRC_OK.
+                    WAIT UP TO 1 SECONDS.
+                  ELSE.
+                    EXIT.
+                  ENDIF.
+                ENDDO.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+
+        DO 5 TIMES.
+          CALL FUNCTION 'ENQUEUE_E_TABLEE'
+            EXPORTING
+              tabname        = p_p_is1
+            EXCEPTIONS
+              foreign_lock   = 1
+              system_failure = 2
+              OTHERS         = 3.
+          IF sy-subrc <> 0.
+            WAIT UP TO 2 SECONDS.
+          ELSE.
+            EXIT.
+          ENDIF.
+        ENDDO.
+
+        IF sy-subrc IS INITIAL.
+          MODIFY (p_p_is1) FROM TABLE p_gt_zds911e[].
+          IF sy-subrc IS INITIAL.
+            DO 5 TIMES.
+              CALL FUNCTION 'DEQUEUE_E_TABLEE'
+                EXPORTING
+                  tabname = p_p_is1.
+              IF sy-subrc <> 0 ##FM_SUBRC_OK.
+                WAIT UP TO 1 SECONDS.
+              ELSE.
+                rs_selfield-refresh =  abap_true.
+                EXIT.
+              ENDIF.
+            ENDDO.
+            CLEAR subrc.
+            subrc = sy-subrc.
+          ENDIF.
+        ELSE.
+          CASE sy-subrc.
+            WHEN 1.
+              MESSAGE e004(zcc) WITH TEXT-037.
+            WHEN 2.
+              MESSAGE e004(zcc) WITH TEXT-038.
+            WHEN OTHERS.
+              MESSAGE e004(zcc) WITH TEXT-039.
+          ENDCASE.
+        ENDIF.
+      CATCH cx_root INTO ex_root.
+        MESSAGE e004(zcc) WITH ex_root->get_text( ).
+    ENDTRY.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  EDIT_TABLEDATA
+*&---------------------------------------------------------------------*
+FORM edit_tabledata TABLES lt_zds911e STRUCTURE zds911e.
+
+  CLEAR: gt_fcat, gs_layout, gt_upload_alv, gt_zds911e_tmp.
+
+  gt_upload_alv = CORRESPONDING #( lt_zds911e[] ).
+  gt_zds911e_tmp = lt_zds911e[].
+
+  TRY.
+      gs_layout-cwidth_opt = abap_true.
+      gs_layout-zebra = abap_true.
+      gs_layout-box_fname = 'SEL'.
+      gs_layout-stylefname = 'FIELD_STYLE'.
+
+      CALL FUNCTION 'LVC_FIELDCATALOG_MERGE'
+        EXPORTING
+          i_structure_name       = p_is2
+        CHANGING
+          ct_fieldcat            = gt_fcat
+        EXCEPTIONS
+          inconsistent_interface = 1
+          program_error          = 2
+          OTHERS                 = 3.
+      IF sy-subrc = 0.
+        IF ( ( gt_fcat IS NOT INITIAL ) AND ( gt_upload_alv IS NOT INITIAL ) )  .
+
+          LOOP AT gt_fcat ASSIGNING FIELD-SYMBOL(<ls_fcat>).
+            <ls_fcat>-edit = abap_true.
+          ENDLOOP.
+
+          CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY_LVC'
+            EXPORTING
+              i_callback_program       = sy-cprog
+              i_callback_pf_status_set = 'SET_PF_STATUS'
+              i_callback_user_command  = 'ON_CLICK'
+              is_layout_lvc            = gs_layout
+              it_fieldcat_lvc          = gt_fcat
+              i_save                   = 'A'
+            TABLES
+              t_outtab                 = gt_upload_alv
+            EXCEPTIONS
+              program_error            = 1
+              OTHERS                   = 2.
+          IF sy-subrc <> 0.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+        ENDIF.
+      ELSE.
+        LEAVE LIST-PROCESSING.
+      ENDIF.
+    CATCH cx_root INTO ex_root.
+      MESSAGE e004(zcc) WITH ex_root->get_text( ).
+  ENDTRY.
+
+ENDFORM.
+
+FORM set_pf_status USING rt_extab TYPE slis_t_extab.
+  SET PF-STATUS 'ZDEMAND_SPIKE_ELIP' EXCLUDING gt_cmd.
+ENDFORM.
+
+FORM on_click USING r_ucomm TYPE sy-ucomm rs_selfield TYPE slis_selfield.
+
+  TRY.
+      CASE sy-ucomm.
+        WHEN '&DATA_SAVE'.
+
+** DELETE
+          IF gt_zds911e_del IS NOT INITIAL.
+            PERFORM delete_rows_in_db.
+            CLEAR: gt_zds911e_del.
+          ENDIF.
+
+** ADD & COPY
+          CLEAR: gt_zds911e.
+          gt_zds911e = CORRESPONDING #( gt_upload_alv ).
+          IF gt_zds911e_tmp NE gt_zds911e.
+            IF gt_upload_alv IS NOT INITIAL.
+              PERFORM check_duplicate_samekey "check data when maintained manually.
+              TABLES gt_zds911e CHANGING rs_selfield subrc.
+              IF ( ( subrc IS INITIAL ) OR ( subrc EQ 2 ) ).
+                PERFORM add_or_copy_data CHANGING rs_selfield.
+                IF subrc IS INITIAL.
+                  REFRESH gt_upload_alv[].
+                  MOVE-CORRESPONDING gt_zds911e TO gt_upload_alv.
+                  CLEAR : err_typ, text,msg_typ.
+                  err_typ = 'S'. text = TEXT-012. msg_typ = 'S'.
+                  MESSAGE s004(zcc) WITH text DISPLAY LIKE msg_typ.
+                ENDIF.
+              ELSEIF subrc EQ 1.
+                MESSAGE s004(zcc) WITH TEXT-085.
+              ELSEIF subrc EQ 9.
+                REFRESH gt_upload_alv[].
+                MOVE-CORRESPONDING gt_zds911e_tmp TO gt_upload_alv[].
+                MESSAGE s004(zcc) WITH TEXT-086."'Copy Function Aborted'(086).
+              ENDIF.
+            ENDIF.
+          ELSE.
+            CLEAR : err_typ, text,msg_typ.
+            err_typ = 'S' .text = TEXT-013. msg_typ = 'S'.
+            MESSAGE s004(zcc) WITH text DISPLAY LIKE msg_typ.
+          ENDIF.
+        WHEN '&ADD_ROW'. "An empty row will be added with editable key fields
+          PERFORM add_rows TABLES gt_upload_alv CHANGING rs_selfield.
+        WHEN '&DEL_ROW'. "Selected records will marked for delection(DEL_FLAG = 'X")
+          PERFORM delete_rows TABLES gt_upload_alv CHANGING rs_selfield.
+          TRY.
+              gt_zds911e_del = VALUE #( BASE gt_zds911e_del
+                                            FOR ls_upload_alv IN gt_upload_alv
+                                                          WHERE ( del_flg = 'X' )
+                                            ( ssour = ls_upload_alv-ssour
+                                              vrsio = ls_upload_alv-vrsio
+                                              spmon = ls_upload_alv-spmon
+                                              sptag = ls_upload_alv-sptag
+                                              spwoc = ls_upload_alv-spwoc
+                                              spbup = ls_upload_alv-spbup
+                                              vkorg = ls_upload_alv-vkorg
+                                              vtweg = ls_upload_alv-vtweg
+                                              spart = ls_upload_alv-spart
+                                              mvgr1 = ls_upload_alv-mvgr1
+                                              matnr = ls_upload_alv-matnr
+                                              werks = ls_upload_alv-werks
+                                              periv = ls_upload_alv-periv
+                                              vwdat = ls_upload_alv-vwdat
+                                              basme = ls_upload_alv-basme
+                                              absat = ls_upload_alv-absat
+                                              wmeng = ls_upload_alv-wmeng
+                                              zsale_hist = ls_upload_alv-zsale_hist ) ).
+
+              DELETE gt_upload_alv WHERE del_flg = 'X'.
+
+            CATCH cx_sy_itab_line_not_found.
+          ENDTRY.
+
+        WHEN '&COPY_ROW'. " selected rows will be copied to the list.
+          PERFORM copy_rows TABLES gt_upload_alv CHANGING rs_selfield.
+      ENDCASE.
+    CATCH cx_root INTO ex_root.
+      WRITE ex_root->get_text( ).
+  ENDTRY.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  ADD_ROWS
+*&---------------------------------------------------------------------*
+FORM add_rows  TABLES lt_upload_alv LIKE gt_upload_alv
+               CHANGING rs_selfield TYPE slis_selfield.
+
+  DATA: ls_upload_alv TYPE gty_upload_alv.
+
+  TRY.
+      APPEND VALUE #( mandt = sy-mandt ) TO lt_upload_alv.
+
+      LOOP AT gt_fcat ASSIGNING FIELD-SYMBOL(<ls_fcat>).
+        gs_stylerow-fieldname = <ls_fcat>-fieldname.
+        gs_stylerow-style = cl_gui_alv_grid=>mc_style_enabled.
+        INSERT gs_stylerow INTO TABLE ls_upload_alv-field_style.
+        MODIFY lt_upload_alv FROM ls_upload_alv INDEX lines( lt_upload_alv ) .
+      ENDLOOP.
+
+      rs_selfield-refresh =  abap_true.
+
+    CATCH cx_root INTO ex_root.
+      WRITE ex_root->get_text( ).
+  ENDTRY.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DELETE_ROWS
+*&---------------------------------------------------------------------*
+FORM delete_rows  TABLES lt_upload_alv LIKE gt_upload_alv
+                  CHANGING rs_selfield TYPE slis_selfield.
+
+  TRY.
+      LOOP AT lt_upload_alv ASSIGNING FIELD-SYMBOL(<ls_upload>) WHERE sel = abap_true.
+        <ls_upload>-del_flg = 'X'.
+        rs_selfield-refresh =  abap_true.
+      ENDLOOP.
+
+      IF rs_selfield-refresh IS INITIAL.
+        MESSAGE s004(zcc) WITH TEXT-042." 'Please Select Record To Process'(042).
+      ENDIF.
+
+    CATCH cx_root INTO ex_root.
+      WRITE ex_root->get_text( ).
+  ENDTRY.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  COPY_ROWS
+*&---------------------------------------------------------------------*
+FORM copy_rows  TABLES lt_upload_alv LIKE gt_upload_alv
+                CHANGING rs_selfield TYPE slis_selfield.
+
+  DATA: ls_upload_alv TYPE gty_upload_alv.
+
+  TRY.
+      LOOP AT lt_upload_alv ASSIGNING FIELD-SYMBOL(<ls_upload>) WHERE sel = abap_true.
+        IF <ls_upload>-sel = abap_true.
+          CLEAR <ls_upload>-sel.
+          APPEND <ls_upload> TO lt_upload_alv.
+          LOOP AT gt_fcat ASSIGNING FIELD-SYMBOL(<ls_fcat>).
+            gs_stylerow-fieldname = <ls_fcat>-fieldname.
+            gs_stylerow-style = cl_gui_alv_grid=>mc_style_enabled.
+            INSERT gs_stylerow INTO TABLE ls_upload_alv-field_style.
+            MODIFY lt_upload_alv FROM ls_upload_alv INDEX lines( lt_upload_alv ) TRANSPORTING field_style .
+          ENDLOOP.
+        ELSEIF <ls_upload>-sel = abap_true.
+          MESSAGE s004(zcc) WITH TEXT-043."'Empty Row Can Not Be Copied'(043).
+        ENDIF.
+
+        rs_selfield-refresh =  abap_true.
+      ENDLOOP.
+
+      IF rs_selfield-refresh IS INITIAL.
+        MESSAGE s004(zcc) WITH TEXT-044."'Please Select Record To Process'(044).
+      ENDIF.
+
+    CATCH cx_root INTO ex_root.
+      WRITE ex_root->get_text( ).
+  ENDTRY.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_ATTACH
+*&---------------------------------------------------------------------*
+FORM update_attach_fail  TABLES it_attach STRUCTURE solisti1.
+
+  TRY.
+      APPEND INITIAL LINE TO it_attach ASSIGNING FIELD-SYMBOL(<ls_attach>).
+      CONCATENATE TEXT-201 TEXT-202 TEXT-203 TEXT-204 TEXT-205 TEXT-206 TEXT-207
+      TEXT-208 TEXT-209 TEXT-210 TEXT-211 TEXT-212
+                 INTO <ls_attach> SEPARATED BY c_tab.
+      CONCATENATE c_cret <ls_attach> INTO <ls_attach>.
+
+      LOOP AT gt_upload_e ASSIGNING FIELD-SYMBOL(<ls_error>).
+        APPEND INITIAL LINE TO it_attach ASSIGNING <ls_attach>.
+
+        IF <ls_error>-absat IS NOT INITIAL.
+          DATA(lv_absat) = CONV char8( <ls_error>-absat ).
+        ENDIF.
+        IF <ls_error>-wmeng IS NOT INITIAL.
+          DATA(lv_wmeng) = CONV char8( <ls_error>-wmeng ).
+        ENDIF.
+        IF <ls_error>-zsale_hist IS NOT INITIAL.
+          DATA(lv_zsale_hist) = CONV char8( <ls_error>-zsale_hist ).
+        ENDIF.
+
+        CONCATENATE <ls_error>-tabname
+                    <ls_error>-spmon
+                    <ls_error>-vkorg
+                    <ls_error>-vtweg
+                    <ls_error>-spart
+                    <ls_error>-mvgr1
+                    <ls_error>-matnr
+                    <ls_error>-werks
+                    lv_absat
+                    lv_wmeng
+                    lv_zsale_hist
+                    <ls_error>-basme
+                    INTO <ls_attach> SEPARATED BY c_tab.
+        IF sy-tabix > 1.
+          CONCATENATE c_cret <ls_attach> INTO <ls_attach>.
+        ENDIF.
+        CLEAR: lv_absat, lv_wmeng, lv_zsale_hist.
+      ENDLOOP.
+
+    CATCH cx_root INTO ex_root.
+      WRITE ex_root->get_text( ).
+  ENDTRY.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PRINT_SUCCESS_STATUS
+*&---------------------------------------------------------------------*
+FORM print_success_status TABLES lt_fname LIKE gt_fname
+                                 p_gt_upload_e LIKE gt_upload_e
+                           USING p_gv_total_records LIKE gv_total_records
+                                 p_gv_success_records LIKE gv_success_records
+                                 p_gv_error_records LIKE gv_error_records.
+  CONSTANTS : lv_jfail TYPE char10 VALUE 'JOB_FAIL',
+              lv_bjob  TYPE char10 VALUE 'BJOB',
+              lv_bgjob TYPE char10 VALUE 'BGJOB'.
+
+  DATA: text TYPE string.
+
+  IF ( ( p_gv_success_records IS NOT INITIAL ) AND ( p_gv_error_records IS NOT INITIAL ) ).
+    text = TEXT-059."'Proccessed With Error Records'(059).
+  ELSEIF ( ( p_gv_success_records IS NOT INITIAL ) AND ( p_gv_error_records IS INITIAL ) ).
+    text = TEXT-063."'Process Successfully'(063).
+  ELSEIF ( ( p_gv_success_records IS INITIAL ) AND ( p_gv_error_records IS NOT INITIAL ) ).
+    text = TEXT-064."'Failed To Process With Error Records'(064).
+  ENDIF.
+
+  WRITE : 30 sy-cprog COLOR 2 CENTERED.
+  IF p_gv_total_records IS NOT INITIAL AND
+     p_gv_success_records IS INITIAL AND
+     p_gv_error_records IS INITIAL.
+    WRITE sy-uline COLOR 4.
+    WRITE : / TEXT-074 COLOR 5."'Run On Test Mode Data Not Updated'(074)  COLOR 7 .
+  ENDIF.
+  WRITE sy-uline COLOR 1.
+  WRITE : / TEXT-071, sy-uname,  50(20) TEXT-068, sy-tcode,"Transcation Code :'(068)
+          / TEXT-072, sy-datum,  50(20) TEXT-069, text, "'Status             :'(069)
+          / TEXT-070, sy-uzeit COLOR 3." 50(20) TEXT-070, sy-uzeit. "'Time           :'(070),
+  SKIP 2 .
+  WRITE sy-uline COLOR 4.
+  WRITE : / TEXT-065, p_gv_total_records, "'Total No.of Records Uploaded : '(065)
+          / TEXT-066, p_gv_success_records,"'No.of Records Processed      : '(066)
+          / TEXT-067, p_gv_error_records."'No.of Failed Records          : '(067)
+
+  IF lt_fname[] IS NOT INITIAL.
+    jobstatus =  VALUE #( lt_fname[ tdformat = 'JS' ]-tdline OPTIONAL ) .
+  ENDIF.
+
+  CASE  jobstatus.
+    WHEN  lv_jfail.
+      WRITE : / sy-uline COLOR 5.
+      WRITE : / TEXT-100 COLOR 3 .
+    WHEN lv_bjob.
+      WRITE : / sy-uline COLOR 5.
+      WRITE : / TEXT-065, p_gv_total_records, "'Total No.of Records Uploaded : '(065)
+              / TEXT-066, 0,"'No.of Records Processed      : '(066)
+              / TEXT-067, 0."'No.of Failed Records          : '(067)
+  ENDCASE.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  DOWNLOAD_SUCCESS_FILE
+*&---------------------------------------------------------------------*
+FORM file_download TABLES lt_records p_t_header
+                    USING p_file LIKE rlgrap-filename
+                          p_msgtyp.
+
+  DATA: l_file TYPE string,
+        l_len  TYPE i,
+        c_dat  TYPE char10 VALUE 'DAT'.  "File format for Upload.
+
+  l_len = strlen( p_file ).
+  l_len = l_len - 5.
+
+  IF p_msgtyp = TEXT-045.
+    CONCATENATE p_file+0(l_len) '_' sy-datum sy-uzeit '_' TEXT-045 '.XLS' INTO l_file.
+  ELSEIF p_msgtyp = TEXT-046.
+    CONCATENATE p_file+0(l_len) '_' sy-datum sy-uzeit '_' TEXT-046 '.XLS' INTO l_file.
+  ENDIF.
+
+  CONDENSE l_file.
+
+* Download the log file to pres server
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename                = l_file
+      filetype                = c_dat
+      write_field_separator   = c_x
+    TABLES
+      data_tab                = lt_records
+      fieldnames              = p_t_header
+    EXCEPTIONS
+      file_write_error        = 1
+      no_batch                = 2
+      gui_refuse_filetransfer = 3
+      invalid_type            = 4
+      no_authority            = 5
+      unknown_error           = 6
+      header_not_allowed      = 7
+      separator_not_allowed   = 8
+      filesize_not_allowed    = 9
+      header_too_long         = 10
+      dp_error_create         = 11
+      dp_error_send           = 12
+      dp_error_write          = 13
+      unknown_dp_error        = 14
+      access_denied           = 15
+      dp_out_of_memory        = 16
+      disk_full               = 17
+      dp_timeout              = 18
+      file_not_found          = 19
+      dataprovider_exception  = 20
+      control_flush_error     = 21
+      OTHERS                  = 22.
+  IF sy-subrc = 0.
+    SKIP.
+
+    IF p_msgtyp = TEXT-045.
+      SKIP.
+      WRITE:/10 TEXT-028 COLOR 1.
+      SKIP.
+      WRITE:/30 TEXT-031, l_file.
+    ELSEIF p_msgtyp = TEXT-046.
+      SKIP.
+      WRITE:/10 TEXT-028 COLOR 1.
+      SKIP.
+      WRITE:/30 TEXT-032, l_file.
+    ENDIF.
+
+  ELSE.
+    SKIP.
+    WRITE:/ TEXT-028.
+    CASE sy-subrc.
+      WHEN '1'.
+        WRITE:/15 TEXT-d01.
+      WHEN '2'.
+        WRITE:/15 TEXT-d02.
+      WHEN '3'.
+        WRITE:/15 TEXT-d03.
+      WHEN '4'.
+        WRITE:/15 TEXT-d04.
+      WHEN '5'.
+        WRITE:/15 TEXT-d05.
+      WHEN '6'.
+        WRITE:/15 TEXT-d06.
+      WHEN '7'.
+        WRITE:/15 TEXT-d07.
+      WHEN '8'.
+        WRITE:/15 TEXT-d08.
+      WHEN '9'.
+        WRITE:/15 TEXT-d09.
+      WHEN '10'.
+        WRITE:/15 TEXT-d10.
+      WHEN '11'.
+        WRITE:/15 TEXT-d11.
+      WHEN '12'.
+        WRITE:/15 TEXT-d12.
+      WHEN '13'.
+        WRITE:/15 TEXT-d13.
+      WHEN '14'.
+        WRITE:/15 TEXT-d06.
+      WHEN '15'.
+        WRITE:/15 TEXT-d15.
+      WHEN '16'.
+        WRITE:/15 TEXT-d16.
+      WHEN '17'.
+        WRITE:/15 TEXT-d17.
+      WHEN '18'.
+        WRITE:/15 TEXT-d18.
+      WHEN '19'.
+        WRITE:/15 TEXT-d19.
+      WHEN '20'.
+        WRITE:/15 TEXT-d20.
+      WHEN '21'.
+        WRITE:/15 TEXT-d21.
+      WHEN '22'.
+        WRITE:/15 TEXT-d06.
+    ENDCASE.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  REFRESH_UPLOAD
+*&---------------------------------------------------------------------*
+FORM refresh_upload.
+  CLEAR : p_infile, p_sucess, p_error, p_test,p_bgexc.
+  REFRESH : s_email[].
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  REFRESH_EDIT
+*&---------------------------------------------------------------------*
+FORM refresh_edit.
+  REFRESH : s_mat, s_plant, s_yrmon.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  REFRESH_DOWNLOAD_TEMPL
+*&---------------------------------------------------------------------*
+FORM refresh_download_templ.
+  CLEAR : p_purge.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  CHECK_INPUTS
+*&---------------------------------------------------------------------*
+FORM check_inputs CHANGING subrc TYPE sy-subrc.
+  IF p_r4 = 'X' AND p_purge IS INITIAL.
+    SELECT * FROM zds911e INTO TABLE @gt_zds911e
+      WHERE spmon IN @s_yrmon AND
+            matnr IN @s_mat AND
+            werks IN @s_plant.
+  ELSEIF p_r4 = 'X' AND p_purge = 'X'.
+    SELECT * FROM zds911e INTO TABLE @gt_zds911e.
+  ELSEIF p_r2 = 'X'.
+    SELECT * FROM zds911e INTO TABLE @gt_zds911e
+      WHERE spmon IN @s_yrmon AND
+            matnr IN @s_mat AND
+            werks IN @s_plant.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DOWNLAOD_TEMPLATE
+*&---------------------------------------------------------------------*
+FORM downlaod_template .
+
+  DATA: l_file TYPE string,
+        p_file TYPE string,
+        l_len  TYPE i,
+        c_dat  TYPE char10 VALUE 'DAT'.  "File format for Upload.
+
+  gt_header = VALUE #( BASE gt_header ( name  = TEXT-201 )
+                                    ( name  = TEXT-202 )
+                                    ( name  = TEXT-203 )
+                                    ( name  = TEXT-204 )
+                                    ( name  = TEXT-205 )
+                                    ( name  = TEXT-206 )
+                                    ( name  = TEXT-207 )
+                                    ( name  = TEXT-208 )
+                                    ( name  = TEXT-209 )
+                                    ( name  = TEXT-210 )
+                                    ( name  = TEXT-211 )
+                                    ( name  = TEXT-212 ) ).
+
+  IF subrc IS INITIAL.
+    p_file = p_infile.
+
+    l_len = strlen( p_file ).
+    l_len = l_len - 4.
+    CONCATENATE p_file+0(l_len) '_' TEXT-045 '.XLS' INTO l_file.
+
+    CALL FUNCTION 'GUI_DOWNLOAD'
+      EXPORTING
+        filename                = l_file
+        filetype                = c_dat
+        write_field_separator   = c_x
+*       header                  = '01'
+      TABLES
+        data_tab                = gt_upload
+        fieldnames              = gt_header
+      EXCEPTIONS
+        file_write_error        = 1
+        no_batch                = 2
+        gui_refuse_filetransfer = 3
+        invalid_type            = 4
+        no_authority            = 5
+        unknown_error           = 6
+        header_not_allowed      = 7
+        separator_not_allowed   = 8
+        filesize_not_allowed    = 9
+        header_too_long         = 10
+        dp_error_create         = 11
+        dp_error_send           = 12
+        dp_error_write          = 13
+        unknown_dp_error        = 14
+        access_denied           = 15
+        dp_out_of_memory        = 16
+        disk_full               = 17
+        dp_timeout              = 18
+        file_not_found          = 19
+        dataprovider_exception  = 20
+        control_flush_error     = 21
+        OTHERS                  = 22.
+    IF sy-subrc IS INITIAL.
+      SKIP.
+      WRITE:/10 TEXT-028 COLOR 1.
+      SKIP.
+      WRITE:/30 TEXT-056, l_file.
+    ELSE.
+      SKIP.
+      WRITE:/10 TEXT-028 COLOR 1.
+      SKIP.
+      WRITE:/30 TEXT-057, l_file.
+    ENDIF.
+
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  SCHEDULE_BJ
+*&---------------------------------------------------------------------*
+FORM schedule_bj CHANGING subrc.
+  DELETE FROM DATABASE indx(m1) ID 'SPIKE1'.
+  DELETE FROM DATABASE indx(m2) ID 'SPIKE2'.
+  DELETE FROM DATABASE indx(m3) ID 'SPIKE3'.
+
+  EXPORT gt_upload TO DATABASE indx(m1) ID 'SPIKE1'.
+  EXPORT gt_parameters TO DATABASE indx(m2) ID 'SPIKE2'.
+  EXPORT s_email[] TO DATABASE indx(m3) ID 'SPIKE3'.
+
+  PERFORM job_open USING gv_jobname c_bg_prog CHANGING gv_jobcount subrc.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  JOB_OPEN
+*&---------------------------------------------------------------------*
+FORM job_open  USING    p_gv_jobname c_bg_prog
+               CHANGING p_gv_jobcount subrc.
+
+  DATA: lv_jobstatus TYPE tbtcjob,
+        lv_jobname   TYPE tbtcp-jobname.
+
+  CLEAR: subrc, gs_params, p_gv_jobcount, lv_jobstatus.
+
+  lv_jobname = |{ p_gv_jobname }{ sy-datum }{ sy-uzeit }|.
+
+  CALL FUNCTION 'GET_PRINT_PARAMETERS'
+    EXPORTING
+      no_dialog              = abap_true
+    IMPORTING
+      out_parameters         = gs_params
+    EXCEPTIONS
+      archive_info_not_found = 1
+      invalid_print_params   = 2
+      invalid_archive_params = 3
+      OTHERS                 = 4.
+  IF sy-subrc <> 0.
+    CLEAR: gs_params.
+  ENDIF.
+
+  CALL FUNCTION 'JOB_OPEN'
+    EXPORTING
+      jobname          = lv_jobname
+    IMPORTING
+      jobcount         = p_gv_jobcount
+    EXCEPTIONS
+      cant_create_job  = 1
+      invalid_job_data = 2
+      jobname_missing  = 3
+      OTHERS           = 4.
+
+  IF sy-subrc IS INITIAL.
+    SUBMIT zrmm_upd_dmnd_spike_elip_bg
+           VIA JOB     lv_jobname
+               NUMBER  p_gv_jobcount
+           TO SAP-SPOOL WITHOUT SPOOL DYNPRO
+           SPOOL PARAMETERS gs_params
+           AND RETURN.
+
+    IF sy-subrc IS INITIAL.
+      DATA(sdate) = sy-datum.
+      DATA(stime) = sy-uzeit.
+      CALL FUNCTION 'JOB_CLOSE'
+        EXPORTING
+          jobcount  = p_gv_jobcount
+          jobname   = lv_jobname
+          sdlstrtdt = sdate
+          sdlstrttm = stime.
+
+      WHILE ( lv_jobstatus-status NE 'A' )
+          OR ( lv_jobstatus-status NE 'F' ) .
+        CALL FUNCTION 'BP_JOB_READ'
+          EXPORTING
+            job_read_jobcount     = p_gv_jobcount
+            job_read_jobname      = lv_jobname
+            job_read_opcode       = '20'
+*           JOB_STEP_NUMBER       =
+          IMPORTING
+            job_read_jobhead      = lv_jobstatus
+          EXCEPTIONS
+            invalid_opcode        = 1
+            job_doesnt_exist      = 2
+            job_doesnt_have_steps = 3
+            OTHERS                = 4.
+        IF sy-subrc <> 0.
+          CASE sy-subrc.
+            WHEN 1.
+              MESSAGE TEXT-076 TYPE 'E'."'Invalid_opcode'(076)
+            WHEN 2.
+              MESSAGE TEXT-077 TYPE 'E'. "'Job_doesnt_exist'(077)
+            WHEN 3.
+              MESSAGE TEXT-078 TYPE 'E'. "'Job_doesnt_have_steps'(078)
+            WHEN 4.
+              MESSAGE TEXT-079 TYPE 'E'. "'Job Ended With Errors'(079)
+          ENDCASE.
+        ELSE.
+          IF lv_jobstatus-status EQ 'F' .
+            EXIT.
+          ELSEIF lv_jobstatus-status EQ 'A'.
+            subrc = 3.
+          ELSE.
+            WAIT UP TO 2 SECONDS.
+          ENDIF.
+        ENDIF.
+      ENDWHILE.
+
+    ELSE.
+      subrc = 2.
+    ENDIF.
+  ELSE.
+    subrc = 1.
+  ENDIF.
+
+ENDFORM.
+
+**&---------------------------------------------------------------------*
+**&      Form  CHECK_DUPLICATE_SAMEKEY
+**&---------------------------------------------------------------------*
+FORM check_duplicate_samekey  TABLES p_gt_zds911e LIKE gt_zds911e
+                              CHANGING rs_selfield TYPE slis_selfield
+                                       subrc.
+  TYPES: BEGIN OF lty_zds911e_err,
+           err_flag(1).
+           INCLUDE STRUCTURE zds911e.
+         TYPES END OF lty_zds911e_err.
+
+  DATA: lt_zds911e_err  TYPE STANDARD TABLE OF lty_zds911e_err,
+        lw_zds911e_err  TYPE lty_zds911e_err,
+        lv_error_string TYPE string.
+
+  CONSTANTS: lc_x(1) VALUE 'X'.
+
+  DATA: fun   TYPE STANDARD TABLE OF string,
+        text  TYPE string,
+        text1 TYPE string,
+        text2 TYPE string.
+
+  CLEAR: subrc, text1, text.
+  REFRESH: fun.
+
+  DATA(lines) = lines( p_gt_zds911e ).
+
+  SORT p_gt_zds911e BY ssour vrsio spmon sptag
+                       spwoc spbup vkorg vtweg
+                       spart mvgr1 matnr werks.
+
+* Check Duoplicates
+  DELETE ADJACENT DUPLICATES FROM p_gt_zds911e
+       COMPARING ssour vrsio spmon sptag spwoc spbup
+                 vkorg vtweg spart mvgr1 matnr werks.
+  IF sy-subrc IS INITIAL.
+    APPEND 'COPY' TO fun.
+  ENDIF.
+
+* Delete Blannk Entries
+  DELETE p_gt_zds911e WHERE spmon IS INITIAL AND
+                            matnr IS INITIAL AND
+                            werks IS INITIAL AND
+                            mvgr1 IS INITIAL AND
+                            zsale_hist IS INITIAL.
+  IF sy-subrc IS INITIAL.
+    APPEND 'EMPTY' TO fun.
+  ENDIF.
+
+  CLEAR: gw_zds911e.
+
+  LOOP AT p_gt_zds911e INTO gw_zds911e.
+* Validate SPMON
+    IF gw_zds911e-spmon IS NOT INITIAL.
+      DATA(lv_year) = sy-datum+0(4).
+      DATA(lv_month) = sy-datum+4(2).
+      DATA(lv_date_today) = |{ lv_year }{ lv_month }01 |.
+
+      CLEAR : lv_month , lv_year.
+      lv_year = sy-datum+0(4) - 2.
+      lv_month = sy-datum+4(2) .
+      DATA(lv_date_past) = |{ lv_year }{ lv_month }01 |.
+
+      CLEAR : lv_month , lv_year.
+      lv_year = sy-datum+0(4) + 2.
+      lv_month = sy-datum+4(2).
+      DATA(lv_date_future) = |{ lv_year }{ lv_month }01 |.
+
+      CLEAR : lv_month , lv_year.
+      lv_year = gw_zds911e-spmon+0(4).
+      lv_month = gw_zds911e-spmon+4(2).
+      IF lv_month > 12 OR lv_month < 1.
+        lv_error_string = |{ lv_error_string }X|.
+      ELSE.
+        DATA(lv_excel_date) = |{ lv_year }{ lv_month }01 |.
+
+        CONDENSE: lv_excel_date, lv_date_past, lv_date_future.
+
+        IF lv_excel_date NOT BETWEEN lv_date_past AND lv_date_future.
+          lv_error_string = |{ lv_error_string }X|.
+        ENDIF.
+      ENDIF.
+    ELSE.
+      lv_error_string = |{ lv_error_string }X|.
+    ENDIF.
+
+* Validate MATNR
+    IF gw_zds911e-matnr IS NOT INITIAL.
+      SELECT SINGLE @abap_true FROM mara INTO @DATA(lv_exists) WHERE matnr = @gw_zds911e-matnr.
+      IF abap_true = lv_exists.
+* Validate UoM
+        CLEAR: lv_exists.
+        IF gw_zds911e-basme IS NOT INITIAL.
+          SELECT SINGLE @abap_true FROM mara INTO @lv_exists WHERE matnr = @gw_zds911e-matnr AND meins = @gw_zds911e-basme.
+          IF abap_true <> lv_exists.
+            lv_error_string = |{ lv_error_string }X|.
+          ENDIF.
+        ENDIF.
+* Validate WERKS
+        CLEAR: lv_exists.
+        IF gw_zds911e-werks IS NOT INITIAL.
+          SELECT SINGLE @abap_true FROM marc INTO @lv_exists  WHERE matnr = @gw_zds911e-matnr AND werks = @gw_zds911e-werks.
+          IF abap_true <> lv_exists.
+            lv_error_string = |{ lv_error_string }X|.
+          ENDIF.
+        ELSE.
+          lv_error_string = |{ lv_error_string }X|.
+        ENDIF.
+      ELSE.
+        CLEAR: lv_exists.
+        SELECT SINGLE @abap_true FROM mvke INTO @lv_exists WHERE matnr = @gw_zds911e-matnr.
+        IF abap_true <> lv_exists.
+          lv_error_string = |{ lv_error_string }X|.
+        ELSE.
+* Validate UoM
+          CLEAR: lv_exists.
+          IF gw_zds911e-basme IS NOT INITIAL.
+            SELECT SINGLE @abap_true FROM mara INTO @lv_exists WHERE matnr = @gw_upload-matnr AND meins = @gw_zds911e-basme.
+            IF abap_true <> lv_exists.
+              lv_error_string = |{ lv_error_string }X|.
+            ENDIF.
+          ENDIF.
+* Validate WERKS
+          CLEAR: lv_exists.
+          IF gw_zds911e-werks IS NOT INITIAL.
+            SELECT SINGLE @abap_true FROM marc INTO @lv_exists  WHERE matnr = @gw_upload-matnr AND werks = @gw_zds911e-werks.
+            IF abap_true <> lv_exists.
+              lv_error_string = |{ lv_error_string }X|.
+            ENDIF.
+          ELSE.
+            lv_error_string = |{ lv_error_string }X|.
+          ENDIF.
+        ENDIF.
+        CLEAR: lv_exists.
+      ENDIF.
+    ELSE.
+      lv_error_string = |{ lv_error_string }X|.
+    ENDIF.
+
+    CLEAR: lv_exists.
+
+* Validate VKORG
+    IF gw_zds911e-vkorg IS NOT INITIAL.
+      SELECT SINGLE @abap_true FROM tvko INTO @lv_exists WHERE vkorg = @gw_zds911e-vkorg .
+      IF abap_true <> lv_exists.
+        lv_error_string = |{ lv_error_string }X|.
+      ELSE.
+* Validate VTWEG
+        CLEAR: lv_exists.
+        IF gw_zds911e-vtweg IS NOT INITIAL.
+          SELECT SINGLE @abap_true FROM tvkov INTO @lv_exists WHERE vtweg = @gw_zds911e-vtweg .
+          IF abap_true <> lv_exists.
+            lv_error_string = |{ lv_error_string }X|.
+          ENDIF.
+        ENDIF.
+* Validate SPART
+        CLEAR: lv_exists.
+        IF gw_zds911e-spart IS NOT INITIAL.
+          SELECT SINGLE @abap_true FROM tvta INTO @lv_exists WHERE spart = @gw_zds911e-spart.
+          IF abap_true <> lv_exists.
+            lv_error_string = |{ lv_error_string }X|.
+          ENDIF.
+        ENDIF.
+* Validate MVGR1
+        CLEAR: lv_exists.
+        SELECT  SINGLE @abap_true FROM mvke INTO @lv_exists
+          WHERE matnr = @gw_zds911e-matnr
+            AND vkorg = @gw_zds911e-vkorg
+            AND vtweg = @gw_zds911e-vtweg.
+        IF abap_true <> lv_exists.
+          lv_error_string = |{ lv_error_string }X|.
+        ENDIF.
+        CLEAR: lv_exists.
+      ENDIF.
+    ENDIF.
+
+    DATA(lv_result) = find_any_of( val = lv_error_string sub = `X` ).
+    IF lv_result GE 0.
+      lw_zds911e_err = CORRESPONDING #( gw_zds911e ).
+      lw_zds911e_err-err_flag = lc_x.
+
+      APPEND lw_zds911e_err TO lt_zds911e_err.
+    ENDIF.
+
+    CLEAR: gw_zds911e, lw_zds911e_err, lv_exists, lv_result, lv_error_string.
+  ENDLOOP.
+
+  IF lt_zds911e_err IS NOT INITIAL.
+    APPEND 'INVALID' TO fun.
+  ENDIF.
+
+  DATA(lines1) = lines( p_gt_zds911e ).
+
+  IF ( lines1 NE lines ) OR ( lt_zds911e_err IS NOT INITIAL ).
+    LOOP AT fun INTO DATA(ls_fun).
+      CASE ls_fun.
+        WHEN 'COPY'.
+          text = TEXT-083. "'Duplicate Entry Exists With Same Key'(083).
+          text1 = TEXT-084."'Record With Same Key Values Get Deleted'(084)
+          PERFORM pop_to_confirm USING text text1 CHANGING subrc.
+        WHEN 'EMPTY'.
+          text = TEXT-087."'Record With Empty Key Values Exsists'(087).
+          text1 = TEXT-088."'Record With Empty Key Values Get Deleted'(088).
+          PERFORM pop_to_confirm USING text text1 CHANGING subrc.
+        WHEN 'INVALID'.
+          text = TEXT-090."'Invalid Entry'(090).
+          text2 = TEXT-089."'Invalid Entry Exsists In The Record With Key Values'(089).
+          LOOP AT lt_zds911e_err INTO lw_zds911e_err.
+            CLEAR : text1.
+            CONCATENATE lw_zds911e_err-spmon
+                        lw_zds911e_err-matnr
+                        lw_zds911e_err-werks
+                        lw_zds911e_err-mvgr1
+                        lw_zds911e_err-vkorg
+                        lw_zds911e_err-spart
+                        lw_zds911e_err-vtweg
+                        lw_zds911e_err-basme
+             text1 INTO text1 SEPARATED BY ' '.
+            PERFORM pop_to_confirm USING text text1 CHANGING subrc.
+            CLEAR: lw_zds911e_err.
+          ENDLOOP.
+      ENDCASE.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  POP_TO_CONFIRM
+*&---------------------------------------------------------------------*
+FORM pop_to_confirm  USING text text1
+                     CHANGING subrc.
+
+  DATA: check TYPE string,
+        text2 TYPE string.
+
+  text2 = TEXT-089."'Invalid Entry Exsists In The Record With Key Values'(089).
+
+  CALL FUNCTION 'POPUP_CONTINUE_YES_NO'
+    EXPORTING
+      textline1 = text2
+      textline2 = text1
+      titel     = text
+    IMPORTING
+      answer    = check.
+
+  CASE check.
+    WHEN 'J'.
+      subrc = 1.
+    WHEN 'N'.
+      subrc = 9.
+      rs_selfield-refresh = abap_true.
+  ENDCASE.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PURGE_TABLE
+*&---------------------------------------------------------------------*
+FORM purge_table.
+  TRY.
+      DO 5 TIMES.
+        CALL FUNCTION 'ENQUEUE_E_TABLEE'
+          EXPORTING
+            tabname        = p_is2
+          EXCEPTIONS
+            foreign_lock   = 1
+            system_failure = 2
+            OTHERS         = 3.
+        IF sy-subrc <> 0.
+          WAIT UP TO 2 SECONDS.
+        ELSE.
+          EXIT.
+        ENDIF.
+      ENDDO.
+
+      IF sy-subrc IS INITIAL.
+        DELETE zds911e FROM TABLE gt_zds911e.
+        IF sy-subrc IS INITIAL.
+          DO 5 TIMES.
+            CALL FUNCTION 'DEQUEUE_E_TABLEE'
+              EXPORTING
+                tabname = p_is2.
+            IF sy-subrc <> 0 ##FM_SUBRC_OK.
+              WAIT UP TO 1 SECONDS.
+            ELSE.
+              rs_selfield-refresh =  abap_true.
+              EXIT.
+            ENDIF.
+          ENDDO.
+          CLEAR subrc.
+          subrc = sy-subrc.
+        ENDIF.
+      ELSE.
+        CASE sy-subrc.
+          WHEN 1.
+            MESSAGE e004(zcc) WITH TEXT-037.
+          WHEN 2.
+            MESSAGE e004(zcc) WITH TEXT-038.
+          WHEN OTHERS.
+            MESSAGE e004(zcc) WITH TEXT-039.
+        ENDCASE.
+      ENDIF.
+    CATCH cx_root INTO ex_root.
+      MESSAGE e004(zcc) WITH ex_root->get_text( ).
+  ENDTRY.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DELETE_ROWS_IN_DB
+*&---------------------------------------------------------------------*
+FORM delete_rows_in_db .
+  TRY.
+      DO 5 TIMES.
+        CALL FUNCTION 'ENQUEUE_E_TABLEE'
+          EXPORTING
+            tabname        = 'ZDS911E'
+          EXCEPTIONS
+            foreign_lock   = 1
+            system_failure = 2
+            OTHERS         = 3.
+        IF sy-subrc <> 0.
+          WAIT UP TO 2 SECONDS.
+        ELSE.
+          EXIT.
+        ENDIF.
+      ENDDO.
+
+      IF sy-subrc IS INITIAL.
+        IF gt_zds911e_del IS NOT INITIAL.
+          DELETE zds911e FROM TABLE gt_zds911e_del.
+        ENDIF.
+        IF sy-subrc IS INITIAL.
+          DO 5 TIMES.
+            CALL FUNCTION 'DEQUEUE_E_TABLEE'
+              EXPORTING
+                tabname = 'ZDS911E'.
+            IF sy-subrc <> 0 ##FM_SUBRC_OK.
+              WAIT UP TO 1 SECONDS.
+            ELSE.
+              rs_selfield-refresh =  abap_true.
+              EXIT.
+            ENDIF.
+          ENDDO.
+          CLEAR subrc.
+          subrc = sy-subrc.
+        ENDIF.
+      ELSE.
+        CASE sy-subrc.
+          WHEN 1.
+            MESSAGE e004(zcc) WITH TEXT-037.
+          WHEN 2.
+            MESSAGE e004(zcc) WITH TEXT-038.
+          WHEN OTHERS.
+            MESSAGE e004(zcc) WITH TEXT-039.
+        ENDCASE.
+      ENDIF.
+    CATCH cx_root INTO ex_root.
+      MESSAGE e004(zcc) WITH ex_root->get_text( ).
+  ENDTRY.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  ADD_OR_COPY_DATA
+*&---------------------------------------------------------------------*
+FORM add_or_copy_data CHANGING p_rs_selfield.
+
+  IF p_is2 IS NOT INITIAL.
+    TRY.
+        DO 5 TIMES.
+          CALL FUNCTION 'ENQUEUE_E_TABLEE'
+            EXPORTING
+              tabname        = p_is2
+            EXCEPTIONS
+              foreign_lock   = 1
+              system_failure = 2
+              OTHERS         = 3.
+          IF sy-subrc <> 0.
+            WAIT UP TO 2 SECONDS.
+          ELSE.
+            EXIT.
+          ENDIF.
+        ENDDO.
+        IF sy-subrc IS INITIAL.
+          MODIFY zds911e FROM TABLE gt_zds911e.
+          IF sy-subrc IS INITIAL.
+            DO 5 TIMES.
+              CALL FUNCTION 'DEQUEUE_E_TABLEE'
+                EXPORTING
+                  tabname = p_is2.
+              IF sy-subrc <> 0 ##FM_SUBRC_OK.
+                WAIT UP TO 1 SECONDS.
+              ELSE.
+                rs_selfield-refresh =  abap_true.
+                EXIT.
+              ENDIF.
+            ENDDO.
+            CLEAR subrc.
+            subrc = sy-subrc.
+          ENDIF.
+        ELSE.
+          CASE sy-subrc.
+            WHEN 1.
+              MESSAGE e004(zcc) WITH TEXT-037."'Foreign_lock'(037).
+            WHEN 2.
+              MESSAGE e004(zcc) WITH TEXT-038." 'System_failure'(038).
+            WHEN OTHERS.
+              MESSAGE e004(zcc) WITH TEXT-039."'Failed to Lock Table'(039).
+          ENDCASE.
+        ENDIF.
+      CATCH cx_root INTO ex_root.
+        MESSAGE e004(zcc) WITH ex_root->get_text( ).
+    ENDTRY.
+  ENDIF.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_REPORT
+*&---------------------------------------------------------------------*
+FORM display_upload_report .
+
+  TYPES : BEGIN OF ty_outtab,
+            text(50) TYPE c,
+            count    TYPE i,
+          END OF ty_outtab .
+
+  DATA : i_outtab  TYPE TABLE OF ty_outtab,
+         wa_outtab TYPE ty_outtab,
+         i_fcat    TYPE slis_t_fieldcat_alv,
+         wa_fcat   TYPE slis_fieldcat_alv,
+         wa_layout TYPE slis_layout_alv.
+
+  CONSTANTS: BEGIN OF ltc_texts,
+               c_text(10)     VALUE 'TEXT',
+               c_count(10)    VALUE 'COUNT',
+               c_ip_rec(50)   VALUE 'Number of input records' ##NO_TEXT,
+               c_proc_rec(50) VALUE 'Number of records processed' ##NO_TEXT,
+               c_fail_rec(50) VALUE 'Number of records failed' ##NO_TEXT,
+             END OF ltc_texts.
+
+  wa_fcat-col_pos = '1'.
+  wa_fcat-fieldname = ltc_texts-c_text.
+  wa_fcat-seltext_m = ltc_texts-c_text.
+  APPEND wa_fcat TO i_fcat .
+
+  wa_fcat-col_pos = '2' .
+  wa_fcat-fieldname = ltc_texts-c_count.
+  wa_fcat-seltext_m = ltc_texts-c_count.
+  APPEND wa_fcat TO i_fcat .
+
+  wa_outtab-text = ltc_texts-c_ip_rec.
+  wa_outtab-count = gv_total_records.
+  APPEND wa_outtab TO i_outtab.
+
+  wa_outtab-text = ltc_texts-c_proc_rec.
+  wa_outtab-count = gv_success_records.
+  APPEND wa_outtab TO i_outtab.
+
+  wa_outtab-text = ltc_texts-c_fail_rec.
+  wa_outtab-count = gv_error_records.
+  APPEND wa_outtab TO i_outtab.
+
+  wa_layout-colwidth_optimize = 'X' .
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program      = sy-repid
+      i_callback_user_command = 'FORM_UC'
+      is_layout               = wa_layout
+      it_fieldcat             = i_fcat
+    TABLES
+      t_outtab                = i_outtab
+    EXCEPTIONS
+      program_error           = 1
+      OTHERS                  = 2.
+  IF sy-subrc <> 0.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+ENDFORM .                    "DISPLAY_UPLOAD_REPORT
+
+*&---------------------------------------------------------------------*
+*&      Form  FORM_UC
+*&---------------------------------------------------------------------*
+FORM form_uc USING ucomm TYPE sy-ucomm
+                   selfield TYPE slis_selfield .
+  DATA : gv_pos    TYPE i,
+         i_fcat2   TYPE slis_t_fieldcat_alv,
+         wa_fcat2  TYPE slis_fieldcat_alv,
+         wa_layout TYPE slis_layout_alv.
+
+  CLEAR gv_pos.
+
+  IF i_fcat2 IS INITIAL .
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'TABNAME' .
+    wa_fcat2-seltext_m = TEXT-201.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'SPMON' .
+    wa_fcat2-ref_fieldname = 'SPMON' .
+    wa_fcat2-ref_tabname = 'SPMON' .
+    wa_fcat2-seltext_m = TEXT-202 .
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'VKORG' .
+    wa_fcat2-seltext_m = TEXT-203.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'VTWEG' .
+    wa_fcat2-seltext_m = TEXT-204 .
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'SPART' .
+    wa_fcat2-seltext_m = TEXT-205.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'MVGR1' .
+    wa_fcat2-seltext_m = TEXT-206.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'MATNR' .
+    wa_fcat2-seltext_m = TEXT-207.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'WERKS' .
+    wa_fcat2-seltext_m = TEXT-208.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'ABSAT'.
+    wa_fcat2-seltext_m = TEXT-209.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'WMENG' .
+    wa_fcat2-seltext_m = TEXT-210.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'ZSALE_HIST' .
+    wa_fcat2-seltext_m = TEXT-211.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+    gv_pos = gv_pos + 1 .
+    wa_fcat2-col_pos = gv_pos.
+    wa_fcat2-fieldname = 'BASME' .
+    wa_fcat2-seltext_m = TEXT-212.
+    APPEND wa_fcat2 TO i_fcat2 .
+    CLEAR wa_fcat2 .
+
+  ENDIF .
+
+  IF selfield-tabindex = '2' .
+    wa_layout-colwidth_optimize = 'X' .
+
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+        i_callback_program = sy-repid
+        is_layout          = wa_layout
+        it_fieldcat        = i_fcat2
+      TABLES
+        t_outtab           = gt_upload_s
+      EXCEPTIONS
+        program_error      = 1
+        OTHERS             = 2.
+    IF sy-subrc <> 0.
+      LEAVE LIST-PROCESSING.
+    ENDIF .
+  ELSEIF selfield-tabindex = '3' .
+    wa_layout-colwidth_optimize = 'X' .
+
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+        i_callback_program = sy-repid
+        is_layout          = wa_layout
+        it_fieldcat        = i_fcat2
+      TABLES
+        t_outtab           = gt_upload_e
+      EXCEPTIONS
+        program_error      = 1
+        OTHERS             = 2.
+    IF sy-subrc <> 0.
+      LEAVE LIST-PROCESSING.
+    ENDIF .
+  ENDIF .
+ENDFORM .                    "FORM_UC
+*&---------------------------------------------------------------------*
+*&      Form  POPUP_PURGE
+*&---------------------------------------------------------------------*
+FORM popup_purge .
+  DATA: gv_check(1).
+  CLEAR gv_check.
+  IF gt_zds911e IS NOT INITIAL.
+    DATA(gv_purge_records) = lines( gt_zds911e ).
+    DATA(gv_purge_question) = |Total { gv_purge_records } records will be purged. Do you want to proceed?|.
+    CALL FUNCTION 'POPUP_TO_CONFIRM'
+      EXPORTING
+        titlebar       = TEXT-102
+        text_question  = gv_purge_question
+        text_button_1  = 'YES'
+        text_button_2  = 'NO'
+      IMPORTING
+        answer         = gv_check
+      EXCEPTIONS
+        text_not_found = 1
+        OTHERS         = 2.
+    IF sy-subrc IS INITIAL.
+      CASE gv_check.
+        WHEN 1.
+          PERFORM purge_table.
+      ENDCASE.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  FILL_HEADER_FOR_LOG_DOWNLOAD
+*&---------------------------------------------------------------------*
+FORM fill_header_for_log_download.
+  CLEAR: gt_header.
+  IF s_email IS NOT INITIAL.
+    gt_header = VALUE #( ( name = 'FIELD' )
+                         ( name = TEXT-101 )
+                         ( name = 'MANDT' ) ).
+  ENDIF.
+
+  gt_header = VALUE #( BASE gt_header ( name  = TEXT-201 )
+                                    ( name  = TEXT-202 )
+                                    ( name  = TEXT-203 )
+                                    ( name  = TEXT-204 )
+                                    ( name  = TEXT-205 )
+                                    ( name  = TEXT-206 )
+                                    ( name  = TEXT-207 )
+                                    ( name  = TEXT-208 )
+                                    ( name  = TEXT-209 )
+                                    ( name  = TEXT-210 )
+                                    ( name  = TEXT-211 )
+                                    ( name  = TEXT-212 ) ).
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  TABLE_AUTH_CHECK
+*&---------------------------------------------------------------------*
+FORM table_auth_check USING tabname CHANGING p_subrc.
+  CALL FUNCTION 'VIEW_AUTHORITY_CHECK'
+    EXPORTING
+      view_action                    = 'U'
+      view_name                      = tabname
+    EXCEPTIONS
+      no_authority                   = 2
+      no_clientindependent_authority = 2
+      no_linedependent_authority     = 2
+      OTHERS                         = 1.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'No authorization for the given Info.Structure.' TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ELSE.
+    p_subrc = 0.
+  ENDIF.
+ENDFORM.
+

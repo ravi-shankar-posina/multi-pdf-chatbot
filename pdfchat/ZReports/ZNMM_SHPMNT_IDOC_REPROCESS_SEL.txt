@@ -1,0 +1,29 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SHPMNT_IDOC_REPROCESS_SEL
+*&---------------------------------------------------------------------*
+
+*parameters: docking like edi_help-onl_option default 'O' no-display.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+SELECT-OPTIONS: s_cretm  FOR edidc-cretim DEFAULT gv_time0 TO gv_time24.
+SELECT-OPTIONS: s_credt  FOR edidc-credat DEFAULT sy-datum TO sy-datum,
+                s_updtm  FOR edidc-updtim DEFAULT gv_time0 TO gv_time24,
+                s_upddt  FOR edidc-upddat.
+SELECTION-SCREEN SKIP.
+SELECT-OPTIONS: s_dirct  FOR edidc-direct NO-EXTENSION NO INTERVALS,
+                s_docnm  FOR edidc-docnum,
+                s_stat  FOR edidc-status OBLIGATORY DEFAULT '52'.
+SELECTION-SCREEN SKIP.
+SELECT-OPTIONS: s_idoct  FOR edidc-idoctp DEFAULT 'SHPMNT05',
+                s_cimty  FOR edidc-cimtyp,
+                s_mesty  FOR edidc-mestyp DEFAULT 'SHPMNT' ,
+                s_mescd  FOR edidc-mescod,
+                s_msfct  FOR edidc-mesfct.
+SELECTION-SCREEN SKIP.
+SELECT-OPTIONS: s_pppor  FOR edoc_stli-rcvpor ,
+                s_ppprn  FOR edoc_stat-rcvprn ,
+                s_ppprt  FOR edoc_stli-rcvprt,
+                s_pppfc  FOR edoc_stli-rcvpfc,
+                s_sndpr FOR edidc-sndprn DEFAULT 'LSWMPUURS',
+                s_sndpo FOR edidc-sndpor DEFAULT 'WM_PRD'.
+SELECTION-SCREEN END OF BLOCK b1.
+

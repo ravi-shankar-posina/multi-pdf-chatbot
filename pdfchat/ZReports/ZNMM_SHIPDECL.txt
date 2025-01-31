@@ -1,0 +1,555 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SHIPDECL
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* Data Declarations
+*----------------------------------------------------------------------*
+
+*Begin of Modification 502225518 - TR # DE3K926485 - CR #  CHG0479095 -06/28/2014.
+TABLES: sscrfields,
+        screen.
+*End of Modification 502225518 - TR # DE3K926485 - CR #  CHG0479095 -06/28/2014.
+
+
+DATA : v_ftstlo(14) TYPE n,
+       v_ttstlo(14) TYPE n,
+       v1_tstlo(14) TYPE n.
+
+DATA : v_index(4) TYPE c,
+       v_brgew TYPE brgew,
+       v_brgew1 TYPE brgew,
+       v_index1 TYPE i.
+
+DATA : gv_file    TYPE string.
+
+
+DATA : v_brgew2 TYPE p DECIMALS 0.
+
+
+RANGES: r_wadat_ist FOR likp-wadat_ist.
+
+TYPES : BEGIN OF ty_likp,
+           vbeln  TYPE vbeln_vl,  " Delivery
+           inco1  TYPE inco1, " Incoterms (Part 1)
+           kunnr  TYPE kunwe, " Ship-to party
+           btgew  TYPE gsgew, " Total Weight
+           ntgew  TYPE ntgew_15, "  Net weight
+           anzpk  TYPE anzpk,     "Total number of packages in delivery
+           waerk TYPE waerk, " SD document Curr
+           lifnr  TYPE elifn,     " Vendor Account Number
+       wadat_ist  TYPE wadat_ist, " Actual Goods Movement Date
+        END OF ty_likp.
+
+TYPES : BEGIN OF ty_lips,
+           vbeln TYPE	vbeln_vl,	"	Delivery
+           werks TYPE werks_d, "    Plant
+           vtweg TYPE	vtweg, 	"	Distribution Channel
+        END OF ty_lips.
+
+
+
+TYPES : BEGIN OF ty_kna11,
+          kunnr	TYPE kunnr,    "Customer Number
+          land1	TYPE land1_gp,  "Country Key
+          name1 TYPE name1_gp,  "Name 1
+          ort01 TYPE ort01_gp,  "City
+          pstlz	TYPE pstlz,   "	Postal Code
+          stras TYPE stras_gp,  "House number and street
+          stceg	TYPE stceg,	    "VAT Registration Number
+        END OF ty_kna11.
+
+DATA : gt_kna1 TYPE STANDARD TABLE OF ty_kna11,
+       gw_kna1 TYPE ty_kna11.
+
+
+
+
+TYPES : BEGIN OF ty_likp_lips,
+           vbeln  TYPE vbeln_vl,  " Delivery
+           inco1  TYPE inco1, " Incoterms (Part 1)
+           kunnr  TYPE kunwe, " Ship-to party
+           btgew  TYPE gsgew, " Total Weight
+           ntgew  TYPE ntgew_15, "  Net weight
+           anzpk  TYPE anzpk,     "Total number of packages in delivery
+           lifnr  TYPE elifn,     " Vendor Account Number
+       wadat_ist  TYPE wadat_ist, " Actual Goods Movement Date
+            vtweg TYPE  vtweg,  " Distribution Channel
+        END OF ty_likp_lips.
+
+
+
+DATA : gt_likp TYPE STANDARD TABLE OF ty_likp,
+       gw_likp TYPE ty_likp.
+
+DATA : gt_lips TYPE STANDARD TABLE OF ty_lips,
+       gw_lips TYPE ty_lips.
+
+DATA : i_likp TYPE STANDARD TABLE OF ty_likp_lips,
+       wa_likp TYPE ty_likp_lips.
+
+DATA : t_ntgew TYPE p.
+*       t_anzpk type p.
+
+TYPES : BEGIN OF ty_t001w,
+           werks  TYPE werks_d, "Plant
+           name1  TYPE name1,	  "Sender Name
+           stras  TYPE  stras,    "Sender Address
+           pstlz  TYPE pstlz,   "Sender Zip
+           ort01  TYPE ort01,   "Sender City
+          END OF ty_t001w.
+
+
+DATA : gt_t001w TYPE STANDARD TABLE OF ty_t001w,
+       gw_t001w TYPE ty_t001w.
+
+*------------------------------------------------------*
+*ALV DECLARATIONS
+*------------------------------------------------------*
+
+* ------ALV
+DATA : gt_fieldcat TYPE slis_t_fieldcat_alv,
+       gw_fieldcat TYPE slis_fieldcat_alv.
+
+*-----------------------------------------------------*
+*   Constants
+*-----------------------------------------------------*
+
+CONSTANTS: c_clien(09) VALUE '430106074',
+           c_nombre(32) VALUE 'POWER CONTROLS IBERICA,S.A.',
+           c_volum(06) VALUE '000000',
+           c_porte(01) VALUE '0',
+           c_porte1(01) VALUE '1',
+           c_reexp(01) VALUE '0',
+           c_reemb(07) VALUE '0000000',
+           c_comis(01) VALUE '0',
+           c_grasu(01) VALUE '0',
+           c_obser(38)  VALUE '00000000000000000000000000000000000000',
+           c_refer(25)  VALUE '0000000000000000000000000',
+           c_star(3) VALUE '***',
+           c_text_type(4) VALUE '.txt',
+           c_labcode(4) TYPE c VALUE '6348',
+*Begin of Modification 502225518 - TR # DE3K926485 - CR #  CHG0479095 -06/28/2014.
+           c_SCDAT(25) TYPE C VALUE 'Select/Change - Date/Time'.
+*End of Modification 502225518 - TR # DE3K926485 - CR #  CHG0479095 -06/28/2014.
+
+TYPES : BEGIN OF ty_download,
+ tknum(10) TYPE c, " VTTK-TKNUM,  "Shipment number  VTTK-TKNUM
+ azkcno(9) TYPE c,              "Azkar customer code
+ werks(4) TYPE c,  " WERKS_D,   " Sender  Plant details
+ name(35)  TYPE c, " NAME1,     "Name  T001W-NAME1
+ stras(35) TYPE c, "STRAS,      "Sender address  T001W-STRAS
+ pstlz(10) TYPE c, "PSTLZ,      " Sender zip  T001W-PSTLZ
+ ort01(35) TYPE c, "ORT01,      " Sender City  T001W-ORT01
+shpname(35) TYPE c, "NAME1,         " Ship to name  Go to LIKP and find the KUNNR and pass to KNA1-NAME1 get it
+shpstret(35) TYPE c, "STRAS,         " Ship to street	KNA1-STRAS
+shpzip(10) TYPE c, "PSTLZ,         " ZIP code	KNA1-PSTLZ
+shpcity(35) TYPE c, "ORT01,         " Ship to city  KNA1-ORT01
+shipunit(20) TYPE c, "EXIDV,         " # of shipping units  VEKP-EXIDV
+ totwt(15) TYPE c, "NTGEW_VEKP,    " Total weight	VEKP-NTGEW
+totvol(18) TYPE c, "BTVOL_VEKP,    " Total volume	VEKP-BTVOL
+tothu(18) TYPE c,  "BRGEW_VEKP,     " Total Weight of Handling Unit
+poorts(1) TYPE c,          " Ports type	1- Hardcoded
+reexp(1) TYPE c,           " Re-expedition  o(Zero) By Default
+destpay(1) TYPE c,          " Dest payment  o(Zero) By Default
+commission(1) TYPE c,          " Commission	o(Zero) By Default
+ shpdate(10)  TYPE c, "ERDAT,         " Shipment date	VTTK-ERDAT
+  comm(1) TYPE c,              " Comments	Default all blank
+package(1) TYPE c,            " Package types  Default all blank
+shpref(1) TYPE c,             " Ship to reference	Default all blank
+currency(5) TYPE c, "WAERK,          "  Currency  LIKP-WAERK
+  gvi(1) TYPE c,                "  Goods value for insurance  o(Zero) By Default
+fixcomm(1) TYPE c,               "  Fix comments  Default all blank
+azkdeleg(1) TYPE c,              " Default all blank
+country(3)  TYPE c, "LAND1_GP,             " Country
+labccode(4) TYPE c,               " (ICC)	Always - 6348 (Hardcoded)
+labnumber(1) TYPE c,              "  Default all blank
+vatno(20) TYPE c, "STCEG,                 " VAT number  KNA1-STCEG
+END OF ty_download.
+
+
+DATA : gt_download TYPE STANDARD TABLE OF ty_download,
+       gw_download TYPE ty_download.
+
+
+
+CONSTANTS : gc_tknum(5) TYPE c VALUE 'TKNUM',
+            gc_azkcno(6) TYPE c VALUE 'AZKCNO',
+            gc_name(4) TYPE c VALUE 'NAME',
+            gc_stras(5) TYPE c VALUE 'STRAS',
+            gc_pstlz(5) TYPE c VALUE 'PSTLZ',
+            gc_ort01(5) TYPE c VALUE 'ORT01',
+            gc_shpname(7) TYPE c VALUE 'SHPNAME',
+            gc_shpstret(8) TYPE c VALUE 'SHPSTRET',
+            gc_shpzip(6) TYPE c VALUE 'SHPZIP',
+            gc_shpcity(7) TYPE c VALUE 'SHPCITY',
+            gc_shipunit(8) TYPE c VALUE 'SHIPUNIT',
+            gc_totwt(5) TYPE c VALUE 'TOTWT',
+            gc_totvol(6) TYPE c VALUE 'TOTVOL',
+            gc_tothu(5) TYPE c VALUE 'TOTHU',
+            gc_poorts(6) TYPE c VALUE 'POORTS',
+            gc_reecp(5) TYPE c VALUE 'REECP',
+            gc_destpay(7) TYPE c VALUE 'DESTPAY',
+            gc_commission(10) TYPE c VALUE 'COMMISSION',
+            gc_shpdate(7) TYPE c VALUE 'SHPDATE',
+            gc_comm(4) TYPE c VALUE 'COMM',
+            gc_package(7) TYPE c VALUE 'PACKAGE',
+            gc_shpref(6) TYPE c VALUE 'SHPREF',
+            gc_currency(8) TYPE c VALUE 'CURRENCY',
+            gc_gvi(3) TYPE c VALUE 'GVI',
+            gc_fixcomm(7) TYPE c VALUE 'FIXCOMM',
+            gc_azkdeleg(8) TYPE c VALUE 'AZKDELEG',
+            gc_land1(5) TYPE c VALUE 'LAND1',
+            gc_labccode(8) TYPE c VALUE 'LABCCODE',
+            gc_vatno(5) TYPE c VALUE 'VATNO',
+            gc_final(8) TYPE c VALUE 'GT_FINAL'.
+
+
+
+DATA :  v_year(4),
+        v_month(2),
+        v_day(2),
+        v_input_flag,                    " AA 2/03/2001
+        v_input1_flag,                   " AA 2/03/2001
+        v_insert_flag,                   " AA 2/03/2001
+        v_modify_flag,                   " AA 2/03/2001
+        v_carrier_name(35),              " AA 2/03/2001
+        v_lines TYPE sy-index,           " AA 2/03/2001
+        t_anzpk TYPE p.                  " AA 2/03/2001
+
+
+DATA : v_fecha TYPE sy-datum.
+
+
+*----------------------------------------------------*
+***  VBUK
+*----------------------------------------------------*
+
+TYPES : BEGIN OF ty_vbuk1,
+             vbeln TYPE vbeln, "
+        END OF ty_vbuk1.
+
+DATA : gt_vbuk TYPE STANDARD TABLE OF ty_vbuk1,
+       gw_vbuk TYPE ty_vbuk1.
+
+
+TYPES : BEGIN OF ty_vbuk,
+             vbeln TYPE vbeln, "
+             kunnr TYPE kunnr, " Custommer No
+             wbstk TYPE wbstk, "Total goods movement status
+          END OF ty_vbuk.
+
+DATA : i_vbuk TYPE STANDARD TABLE OF ty_vbuk,
+       wa_vbuk TYPE ty_vbuk.
+
+
+*------------------------------------------------*
+* VBPA
+*------------------------------------------------*
+
+DATA : v_parvw1 TYPE parvw VALUE 'CR',
+        v_parvw TYPE parvw.
+
+
+TYPES : BEGIN OF ty_vbpa,
+         vbeln TYPE vbeln, "Sales Doc No
+         posnr TYPE posnr, "Item No
+         lifnr TYPE lifnr, "Account Number of Vendor or Creditor
+        END OF ty_vbpa.
+
+
+DATA : gt_vbpa TYPE STANDARD TABLE OF ty_vbpa,
+       gw_vbpa TYPE ty_vbpa.
+
+
+TYPES : BEGIN OF ty_vbpa1,
+         vbeln TYPE vbeln, " Sales Doc No
+         posnr TYPE posnr, "  Item No
+         lifnr TYPE lifnr, "Account Number of Vendor or Creditor
+         kunnr TYPE kunnr, " Customer Number
+        END OF ty_vbpa1.
+
+DATA : i_vbpa TYPE STANDARD TABLE OF ty_vbpa1,
+       wa_vbpa TYPE ty_vbpa1.
+
+
+*---------------------------------------------------------------*
+* KNA1
+*--------------------------------------------------------------*
+
+
+TYPES : BEGIN OF ty_kna1,
+           kunnr TYPE kunnr, "Customer Number
+           name1 TYPE name1_gp, "Name 1
+           stras TYPE stras_gp, "House number and street
+           pstlz TYPE pstlz,  " Postal Code
+           ort01 TYPE ort01_gp, "City
+        END OF ty_kna1.
+
+
+
+DATA : i_kna1 TYPE STANDARD TABLE OF ty_kna1,
+       wa_kna1 TYPE ty_kna1.
+
+
+* ------------------------------------------------*
+*  VBFA
+* -------------------------------------------------*
+
+TYPES : BEGIN OF ty_vbfa,
+          vbelv TYPE VBELN_VON,"Preceding sales and distribution document
+          vbeln TYPE VBELN_NACH,"Subsequent sales and distribution document
+          vbtyp_n TYPE VBTYP_N,"Document category of subsequent document
+        END OF ty_vbfa.
+
+
+DATA : i_vbfa TYPE STANDARD TABLE OF ty_vbfa,
+       wa_vbfa TYPE ty_vbfa.
+
+
+TYPES : BEGIN OF ty_vbfa_time,
+      vbelv TYPE vbeln_von, "
+      vbeln TYPE vbeln_nach,
+      vbtyp_n TYPE vbtyp_n,
+      erdat TYPE vbfa-erdat,
+      erzet TYPE vbfa-erzet,
+        END OF ty_vbfa_time.
+
+
+DATA : i_vbfa_time TYPE STANDARD TABLE OF ty_vbfa_time,
+       wa_vbfa_time TYPE ty_vbfa_time.
+
+
+TYPES : BEGIN OF ty_vpobjkey,
+          venum TYPE venum,	"Internal Handling Unit Number
+          exidv	TYPE exidv,	"	External Handling Unit Identification
+          brgew TYPE brgew_vekp,  "Total Weight of Handling Unit
+          ntgew	TYPE ntgew_vekp,  "Loading Weight of Handling Unit
+          btvol	TYPE btvol_vekp,  "Total Volume of Handling Unit
+          vpobj TYPE vpobj,   " Packing Object
+          vpobjkey TYPE vpobjkey,	"Key for Object to Which the Handling Unit is Assigned
+        END OF ty_vpobjkey.
+
+
+DATA : i_vekp TYPE STANDARD TABLE OF ty_vpobjkey,
+       wa_vekp TYPE ty_vpobjkey,
+       gt_vekp1 TYPE STANDARD TABLE OF ty_vpobjkey.
+
+
+TYPES : BEGIN OF ty_vttp,
+          tknum TYPE tknum,    "  Shipment Number
+          vbeln TYPE vbeln_vl, "  Delivery
+        END OF ty_vttp.
+
+DATA : gt_vttp TYPE STANDARD TABLE OF ty_vttp,
+       gw_vttp TYPE ty_vttp.
+
+
+TYPES : BEGIN OF ty_vttk,
+          tknum	TYPE tknum,  " 	Shipment Number
+          erdat TYPE erdat,  "  Date on Which Record Was Created
+        END OF ty_vttk.
+
+DATA : gt_vttk TYPE STANDARD TABLE OF ty_vttk,
+       gw_vttk TYPE ty_vttk.
+
+
+
+
+*---------------------------------------------------------------*
+* VBFA1
+*---------------------------------------------------------------*
+
+TYPES : BEGIN OF ty_vbfa1,
+         vbeln TYPE vpobjkey, "Key for Object to Which the Handling Unit is Assigned
+       END OF ty_vbfa1.
+
+
+DATA :  i_vbfa1 TYPE STANDARD TABLE OF ty_vbfa1,
+        wa_vbfa1 TYPE ty_vbfa1.
+
+* Selection- Screen Declarations
+
+DATA : g_vstel TYPE vstel, "Shipping Point/Receiving Point
+       g_vkorg TYPE vkorg,  " Sales Organization
+       g_vtweg TYPE vtweg, "  Distribution Channel
+       g_lifnr TYPE lifnr. " Account Number of Vendor or Creditor
+
+
+TYPES : BEGIN OF ty_lfa1,
+            lifnr TYPE lifnr,
+            name1 TYPE name1_gp,
+          END OF ty_lfa1.
+
+DATA : i_lfa1 TYPE STANDARD TABLE OF ty_lfa1,
+       wa_lfa1 TYPE ty_lfa1.
+
+
+TYPES : BEGIN OF ty_ship,
+          kunnr TYPE kunnr,     "Customer Number
+          land1 TYPE land1_gp,  "Country Key
+          name1 TYPE name1_gp,  "Name 1
+          ort01 TYPE ort01_gp,  "City
+          pstlz TYPE pstlz,     "Postal Code
+          stras TYPE stras_gp,  "House number and street
+       END OF ty_ship.
+
+
+DATA : gt_ship TYPE STANDARD TABLE OF ty_ship,
+       gw_ship TYPE ty_ship.
+
+
+
+TYPES : BEGIN OF t_dis,
+          lifnr(10) TYPE c,
+*  *  ------------------------------------------------------------------*
+          azk_c(10) TYPE c,    "Azkar customer code - 430106074
+          sendnam TYPE name1,  "Sender  - Plant find LIPS-WERKS and go to T001W-NAME1
+          sadd TYPE stras,     "Sender address - T001W-STRAS
+          szip TYPE pstlz,     "Sender zip - T001W-PSTLZ
+          scity TYPE ort01,    "Sender City - T001W-ORT01
+*  ---------------------------------------------------------------
+          shipto   TYPE name1,  "Ship to Name
+          shipstr  TYPE stras,  " Ship to Street
+          shipzip  TYPE pstlz,  "Zip Code
+          shipcity TYPE ort01, " Ship to City
+          exidv TYPE exidv, "  Number of shipping units
+*  --------------------------------------------------------------------
+          vbeln(08) TYPE c,
+          name_1(35) TYPE c,
+          clien(09) TYPE c,
+          nombre(32) TYPE c,
+           name1(32) TYPE c,
+          stras(32) TYPE c,
+          pstlz(05) TYPE c,
+          ort01(27) TYPE c,
+          anzpk(04) TYPE c,
+          ntgew(05) TYPE c,
+*  *  ---------------------------------------------------------------------------*
+          btvol TYPE brgew_vekp, " Total volume  -- VEKP-BTVOL
+          ptype(01) TYPE c,      " Ports type  -- 1 Hard coded
+          rexp(01) TYPE c,       " Re-expedition -- 0 HArd coded
+          dpay(01) TYPE c,       " Dest payment  -- 0 Hardcoded
+          commi(01) TYPE c,      " Comission ---- 0 Hardcoded
+          erdat TYPE erdat,      " Shipment date ---VTTk-ERDAT
+          comm(05) TYPE c,       " Comments --- BLANK
+          ptyp(02) TYPE c,       " Package types ---DEfault all Blank
+          sref(02) TYPE c,       " Ship to reference -- DEfault all Blank
+          waerk TYPE waerk,      " Currency ---LIKP-WAERK
+          gvi(01) TYPE c,        " Goods value for insurance - Zero by default
+         comm1(05) TYPE c,       " Fix comments - Blank
+          adc(01) TYPE c,        " Azkar delegation code - Zero by Default
+          lcc(04) TYPE c, " ,    " Labelled customer code (ICC) - Always - 6348 (Hardcoded)
+          lno(02) TYPE c,        " Label number - Blank
+          stceg TYPE stceg,      " VAT number  - KNA1-STCEG
+*-------------------------------------------------------------------------------*
+
+          volum(06) TYPE c,
+          porte(01) TYPE c,
+          reexp(01) TYPE c,
+          reemb(07) TYPE c,
+          comis(01) TYPE c,
+          v_fecha(8) TYPE c,
+          obser(38) TYPE c,
+          grasu(01) TYPE c,
+          refer(25) TYPE c,
+       END OF t_dis.
+
+
+DATA : wa_dis TYPE t_dis,
+       i_dis TYPE STANDARD TABLE OF t_dis.
+
+TYPES : BEGIN OF ty_vekp_temp,
+
+          vpobjkey TYPE vpobjkey,	"Key for Object to Which the Handling Unit is Assigned
+          venum TYPE venum,	"Internal Handling Unit Number
+          exidv	TYPE exidv,	"	External Handling Unit Identification
+          brgew TYPE brgew_vekp,  "Total Weight of Handling Unit
+          ntgew	TYPE ntgew_vekp,  "Loading Weight of Handling Unit
+          btvol	TYPE btvol_vekp,  "Total Volume of Handling Unit
+          vpobj TYPE vpobj,   " Packing Object
+        END OF ty_vekp_temp.
+
+DATA : gt_vekp_temp TYPE STANDARD TABLE OF ty_vekp_temp,
+       gw_vekp_temp TYPE ty_vekp_temp,
+       gw_vekp_t TYPE ty_vekp_temp,
+       ge_vekp_t1 TYPE ty_vekp_temp,
+       gt_vekp_t1 TYPE STANDARD TABLE OF ty_vekp_temp,
+       gt_vekp_t TYPE STANDARD TABLE OF ty_vekp_temp.
+
+DATA : lv_ntgew TYPE ntgew,
+       lv_exidv TYPE exidv,
+       lv_btvol TYPE btvol_vekp,
+       lv_brgew TYPE brgew_vekp.
+
+DATA : wa_vekp1 TYPE ty_vpobjkey,
+       wa_vekp2 TYPE ty_vpobjkey,
+       lc_hand(1) TYPE c VALUE '1'.
+
+*
+
+
+TYPES : BEGIN OF t_output,
+           vbeln(06) TYPE c,
+           clien(09) TYPE c,
+           nombre(32) TYPE c,
+           name1(32) TYPE c,
+           stras(32) TYPE c,
+           pstlz(05) TYPE c,
+           ort01(27) TYPE c,
+           anzpk(04) TYPE c,
+           ntgew(05) TYPE c,
+           volum(06) TYPE c,
+           porte(01) TYPE c,
+           reexp(01) TYPE c,
+           reemb(07) TYPE c,
+           comis(01) TYPE c,
+           v_fecha(8) TYPE c,
+           obser(38) TYPE c,
+           grasu(01) TYPE c,
+          refer(25) TYPE c,
+      END OF t_output.
+
+DATA : wa_output TYPE t_output,
+       i_output TYPE STANDARD TABLE OF t_output.
+
+
+TYPES : BEGIN OF ty_final,
+           tknum TYPE   vttk-tknum,  "Shipment number	VTTK-TKNUM
+           azkcno(9) TYPE c,         "Azkar customer code
+           werks TYPE werks_d,       " Sender	Plant details
+           name  TYPE name1,         "Name  T001W-NAME1
+           stras TYPE stras,         "Sender address  T001W-STRAS
+           pstlz TYPE pstlz,         " Sender zip	T001W-PSTLZ
+           ort01 TYPE ort01,         " Sender City  T001W-ORT01
+         shpname TYPE name1,         " Ship to name	Go to LIKP and find the KUNNR and pass to KNA1-NAME1 get it
+        shpstret TYPE stras,         " Ship to street	KNA1-STRAS
+          shpzip TYPE pstlz,         " ZIP code	KNA1-PSTLZ
+         shpcity TYPE ort01,         " Ship to city	KNA1-ORT01
+        shipunit TYPE exidv,         " # of shipping units  VEKP-EXIDV
+           totwt TYPE ntgew_vekp,    " Total weight	VEKP-NTGEW
+          totvol TYPE btvol_vekp,    " Total volume	VEKP-BTVOL
+          tothu TYPE brgew_vekp,     " Total Weight of Handling Unit
+          poorts(1) TYPE c,          " Ports type	1- Hardcoded
+          reexp(1) TYPE c,           " Re-expedition  o(Zero) By Default
+         destpay(1) TYPE c,          " Dest payment	o(Zero) By Default
+      commission(1) TYPE c,          " Commission	o(Zero) By Default
+           shpdate  TYPE erdat,      " Shipment date  VTTK-ERDAT
+            comm(1) TYPE c,          " Comments	Default all blank
+         package(1) TYPE c,         " Package types  Default all blank
+          shpref(1) TYPE c,         " Ship to reference	Default all blank
+          currency TYPE waerk,      "  Currency	LIKP-WAERK
+            gvi(1) TYPE c,          "  Goods value for insurance  o(Zero) By Default
+        fixcomm(1) TYPE c,          "  Fix comments  Default all blank
+       azkdeleg(1) TYPE c,          " Default all blank
+          country	TYPE land1_gp,    " Country
+        labccode(4) TYPE c,         " (ICC)	Always - 6348 (Hardcoded)
+       labnumber(1) TYPE c,         "  Default all blank
+          vatno TYPE stceg,         " VAT number  KNA1-STCEG
+      END OF ty_final.
+
+
+DATA : gt_final TYPE STANDARD TABLE OF ty_final,
+       gw_final TYPE ty_final.
+
+DATA : g_vbeln TYPE vbeln_vl.
+

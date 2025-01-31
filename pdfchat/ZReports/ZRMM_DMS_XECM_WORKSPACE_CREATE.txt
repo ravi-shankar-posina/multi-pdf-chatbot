@@ -1,0 +1,154 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_DMS_XECM_WORKSPACE_CREATE
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+****------------------------------------------------------------------***
+*** Created by            : Devesh Modi(9X10112895)
+*** Creation Date         : 03/01/2020
+*** Transport Request     : DE3K996301
+*** RICEF Object No       : RICEF2080
+*** Description           : Create Business Workspace
+*** CR Created            : GECHG0708352
+***------------------------------------------------------------------***
+
+REPORT  zrmm_dms_xecm_workspace_create.
+
+TYPES : BEGIN OF ty_output,
+          icon      TYPE c,
+          number    TYPE sapb-sapobjid,
+          type      TYPE toaom-sap_object,
+          remark    TYPE string,
+        END OF ty_output.
+
+DATA : lo_wsc         TYPE REF TO /otx/rm_wsc_cl_bor_api_factory,
+       lo_wsc_return  TYPE REF TO /otx/rm_wsc_if_ecmlink_bor_api,
+       gt_wsc_id      TYPE /otx/rm_wsc_tt_bor_node_id,
+       gi_wsc_id      TYPE /otx/rm_wsc_s_bor_node_id,
+       gt_wsc_err     TYPE /otx/rm_wsc_tt_ws_error,
+       gi_wsc_err     TYPE /otx/rm_wsc_s_ws_error,
+       gi_raw_ds      TYPE truxs_t_text_data,
+       gt_data        TYPE /otx/rm_wsci_tt_bor,
+       gi_data        TYPE /otx/rm_wsci_s_bor,
+       lv_text        TYPE string,
+       gt_fieldcat    TYPE slis_t_fieldcat_alv,
+       gi_fieldcat_ds TYPE slis_fieldcat_alv,
+       gi_layout_ds   TYPE slis_layout_alv,
+       gt_output      TYPE TABLE OF ty_output,
+       gi_output_ds   TYPE ty_output.
+
+CONSTANTS : gc_true_tx TYPE c VALUE 'X'.
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+PARAMETERS: p_file TYPE rlgrap-filename OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b1.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      field_name = 'P_FILE'
+    IMPORTING
+      file_name  = p_file.
+
+
+START-OF-SELECTION.
+
+  CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+    EXPORTING
+      i_line_header        = gc_true_tx
+      i_tab_raw_data       = gi_raw_ds
+      i_filename           = p_file
+    TABLES
+      i_tab_converted_data = gt_data
+    EXCEPTIONS
+      conversion_failed    = 1
+      OTHERS               = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  CREATE OBJECT lo_wsc.
+
+  TRY.
+      CALL METHOD /otx/rm_wsc_cl_bor_api_factory=>get_ecmlink_bor_api_ex
+        EXPORTING
+          pit_bors            = gt_data
+        RECEIVING
+          prh_ecmlink_bor_api = lo_wsc_return.
+    CATCH /otx/cx_rm_wsc .
+  ENDTRY.
+
+  TRY.
+      CALL METHOD lo_wsc_return->create_upd_workspaces
+        EXPORTING
+          pi_simulation         = abap_false
+          pi_composite_children = abap_true
+        IMPORTING
+          pet_errors            = gt_wsc_err
+          pet_bor_node_ids      = gt_wsc_id.
+
+    CATCH /otx/cx_rm_wsc .
+    CATCH cx_ai_system_fault.
+  ENDTRY.
+
+  LOOP AT gt_data INTO gi_data.
+
+    gi_output_ds-number = gi_data-id.
+    gi_output_ds-type   = gi_data-type.
+
+    READ TABLE gt_wsc_err INTO gi_wsc_err WITH KEY bor-type = gi_data-type
+                                                   bor-id   = gi_data-id.
+    IF sy-subrc = 0.
+      gi_output_ds-icon   = 1.
+      gi_output_ds-remark = 'Failed'.
+    ENDIF.
+
+    READ TABLE gt_wsc_id INTO gi_wsc_id WITH KEY bor-type = gi_data-type
+                                                 bor-id   = gi_data-id.
+    IF sy-subrc = 0.
+      gi_output_ds-icon   = 3.
+      gi_output_ds-remark = 'Success'.
+    ENDIF.
+
+    APPEND gi_output_ds TO gt_output.
+    CLEAR gi_output_ds.
+  ENDLOOP.
+
+  gi_layout_ds-lights_fieldname  = 'ICON'.
+  gi_layout_ds-colwidth_optimize = 'X'.
+
+  CLEAR : gi_fieldcat_ds, gt_fieldcat[].
+  gi_fieldcat_ds-tabname       = 'GT_OUTPUT'.
+  gi_fieldcat_ds-fieldname     = 'NUMBER'.
+  gi_fieldcat_ds-seltext_l     = 'Document Number'(004).
+  APPEND gi_fieldcat_ds TO gt_fieldcat.
+  CLEAR: gi_fieldcat_ds.
+
+  gi_fieldcat_ds-tabname       = 'GT_OUTPUT'.
+  gi_fieldcat_ds-fieldname     = 'TYPE'.
+  gi_fieldcat_ds-seltext_l     = 'Business Object'(005).
+  APPEND gi_fieldcat_ds TO gt_fieldcat.
+  CLEAR: gi_fieldcat_ds.
+
+  gi_fieldcat_ds-tabname       = 'GT_OUTPUT'.
+  gi_fieldcat_ds-fieldname     = 'REMARK'.
+  gi_fieldcat_ds-seltext_l     = 'Remark'(006).
+  APPEND gi_fieldcat_ds TO gt_fieldcat.
+  CLEAR: gi_fieldcat_ds.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-repid
+      is_layout          = gi_layout_ds
+      it_fieldcat        = gt_fieldcat
+    TABLES
+      t_outtab           = gt_output
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+

@@ -1,0 +1,1206 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_MARC_INV_ADJ_PROCESSF01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+FORM get_data .
+  DATA: lc_name       TYPE string  VALUE 'MARC_INTERFACE'.
+*   If program triggers from RFC then filling data
+  IF p_new IS NOT INITIAL.
+    IF s_file IS INITIAL AND p_file IS NOT INITIAL.
+      s_file-sign = 'I'.
+      s_file-option = 'EQ'.
+      s_file-low = p_file.
+      APPEND s_file.
+    ENDIF.
+    IF s_tseq IS INITIAL AND p_seq IS NOT INITIAL.
+      s_tseq-sign = 'I'.
+      s_tseq-option = 'EQ'.
+      s_tseq-low = p_seq.
+      APPEND s_tseq.
+    ENDIF.
+  ENDIF.
+  SELECT *
+         FROM ztmm_marc_inv_da
+         INTO CORRESPONDING FIELDS OF TABLE gt_marc_inv_da
+         WHERE file_name IN s_file
+         AND comp_code = p_code
+         AND tran_seq_no IN s_tseq
+         AND rec_seq     IN s_poseq
+         AND sku IN s_sku.
+  IF gt_marc_inv_da IS NOT INITIAL AND p_new IS NOT INITIAL.
+    DELETE gt_marc_inv_da WHERE process_status  <> space.
+  ELSEIF gt_marc_inv_da IS NOT INITIAL AND p_error IS NOT INITIAL.
+    DELETE gt_marc_inv_da WHERE process_status  <> 'E'.
+  ENDIF.
+  IF gt_marc_inv_da IS NOT INITIAL.
+    SORT gt_marc_inv_da BY file_name type_adj qty_adj_sign.
+    SELECT * FROM ztmm_marc_inv_tr
+             INTO TABLE gt_ztmm_marc_trans
+             FOR ALL ENTRIES IN gt_marc_inv_da
+             WHERE type_adj = gt_marc_inv_da-type_adj
+              AND  qty_adj_sign = gt_marc_inv_da-qty_adj_sign.
+    IF sy-subrc = 0.
+      SORT gt_ztmm_marc_trans BY
+      type_adj.
+    ENDIF.
+
+
+    CLEAR : gt_ztuhcd1, gi_ztuhcd1.
+    gi_ztuhcd1-name = lc_name.
+    APPEND     gi_ztuhcd1 TO gt_ztuhcd1.
+    CLEAR      gi_ztuhcd1.
+*To read data from hardcode table where orber types will be dynamic
+    CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+      TABLES
+        t_ztuhcd1     = gt_ztuhcd1
+      EXCEPTIONS
+        no_data_found = 1
+        OTHERS        = 2.
+    IF sy-subrc <> 0.
+      MESSAGE e398(00) WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+    SELECT * FROM ztmm_marc_msg_pr
+             INTO TABLE gt_marc_msg_pr
+             WHERE prog_name = sy-repid
+              AND  msg_id_num IN s_msg.
+    IF sy-subrc = 0.
+      LOOP AT gt_marc_msg_pr INTO gi_marc_msg_pr.
+        s_return-sign   = 'I'.
+        s_return-option = 'EQ'.
+        s_return-low    =  gi_marc_msg_pr-msg_id_num.
+        APPEND s_return TO s_return.
+      ENDLOOP.
+    ENDIF.
+*    ENDIF.
+  ELSE.
+** Begin of changes by USPRADI DE3K9A0DW2 on 07.06.2022
+*    MESSAGE 'No Data to Process' TYPE 'E'.
+    MESSAGE 'No Data to Process' TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+** End of changes by USPRADI DE3K9A0DW2 on 07.06.2022
+  ENDIF.
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_CAT
+*&---------------------------------------------------------------------*
+*       Field catalog Build
+*----------------------------------------------------------------------*
+FORM build_cat USING p_filename p_text p_lenth p_colpos CHANGING p_fieldcat TYPE slis_t_fieldcat_alv.
+  gi_fieldcat-fieldname   = p_filename.
+  gi_fieldcat-seltext_m   = p_text.
+  gi_fieldcat-col_pos     = p_colpos.
+  gi_fieldcat-outputlen   = p_lenth.
+  IF p_lenth = 0.
+    gi_fieldcat-key         = 'X'.
+  ENDIF.
+  APPEND gi_fieldcat TO p_fieldcat.
+  CLEAR  gi_fieldcat.
+ENDFORM.                    " BUILD_CAT
+*&---------------------------------------------------------------------*
+*&      Form  sub_pf_status
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->RT_EXTAB   text
+*----------------------------------------------------------------------*
+FORM sub_pf_status USING rt_extab TYPE slis_t_extab..
+  SET PF-STATUS 'ZSTANDARD'.
+ENDFORM.                    "sub_pf_status
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_ROW
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_row .
+  DATA: lw_xchpf   TYPE char1,
+        lw_mblnr   TYPE mblnr,
+        lw_mjahr   TYPE mjahr,
+        lw_zeile   TYPE mblpo,
+        lw_ablad   TYPE ablad,
+        lw_meins   TYPE meins,
+        lw_char    TYPE string,
+        lw_matnr   TYPE matnr,
+        lw_error   TYPE char1,
+        lw_zzaltmn TYPE zaltmn.
+
+
+** Begin of changes by USPRADI DE3K9A0DSH on 02.06.2022
+** Fetch the switch position from Hardcode table
+  READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY name  = 'MARC_INTERFACE'
+                                                 zkey  = 'MARA'
+                                                 field = 'ZZALTMN'.
+  IF sy-subrc  = 0.
+    gw_switch = gi_ztuhcd1-low.
+** Fetch the field to be considered (Alt Mat or Local Mat) from Print table
+    SELECT SINGLE * FROM ztmm_marc_print
+                    INTO gw_marc_print
+                    WHERE interface  = 'INVENTORY_MAT'
+                     AND comp_code = p_code.
+  ENDIF.
+** End of changes by USPRADI DE3K9A0DSH on 02.06.2022
+
+  LOOP AT gt_marc_inv_da ASSIGNING <gi_ztmm_marc_inv_da>.
+    CLEAR gw_skip.
+    IF p_error IS NOT INITIAL.
+      READ TABLE gt_marc_msg_pr INTO gi_marc_msg_pr WITH KEY msg_id_num = <gi_ztmm_marc_inv_da>-msg_id_num
+                                                             processing = 'AU'.
+      IF sy-subrc <> 0.
+        CONTINUE.
+      ENDIF.
+    ENDIF.
+    gi_bapi_gm_head-header_txt = <gi_ztmm_marc_inv_da>-tran_seq_no.
+    gw_type_adj                   = <gi_ztmm_marc_inv_da>-type_adj.  "TYPE_ADJ
+    gw_lp_tab                     = <gi_ztmm_marc_inv_da>-lp.  "LP
+    CONCATENATE gw_type_adj gw_lp_tab INTO gi_bapi_gm_item-unload_pt SEPARATED BY space.
+    gi_bapi_gm_item-item_text     = <gi_ztmm_marc_inv_da>-note1. "Item Text
+    gi_bapi_gm_item-mvt_ind       = ' '.  "Movement Indicator
+    gi_bapi_gm_item-gr_rcpt       = <gi_ztmm_marc_inv_da>-disc_no.
+
+    gi_bapi_gm_head-doc_date      = sy-datum.   "Document Date
+    gi_bapi_gm_head-pstng_date    = sy-datum.   "Posting Date
+    gi_bapi_gm_item-batch         = <gi_ztmm_marc_inv_da>-lot.
+
+    PERFORM get_values.
+    IF gw_skip <> 'X'.
+
+****  Post BAPI
+      PERFORM post_record.
+    ENDIF.
+
+    CLEAR gi_final.
+    MOVE-CORRESPONDING  <gi_ztmm_marc_inv_da> TO gi_final.
+    MODIFY ztmm_marc_inv_da FROM gi_final.
+  ENDLOOP.
+
+
+ENDFORM.                    " PROCESS_ROW
+*&---------------------------------------------------------------------*
+*&      Form  POST_BAPI
+*&---------------------------------------------------------------------*
+*       Post Bapi
+*----------------------------------------------------------------------*
+FORM post_bapi .
+  IF gt_bapi_gm_item IS NOT INITIAL.
+***Test Run**
+    PERFORM test_run_bapi.
+    IF gt_bapi_gm_item IS NOT INITIAL.
+      CALL FUNCTION 'BAPI_GOODSMVT_CREATE'
+        EXPORTING
+          goodsmvt_header  = gi_bapi_gm_head
+          goodsmvt_code    = gi_bapi_gm_code
+        IMPORTING
+          materialdocument = gw_mblnr
+          matdocumentyear  = gw_mjahr
+        TABLES
+          goodsmvt_item    = gt_bapi_gm_item
+          return           = gt_bapi_return.
+      IF gw_mblnr IS NOT INITIAL.
+
+        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+          EXPORTING
+            wait = gc_x.
+        gw_input_status_tab = 'C'.
+        <gi_ztmm_marc_inv_da>-process_status = 'C'.
+        <gi_ztmm_marc_inv_da>-fail_step = '10'.
+        <gi_ztmm_marc_inv_da>-fail_step_descrin   =  'FIle Processed successfuly' .
+        <gi_ztmm_marc_inv_da>-reason = ' '.
+        <gi_ztmm_marc_inv_da>-mat_doc = gw_mblnr.
+        PERFORM multi_table_update.
+        "" Delete Entries when SAP Error Reprocessing is successful
+        MOVE-CORRESPONDING <gi_ztmm_marc_inv_da> TO gi_ztmm_marc_inv_err.
+        gi_ztmm_marc_inv_err-seq_no = <gi_ztmm_marc_inv_da>-rec_seq.
+        DELETE ztmm_marc_inv_er FROM  gi_ztmm_marc_inv_err.
+      ELSE.
+        READ TABLE gt_bapi_return INTO gi_bapi_return WITH KEY type = 'E'.
+        IF sy-subrc = 0.
+          CONCATENATE gi_bapi_return-id gi_bapi_return-number INTO gw_bapi_error.
+          <gi_ztmm_marc_inv_da>-msg_id_num = gw_bapi_error.
+          IF gw_bapi_error IN s_return.
+            CALL FUNCTION 'BAPI_MESSAGE_GETDETAIL'
+              EXPORTING
+                id         = gi_bapi_return-id
+                number     = gi_bapi_return-number
+                language   = sy-langu
+                textformat = space
+                message_v1 = gi_bapi_return-message_v1
+                message_v2 = gi_bapi_return-message_v2
+                message_v3 = gi_bapi_return-message_v3
+                message_v4 = gi_bapi_return-message_v4
+              IMPORTING
+                message    = gw_message.
+
+            gw_input_status_tab  = 'E'.
+            gw_error_type_tab    = 'SAP'.
+            <gi_ztmm_marc_inv_da>-process_status = 'E'.
+            <gi_ztmm_marc_inv_da>-fail_step = '10'.
+            <gi_ztmm_marc_inv_da>-reason  = gw_message.
+            PERFORM multi_table_update.
+
+            IF gt_ztmm_marc_inv_err IS NOT INITIAL.
+              MODIFY ztmm_marc_inv_er FROM TABLE gt_ztmm_marc_inv_err.
+            ENDIF.
+          ELSE.
+            CALL FUNCTION 'BAPI_MESSAGE_GETDETAIL'
+              EXPORTING
+                id         = gi_bapi_return-id
+                number     = gi_bapi_return-number
+                language   = sy-langu
+                textformat = space
+                message_v1 = gi_bapi_return-message_v1
+                message_v2 = gi_bapi_return-message_v2
+                message_v3 = gi_bapi_return-message_v3
+                message_v4 = gi_bapi_return-message_v4
+              IMPORTING
+                message    = gw_message.
+
+            gw_input_status_tab  = 'E'.
+            gw_error_type_tab    = 'MARC'.
+            <gi_ztmm_marc_inv_da>-process_status = 'M'.
+            <gi_ztmm_marc_inv_da>-fail_step = '10'.
+            <gi_ztmm_marc_inv_da>-reason  = gw_message.
+            PERFORM multi_table_update.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+      CLEAR: gw_mblnr,gw_mjahr."
+      FREE: gt_bapi_gm_item,gt_bapi_return.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " POST_BAPI
+*&---------------------------------------------------------------------*
+*&      Form  TEST_RUN_BAPI
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM test_run_bapi .
+  IF gt_bapi_gm_item IS NOT INITIAL.
+    CALL FUNCTION 'BAPI_GOODSMVT_CREATE'
+      EXPORTING
+        goodsmvt_header  = gi_bapi_gm_head
+        goodsmvt_code    = gi_bapi_gm_code
+        testrun          = 'X'
+      IMPORTING
+        materialdocument = gw_mblnr
+        matdocumentyear  = gw_mjahr
+      TABLES
+        goodsmvt_item    = gt_bapi_gm_item
+        return           = gt_bapi_return.
+
+    IF gt_bapi_return IS NOT INITIAL.
+      READ TABLE gt_bapi_return INTO gi_bapi_return WITH KEY type = 'E'.
+      IF sy-subrc = 0.
+        CONCATENATE gi_bapi_return-id gi_bapi_return-number INTO gw_bapi_error.
+        <gi_ztmm_marc_inv_da>-msg_id_num = gw_bapi_error.
+        IF gw_bapi_error IN s_return.
+          CALL FUNCTION 'BAPI_MESSAGE_GETDETAIL'
+            EXPORTING
+              id         = gi_bapi_return-id
+              number     = gi_bapi_return-number
+              language   = sy-langu
+              textformat = space
+              message_v1 = gi_bapi_return-message_v1
+              message_v2 = gi_bapi_return-message_v2
+              message_v3 = gi_bapi_return-message_v3
+              message_v4 = gi_bapi_return-message_v4
+            IMPORTING
+              message    = gw_message.
+
+          gw_reject_reason_tab = gw_message.
+          gw_input_status_tab  = 'E'.
+          gw_error_type_tab    = 'SAP'.
+          <gi_ztmm_marc_inv_da>-process_status = 'E'.
+          <gi_ztmm_marc_inv_da>-fail_step = '10'.
+          <gi_ztmm_marc_inv_da>-reason  = gw_message.
+          PERFORM multi_table_update.
+        ELSE.
+          CALL FUNCTION 'BAPI_MESSAGE_GETDETAIL'
+            EXPORTING
+              id         = gi_bapi_return-id
+              number     = gi_bapi_return-number
+              language   = sy-langu
+              textformat = space
+              message_v1 = gi_bapi_return-message_v1
+              message_v2 = gi_bapi_return-message_v2
+              message_v3 = gi_bapi_return-message_v3
+              message_v4 = gi_bapi_return-message_v4
+            IMPORTING
+              message    = gw_message.
+
+          gw_reject_reason_tab = gw_message.
+          gw_input_status_tab  = 'E'.
+          gw_error_type_tab    = 'MARC'.
+          <gi_ztmm_marc_inv_da>-process_status = 'M'.
+          <gi_ztmm_marc_inv_da>-fail_step = '10'.
+          <gi_ztmm_marc_inv_da>-reason  = gw_message.
+          PERFORM multi_table_update.
+        ENDIF.
+        REFRESH: gt_bapi_gm_item,gt_bapi_return.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " TEST_RUN_BAPI
+*&---------------------------------------------------------------------*
+*&      Form  SEC_ALV
+*&---------------------------------------------------------------------*
+*       Display ALV
+*----------------------------------------------------------------------*
+FORM sec_alv .
+  DATA: lw_layout    TYPE slis_layout_alv.
+  lw_layout-colwidth_optimize = 'X'.
+  lw_layout-zebra             = 'X'.
+  PERFORM build_cat USING: 'FILE_NAME' 'File Name' '50' '0' CHANGING gt_fieldcat_n,
+                           'TRAN_NO'       'Transaction Number' '15' '1' CHANGING gt_fieldcat_n,
+                           'REC_SEQ'       'Record sequence'    '6'  '2' CHANGING gt_fieldcat_n,
+                           'FAIL_STEP'      'Failed Step'      '10' '3' CHANGING gt_fieldcat,
+                           'FAIL_STEP_DESCRIN' 'Failed Step Description' '50' '4' CHANGING gt_fieldcat_n,
+                           'REASON' 'Failed Reason' '100' '5' CHANGING gt_fieldcat_n,
+                           'SKU'            'Material'         '18' '6' CHANGING gt_fieldcat_n.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program       = sy-repid
+      i_callback_pf_status_set = 'SUB_PF_STATUS1'
+      is_layout                = lw_layout
+      it_fieldcat              = gt_fieldcat_n
+      i_save                   = 'X'
+    TABLES
+      t_outtab                 = gt_new
+    EXCEPTIONS
+      program_error            = 1
+      OTHERS                   = 2.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+ENDFORM.                    " SEC_ALV
+*&---------------------------------------------------------------------*
+*&      Form  sub_pf_status
+*&---------------------------------------------------------------------*
+FORM sub_pf_status1 USING rt_extab TYPE slis_t_extab..
+  SET PF-STATUS 'ZSTANDARD' EXCLUDING '&SAVE'.
+ENDFORM.                    "sub_pf_status
+*&---------------------------------------------------------------------*
+*&      Form  PRINT_SMARTFORM
+*&---------------------------------------------------------------------*
+*       Print And Mail logic
+*----------------------------------------------------------------------*
+FORM print_smartform .
+
+****    Get Printer & mail details
+
+  IF p_code IS NOT INITIAL.
+    SELECT SINGLE * FROM ztmm_marc_print INTO gi_marc_print
+      WHERE interface = 'INVENTORY'
+      AND   comp_code = p_code.
+    IF sy-subrc <> 0.
+      MESSAGE TEXT-017 TYPE 'E'.
+    ENDIF.
+  ENDIF.
+
+  IF p_print IS NOT INITIAL.
+    IF gt_error_marc_smf[] IS NOT INITIAL.
+      SORT gt_error_marc_smf BY tran_seq_no comp_code disc_no.
+
+****  Calling FM Name for Smartforrm
+      CALL FUNCTION 'SSF_FUNCTION_MODULE_NAME'
+        EXPORTING
+          formname           = gc_formname
+        IMPORTING
+          fm_name            = gw_fmname
+        EXCEPTIONS
+          no_form            = 1
+          no_function_module = 2
+          OTHERS             = 3.
+
+      gi_ssfctrlop-device    = 'PRINTER'.
+      gi_ssfctrlop-no_dialog = 'X'.
+
+      gi_ssfcompop-tddest    = gi_marc_print-printer.
+      gi_ssfcompop-tdnoprint = 'X'.
+      gi_ssfcompop-tdimmed   = 'X'.
+      gi_ssfcompop-tdnewid   = 'X'.
+      gi_ssfcompop-tdarmod   = '1'.
+      gi_ssfcompop-tdcopies  = '001'.
+      gi_ssfcompop-rqposname = TEXT-036.
+
+
+      CALL FUNCTION gw_fmname
+        EXPORTING
+          control_parameters = gi_ssfctrlop
+          output_options     = gi_ssfcompop
+          user_settings      = ' '
+          gt_marc_inv_error  = gt_error_marc_smf
+        IMPORTING
+          job_output_info    = gi_ssfcrescl
+        EXCEPTIONS
+          formatting_error   = 1
+          internal_error     = 2
+          send_error         = 3
+          user_canceled      = 4
+          OTHERS             = 5.
+    ENDIF.
+  ENDIF.
+  IF p_mail IS NOT INITIAL.
+    PERFORM send_mail_att.
+  ENDIF.
+ENDFORM.                    " PRINT_SMARTFORM
+*&---------------------------------------------------------------------*
+*&      Form  GET_MOVTYPE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_movtype .
+*****Transformations****
+  CLEAR: gi_ztmm_marc_trans.
+  READ TABLE gt_ztmm_marc_trans INTO gi_ztmm_marc_trans WITH KEY type_adj  = gw_type_adj
+                                                                 qty_adj_sign = <gi_ztmm_marc_inv_da>-qty_adj_sign."gw_qty_adj_sign.
+  IF sy-subrc = 0.
+    gi_bapi_gm_item-move_type     = gi_ztmm_marc_trans-bwart.  "Movement Type
+    gi_bapi_gm_item-move_reas     = gi_ztmm_marc_trans-grund.  "Reason for Goods movement
+    gi_bapi_gm_item-stge_loc      = gi_ztmm_marc_trans-src_lgort.  "Source Storage Location
+    gi_bapi_gm_item-move_stloc    = gi_ztmm_marc_trans-des_lgort.  "Target Storage Location
+    gi_bapi_gm_code-gm_code       = gi_ztmm_marc_trans-gm_code.  "GM_CODE
+  ELSE.
+****Process the record to error report***
+    gw_input_status_tab = 'E'.
+    gw_error_type_tab    = 'MARC'.
+    CONCATENATE TEXT-034 gw_type_adj  TEXT-035 gw_qty_adj_sign TEXT-012
+    INTO gw_reject_reason_tab SEPARATED BY space.
+    <gi_ztmm_marc_inv_da>-process_status = 'M'.
+    <gi_ztmm_marc_inv_da>-fail_step    = '10'.
+    <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+    PERFORM multi_table_update.
+    CLEAR: gi_bapi_gm_item.
+    gw_skip = 'X'.
+  ENDIF.
+ENDFORM.                    " GET_MOVTYPE
+*&---------------------------------------------------------------------*
+*&      Form  GET_MATERIAL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_material .
+  DATA: lw_matnr   TYPE matnr,
+        lw_plant   TYPE werks_d, "USPRADI DE3K9A0DSH on 02.06.2022
+        lw_zzaltmn TYPE zaltmn.
+
+
+  lw_zzaltmn =  <gi_ztmm_marc_inv_da>-sku.  "SKU
+** Begin of changes by USPRADI DE3K9A0DSH on 02.06.2022
+  CLEAR:gi_ztuhcd1.
+  READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY name = 'MARC_INTERFACE'
+                                                 zkey = ''
+                                                 field = 'WERKS'
+                                                 high  = p_code.   "COMP_CODE
+  IF sy-subrc = 0.
+    lw_plant = gi_ztuhcd1-low.
+  ENDIF.
+*          CALL FUNCTION 'ZMM_MARC_ALT_MAT_CONV_FM'
+*            EXPORTING
+*              im_matnum     = lw_zzaltmn
+*            IMPORTING
+*              ex_matnr      = gw_matnr
+*              ex_zzaltmn    = gw_zzaltmn
+*              ex_found      = gw_flag
+*              ex_alt_length = gw_strln
+*              ex_switch     = gw_switch.
+
+  CALL FUNCTION 'ZMM_MARC_ALT_MAT_CONV_FM'
+    EXPORTING
+      im_matnum      = lw_zzaltmn
+      im_werks       = lw_plant
+      im_mat_type    = gw_marc_print-rfc
+    IMPORTING
+      ex_matnr       = gw_matnr
+      ex_alt_lmt     = gw_zzaltmn
+      ex_found       = gw_flag
+      ex_alt_lmt_len = gw_strln.
+** End of changes by USPRADI DE3K9A0DSH on 02.06.2022
+  IF gw_switch = 'ON'.
+    IF gw_flag EQ 'X'.
+      IF gw_zzaltmn IS NOT INITIAL.
+        IF  gw_strln LE 20.
+          gi_bapi_gm_item-material      = gw_matnr.
+        ELSE.
+****Process the record to error report***    ???
+          gw_input_status_tab  = 'E'.
+          gw_error_type_tab    = 'MARC'.
+          gw_reject_reason_tab = TEXT-046.
+          CONCATENATE gw_reject_reason_tab ':' lw_zzaltmn INTO gw_reject_reason_tab.
+          <gi_ztmm_marc_inv_da>-process_status = 'M'.
+          <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+          PERFORM multi_table_update.
+          gw_skip = 'X'.
+        ENDIF.
+      ELSE.
+        gi_bapi_gm_item-material      = gw_matnr.  "SKU
+      ENDIF.
+    ELSE.
+****Process the record to error report***    ???
+      gw_input_status_tab  = 'E'.
+      gw_error_type_tab    = 'MARC'.
+      gw_reject_reason_tab = TEXT-047.
+      CONCATENATE gw_reject_reason_tab ':' lw_zzaltmn INTO gw_reject_reason_tab.
+      <gi_ztmm_marc_inv_da>-process_status = 'M'.
+      <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+      PERFORM multi_table_update.
+      gw_skip = 'X'.
+    ENDIF.
+  ELSE.
+    gi_bapi_gm_item-material      = <gi_ztmm_marc_inv_da>-sku.  "SKU
+  ENDIF.
+ENDFORM.                    " GET_MATERIAL
+*&---------------------------------------------------------------------*
+*&      Form  GET_QTY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_qty .
+  gw_value = <gi_ztmm_marc_inv_da>-qty_adj.   "QTY_ADJ
+  CALL FUNCTION 'NUMERIC_CHECK'
+    EXPORTING
+      string_in = gw_value
+    IMPORTING
+      htype     = gw_ntype.
+****Process the record to error report***
+  IF gw_ntype NE 'NUMC'.
+    gw_input_status_tab  = 'E'.
+    gw_error_type_tab    = 'MARC'.
+    gw_reject_reason_tab = TEXT-008.
+    CONCATENATE gw_reject_reason_tab ':' gw_value  INTO gw_reject_reason_tab.
+    <gi_ztmm_marc_inv_da>-process_status = 'M'.
+    <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+    PERFORM multi_table_update.
+    gw_skip = 'X'.
+  ELSE.
+    gi_bapi_gm_item-entry_qnt     = <gi_ztmm_marc_inv_da>-qty_adj.   "QTY_ADJ
+  ENDIF.
+***Validate Qty Adj Sign
+****Process the record to error report***
+  IF gw_qty_adj_sign EQ '-' OR gw_qty_adj_sign EQ ' '.
+    gw_qty_adj_sign_tab          =  <gi_ztmm_marc_inv_da>-qty_adj_sign.  "QTY_ADJ_SIGN
+  ELSE.
+    gw_input_status_tab  = 'E'.
+    gw_error_type_tab    = 'MARC'.
+    gw_reject_reason_tab = TEXT-007.
+    CONCATENATE gw_reject_reason_tab ':' gw_qty_adj_sign  INTO gw_reject_reason_tab.
+    <gi_ztmm_marc_inv_da>-process_status = 'M'.
+    <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+    PERFORM multi_table_update.
+    gw_skip = 'X'.
+  ENDIF.
+ENDFORM.                    " GET_QTY
+*&---------------------------------------------------------------------*
+*&      Form  GET_UOM
+*&------------------------------  ---------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_uom .
+
+  DATA: lw_meins TYPE meins,
+        lw_matnr TYPE matnr.
+  gw_uom_abbrev = <gi_ztmm_marc_inv_da>-uom_abbrev.  "UOM_ABBREV
+  IF gw_uom_abbrev IS NOT INITIAL.
+    CLEAR:gi_ztuhcd1.
+    READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY zkey = 'UOM'
+                                                   high  = <gi_ztmm_marc_inv_da>-uom_abbrev.  "UOM_ABBREV
+    IF sy-subrc = 0.
+      gi_bapi_gm_item-entry_uom     = gi_ztuhcd1-low.
+    ELSE.
+****Process the record to error report***    ???
+      gw_input_status_tab = 'E'.
+      gw_error_type_tab    = 'MARC'.
+      gw_reject_reason_tab  = TEXT-009.
+      CONCATENATE gw_reject_reason_tab ':' gw_uom INTO gw_reject_reason_tab.
+      <gi_ztmm_marc_inv_da>-process_status = 'M'.
+      <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+      PERFORM multi_table_update.
+      CLEAR: gi_bapi_gm_item.
+      gw_skip = 'X'.
+    ENDIF.
+  ELSE.
+    IF gi_bapi_gm_item-material IS NOT INITIAL.
+      CLEAR:lw_meins,lw_matnr.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+        EXPORTING
+          input        = gi_bapi_gm_item-material
+        IMPORTING
+          output       = lw_matnr
+        EXCEPTIONS
+          length_error = 1
+          OTHERS       = 2.
+      IF sy-subrc = 0.
+* Implement suitable error handling here
+        SELECT SINGLE meins
+          INTO lw_meins
+          FROM mara
+          WHERE matnr = lw_matnr.
+        IF sy-subrc = 0.
+          gi_bapi_gm_item-entry_uom     = lw_meins.  "UOM_ABBREV
+        ELSE.
+****Process the record to error report***    ???
+          gw_input_status_tab = 'E'.
+          gw_error_type_tab    = 'MARC'.
+          gw_reject_reason_tab  = TEXT-014.
+          <gi_ztmm_marc_inv_da>-process_status = 'M'.
+          <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+          PERFORM multi_table_update.
+          CLEAR: gi_bapi_gm_item.
+          gw_skip = 'X'.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " GET_UOM
+*&---------------------------------------------------------------------*
+*&      Form  GET_PLANT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_plant .
+  CLEAR:gi_ztuhcd1.
+  READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY field = 'WERKS'
+                                                 high  = <gi_ztmm_marc_inv_da>-comp_code.   "COMP_CODE
+  IF sy-subrc = 0.
+    gi_bapi_gm_item-plant         = gi_ztuhcd1-low.
+  ELSE.
+****Process the record to error report***
+    gw_input_status_tab = 'E'.
+    gw_error_type_tab    = 'MARC'.
+    gw_reject_reason_tab = TEXT-010.
+    <gi_ztmm_marc_inv_da>-process_status = 'M'.
+    <gi_ztmm_marc_inv_da>-fail_step     = '10'.
+    <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+    PERFORM multi_table_update.
+    CLEAR: gi_bapi_gm_item.
+    gw_skip = 'X'.
+  ENDIF.
+ENDFORM.                    " GET_PLANT
+*&---------------------------------------------------------------------*
+*&      Form  GET_LOT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM get_lot .
+  DATA: lw_xchpf TYPE char1,
+        lw_char  TYPE string,
+        lw_error TYPE char1.
+  gw_lot = <gi_ztmm_marc_inv_da>-lot. "LOT
+  IF gi_bapi_gm_item-plant IS NOT INITIAL AND gi_bapi_gm_item-material IS NOT INITIAL.
+    SELECT SINGLE xchpf
+      INTO lw_xchpf
+      FROM marc
+      WHERE matnr = gi_bapi_gm_item-material
+      AND   werks = gi_bapi_gm_item-plant.
+    IF sy-subrc = 0.
+      IF lw_xchpf = 'X'.
+        IF gw_lot IS NOT INITIAL.
+***IF BATCH contains NO-LOT
+          IF gw_lot CS 'NO-LOT'.
+****Process the record to error report***
+            gw_input_status_tab  = 'E'.
+            gw_error_type_tab    = 'MARC'.
+            gw_reject_reason_tab = TEXT-042.
+            <gi_ztmm_marc_inv_da>-process_status = 'M'.
+            <gi_ztmm_marc_inv_da>-fail_step = '10'.
+            <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+            PERFORM multi_table_update.
+            CLEAR: gi_bapi_gm_item.
+            gw_skip = 'X'.
+          ELSE.
+***IF BATCH contains Special Characters
+            CLEAR: lw_char,lw_error.
+            CALL FUNCTION 'CHECK_STRING_SPEC_CHARACTERS'
+              EXPORTING
+                string    = gw_lot
+              IMPORTING
+                character = lw_char
+                errorflag = lw_error.
+            IF lw_error IS NOT INITIAL.
+****Process the record to error report***
+              gw_input_status_tab  = 'E'.
+              gw_error_type_tab    = 'MARC'.
+              gw_reject_reason_tab = TEXT-043.
+              CONCATENATE TEXT-043 ':' gw_lot INTO gw_reject_reason_tab.
+              <gi_ztmm_marc_inv_da>-process_status = 'M'.
+              <gi_ztmm_marc_inv_da>-fail_step      = '10'.
+              <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+              PERFORM multi_table_update.
+              CLEAR: gi_bapi_gm_item.
+              gw_skip = 'X'.
+            ELSE.
+              gi_bapi_gm_item-batch         = <gi_ztmm_marc_inv_da>-lot. "LOT
+            ENDIF.
+          ENDIF.
+        ELSE.
+****Process the record to error report***
+          gw_input_status_tab  = 'E'.
+          gw_error_type_tab    = 'MARC'.
+          gw_reject_reason_tab = TEXT-040.
+          <gi_ztmm_marc_inv_da>-process_status = 'M'.
+          <gi_ztmm_marc_inv_da>-fail_step      = '10'.
+          <gi_ztmm_marc_inv_da>-reason = gw_reject_reason_tab.
+          PERFORM multi_table_update.
+          CLEAR: gi_bapi_gm_item.
+          gw_skip = 'X'.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " GET_LOT
+*&---------------------------------------------------------------------*
+*&      Form  SEND_MAIL_ATT
+*&---------------------------------------------------------------------*
+FORM send_mail_att .
+  DATA: lo_send_request   TYPE REF TO cl_bcs,
+        lo_document       TYPE REF TO cl_document_bcs,
+        lo_sender         TYPE REF TO if_sender_bcs,
+        lo_recipient      TYPE REF TO if_recipient_bcs VALUE IS INITIAL,
+        lo_recipient1     TYPE REF TO if_recipient_bcs VALUE IS INITIAL,
+        lt_msg_body       TYPE bcsy_text,
+        li_msg_body       TYPE soli,
+        lx_document_bcs   TYPE REF TO cx_document_bcs,
+        lv_sent_to_all    TYPE os_boolean,
+        lv_subject        TYPE so_obj_des,
+        lv_att_sub        TYPE so_obj_des,
+        in_mailid         TYPE ad_smtpadr,
+        in_mailid1        TYPE ad_smtpadr,
+        v_message(100),
+        lcl_bcs_exception TYPE REF TO cx_bcs.
+
+  IF gt_error_marc_smf[] IS NOT INITIAL.
+    SORT gt_error_marc_smf BY tran_seq_no comp_code disc_no.
+****    Get Printer & mail details
+****  Calling FM Name for Smartforrm
+    CALL FUNCTION 'SSF_FUNCTION_MODULE_NAME'
+      EXPORTING
+        formname           = gc_formname
+      IMPORTING
+        fm_name            = gw_fmname
+      EXCEPTIONS
+        no_form            = 1
+        no_function_module = 2
+        OTHERS             = 3.
+
+    gi_ssfctrlop-no_dialog = 'X'.
+    gi_ssfctrlop-getotf    = 'X'.
+
+    gi_ssfcompop-tdnoprint = 'X'.
+    gi_ssfcompop-tdimmed   = 'X'.
+    gi_ssfcompop-tdnewid   = 'X'.
+    gi_ssfcompop-tdarmod   = '1'.
+    gi_ssfcompop-tdcopies  = '001'.
+    gi_ssfcompop-rqposname = TEXT-036.
+
+    CALL FUNCTION gw_fmname
+      EXPORTING
+        control_parameters = gi_ssfctrlop
+        output_options     = gi_ssfcompop
+        user_settings      = ' '
+        gt_marc_inv_error  = gt_error_marc_smf
+      IMPORTING
+        job_output_info    = gi_ssfcrescl.
+** Begin of code comment by USPRADI DE3K9A0DQE on 31.05.2022
+*  ENDIF.
+** End of code comment by USPRADI DE3K9A0DQE on 31.05.2022
+    gt_otf = gi_ssfcrescl-otfdata[].
+**** Convert OTF to PDF
+    CALL FUNCTION 'CONVERT_OTF'
+      EXPORTING
+        format                = 'PDF'
+        max_linewidth         = 132
+      IMPORTING
+        bin_filesize          = gv_len_in
+        bin_file              = gi_xstring   " This is NOT Binary. This is Hexa
+      TABLES
+        otf                   = gt_otf
+        lines                 = gt_tline
+      EXCEPTIONS
+        err_max_linewidth     = 1
+        err_format            = 2
+        err_conv_not_possible = 3
+        OTHERS                = 4.
+
+* Convert Hexa String to Binary format
+    CALL FUNCTION 'SCMS_XSTRING_TO_BINARY'
+      EXPORTING
+        buffer     = gi_xstring
+      TABLES
+        binary_tab = gt_objbin[].
+    IF p_mail IS NOT INITIAL AND p_mailid IS NOT INITIAL.
+      in_mailid = p_mailid.
+    ELSE.
+      in_mailid  = gi_marc_print-marc_mail.
+      in_mailid1 = gi_marc_print-mail.
+    ENDIF.
+    TRY .
+        "create send request
+        lo_send_request = cl_bcs=>create_persistent( ).
+
+        "create message body and subject
+        li_msg_body-line = TEXT-024.
+        APPEND li_msg_body TO lt_msg_body.
+        APPEND INITIAL LINE TO lt_msg_body.
+        APPEND INITIAL LINE TO lt_msg_body.
+        APPEND INITIAL LINE TO lt_msg_body.
+        li_msg_body-line = TEXT-025.
+        APPEND li_msg_body TO lt_msg_body.
+        APPEND INITIAL LINE TO lt_msg_body.
+        APPEND INITIAL LINE TO lt_msg_body.
+        APPEND INITIAL LINE TO lt_msg_body.
+        APPEND INITIAL LINE TO lt_msg_body.
+        li_msg_body-line = TEXT-020.
+        APPEND li_msg_body TO lt_msg_body.
+        li_msg_body-line = TEXT-021.
+        APPEND li_msg_body TO lt_msg_body.
+        li_msg_body-line = TEXT-022.
+        APPEND li_msg_body TO lt_msg_body.
+        li_msg_body-line = TEXT-023.
+        APPEND li_msg_body TO lt_msg_body.
+
+        lv_subject = TEXT-026.
+        "put your text into the document
+        lo_document = cl_document_bcs=>create_document(
+        i_type = 'RAW'
+        i_text = lt_msg_body
+        i_subject = lv_subject ).
+
+        lv_att_sub = TEXT-027.
+        TRY.
+            lo_document->add_attachment(
+            EXPORTING
+            i_attachment_type = 'PDF'
+            i_attachment_subject = lv_att_sub
+            i_att_content_hex = gt_objbin[] ).
+          CATCH cx_document_bcs INTO lx_document_bcs.
+        ENDTRY.
+
+* Add attachment
+* Pass the document to send request
+        lo_send_request->set_document( lo_document ).
+
+        "Create sender
+        lo_sender = cl_sapuser_bcs=>create( sy-uname ).
+
+        "Set sender
+        lo_send_request->set_sender( lo_sender ).
+
+        "Create recipient
+        IF in_mailid IS NOT INITIAL. "USPRADI DE3K9A0E6F 17.06.2022
+          lo_recipient = cl_cam_address_bcs=>create_internet_address( in_mailid ).
+
+*Set recipient
+          lo_send_request->add_recipient(
+          EXPORTING
+          i_recipient = lo_recipient
+          i_express = abap_true
+          ).
+        ENDIF. "USPRADI DE3K9A0E6F 17.06.2022
+*      Recipient2
+        IF in_mailid1 IS NOT INITIAL. "USPRADI DE3K9A0E6F 17.06.2022
+          lo_recipient1 = cl_cam_address_bcs=>create_internet_address( in_mailid1 ).
+
+*Set recipient
+          lo_send_request->add_recipient(
+          EXPORTING
+          i_recipient = lo_recipient1
+          i_express = abap_true
+          ).
+        ENDIF. "USPRADI DE3K9A0E6F 17.06.2022
+        lo_send_request->add_recipient( lo_recipient1 ).
+
+* Send email
+        lo_send_request->send(
+        EXPORTING
+        i_with_error_screen = abap_true
+        RECEIVING
+        result = lv_sent_to_all ).
+
+      CATCH cx_bcs INTO lcl_bcs_exception.
+        v_message = lcl_bcs_exception->get_text( ).
+** Begin of changes by USPRADI DE3K9A0DQE on 31.05.2022
+*        MESSAGE e119 WITH v_message.
+        MESSAGE e119(zmm) WITH v_message.
+** End of changes by USPRADI DE3K9A0DQE on 31.05.2022
+    ENDTRY.
+
+* Commit Work to send the email
+    COMMIT WORK.
+** Begin of changes by USPRADI DE3K9A0DQE on 31.05.2022
+  ENDIF.
+** End of changes by USPRADI DE3K9A0DQE on 31.05.2022
+ENDFORM.                    " SEND_MAIL_ATT
+*&---------------------------------------------------------------------*
+*&      Form  GET_VALUES
+*&---------------------------------------------------------------------*
+FORM get_values .
+*     get movement type
+  PERFORM get_movtype.
+
+***Passing Alternative Material Number
+  PERFORM get_material.
+
+
+*****Quantity has Non-Numeric Values
+  PERFORM get_qty.
+
+*****Unit Of Measure***
+  PERFORM get_uom.
+****Plant***
+
+  PERFORM get_plant.
+
+*****LOT - Batch Number***
+  PERFORM get_lot.
+
+  IF gw_skip <> 'X'.
+
+    APPEND gi_bapi_gm_item TO gt_bapi_gm_item.
+
+  ENDIF.
+ENDFORM.                    " GET_VALUES
+*&---------------------------------------------------------------------*
+*&      Form  POST_RECORD
+*&---------------------------------------------------------------------*
+FORM post_record .
+
+  IF <gi_ztmm_marc_inv_da>-fail_step LE '10'.
+    PERFORM post_bapi.
+  ENDIF.
+  MOVE-CORRESPONDING <gi_ztmm_marc_inv_da> TO gi_final.
+  MOVE-CORRESPONDING <gi_ztmm_marc_inv_da> TO gi_new.
+  APPEND gi_final TO gt_final.
+  APPEND gi_new TO gt_new.
+  CLEAR: gi_final,gi_new.
+
+ENDFORM.                    " POST_RECORD
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_FILE_TABLE
+*&---------------------------------------------------------------------*
+FORM update_file_table .
+
+
+  DATA:li_ztmm_marc_inv_fn TYPE ztmm_marc_inv_fn,
+       li_ztmm_marc_file   TYPE ztmm_marc_file,
+       lt_marc_inv_fn      TYPE STANDARD TABLE OF ztmm_marc_inv_fn,
+       li_marc_inv_fn      TYPE ztmm_marc_inv_fn,
+       lv_tran_seq_no      TYPE ztran_seq_no,
+       lw_startdate	       TYPE btcxdate,
+       lw_starttime  	     TYPE btcxtime,
+       lw_enddate	         TYPE btcxdate,
+       lw_endtime	         TYPE btcxtime,
+       lw_duration         TYPE  ltak_istwm.
+
+  SELECT SINGLE
+  jobname
+  jobcount
+  strtdate
+  strttime
+  enddate
+  endtime
+    INTO gi_tbtco
+    FROM tbtco
+    WHERE jobname  = p_bgname
+    AND   jobcount = p_bgno.
+  IF sy-subrc = 0.
+    lw_startdate   = gi_tbtco-strtdate.
+    li_ztmm_marc_inv_fn-startdate   = gi_tbtco-strtdate.
+    lw_starttime   = gi_tbtco-strttime.
+    li_ztmm_marc_inv_fn-starttime   = gi_tbtco-strttime.
+    li_ztmm_marc_inv_fn-enddate     = sy-datum.
+    lw_enddate     = li_ztmm_marc_inv_fn-enddate .
+    li_ztmm_marc_inv_fn-endtime     = sy-uzeit.
+    lw_endtime     = li_ztmm_marc_inv_fn-endtime.
+
+**** Calculating the duration b/w time
+    CALL FUNCTION 'L_TO_TIME_DIFF'
+      EXPORTING
+        i_start_date     = lw_startdate
+        i_start_time     = lw_starttime
+        i_end_date       = lw_enddate
+        i_end_time       = lw_endtime
+        i_time_uom       = 'SEC'
+      IMPORTING
+        e_time_diff      = lw_duration
+      EXCEPTIONS
+        input_data_empty = 1
+        OTHERS           = 2.
+
+    IF sy-subrc = 0.
+* Implement suitable error handling here
+      li_ztmm_marc_inv_fn-duration     = lw_duration.
+    ENDIF.
+  ENDIF.
+
+  IF li_ztmm_marc_inv_fn IS NOT INITIAL.
+    UPDATE ztmm_marc_inv_fn SET status      = 'C'
+                               enddate     = li_ztmm_marc_inv_fn-enddate
+                               endtime     = li_ztmm_marc_inv_fn-endtime
+                               duration    = li_ztmm_marc_inv_fn-duration
+                           WHERE  data_type   = p_type
+                           AND    tran_seq_no = p_seq
+                           AND    file_name   = p_file
+                           AND    comp_code   = p_code.
+    IF sy-subrc EQ 0.
+
+      lv_tran_seq_no                =  p_seq.
+      li_ztmm_marc_file-data_type   =  p_type.
+      WRITE lv_tran_seq_no TO li_ztmm_marc_file-tran_seq_no.
+      li_ztmm_marc_file-comp_code   = p_code.
+      li_ztmm_marc_file-create_date = sy-datum.
+      li_ztmm_marc_file-create_time = sy-uzeit.
+      li_ztmm_marc_file-create_user = sy-uname.
+      li_ztmm_marc_file-status      = 'C'.
+
+      IF li_ztmm_marc_file IS NOT INITIAL.
+        MODIFY ztmm_marc_file FROM li_ztmm_marc_file.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+  CLEAR: li_ztmm_marc_inv_fn.
+
+ENDFORM.                    " UPDATE_FILE_TABLE
+*&---------------------------------------------------------------------*
+*&      Form  MODIFY_SCREEN
+*&---------------------------------------------------------------------*
+FORM modify_screen .
+  LOOP AT SCREEN.
+    IF screen-name = 'P_TYPE'.
+      screen-input = 0.
+      MODIFY SCREEN.
+    ENDIF.
+  ENDLOOP.
+  LOOP AT SCREEN.
+    CASE screen-group1.
+      WHEN 'AAA'.
+        IF p_new = 'X'.
+          screen-input = 1.
+          screen-active = '0'.
+          screen-invisible = 0.
+        ENDIF.
+      WHEN 'CCC'.
+        IF p_mail = 'X'.
+          screen-active = 1.
+        ELSE.
+          screen-active = 0.
+        ENDIF.
+    ENDCASE.
+    MODIFY SCREEN.
+  ENDLOOP.
+ENDFORM.                    " MODIFY_SCREEN
+*&---------------------------------------------------------------------*
+*&      Form  MULTI_TABLE_UPDATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM multi_table_update .
+  DATA: li_ztmm_marc_inv_fl TYPE ztmm_marc_inv_fl.
+  DATA: lt_ztmm_marc_inv_da TYPE TABLE OF ztmm_marc_inv_da,
+        li_ztmm_marc_inv_da TYPE ztmm_marc_inv_da.
+  gi_ztmm_marc_inv_fl-seq_no      = <gi_ztmm_marc_inv_da>-rec_seq.
+  gi_ztmm_marc_inv_fl-tran_no     = <gi_ztmm_marc_inv_da>-tran_no.
+  gi_ztmm_marc_inv_fl-tran_seq_no = <gi_ztmm_marc_inv_da>-tran_seq_no.
+  gi_ztmm_marc_inv_fl-data_type   = <gi_ztmm_marc_inv_da>-data_type.
+  gi_ztmm_marc_inv_fl-comp_code   = <gi_ztmm_marc_inv_da>-comp_code.
+  gi_ztmm_marc_inv_fl-disc_no     = <gi_ztmm_marc_inv_da>-disc_no.
+  gi_ztmm_marc_inv_fl-mat_doc       = gw_mblnr.
+  gi_ztmm_marc_inv_fl-input_status  = gw_input_status_tab.
+  gi_ztmm_marc_inv_fl-record_date   = sy-datum.
+  gi_ztmm_marc_inv_fl-record_time   = sy-uzeit.
+  gi_ztmm_marc_inv_fl-record_user   = sy-uname.
+  gi_ztmm_marc_inv_fl-reject_reason = gw_reject_reason_tab.
+  gi_ztmm_marc_inv_fl-error_type    = gw_error_type_tab.
+
+**If entry is available in FL table then update orelse modify
+
+  SELECT SINGLE * INTO li_ztmm_marc_inv_fl FROM ztmm_marc_inv_fl
+   WHERE tran_no = <gi_ztmm_marc_inv_da>-tran_no
+  AND tran_seq_no = <gi_ztmm_marc_inv_da>-tran_seq_no
+  AND seq_no      = <gi_ztmm_marc_inv_da>-rec_seq
+  AND data_type   = <gi_ztmm_marc_inv_da>-data_type
+  AND comp_code   = <gi_ztmm_marc_inv_da>-comp_code
+  AND disc_no     = <gi_ztmm_marc_inv_da>-disc_no.
+
+  IF sy-subrc = 0.
+    IF gw_mblnr IS NOT INITIAL OR li_ztmm_marc_inv_fl-mat_doc IS NOT INITIAL.
+      IF li_ztmm_marc_inv_fl-mat_doc IS NOT INITIAL.
+        CONCATENATE li_ztmm_marc_inv_fl-mat_doc '/' gw_mblnr INTO li_ztmm_marc_inv_fl-mat_doc.
+      ELSE.
+        CONCATENATE li_ztmm_marc_inv_fl-mat_doc gw_mblnr INTO li_ztmm_marc_inv_fl-mat_doc.
+      ENDIF.
+      UPDATE ztmm_marc_inv_fl SET mat_doc       = li_ztmm_marc_inv_fl-mat_doc
+                                 input_status  = gw_input_status_tab
+                                 change_date   = sy-datum
+                                 change_time   = sy-uzeit
+                                 change_user   = sy-uname
+                                 reject_reason = gw_reject_reason_tab
+                                 error_type    = gw_error_type_tab
+                             WHERE tran_no = <gi_ztmm_marc_inv_da>-tran_no
+                              AND tran_seq_no = <gi_ztmm_marc_inv_da>-tran_seq_no
+                              AND seq_no      = <gi_ztmm_marc_inv_da>-rec_seq
+                              AND data_type   = <gi_ztmm_marc_inv_da>-data_type
+                              AND comp_code   = <gi_ztmm_marc_inv_da>-comp_code
+                              AND disc_no     = <gi_ztmm_marc_inv_da>-disc_no.
+    ELSE.
+      UPDATE ztmm_marc_inv_fl SET input_status  = gw_input_status_tab
+                                change_date   = sy-datum
+                                change_time   = sy-uzeit
+                                change_user   = sy-uname
+                                reject_reason = gw_reject_reason_tab
+                                error_type    = gw_error_type_tab
+                            WHERE tran_no = <gi_ztmm_marc_inv_da>-tran_no
+                             AND tran_seq_no = <gi_ztmm_marc_inv_da>-tran_seq_no
+                             AND seq_no      = <gi_ztmm_marc_inv_da>-rec_seq
+                             AND data_type   = <gi_ztmm_marc_inv_da>-data_type
+                             AND comp_code   = <gi_ztmm_marc_inv_da>-comp_code
+                             AND disc_no     = <gi_ztmm_marc_inv_da>-disc_no.
+    ENDIF.
+  ELSE. " FL entry is not available
+    IF gi_ztmm_marc_inv_fl IS NOT INITIAL.
+      MODIFY ztmm_marc_inv_fl FROM gi_ztmm_marc_inv_fl.
+    ENDIF.
+  ENDIF. " FL entry is available
+
+  IF gw_input_status_tab = 'E' AND gw_error_type_tab = 'MARC'.
+    gi_error_file-tran_seq_no = <gi_ztmm_marc_inv_da>-tran_seq_no.
+    gi_error_file-comp_code   = <gi_ztmm_marc_inv_da>-comp_code.
+    gi_error_file-disc_no     = <gi_ztmm_marc_inv_da>-disc_no.
+    gi_error_file-sku         = <gi_ztmm_marc_inv_da>-sku.
+    gi_error_file-qty_adj     = <gi_ztmm_marc_inv_da>-qty_adj.
+    gi_error_file-qty_adj_sign     = <gi_ztmm_marc_inv_da>-qty_adj_sign.
+    gi_error_file-lp          = <gi_ztmm_marc_inv_da>-lp.
+    gi_error_file-record_date = sy-datum.
+    gi_error_file-record_time = sy-uzeit.
+    gi_error_file-reject_reason = gw_reject_reason_tab.
+    APPEND gi_error_file TO gt_error_file.
+    MOVE-CORRESPONDING gi_error_file TO gi_error_marc.
+    MOVE-CORRESPONDING gi_error_file TO gi_error_marc_smf.
+    gi_error_marc-tran_no = <gi_ztmm_marc_inv_da>-tran_no.
+    APPEND gi_error_marc TO gt_error_marc.
+    CONCATENATE sy-timlo+0(2) ':' sy-timlo+2(2) INTO gi_error_marc_smf-record_time.
+    gi_error_marc_smf-qty_adj = <gi_ztmm_marc_inv_da>-qty_adj.
+
+    APPEND gi_error_marc_smf TO gt_error_marc_smf.
+
+  ENDIF.
+  CLEAR: gi_ztmm_marc_inv_fl,gi_error_file,gw_mblnr,gw_reject_reason_tab,gw_error_type_tab,gi_error_marc,gi_error_marc_smf.
+
+ENDFORM.                    " MULTI_TABLE_UPDATE
+*&---------------------------------------------------------------------*
+*&      Form  REFRESH_VAR
+*&---------------------------------------------------------------------*
+FORM refresh_var .
+
+  CLEAR : gt_ztmm_marc_inv_err[],gt_error_marc[],gt_error_marc_smf[],gt_final[],gt_new[],
+         gt_otf[],gt_tline[],gt_objbin[],gt_error_marc[],gt_bapi_gm_item[],gt_marc_msg_pr[],
+         gt_bapi_return[],gt_fieldcat_n[],gt_fieldcat[],gt_marc_inv_da[],gt_error_file[],gt_marc_inv_ef[],gw_skip.
+ENDFORM.                    " REFRESH_VAR
+

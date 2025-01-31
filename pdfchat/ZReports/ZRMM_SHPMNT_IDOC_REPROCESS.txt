@@ -1,0 +1,54 @@
+*&---------------------------------------------------------------------------------------------------------*
+*& Report ZRMM_SHPMNT_IDOC_REPROCESS
+*&---------------------------------------------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------------------------------------------*
+************************************************************************************************************
+* Created by            : Shweta Satle(USSHSAT1)
+* Functional            : Shital Bhellale
+* Creation Date         : 23/09/2024
+* Transport Request #   : DE3K9A0TDD
+* RICEF Object No #     : RICEF2786
+* T-Code                : ZMM2786
+* Description           : Shipment IDOC reprocessing to update shipment status
+************************************************************************************************************
+************************************************************************************************************
+* Change History
+************************************************************************************************************
+* CHANGED BY    |      DATE           | TR #       |CR No(   INCUM).             | DESCRIPTION OF CHANG
+************************************************************************************************************
+
+REPORT zrmm_shpmnt_idoc_reprocess.
+
+** Local Class declaration
+CLASS lcl_shpmnt_start DEFINITION DEFERRED.
+** Include for Global declarations
+INCLUDE znmm_shpmnt_idoc_reprocess_top.
+** Include for Selection Screen
+INCLUDE znmm_shpmnt_idoc_reprocess_sel.
+** Include for local class definition and implementation
+INCLUDE znmm_shpmnt_idoc_reprocess_cls.
+
+********Start of selection
+START-OF-SELECTION.
+  CREATE OBJECT go_shpmnt_start.
+
+  go_shpmnt_start->get_idoc_data(
+    CHANGING
+      ch_shpmnt = gt_final
+  ).
+
+  IF gt_final IS NOT INITIAL.
+    go_shpmnt_start->process_shpmnt(
+      CHANGING
+        ch_output = gt_output
+    ).
+  ENDIF.
+
+END-OF-SELECTION.
+
+  IF gt_output IS NOT INITIAL.
+    go_shpmnt_start->status_update( ).
+    go_shpmnt_start->display_output( ).
+  ENDIF.
+

@@ -1,0 +1,16 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_EKAER_001_E01
+*&---------------------------------------------------------------------*
+INITIALIZATION.
+  s_vbeln-sign = 'E'.
+  s_vbeln-option = 'CP'.
+  s_vbeln-low = '*3*'.
+  APPEND s_vbeln.
+
+AT SELECTION-SCREEN.
+  PERFORM validate_input.
+
+START-OF-SELECTION.
+  PERFORM get_data.
+  PERFORM show_data.
+

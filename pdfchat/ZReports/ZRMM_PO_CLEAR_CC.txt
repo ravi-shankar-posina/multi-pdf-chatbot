@@ -1,0 +1,40 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_PO_CLEAR_CC
+*                                                                     *
+*Clear Cost Center for PO-Account Assignment tab
+*---------------------------------------------------------------------*
+*=====================================================================*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+* PROGRAM DOCUMENTATION                                               *
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+*** Created by             : 9X10070665                               *
+*** Creation Date          : 14-Jan-2020                              *
+*** Transport Request #    : DE3K995892                               *
+*** RICEF Object No #      : RICEF2085                                *
+***Change request No       : GECHG0689904                             *
+*** Description            : Clear Cost Center for PO-Account Assignment tab*
+***********************************************************************
+*************************************************************************
+* DATE      | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+*14.01.2020 |GECHG0689904     |9X10070665 |Initial program
+*************************************************************************
+REPORT  zrmm_po_clear_cc.
+
+
+
+INCLUDE znmm_po_clear_cc_top.
+INCLUDE znmm_po_clear_cc_ssc.
+INCLUDE znmm_po_clear_cc_form.
+
+
+START-OF-SELECTION.
+
+  PERFORM upload_file.
+  PERFORM check_data.
+
+
+END-OF-SELECTION.
+  PERFORM post_data.
+  PERFORM display_output.
+

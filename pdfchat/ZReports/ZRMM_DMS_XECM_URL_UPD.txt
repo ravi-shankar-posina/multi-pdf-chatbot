@@ -1,0 +1,611 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_DMS_XECM_URL_UPD
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+****------------------------------------------------------------------***
+*** Created by            : Devesh Modi(9X10112895)
+*** Creation Date         : 03/01/2020
+*** Transport Request     : DE3K996301
+*** RICEF Object No       : RICEF2080
+*** Description           : Update URL links
+*** CR Created            : GECHG0708352
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+***------------------------------------------------------------------***
+* DATE       | CR No.       |CHANGED BY    |DESCRIPTION OF CHANGE
+*-------------------------------------------------------------------------
+* 19.06.2020 | GECHG0834449 |9X10112895    |Changes for background processing
+*------------------------------------------------------------------------
+REPORT  zrmm_dms_xecm_url_upd.
+* Begin of changes GECHG0834449
+*CLASS cl_binary_relation DEFINITION LOAD.
+*
+*TYPES : BEGIN OF i_excel,
+*          doc_type TYPE char4,
+*          doc_num  TYPE ebeln,
+*          version  TYPE char3,
+*          url      TYPE string,
+*          remark   TYPE string,
+*        END OF i_excel,
+*
+*        BEGIN OF i_ekko,
+*          ebeln TYPE ekko-ebeln,
+*        END OF i_ekko,
+*
+*        BEGIN OF i_output,
+*          icon     TYPE c,
+*          doc_type TYPE char4,
+*          doc_num  TYPE char18,
+*          version  TYPE char3,
+*          remark   TYPE string,
+*        END OF i_output.
+*
+*DATA : gt_excel_ds    TYPE TABLE OF i_excel,
+*       gw_excel_ds    TYPE i_excel,
+*       gt_ekko_ds     TYPE TABLE OF i_ekko,
+*       gw_ekko_ds     TYPE i_ekko,
+*       gt_status_ds   TYPE TABLE OF i_output,
+*       gw_status_ds   TYPE i_output,
+*       gi_layout_ds   TYPE slis_layout_alv,
+*       gw_fieldcat_ds TYPE slis_fieldcat_alv,
+*       gt_fieldcat_ds TYPE slis_t_fieldcat_alv,
+*       gv_type_tx     TYPE truxs_t_text_data.
+*
+*DATA : gt_reltyp_tx      TYPE obl_t_relt,
+*       gw_reltyp_tx      LIKE LINE OF gt_reltyp_tx,
+*       gw_is_object_ds   TYPE sibflporb,
+*       gw_is_link_ds     TYPE sibflporb,
+*       f_transfer_failed TYPE boole-boole,
+*       gt_links_ds       TYPE obl_t_link,
+*       gw_links_ds       TYPE LINE OF obl_t_link,
+*       gw_document_id_tx TYPE sofolenti1-doc_id,
+*       gw_doc_chng_ds    LIKE sodocchgi1,
+*       gw_doc_data_ds    LIKE sofolenti1,
+*       gt_header_ds      TYPE STANDARD TABLE OF solisti1 WITH HEADER LINE,
+*       gt_content_ds     TYPE STANDARD TABLE OF solisti1 WITH HEADER LINE.
+*
+*
+*CONSTANTS : gc_message_tx       TYPE sibftypeid       VALUE 'MESSAGE',
+*            gc_po_bo_tx         TYPE sibftypeid       VALUE 'BUS2012',
+*            gc_bo_tx            TYPE sibfcatid        VALUE 'BO',
+*            gc_key_tx           TYPE string           VALUE '&KEY&',
+*            gc_x_tx             TYPE char1            VALUE 'X'.
+*
+*SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+*SELECTION-SCREEN : BEGIN OF LINE.
+*PARAMETERS : rb_norm  RADIOBUTTON GROUP g1 DEFAULT 'X' USER-COMMAND u1.
+*SELECTION-SCREEN COMMENT  4(30) text-003.
+*PARAMETERS : rb_mupld RADIOBUTTON GROUP g1.
+*SELECTION-SCREEN COMMENT 40(30) text-004.
+*SELECTION-SCREEN : END OF LINE.
+*SELECTION-SCREEN: END OF BLOCK b1.
+*
+*SELECTION-SCREEN : BEGIN OF BLOCK b2 WITH FRAME TITLE text-002.
+*PARAMETERS : p_fname TYPE rlgrap-filename MODIF ID m2.
+*
+*PARAMETERS : p_dtype TYPE char4  MODIF ID m1,
+*             p_dnum  TYPE char18 MODIF ID m1,
+*             p_versn TYPE char2  MODIF ID m1,
+*             p_url   TYPE string MODIF ID m1.
+*SELECTION-SCREEN : END OF BLOCK b2.
+*
+*SELECTION-SCREEN : BEGIN OF BLOCK b3.
+*PARAMETERS : rb_upd RADIOBUTTON GROUP rb1 DEFAULT 'X'.
+*PARAMETERS : rb_del RADIOBUTTON GROUP rb1.
+*SELECTION-SCREEN : END OF BLOCK b3.
+*
+*AT SELECTION-SCREEN OUTPUT.
+*
+*  LOOP AT SCREEN.
+*    IF rb_norm IS NOT INITIAL.
+*      IF screen-group1 = 'M2'.
+*        screen-invisible = 1.
+*        screen-active    = 0.
+*      ENDIF.
+*    ELSEIF rb_mupld IS NOT INITIAL.
+*      IF screen-group1 = 'M1'.
+*        screen-invisible = 1.
+*        screen-active    = 0.
+*      ENDIF.
+*    ENDIF.
+*    MODIFY SCREEN.
+*  ENDLOOP.
+*
+*AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_fname.
+*
+*  CALL FUNCTION 'F4_FILENAME'
+*    EXPORTING
+*      program_name  = syst-cprog
+*      dynpro_number = syst-dynnr
+*      field_name    = 'P_FNAME'
+*    IMPORTING
+*      file_name     = p_fname.
+*
+*START-OF-SELECTION.
+*
+*  IF rb_mupld IS NOT INITIAL.
+*
+*    CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+*      EXPORTING
+*        i_line_header        = gc_x_tx
+*        i_tab_raw_data       = gv_type_tx
+*        i_filename           = p_fname
+*      TABLES
+*        i_tab_converted_data = gt_excel_ds
+*      EXCEPTIONS
+*        conversion_failed    = 1
+*        OTHERS               = 2.
+*    IF sy-subrc <> 0.
+** Implement suitable error handling here
+*    ENDIF.
+*
+*  ELSEIF rb_norm IS NOT INITIAL.
+*
+*    CLEAR gw_excel_ds.
+*    gw_excel_ds-doc_type = p_dtype.
+*    gw_excel_ds-doc_num  = p_dnum.
+*    gw_excel_ds-version  = p_versn.
+*    gw_excel_ds-url      = p_url.
+*    APPEND gw_excel_ds TO gt_excel_ds.
+*    CLEAR gw_excel_ds.
+*  ENDIF.
+*
+*  SELECT ebeln
+*    FROM ekko
+*    INTO TABLE gt_ekko_ds
+*    FOR ALL ENTRIES IN gt_excel_ds
+*    WHERE ebeln = gt_excel_ds-doc_num.
+*  IF sy-subrc = 0.
+*
+*    gw_reltyp_tx-sign   = 'I'.
+*    gw_reltyp_tx-option = 'EQ'.
+*    gw_reltyp_tx-low    = 'URL'.
+*    APPEND gw_reltyp_tx TO gt_reltyp_tx.
+*    CLEAR gw_reltyp_tx.
+*
+*    CLEAR : gw_excel_ds, gw_status_ds, gw_is_object_ds, gw_ekko_ds.
+*    LOOP AT gt_excel_ds INTO gw_excel_ds.
+*
+*      IF gw_excel_ds-doc_num IS INITIAL
+*        OR strlen( gw_excel_ds-doc_num ) > 10.
+*
+*        gw_status_ds-icon     = 1.
+*        gw_status_ds-doc_type = gw_excel_ds-doc_type.
+*        gw_status_ds-doc_num  = gw_excel_ds-doc_num.
+*        gw_status_ds-version  = gw_excel_ds-version.
+*        gw_status_ds-remark   = 'Check document number'.
+*        APPEND gw_status_ds TO gt_status_ds.
+*        CLEAR gw_status_ds.
+*        CONTINUE.
+*      ELSE.
+*        CLEAR gw_ekko_ds.
+*        READ TABLE gt_ekko_ds INTO gw_ekko_ds WITH KEY ebeln = gw_excel_ds-doc_num.
+*        IF sy-subrc <> 0.
+*          gw_status_ds-icon     = 1.
+*          gw_status_ds-doc_type = gw_excel_ds-doc_type.
+*          gw_status_ds-doc_num  = gw_excel_ds-doc_num.
+*          gw_status_ds-version  = gw_excel_ds-version.
+*          gw_status_ds-remark   = 'Purchase Order not found'.
+*          APPEND gw_status_ds TO gt_status_ds.
+*          CLEAR gw_status_ds.
+*          CONTINUE.
+*        ELSE.
+*
+*          gw_is_object_ds-instid = gw_ekko_ds-ebeln.
+*          gw_is_object_ds-typeid = gc_po_bo_tx.
+*          gw_is_object_ds-catid  = gc_bo_tx .
+*
+*          TRY.
+*              CALL METHOD cl_binary_relation=>read_links
+*                EXPORTING
+*                  is_object           = gw_is_object_ds
+*                  it_relation_options = gt_reltyp_tx
+*                IMPORTING
+*                  et_links            = gt_links_ds.
+*
+*            CATCH cx_obl_parameter_error .
+*            CATCH cx_obl_internal_error .
+*            CATCH cx_obl_model_error .
+*          ENDTRY.
+*
+*          IF gt_links_ds[] IS INITIAL.
+*            gw_status_ds-icon     = '1'.
+*            gw_status_ds-doc_type = gw_excel_ds-doc_type.
+*            gw_status_ds-doc_num  = gw_excel_ds-doc_num.
+*            gw_status_ds-version  = gw_excel_ds-version.
+*            gw_status_ds-remark   = 'No links available to update'.
+*            APPEND gw_status_ds TO gt_status_ds.
+*            CLEAR gw_status_ds.
+*            CONTINUE.
+*          ELSE.
+*
+*            SORT gt_links_ds BY utctime ASCENDING.
+*
+*            LOOP AT gt_links_ds INTO gw_links_ds
+*                                WHERE typeid_b = gc_message_tx.
+*
+*              IF sy-tabix = gw_excel_ds-version.
+*
+*                IF rb_upd IS NOT INITIAL.
+*
+*                  CLEAR : gt_content_ds[], gt_content_ds, gw_doc_data_ds,
+*                          gt_header_ds[], gt_header_ds, gw_doc_chng_ds,
+*                          gw_document_id_tx.
+*
+*                  MOVE gw_links_ds-instid_b TO gw_document_id_tx.
+*
+*                  CALL FUNCTION 'SO_DOCUMENT_READ_API1'
+*                    EXPORTING
+*                      document_id                = gw_document_id_tx
+*                    IMPORTING
+*                      document_data              = gw_doc_data_ds
+*                    TABLES
+*                      object_header              = gt_header_ds
+*                    EXCEPTIONS
+*                      document_id_not_exist      = 1
+*                      operation_no_authorization = 2
+*                      x_error                    = 3
+*                      OTHERS                     = 4.
+*                  IF sy-subrc <> 0.
+** Implement suitable error handling here
+*                  ENDIF.
+*
+*                  MOVE-CORRESPONDING gw_doc_data_ds TO gw_doc_chng_ds.
+*
+**     In case of URLs..it should be concatenated with &KEY& in the begining.
+*                  CONCATENATE gc_key_tx gw_excel_ds-url INTO gt_content_ds-line.
+*                  APPEND gt_content_ds.
+*
+*                  CALL FUNCTION 'SO_DOCUMENT_UPDATE_API1'
+*                    EXPORTING
+*                      document_id                = gw_document_id_tx
+*                      document_data              = gw_doc_chng_ds
+*                    TABLES
+*                      object_header              = gt_header_ds[]
+*                      object_content             = gt_content_ds[]
+*                    EXCEPTIONS
+*                      document_not_exist         = 1
+*                      operation_no_authorization = 2
+*                      parameter_error            = 3
+*                      x_error                    = 4
+*                      enqueue_error              = 5
+*                      OTHERS                     = 6.
+*                  IF sy-subrc <> 0.
+*                    gw_status_ds-icon     = '1'.
+*                    gw_status_ds-doc_type = gw_excel_ds-doc_type.
+*                    gw_status_ds-doc_num  = gw_excel_ds-doc_num.
+*                    gw_status_ds-version  = gw_excel_ds-version.
+*                    gw_status_ds-remark   = 'Error while updating'.
+*                    APPEND gw_status_ds TO gt_status_ds.
+*                    CLEAR gw_status_ds.
+*                  ELSE.
+*                    COMMIT WORK.
+*                    gw_status_ds-icon     = '3'.
+*                    gw_status_ds-doc_type = gw_excel_ds-doc_type.
+*                    gw_status_ds-doc_num  = gw_excel_ds-doc_num.
+*                    gw_status_ds-version  = gw_excel_ds-version.
+*                    gw_status_ds-remark   = 'Updated Successfully'.
+*                    APPEND gw_status_ds TO gt_status_ds.
+*                    CLEAR gw_status_ds.
+*                  ENDIF.
+*
+*                ELSEIF rb_del IS NOT INITIAL.
+*
+*                  TRY.
+*                      gw_is_link_ds-instid = gw_links_ds-instid_b.
+*                      gw_is_link_ds-typeid = gw_links_ds-typeid_b.
+*                      gw_is_link_ds-catid  = gw_links_ds-catid_b.
+*
+*                      CALL METHOD cl_binary_relation=>delete_link
+*                        EXPORTING
+*                          is_object_a = gw_is_object_ds
+*                          is_object_b = gw_is_link_ds
+*                          ip_reltype  = gw_links_ds-reltype.
+*
+*                    CATCH cx_obl_parameter_error
+*                          cx_obl_model_error
+*                          cx_obl_internal_error.
+*
+*                      f_transfer_failed = 'X'.
+*
+*                  ENDTRY.
+*
+*                  IF f_transfer_failed = 'X'.
+*                    gw_status_ds-icon     = '1'.
+*                    gw_status_ds-doc_type = gw_excel_ds-doc_type.
+*                    gw_status_ds-doc_num  = gw_excel_ds-doc_num.
+*                    gw_status_ds-version  = gw_excel_ds-version.
+*                    gw_status_ds-remark   = 'Error while deleting'.
+*                    APPEND gw_status_ds TO gt_status_ds.
+*                    CLEAR gw_status_ds.
+*                  ELSE.
+*                    COMMIT WORK.
+*                    gw_status_ds-icon     = '3'.
+*                    gw_status_ds-doc_type = gw_excel_ds-doc_type.
+*                    gw_status_ds-doc_num  = gw_excel_ds-doc_num.
+*                    gw_status_ds-version  = gw_excel_ds-version.
+*                    gw_status_ds-remark   = 'Attachment deleted'.
+*                    APPEND gw_status_ds TO gt_status_ds.
+*                    CLEAR gw_status_ds.
+*                  ENDIF.
+*                ENDIF.
+*
+*              ENDIF.
+*              CLEAR gw_links_ds.
+*            ENDLOOP.
+*          ENDIF.
+*        ENDIF.
+*      ENDIF.
+*      CLEAR : gw_excel_ds, gw_status_ds, gw_is_object_ds,
+*              gt_links_ds[], gw_links_ds.
+*    ENDLOOP.
+*  ENDIF.
+*
+*  " Build fieldcat
+*  gw_fieldcat_ds-col_pos     = 1.
+*  gw_fieldcat_ds-fieldname   = 'DOC_TYPE'.
+*  gw_fieldcat_ds-seltext_m   = 'Document type'.
+*  gw_fieldcat_ds-tabname     = 'GT_STATUS_DS'.
+*  APPEND gw_fieldcat_ds TO gt_fieldcat_ds.
+*  CLEAR  gw_fieldcat_ds.
+*
+*  gw_fieldcat_ds-col_pos     = 2.
+*  gw_fieldcat_ds-fieldname   = 'DOC_NUM'.
+*  gw_fieldcat_ds-seltext_m   = 'Document Number'.
+*  gw_fieldcat_ds-tabname     = 'GT_STATUS_DS'.
+*  APPEND gw_fieldcat_ds TO gt_fieldcat_ds.
+*  CLEAR  gw_fieldcat_ds.
+*
+*  gw_fieldcat_ds-col_pos     = 3.
+*  gw_fieldcat_ds-fieldname   = 'VERSION'.
+*  gw_fieldcat_ds-seltext_m   = 'Version'.
+*  gw_fieldcat_ds-tabname     = 'GT_STATUS_DS'.
+*  APPEND gw_fieldcat_ds TO gt_fieldcat_ds.
+*  CLEAR  gw_fieldcat_ds.
+*
+*  gw_fieldcat_ds-col_pos     = 4.
+*  gw_fieldcat_ds-fieldname   = 'REMARK'.
+*  gw_fieldcat_ds-seltext_m   = 'STATUS'.
+*  gw_fieldcat_ds-tabname     = 'GT_STATUS_DS'.
+*  APPEND gw_fieldcat_ds TO gt_fieldcat_ds.
+*  CLEAR  gw_fieldcat_ds.
+*
+*  gi_layout_ds-lights_fieldname  = 'ICON'.
+*  gi_layout_ds-colwidth_optimize = 'X'.
+*
+*  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+*    EXPORTING
+*      i_callback_program = sy-cprog
+*      is_layout          = gi_layout_ds
+*      it_fieldcat        = gt_fieldcat_ds
+*    TABLES
+*      t_outtab           = gt_status_ds
+*    EXCEPTIONS
+*      program_error      = 1
+*      OTHERS             = 2.
+*  IF sy-subrc <> 0.
+** Implement suitable error handling here
+*  ENDIF.
+
+
+TABLES : toa01.
+
+CLASS cl_binary_relation DEFINITION LOAD.
+
+TYPES : BEGIN OF i_objky,
+          objky TYPE toa01-object_id,
+        END OF i_objky,
+
+                BEGIN OF i_output,
+          icon     TYPE c,
+          doc_type TYPE char8,
+          doc_num  TYPE char18,
+          version  TYPE char3,
+          remark   TYPE string,
+        END OF i_output.
+
+DATA : gt_objky_ds       TYPE TABLE OF i_objky,
+       gw_objky_ds       TYPE i_objky,
+       gt_status_ds      TYPE TABLE OF i_output,
+       gw_status_ds      TYPE i_output,
+       gi_layout_ds      TYPE slis_layout_alv,
+       gw_fieldcat_ds    TYPE slis_fieldcat_alv,
+       gt_fieldcat_ds    TYPE slis_t_fieldcat_alv,
+       gt_reltyp_tx      TYPE obl_t_relt,
+       gw_reltyp_tx      LIKE LINE OF gt_reltyp_tx,
+       gw_is_object_ds   TYPE sibflporb,
+       gw_is_link_ds     TYPE sibflporb,
+       gw_version_tx     TYPE char2,
+       f_transfer_failed TYPE boole-boole,
+       gt_links_ds       TYPE obl_t_link,
+       gw_links_ds       TYPE LINE OF obl_t_link.
+
+CONSTANTS : gc_bus2012_tx   TYPE sibftypeid       VALUE 'BUS2012',
+            gc_bus2031_tx   TYPE sibftypeid       VALUE 'BUS2031',
+            gc_bus2032_tx   TYPE sibftypeid       VALUE 'BUS2032',
+            gc_vbak_tx      TYPE sibftypeid       VALUE 'VBAK',
+            gc_vbrk_tx      TYPE sibftypeid       VALUE 'VBRK',
+            gc_bo_tx        TYPE sibfcatid        VALUE 'BO',
+            gc_x_tx         TYPE char1            VALUE 'X'.
+
+
+SELECTION-SCREEN : BEGIN OF BLOCK b1 WITH FRAME TITLE text-002.
+SELECT-OPTIONS : s_dtype FOR toa01-sap_object NO-EXTENSION NO INTERVALS OBLIGATORY,
+                 s_dnum  FOR toa01-object_id OBLIGATORY.
+SELECTION-SCREEN : END OF BLOCK b1.
+
+
+START-OF-SELECTION.
+
+  IF s_dtype-low = gc_bus2012_tx.
+    SELECT ebeln
+      FROM ekko
+      INTO TABLE gt_objky_ds
+      WHERE ebeln IN s_dnum.
+    IF sy-subrc NE 0.
+      MESSAGE 'Please enter correct Document Number' TYPE 'S' DISPLAY LIKE 'E'.
+    ENDIF.
+  ELSEIF s_dtype-low = gc_bus2031_tx OR s_dtype-low = gc_bus2032_tx OR s_dtype-low = gc_vbak_tx.
+    SELECT vbeln
+      FROM vbak
+      INTO TABLE gt_objky_ds
+      WHERE vbeln IN s_dnum.
+    IF sy-subrc NE 0.
+      MESSAGE 'Please enter correct Document Number' TYPE 'S' DISPLAY LIKE 'E'.
+    ENDIF.
+  ELSEIF s_dtype-low = gc_vbrk_tx.
+    SELECT vbeln
+      FROM vbrk
+      INTO TABLE gt_objky_ds
+      WHERE vbeln IN s_dnum.
+    IF sy-subrc NE 0.
+      MESSAGE 'Please enter correct Document Number' TYPE 'S' DISPLAY LIKE 'E'.
+    ENDIF.
+  ENDIF.
+
+  gw_reltyp_tx-sign   = 'I'.
+  gw_reltyp_tx-option = 'EQ'.
+  gw_reltyp_tx-low    = 'URL'.
+  APPEND gw_reltyp_tx TO gt_reltyp_tx.
+  CLEAR gw_reltyp_tx.
+
+  LOOP AT gt_objky_ds INTO gw_objky_ds.
+
+    gw_is_object_ds-instid = gw_objky_ds-objky.
+    gw_is_object_ds-typeid = s_dtype-low.
+    gw_is_object_ds-catid  = gc_bo_tx.
+
+    TRY.
+        CALL METHOD cl_binary_relation=>read_links
+          EXPORTING
+            is_object           = gw_is_object_ds
+            it_relation_options = gt_reltyp_tx
+          IMPORTING
+            et_links            = gt_links_ds.
+
+      CATCH cx_obl_parameter_error
+            cx_obl_internal_error
+            cx_obl_model_error .
+
+        f_transfer_failed = 'X'.
+
+    ENDTRY.
+
+    IF gt_links_ds[] IS INITIAL
+      OR f_transfer_failed IS NOT INITIAL.
+
+      gw_status_ds-icon     = '1'.
+      gw_status_ds-doc_type = s_dtype-low.
+      gw_status_ds-doc_num  = gw_objky_ds-objky.
+      gw_status_ds-remark   = 'No links available to update'(007).
+      APPEND gw_status_ds TO gt_status_ds.
+      CLEAR gw_status_ds.
+      CONTINUE.
+
+    ELSE.
+
+      LOOP AT gt_links_ds INTO gw_links_ds.
+        TRY.
+            gw_version_tx = gw_version_tx + 1.
+            gw_is_link_ds-instid = gw_links_ds-instid_b.
+            gw_is_link_ds-typeid = gw_links_ds-typeid_b.
+            gw_is_link_ds-catid  = gw_links_ds-catid_b.
+
+            CALL METHOD cl_binary_relation=>delete_link
+              EXPORTING
+                is_object_a = gw_is_object_ds
+                is_object_b = gw_is_link_ds
+                ip_reltype  = gw_links_ds-reltype.
+
+          CATCH cx_obl_parameter_error
+                cx_obl_model_error
+                cx_obl_internal_error.
+
+            f_transfer_failed = 'X'.
+
+        ENDTRY.
+
+        IF f_transfer_failed = 'X'.
+          gw_status_ds-icon     = '1'.
+          gw_status_ds-doc_type = s_dtype-low.
+          gw_status_ds-doc_num  = gw_objky_ds-objky.
+          gw_status_ds-version  = gw_version_tx.
+          gw_status_ds-remark   = 'Error while deleting'(008).
+          APPEND gw_status_ds TO gt_status_ds.
+          CLEAR gw_status_ds.
+        ELSE.
+          COMMIT WORK.
+          gw_status_ds-icon     = '3'.
+          gw_status_ds-doc_type = s_dtype-low.
+          gw_status_ds-doc_num  = gw_objky_ds-objky.
+          gw_status_ds-version  = gw_version_tx.
+          gw_status_ds-remark   = 'Attachment deleted'(009).
+          APPEND gw_status_ds TO gt_status_ds.
+          CLEAR gw_status_ds.
+        ENDIF.
+
+        CLEAR: gw_links_ds, gw_is_link_ds, f_transfer_failed.
+      ENDLOOP.
+
+    ENDIF.
+    CLEAR: gw_objky_ds, gw_is_object_ds, gt_links_ds[],
+           f_transfer_failed, gw_version_tx.
+  ENDLOOP.
+
+END-OF-SELECTION.
+
+  IF gt_status_ds IS NOT INITIAL.
+
+    gw_fieldcat_ds-col_pos     = 1.
+    gw_fieldcat_ds-fieldname   = 'DOC_TYPE'.
+    gw_fieldcat_ds-seltext_m   = 'Document type'.
+    gw_fieldcat_ds-tabname     = 'GT_STATUS_DS'.
+    APPEND gw_fieldcat_ds TO gt_fieldcat_ds.
+    CLEAR  gw_fieldcat_ds.
+
+    gw_fieldcat_ds-col_pos     = 2.
+    gw_fieldcat_ds-fieldname   = 'DOC_NUM'.
+    gw_fieldcat_ds-seltext_m   = 'Document Number'.
+    gw_fieldcat_ds-tabname     = 'GT_STATUS_DS'.
+    APPEND gw_fieldcat_ds TO gt_fieldcat_ds.
+    CLEAR  gw_fieldcat_ds.
+
+    gw_fieldcat_ds-col_pos     = 3.
+    gw_fieldcat_ds-fieldname   = 'VERSION'.
+    gw_fieldcat_ds-seltext_m   = 'Version'.
+    gw_fieldcat_ds-tabname     = 'GT_STATUS_DS'.
+    APPEND gw_fieldcat_ds TO gt_fieldcat_ds.
+    CLEAR  gw_fieldcat_ds.
+
+    gw_fieldcat_ds-col_pos     = 4.
+    gw_fieldcat_ds-fieldname   = 'REMARK'.
+    gw_fieldcat_ds-seltext_m   = 'STATUS'.
+    gw_fieldcat_ds-tabname     = 'GT_STATUS_DS'.
+    APPEND gw_fieldcat_ds TO gt_fieldcat_ds.
+    CLEAR  gw_fieldcat_ds.
+
+    gi_layout_ds-lights_fieldname  = 'ICON'.
+    gi_layout_ds-colwidth_optimize = 'X'.
+
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+        i_callback_program = sy-cprog
+        is_layout          = gi_layout_ds
+        it_fieldcat        = gt_fieldcat_ds
+      TABLES
+        t_outtab           = gt_status_ds
+      EXCEPTIONS
+        program_error      = 1
+        OTHERS             = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+  ELSE.
+    MESSAGE 'No entries' TYPE 'S' DISPLAY LIKE 'E'.
+  ENDIF.
+* End of change GECHG0834449
+

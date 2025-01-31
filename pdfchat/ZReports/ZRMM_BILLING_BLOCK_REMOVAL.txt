@@ -1,0 +1,54 @@
+*&------------------------------------------------------------------------*
+*& Program Name : ZRMM_BILLING_BLOCK_REMOVAL                              *
+*& Author       : Arun Kumar Daita                                        *
+*& Create Date  : 20-OCT-2021                                             *
+*& CR No        : CHG0191538                                              *
+*& Ricefw ID    : RICEF2189                                               *
+*& T-code       : ZSD2189_BR
+*& SAP Release  : ECC                                                     *
+*& Description  : This Report is created to remove billing block from     *
+*&                split deliveries independently                          *
+*&------------------------------------------------------------------------*
+*** Change History                                                       **
+***************************************************************************
+***************************************************************************
+* DATE        |  TR NO.    | CR No.     |CHANGED BY |DESCRIPTION OF CHANGE*
+* 20.10.2021    DE3K9A0A7K  CHG0191538     USARDAI      Initial Version   *
+***************************************************************************
+*&------------------------------------------------------------------------*
+REPORT  zrmm_billing_block_removal MESSAGE-ID zsd.
+***************************************************************************
+* INCLUDE FOR GLOBAL DATA DECLARATIONS                                    *
+***************************************************************************
+INCLUDE znmm_billing_block_removal_top.
+***************************************************************************
+* INCLUDE FOR SELECTION SCREEN                                            *
+***************************************************************************
+INCLUDE znmm_billing_block_removal_sel.
+***************************************************************************
+* INCLUDE FOR SUBROUTINES                                                 *
+***************************************************************************
+INCLUDE znmm_billing_block_remvl_forms.
+***************************************************************************
+* INITIALIZATION EVENT                                                    *
+***************************************************************************
+INITIALIZATION.
+  PERFORM f_initialization.
+
+AT SELECTION-SCREEN.
+  PERFORM f_selscreen_validations.
+***************************************************************************
+* START-OF-SELECTION EVENT                                                *
+***************************************************************************
+START-OF-SELECTION.
+* Getting Split Deliveries For Billing Block Removal
+  PERFORM f_fetch_data.
+***************************************************************************
+* END-OF-SELECTION EVENT                                                  *
+***************************************************************************
+END-OF-SELECTION.
+* Billing Block Removal From Split Deliveries
+  PERFORM f_remove_billing_block.
+* Build Fieldcatalog and display ALV
+  PERFORM f_display_alv.
+

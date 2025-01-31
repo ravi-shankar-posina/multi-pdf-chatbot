@@ -1,0 +1,21 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNRMM_PO_TAX_REPORT_SEL
+*&---------------------------------------------------------------------*
+
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+SELECT-OPTIONS : s_bedat FOR g_bedat,
+                 s_ebeln FOR g_ebeln OBLIGATORY,
+                 s_ekorg FOR g_ekorg MATCHCODE OBJECT h_t024e,
+                 s_bsart FOR g_bsart,
+                 s_lifnr FOR g_lifnr,
+                 s_matnr FOR g_matnr,
+                 s_matkl FOR g_matkl,
+                 s_mwskz FOR g_mwskz MATCHCODE OBJECT ssh_t007a,
+                 s_ernam FOR g_ernam MATCHCODE OBJECT user_addr,
+                 s_ekgrp FOR g_ekgrp MATCHCODE OBJECT h_t024.
+
+PARAMETER : p_tax AS CHECKBOX,
+            p_tax1 AS CHECKBOX.
+SELECTION-SCREEN END OF BLOCK b1.
+

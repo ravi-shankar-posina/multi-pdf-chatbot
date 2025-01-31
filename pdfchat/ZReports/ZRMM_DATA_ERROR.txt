@@ -1,0 +1,85 @@
+*&---------------------------------------------------------------------*
+* Name                          : ZRMM_DATA_ERROR
+* Tcode                         : ZMM112
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 21 Sep 2023
+* Transport Request #           : DE3K9A0N0Y
+* RICEF Object No #             : RICEF2684
+* Description                   : Data errors for ZTMM_PICT
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 25.09.2023   | RICEF-2684|USSOSUB1  |Quality bug fix
+*----------------------------------------------------------------------*
+* 09.10.2023   | RICEF-2684|USSOSUB1  |Quality bug fix
+*----------------------------------------------------------------------*
+* 15.11.2023   | RICEF-2684|USANBOD11 | Physical_inventory Changes
+*----------------------------------------------------------------------*
+*****************************************************************************************
+* CHANGED BY  | DATE        | TR #       |CR No(INCUM | DESCRIPTION OF CHANG
+*****************************************************************************************
+* CHTAMUR     | 04/09/2024  | DE3K9A0T02 | CHG2078268 | PI tool issue fixes and improvements   *
+*----------------------------------------------------------------------*
+* CHTAMUR    | 08/Nov/2024 | DE3K9A0U0J | 87274 | PICT Minor issue fixes
+*----------------------------------------------------------------------*
+
+INCLUDE zrmm_data_error_top.
+
+
+INITIALIZATION .
+
+  DATA : lv_year TYPE gjahr,
+         lv_werk TYPE werks_d,
+         lv_vers TYPE zde_version.
+  ""imported from Z_M_PHYSICAL_INVENTORY_F01 (Tcode-zmm109) line no-63
+  IMPORT lv_werk FROM  MEMORY ID 'WERK'.
+  IF sy-subrc  = 0.
+    s_plant-option = 'EQ' .
+    s_plant-sign = 'I' .
+    s_plant-low =  lv_werk.
+    APPEND s_plant .
+  ENDIF.
+
+  IMPORT lv_vers FROM  MEMORY ID 'VERS'.
+  IF sy-subrc  = 0.
+    s_ver-option = 'EQ' .
+    s_ver-sign = 'I' .
+    s_ver-low =  lv_vers.
+    APPEND s_ver .
+  ENDIF.
+
+
+  FREE MEMORY ID 'WERK'.
+  FREE MEMORY ID 'VERS'.
+  FREE MEMORY ID 'YEAR'.
+
+
+AT SELECTION-SCREEN OUTPUT.
+  PERFORM modify_screen.
+
+AT SELECTION-SCREEN.
+  PERFORM validate_screen.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR s_ver-low.
+  PERFORM f4_ver.
+
+START-OF-SELECTION.
+
+  PERFORM set_titles.     " +++ DE3K9A0T02 -> CHTAMUR
+  PERFORM get_data.
+  PERFORM process_data.
+  PERFORM buildcat.
+
+END-OF-SELECTION.
+** BOC DE3K9A0NN9| RICEF-2684 | USANBOD11
+  FREE MEMORY ID 'IBLNR'.
+  FREE MEMORY ID 'SCHGT'.
+  FREE MEMORY ID 'BKLAS'.
+  FREE MEMORY ID 'WIP'.
+  FREE MEMORY ID 'SPLST'.
+  FREE MEMORY ID 'SHPLST'.
+  FREE MEMORY ID 'NUM'.
+  FREE MEMORY ID 'DUP'.
+  FREE MEMORY ID 'ALL'.
+** EOC DE3K9A0NN9| RICEF-2684 | USANBOD11
+  INCLUDE zrmm_data_error_f01.
+

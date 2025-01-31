@@ -1,0 +1,191 @@
+*==========================================================================================
+*= Copyright ©  2000 GE ENERGY                                                            =
+*= ALL RIGHTS RESERVED                                                                    =
+*==========================================================================================
+*==========================================================================================
+* PROGRAM DOCUMENTATION                                                                   *
+*==========================================================================================
+*Created by             : Vivekkumar K                                                    *
+*Creation Date          : 11-Mar-2014                                                     *
+*Transport Request #    : DE3K918795                                                      *
+*RICEF Object No #      : RICEF1115                                                       *
+*Description            : This report will shows production order confirmations by        *
+*                         operation wise and ZPPCONF2 is an existing program available    *
+*                         in the EMEA system SAP 3.1 system.                              *
+*                         Added additional fields logic which is not in 3.1 system        *
+*==========================================================================================
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+*** Changed by            : 502213306                                ***
+*** Change Date           : 28/03/2014                               ***
+*** Transport Request #   : DE3K922799                               ***
+*** Clarify Case #        : CHG0479115                               ***
+*** Description           : UOM is 'MIN' into 'H' and 'STD' into 'HR'***
+*                           conversion has done download option level***
+*                            and list display level.                 ***
+*                           Header names are maintained in all local ***
+*                           langauages(Local transalation names)     ***
+*
+*                           Polish Transalation has modified based on **
+*                           User requirement.                         **
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+*** Changed by            : 502213306                                ***
+*** Change Date           : 16/06/2014                               ***
+*** Transport Request #   : DE3K939826                               ***
+*** Clarify Case #        : CHG0479115                               ***
+*** Description           : Date and time format has changed inorder ***
+*                           to display the correct data              ***
+***------------------------------------------------------------------***
+*** Changed by            : 320002229                                ***
+*** Change Date           : 30/07/2014                               ***
+*** Transport Request #   : DE3K943364                               ***
+*** Clarify Case #        : CHG0479115                               ***
+*** Description           : Cahnges made for the decimal palces for
+*                            Quantity fields. And changes for the Routing
+*                            labour and Routing setup time           ***
+***------------------------------------------------------------------***
+*** Changed by            : 502283763                                ***
+*** Change Date           : 15/09/2014                               ***
+*** Transport Request #   : DE3K948040                               ***
+*** Clarify Case #        : CHG0845630                               ***
+*** Description           : wrong times when base qty 1 + SAP number shors first 8 character***
+************************************************************************
+***------------------------------------------------------------------***
+*** Changed by            : 502287934                                ***
+*** Change Date           : 09/10/2014                               ***
+*** Transport Request #   : DE3K951367                               ***
+*** Clarify Case #        : INC5147686,INC4848952                                ***
+*** Description           : ZMM952--Report(Changes done in Forms and Top Includes)***
+************************************************************************
+***------------------------------------------------------------------***
+*** Changed by            : 502347739                               ***
+*** Change Date           : 12/11/2014                               ***
+*** Transport Request #   : DE3K954624                               ***
+*** Clarify Case #        : INC5350239                                ***
+*** Description           : Added Reasons field for the final output ***
+************************************************************************
+***------------------------------------------------------------------***
+*** Changed by            : 502259099                                ***
+*** Change Date           : 18/03/2016                               ***
+*** Transport Request #   : DE3K970478                               ***
+*** Clarify Case #        : CHG1937301                               ***
+*** Description           : Added APLZL in AFVV table to get all the
+*                                                               data ***
+************************************************************************
+***------------------------------------------------------------------***
+*** Changed by            : 502683007                                ***
+*** Change Date           : 18/01/2017                               ***
+*** Transport Request #   : DE3K970478                               ***
+*** Clarify Case #        : CHG2435524                                ***
+*** Description           : Added logic for displaying Labour time by
+*                           converting from MILES to Hours
+***------------------------------------------------------------------***
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+*08-Feb-2017         |CHG2435524       |Bug fix for displaying Labour time by converting from MILES to Hours
+*09-Feb-2017         |CHG2435524       |Bug fix for displaying Labour time by converting from MILES to Hours
+*17-Aug-2021         |CHG0179586       |Added logic to display the missing
+*                                      confirmed labor hours in the output
+REPORT  zrmm_payroll_process
+            NO STANDARD PAGE HEADING
+            LINE-SIZE  387"379  "changed by 502347739 DE3K954624 INC5350239 on 12.11.2014
+            LINE-COUNT 60
+            MESSAGE-ID zmm.
+
+*&----------------------------------------------------------------------*
+*&  INCLUDE PROGRAMS
+*&----------------------------------------------------------------------*
+
+INCLUDE znmm_payroll_process_top. " All top declaration
+INCLUDE znmm_payroll_process_ssc. "All selection screem
+INCLUDE znmm_payroll_process_forms. "All subroutines
+
+
+*&----------------------------------------------------------------------*
+*& A T   S E L E C T I O N    S C R E E N
+*&----------------------------------------------------------------------*
+AT SELECTION-SCREEN.
+
+  IF gs_ersda IS NOT INITIAL.
+    PERFORM f_validate_ersda."confirmation date
+  ENDIF.
+
+  IF gs_werks IS NOT INITIAL.
+    PERFORM f_validate_werks."Plant
+  ENDIF.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_exfile.
+
+  PERFORM f_get_filename. "F4 functionality
+*&----------------------------------------------------------------------*
+*& S T A R T    O F    S E L E C T I O N
+*&----------------------------------------------------------------------*
+
+INITIALIZATION.
+
+START-OF-SELECTION.
+   PERFORM GET_HARDCODE_ENTRIES.                                  "CR#CHG2435524   by 502683007 on Jan-19-2017
+
+  IF gt_t001w_ds IS NOT INITIAL.
+    PERFORM f_get_aufk.
+  ENDIF.
+
+  IF NOT gt_aufk_ds IS INITIAL.
+    PERFORM f_get_afko.
+  ENDIF.
+
+  IF NOT gt_afko_ds IS INITIAL.
+    PERFORM f_get_afru.
+  ENDIF.
+
+  IF gt_afru_ds IS NOT INITIAL.
+    PERFORM f_get_afvc.
+  ENDIF.
+
+*Start of modifications by Durga CHG0479115 DE3K943364
+  IF gt_afvc_ds IS NOT INITIAL.
+    PERFORM f_get_afvv.
+  ENDIF.
+*End of modifications by Durga CHG0479115 DE3K943364
+
+  IF gt_afru_ds IS NOT INITIAL.
+    PERFORM f_get_afpo.
+  ENDIF.
+
+  IF gt_afko_ds IS NOT INITIAL.
+    PERFORM f_get_marc.
+  ENDIF.
+
+  IF NOT gt_afvc_ds IS INITIAL.
+    PERFORM f_get_crhd.
+  ENDIF.
+
+*&----------------------------------------------------------------------*
+*& END O F  S E L E C T I O N
+*&----------------------------------------------------------------------*
+END-OF-SELECTION.
+  SORT gt_afru_ds.
+  SORT gt_marc_ds.
+  SORT gt_afko_ds.
+  SORT gt_afpo_ds.
+  SORT gt_afvc_ds.
+  SORT gt_crhd_ds.
+
+  PERFORM f_combine1.
+  PERFORM f_write1 .
+
+*Download format option1 and option2.
+  IF p_excel EQ 'X' AND p_exfile IS NOT INITIAL.
+
+    IF rx_1 EQ 'X'.
+      PERFORM f_download1.
+    ELSE.
+      PERFORM f_download_rx2_new.
+    ENDIF.
+  ENDIF.
+

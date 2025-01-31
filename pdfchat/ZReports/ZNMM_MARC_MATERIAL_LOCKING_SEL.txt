@@ -1,0 +1,15 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_MARC_MATERIAL_LOCKING_SEL
+*&---------------------------------------------------------------------*
+
+SELECTION-SCREEN: BEGIN OF BLOCK b1.
+PARAMETERS: p_status TYPE zmarc_mat_status OBLIGATORY DEFAULT 'L'.
+SELECT-OPTIONS: s_tran  FOR gimm_marc_mat_al-tran_no NO INTERVALS,
+                s_plant FOR gimm_marc_mat_al-werks OBLIGATORY NO INTERVALS,
+                s_matnr FOR gimm_marc_mat_al-matnr NO INTERVALS,
+*                s_ccode FOR gimm_marc_mat_al-companycode NO INTERVALS,
+                s_credat FOR gimm_marc_mat_al-created_date ,
+                s_chgdat FOR gimm_marc_mat_al-change_date ,
+                s_email FOR gw_email NO INTERVALS .
+SELECTION-SCREEN: END OF BLOCK b1.
+

@@ -1,0 +1,47 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_MMRV_WRAPPER_MASS
+*&
+*&---------------------------------------------------------------------*
+*** Created by            : Himanshu Gupta
+*** Creation Date         : 20th Sept 2020
+*** Transport Request #   : DE3K9A00D5
+*** RICEF Object No #     : RICEF 2198
+*** Description           : Allow Posting to Previous period
+***------------------------------------------------------------------***
+*************************************************************************
+* DATE      | CR No.       |CHANGED BY    |DESCRIPTION OF CHANGE
+*************************************************************************
+*20 Sept2020|GECHG0933737  |Himanshu gupta| Initial program
+*************************************************************************
+
+REPORT  zrmm_mmrv_wrapper_mass.
+
+INCLUDE znmm_mmrv_wrapper_mass_top.
+INCLUDE znmm_mmrv_wrapper_mass_scr.
+INCLUDE znmm_mmrv_wrapper_mass_form.
+
+
+AT SELECTION-SCREEN ON s_bukrs.
+  PERFORM validate_company_code.
+
+
+START-OF-SELECTION.
+
+*  AUTHORITY-CHECK OBJECT 'J_B_BUKRS' ID 'BUKRS' FIELD p_bukrs.
+*  IF sy-subrc <> 0.
+*    MESSAGE ID '00' TYPE 'E' NUMBER '398'
+*          WITH 'No Authorization for Company Code' p_bukrs.
+*    EXIT.
+*  ENDIF.
+
+  IF p_1 = 'X'.
+    MOVE 'X' TO gv_xruem.
+  ELSEIF p_1 IS INITIAL.
+    CLEAR gv_xruem.
+*  ELSEIF p_2 = 'X'.
+*    MOVE '' TO gv_xruem.
+*    MOVE 'X' TO gv_xruev.
+  ENDIF.
+
+  PERFORM upd_mmrv.
+

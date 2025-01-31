@@ -1,0 +1,259 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_SA_MNTSPK_TOP
+*&---------------------------------------------------------------------*
+************************************************************************
+*Declaration of Types
+************************************************************************
+TYPES: BEGIN OF ty_plants,
+         werks TYPE werks_d,
+       END OF ty_plants,
+
+       BEGIN OF ty_spk,
+         werks TYPE werks_d,
+         sobsl TYPE sobsl,
+
+         sobes TYPE esobs,
+         addin TYPE md_addin,
+       END OF ty_spk,
+
+
+       BEGIN OF ty_spk1,
+         sobsl TYPE zsobsl2,
+         ltext TYPE ltext,
+       END OF ty_spk1,
+
+
+       BEGIN OF ty_validmats,
+         matnr TYPE matnr,
+         brgew TYPE brgew,
+         ntgew TYPE ntgew,
+         gewei TYPE gewei,
+         volum TYPE volum,
+         voleh TYPE voleh,
+         ekgrp TYPE ekgrp,
+         webaz TYPE webaz,
+         sobsl TYPE sobsl,
+         lgfsb TYPE lgfsb,
+         wrk02 TYPE werks_d,
+         bukrs TYPE bukrs,
+         vkorg TYPE vkoiv,
+         lifnr TYPE lifnr_wk,
+       END OF ty_validmats,
+
+**BOC Added by USSHSAT1 TR  DE3K9A0NJ7 12.12.2023
+       BEGIN OF ty_validmat,
+         matnr TYPE matnr,
+         brgew TYPE brgew,
+         ntgew TYPE ntgew,
+         gewei TYPE gewei,
+         volum TYPE volum,
+         voleh TYPE voleh,
+         ekgrp TYPE ekgrp,
+         webaz TYPE webaz,
+         sobsl TYPE sobsl,
+         lgfsb TYPE lgfsb,
+       END OF ty_validmat,
+**EOC Added by USSHSAT1 TR  DE3K9A0NJ7 12.12.2023
+       BEGIN OF ty_schagr,
+         ebeln   TYPE ebeln,
+         bukrs   TYPE bukrs,
+         lifnr   TYPE elifn,
+         reswk   TYPE reswk,
+         knumv   TYPE knumv,
+         ebelp   TYPE ebelp,
+         bsart   TYPE esart,
+         ekorg   TYPE ekorg,
+         waers   TYPE waers,
+         matnr   TYPE matnr,
+         werks   TYPE ewerk,
+         meins   TYPE bstme,
+         netpr   TYPE bprei,
+         peinh   TYPE epein,
+         webaz   TYPE webaz,
+         etfz1   TYPE etfz1,
+         plifz   TYPE eplif,
+         ntgew   TYPE entge,
+         gewei   TYPE egewe,
+         brgew   TYPE brgew,
+         volum   TYPE volum,
+         voleh   TYPE voleh,
+         reslo   TYPE reslo,
+         etenr   TYPE eeten,
+         menge   TYPE etmen,
+         vkorg   TYPE vkoiv,
+         multi   TYPE c,
+         multitm TYPE c,
+       END OF ty_schagr,
+
+       BEGIN OF ty_t001w,
+         werks TYPE werks_d,
+         lifnr TYPE lifnr_wk,
+       END OF ty_t001w,
+
+       BEGIN OF ty_konp,
+         knumh TYPE knumh,
+         kbetr TYPE kbetr_kond,
+         konwa TYPE konwa,
+         kpein TYPE kpein,
+         kmein TYPE kmein,
+       END OF ty_konp,
+
+       BEGIN OF ty_output,
+         operation TYPE char23,
+         matnr     TYPE matnr,
+         msgtype   TYPE c,
+         suplant   TYPE werks_d,
+         purgrp    TYPE ekorg,
+         supcoco   TYPE bukrs,
+         sa        TYPE ebeln,
+         saitem    TYPE ebelp,
+         satype    TYPE bsart,
+         msg       TYPE bapi_msg,
+       END OF ty_output.
+
+************************************************************************
+*Declaration of Variables
+************************************************************************
+DATA: gw_matnr       TYPE matnr,
+      gw_ekgrp       TYPE ekgrp,
+      gw_sobsl       TYPE sobsl,
+      gw_dispo       TYPE dispo,
+      gw_lgort       TYPE char4,
+      gw_gew         TYPE char17,
+      gw_dec         TYPE char3,
+      gw_bukrs       TYPE bukrs,
+      gw_ekorg       TYPE ekorg,
+      gt_plants      TYPE STANDARD TABLE OF ty_plants,
+      gi_t001w       TYPE ty_t001w,
+      gt_t001w       TYPE STANDARD TABLE OF ty_t001w,
+      gi_validmats   TYPE ty_validmats,
+      gi_validmat   TYPE ty_validmat, " Added by USSHSAT1 TR  DE3K9A0NJ7 12.12.2023
+      gt_validmats   TYPE STANDARD TABLE OF ty_validmats,
+      gt_validmat   TYPE STANDARD TABLE OF ty_validmat, " Added by USSHSAT1 TR  DE3K9A0NJ7 12.12.2023
+      gi_schagr      TYPE ty_schagr,
+      gi_schagr_copy TYPE ty_schagr,
+      gt_schagr      TYPE STANDARD TABLE OF ty_schagr,
+      gt_schagr_d    TYPE STANDARD TABLE OF ty_schagr,
+      gt_schagr_n    TYPE STANDARD TABLE OF ty_schagr,
+      gi_schagr_d    TYPE ty_schagr,
+      gi_ztuhcd1     TYPE ztuhcd1,
+      gt_ztuhcd1     TYPE STANDARD TABLE OF ztuhcd1,
+      gi_output      TYPE ty_output,
+      gt_output      TYPE STANDARD TABLE OF ty_output,
+      gw_ktmng       TYPE char17,
+      gw_quantity    TYPE ktmng,
+      gw_ktwrt       TYPE char20,
+      gi_bdcdata     TYPE bdcdata,
+      gt_bdcdata     TYPE STANDARD TABLE OF bdcdata,
+      gt_messtab     TYPE STANDARD TABLE OF bdcmsgcoll,
+      gw_agr_date    TYPE char10,
+      gw_beg_date    TYPE char10,
+      gw_end_date    TYPE char10,
+      gw_beg_datum   TYPE sydatum,
+      gw_end_datum   TYPE sydatum,
+      gw_message     TYPE bapi_msg,
+      gw_pricing     TYPE c,
+      gw_s           TYPE c,
+      gw_ebeln       TYPE ebeln,
+      gw_tabix       TYPE sytabix,
+      gi_sa_head     TYPE bapimeoutheader,
+      gi_sa_headx    TYPE bapimeoutheaderx,
+      gi_sa_item     TYPE bapimeoutitem,
+      gi_sa_itemx    TYPE bapimeoutitemx,
+      gt_sa_return   TYPE STANDARD TABLE OF bapiret2,
+      gi_sa_return   TYPE bapiret2,
+      gt_sa_item     TYPE STANDARD TABLE OF bapimeoutitem,
+      gt_sa_itemx    TYPE STANDARD TABLE OF bapimeoutitemx,
+      gi_fcat_ds     TYPE slis_fieldcat_alv,
+      gt_fcat        TYPE slis_t_fieldcat_alv,
+      gi_layout_ds   TYPE slis_layout_alv,
+      gr_bsart       TYPE RANGE OF bsart.
+
+************************************************************************
+*Declaration of Constants
+************************************************************************
+CONSTANTS: gc_ebelp TYPE ebelp VALUE '00010',
+           gc_zlu   TYPE bsart VALUE 'ZLU',
+           gc_zlp   TYPE bsart VALUE 'ZLP',
+           gc_m     TYPE kappl VALUE 'M',
+           gc_z101  TYPE kscha VALUE 'Z101',
+           gc_9000  TYPE eeten VALUE '9000',
+           gc_f     TYPE beskz VALUE 'F',
+           gc_7     TYPE esobs VALUE '7'.
+
+************************************************************************
+*Declaration of Macro
+************************************************************************
+DEFINE m_fieldcat.
+  gi_fcat_ds-fieldname = &1.
+  gi_fcat_ds-seltext_l = &2.
+  APPEND gi_fcat_ds TO gt_fcat.
+  CLEAR gi_fcat_ds.
+END-OF-DEFINITION.
+
+TYPES: BEGIN OF ty_a557,
+         ekorg TYPE ekorg,
+         bukrs TYPE bukrs,
+         vkorg TYPE vkorg,
+         matnr TYPE matnr,
+         knumh TYPE knumh,
+       END OF ty_a557,
+
+       BEGIN OF ty_pdt,
+         zspplnt  TYPE reswk,
+         zrecplnt TYPE  ewerk,
+         zplifz   TYPE plifz,
+       END OF ty_pdt,
+
+       BEGIN OF ty_lfm1,
+         lifnr TYPE elifn,
+         ekorg TYPE ekorg,
+         waers TYPE waers,
+         inco1 TYPE inco1,
+         inco2 TYPE inco2,
+       END OF ty_lfm1,
+
+       BEGIN OF ty_atch_rec,
+         matnr TYPE matnr,
+         wrk02 TYPE werks_d,
+         werks TYPE werks_d,
+         ebeln TYPE ebeln,
+         ebelp TYPE ebelp,
+       END OF ty_atch_rec,
+
+       BEGIN OF ty_ekpo,
+         ebeln TYPE ebeln,
+         ebelp TYPE ebelp,
+         loekz TYPE eloek,
+         matnr TYPE matnr,
+       END OF ty_ekpo,
+
+       BEGIN OF ty_eket,
+         ebeln TYPE  ebeln,
+         ebelp TYPE ebelp,
+         etenr TYPE eeten,
+         menge TYPE etmen,
+       END OF ty_eket.
+
+ranges: gr_sobsl FOR gw_sobsl.
+
+DATA : gw_mstae    TYPE mstae,
+       gw_mmsta    TYPE mmsta,
+       gw_menge    TYPE etmen,
+       gi_spk      TYPE ty_spk,
+       gt_spk      TYPE STANDARD TABLE OF ty_spk,
+       gw_spl      TYPE string,
+       gw_cntbef   TYPE i,
+       gw_cntaft   TYPE i,
+       gi_lfm1     TYPE ty_lfm1,
+       gt_lfm1     TYPE STANDARD TABLE OF ty_lfm1,
+       gi_pdt      TYPE ty_pdt,
+       gt_pdt      TYPE STANDARD TABLE OF ty_pdt,
+       gw_etfz1    TYPE etfz1,
+       gi_atch_rec TYPE ty_atch_rec,
+       gt_atch_rec TYPE STANDARD TABLE OF ty_atch_rec,
+       gt_ekpo     TYPE STANDARD TABLE OF ty_ekpo,
+       gi_ekpo     TYPE ty_ekpo,
+       gt_eket     TYPE STANDARD TABLE OF ty_eket,
+       gi_eket     TYPE ty_eket.
+

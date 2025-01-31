@@ -1,0 +1,72 @@
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*** Created by            : Teja Prathyusha Adiraju (USPRADI)
+*** Creation Date         : 19.10.2021
+*** Transport Request #   : DE3K9A0A78
+*** T-Code                : ZMM2182_LOCK
+*** RICEF Object No #     : 2182
+*** Change request No     : CHG0191538
+*** Description           : Lock the materials which could not be locked during
+* sending material extract to MARC ( from table ZTMM_MARC_MAT_AL ). Also compare
+* the AMN of the materials in ZTMM_MARC_MAT_AL table and material master and update
+* status in ZTMM_MARC_MAT_AL with M. Clear the A status records in AL table if
+* correction is made in Material master
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE         | CR No.     |TR NO.      |CHANGED BY      |DESCRIPTION OF CHANGE
+*10-10-2021      CHG0191538  DE3K9A0A78   USPRADI          Initial Build
+*****************************************************************************************
+
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_MARC_MATERIAL_LOCKING
+*&---------------------------------------------------------------------*
+REPORT  zrmm_marc_material_locking.
+*&---------------------------------------------------------------------*
+*& Top Include for Data Declareation
+*&---------------------------------------------------------------------*
+INCLUDE znmm_marc_material_locking_top.
+*&---------------------------------------------------------------------*
+*& Include for Selection screen
+*&---------------------------------------------------------------------*
+INCLUDE znmm_marc_material_locking_sel.
+*&---------------------------------------------------------------------*
+*& Include for Subroutines
+*&---------------------------------------------------------------------*
+INCLUDE znmm_marc_material_locking_f01.
+
+
+START-OF-SELECTION.
+  IF p_status = 'M'.
+    MESSAGE text-018 TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+** Fetch data based on selection screen criteria
+  PERFORM get_data.
+
+  IF gtmm_marc_mat_al IS NOT INITIAL.
+** Separate data with Status L and A into different internal tables
+    PERFORM separate_data.
+** Process the status A records fetched
+    IF gt_status_a IS NOT INITIAL.
+      PERFORM process_data_a.
+    ENDIF.
+** Process the status L records fetched
+    IF gtmm_marc_mat_al IS NOT INITIAL.
+      PERFORM process_data_l.
+** Incase of AMN mismatch or locking failed send email
+      IF gt_email[] IS NOT INITIAL.
+        IF s_email[] IS NOT INITIAL.
+          PERFORM send_email.
+        ELSE.
+
+        ENDIF.
+      ENDIF.
+      PERFORM display_output.
+    ENDIF.
+  ELSE.
+    MESSAGE text-012 TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+

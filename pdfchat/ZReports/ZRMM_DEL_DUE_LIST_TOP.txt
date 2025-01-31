@@ -1,0 +1,85 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_DEL_DUE_LIST_TOP
+*&---------------------------------------------------------------------*
+TYPES : BEGIN OF ty_vbsk,
+         sammg TYPE sammg, "  Group Number
+         ernam TYPE ernam, " Created By
+         erdat TYPE erdat, "  Created on
+         uzeit TYPE uzeit, "  Created Time
+         vstel TYPE vstel, "Shipping Point
+         vtext TYPE bezei30, "Description
+         END OF ty_vbsk,
+
+         BEGIN OF ty_final,
+         sammg TYPE sammg,"grp num
+         text(255) TYPE c,
+         END OF ty_final.
+
+DATA:gw_selset TYPE variant ,
+     gw_ernam  TYPE  ernam,
+     gw_erdat  TYPE  erdat,
+     gw_uzeit  TYPE  uzeit,
+     gt_vbsk  TYPE TABLE OF ty_vbsk,
+     gi_vbsk TYPE ty_vbsk,
+     gt_vbfs TYPE TABLE OF  vbfs,
+     gi_vbfs TYPE vbfs,
+     gt_final TYPE TABLE OF ty_final,
+     gi_final TYPE ty_final,
+     gi_write TYPE ty_final,
+     lw_grpnum TYPE sammg,
+     gw_msg(255) TYPE c,
+     gt_ztuhcd1 TYPE STANDARD TABLE OF ztuhcd1,
+     gi_ztuhcd1 TYPE ztuhcd1,
+     gr_msgno TYPE RANGE OF msgno,
+     gi_msgno LIKE LINE OF gr_msgno,
+     gt_fieldcat TYPE slis_t_fieldcat_alv ,
+     gi_fieldcat TYPE slis_fieldcat_alv,
+     gw_flag TYPE c,
+     gw_dsn_tx TYPE string,
+     gw_filename(120) TYPE c,
+     gw_dir(50) TYPE c,
+     gw_ftime TYPE int4.
+
+CONSTANTS:gc_sammg  TYPE slis_fieldname VALUE 'SAMMG',
+          gc_text   TYPE slis_fieldname VALUE 'TEXT',
+          gc_el(11)  TYPE  c VALUE 'LE_DDL_ELog',
+          gc_name   TYPE  string VALUE  'ZRMM_DEL_DUE_LIST',
+*          gc_ob(8) TYPE c  VALUE 'OUTBOUND',
+          gc_10(10) TYPE c VALUE '10',
+          gc_300(300) TYPE c VALUE '300'.
+
+DATA:gw_fname(50) TYPE c,
+     gt_uzeit TYPE RANGE OF uzeit,
+     gi_uzeit LIKE LINE OF gt_uzeit,
+     gw_resdate TYPE sy-datum,
+     gw_restime TYPE sy-uzeit.
+
+CONSTANTS:gc_x TYPE c VALUE 'X',
+          gc_mailid(6) TYPE c  VALUE 'MAILID',
+*          gc_psubject(30) TYPE c VALUE 'DDL Error Logs'(007), "subject of the mail
+          gc_saprpt(6) TYPE c VALUE 'SAPRPT',
+          gc_raw(3) TYPE c VALUE 'RAW',
+          gc_xls(3) TYPE c VALUE 'XLS',
+          gc_int(3) TYPE c VALUE 'INT',
+          gc_f TYPE c VALUE 'F',
+          gc_u TYPE c VALUE 'U',
+          gc_con_tab  TYPE c VALUE cl_abap_char_utilities=>horizontal_tab,
+          gc_con_cret TYPE c VALUE cl_abap_char_utilities=>cr_lf.
+DATA:
+        gt_packing_list type TABLE OF  sopcklsti1 ,
+        gi_packing_list type  sopcklsti1 ,
+** storing receivers
+        gt_receivers    TYPE TABLE OF  somlreci1," OCCURS 0 WITH HEADER LINE,
+        gi_receivers    TYPE somlreci1,
+**storing file attachment data
+        gt_attachment  type TABLE OF  solisti1 ,
+        gi_attachment  type   solisti1 ,
+        gw_doc_data     LIKE sodocchgi1,
+        gw_message(100) TYPE c.
+DATA:   gt_message TYPE STANDARD TABLE OF solisti1 ."INITIAL SIZE 0
+                "WITH HEADER LINE. "storing mail body
+
+DATA : gw_format TYPE so_obj_tp , "file format
+       gw_attfilename TYPE so_obj_des, "file name
+       gw_cnt TYPE i.
+

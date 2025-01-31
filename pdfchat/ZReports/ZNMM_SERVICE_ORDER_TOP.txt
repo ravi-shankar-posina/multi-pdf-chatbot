@@ -1,0 +1,412 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SERVICE_ORDER_TOP
+*&---------------------------------------------------------------------*
+
+TYPES : BEGIN OF i_aufk,
+           aufnr TYPE aufnr,
+           auart TYPE aufart,
+           ernam TYPE auferfnam,
+           erdat TYPE auferfdat,
+           bukrs TYPE bukrs,
+           werks TYPE werks_d,
+           ktext TYPE auftext,
+        END  OF i_aufk,
+
+        BEGIN OF i_klah,
+          clint  TYPE clint,
+          class  TYPE klasse_d,
+        END  OF i_klah,
+
+        BEGIN OF i_ksml,
+          clint TYPE clint,
+          posnr TYPE kposnr,
+          imerk TYPE atinn,
+          klart TYPE klassenart,
+        END   OF i_ksml,
+
+        BEGIN OF i_cabnt,
+          atinn TYPE atinn,
+          spras TYPE spras,
+          atbez TYPE atbez,
+        END   OF i_cabnt,
+
+        BEGIN OF i_ksskausp,
+            objek  TYPE objnum,
+            clint  TYPE clint,
+            mafid  TYPE klmaf,
+            atzhl  TYPE wzaehl,
+            statu  TYPE clstatus,
+            klart  TYPE klassenart,
+            atinn  TYPE atinn,
+            atwrt  TYPE atwrt,
+            atflv  TYPE atflv,
+        END   OF i_ksskausp,
+
+        BEGIN OF i_clvalue,
+           atbez TYPE atbez,
+           value(15),
+           uom(10),
+        END   OF i_clvalue,
+
+        BEGIN OF i_afih,
+           aufnr    TYPE aufnr,
+           pm_objty TYPE pm_objty,
+           gewrk    TYPE lgwid,
+           equnr    TYPE equnr,
+           iloan    TYPE iloan,
+        END OF i_afih,
+
+        BEGIN OF i_iloa,
+           iloan  TYPE iloan,
+           aufnr  TYPE ilom_ordst,
+           tplnr  TYPE tplnr,
+           adrnr  TYPE ad_addrnum,
+           abckz  TYPE abckz,
+           ppsid  TYPE ppsid,
+        END OF i_iloa,
+
+        BEGIN OF i_crhd,
+           objty TYPE cr_objty,
+           objid TYPE cr_objid,
+           arbpl TYPE arbpl,
+        END OF i_crhd,
+
+        BEGIN OF i_equi,
+           equnr TYPE equnr,
+           eqart TYPE eqart,
+           invnr TYPE invnr,
+           serge TYPE serge,
+        END OF i_equi,
+
+        BEGIN OF i_eqkt,
+           equnr TYPE equnr,
+           eqktx TYPE ktx01,
+           spras TYPE spras,
+        END OF i_eqkt,
+
+* changes started by 502287934 RITM3049332 for general data
+
+        BEGIN OF i_itob,
+              equnr TYPE  equnr,                  " Equipment Number
+              invnr TYPE  invnr,                  " Inventory number
+              inbdt TYPE  ilom_datab,             " Start-up Date of the Technical Object
+              herst TYPE  herst,                  " Manufacturer of asset
+              herld TYPE  herld,                  " Country of manufacture
+              typbz TYPE  typbz,                  " Manufacturer model number
+              baujj TYPE  baujj,                  " Year of construction
+              mapar TYPE  mapar,                  " Manufacturer part number
+              serge TYPE  serge,                  " Manufacturer serial number
+      END OF i_itob,
+
+
+  BEGIN OF i_serdata,
+                  equnr TYPE  equnr,          " Equipment Number
+                  matnr TYPE  matnr,          " Material Number
+                  maktx TYPE  maktx,          " Material Description (Short Text)
+                  sernr TYPE  gernr,          " Serial Number
+  END OF i_serdata,
+
+** code changes ended by 502287934 RITM3049332 for serdata
+
+BEGIN OF i_iflo,
+   tplnr TYPE tplnr,
+   pltxt TYPE pltxt,
+   adrnr  TYPE  ad_addrnum,
+END OF i_iflo,
+
+*  code commented started by 502287934 RITM3049332
+*        BEGIN OF i_sadr,
+*           adrnr TYPE cadnr,
+*           anred TYPE anred,
+*           name1 TYPE name1_bas,
+*           name2 TYPE name2_bas,
+*           stras TYPE stras_gp,
+*           ort01 TYPE ort01_gp,
+*           pstlz TYPE pstlz_bas,
+*           land1 TYPE land1,
+*        END OF i_sadr,
+*  code commented ended by 502287934 RITM3049332
+
+*  code changes started by 502287934 RITM3049332
+BEGIN OF i_sadr,
+       addrnumber TYPE      ad_addrnum,                 " Address number
+       title      TYPE      ad_title,                   " Form-of-Address Key
+       name1      TYPE      ad_name1,                   " Name 1
+       name2      TYPE      ad_name2,                   " Name 2
+*      city_code  TYPE      ad_citynum,                 " City code for city/street file
+       mc_street  TYPE      ad_mc_strt,                 " Street name in upper case for search help " Added by 502287934
+       city1      TYPE      ad_city1,                   " City
+       post_code1 TYPE      ad_pstcd1,                  " City postal code
+       country    TYPE      land1,                      " Country Key
+END OF i_sadr,
+
+*        BEGIN OF i_sadr2,
+*           adrnr TYPE adrnr,
+*           telnr TYPE tlfnr,
+*           bezng TYPE num_des,
+*        END OF i_sadr2,
+*  code commented ended by 502287934 RITM3049332
+
+* code changes started by 502287934 RITM3049332
+
+BEGIN OF i_sadr2,
+    addrnumber  TYPE      ad_addrnum,              " Address number
+    tel_number  TYPE      ad_tlnmbr1,              " First telephone no.: dialling code+number
+*           bezng TYPE num_des,
+END OF i_sadr2,
+* code changes ended by 502287934 RITM3049332
+
+BEGIN OF i_cabn,
+   atinn TYPE atinn,
+   msehi TYPE msehi,
+END OF i_cabn,
+
+BEGIN OF i_stxh,
+   tdid     TYPE  tdid,
+   tdobject TYPE  tdobject,
+   tdname   TYPE  tdobname,
+   tdspras  TYPE  spras,
+ END OF i_stxh,
+
+ BEGIN OF i_cawnt,
+   atinn TYPE atinn,
+   atwtb TYPE atwtb,
+   spras TYPE spras,
+ END OF  i_cawnt,
+
+ BEGIN OF i_crtx,
+   objty TYPE cr_objty,
+   objid TYPE cr_objid,
+   spras TYPE spras,
+   ktext TYPE cr_ktext,
+ END OF i_crtx,
+
+ BEGIN OF i_kna1,
+   kunnr TYPE kunnr,
+   name1 TYPE name1_gp,
+   name2 TYPE name2_gp,
+   telf1 TYPE telf1,
+ END OF i_kna1,
+
+ BEGIN OF i_makt,
+   matnr TYPE matnr,
+   maktx TYPE maktx,
+   spras TYPE spras,
+ END OF i_makt,
+
+ BEGIN OF i_caufv,
+   aufnr TYPE aufnr,
+   rsnum TYPE rsnum,
+   auart TYPE aufart,
+   ktext TYPE auftext,
+   gstrp TYPE pm_ordgstrp,
+ END OF i_caufv.
+
+DATA : gt_caufvd_ds TYPE STANDARD TABLE OF caufvd,          "#EC NEEDED
+       gi_caufvd_ds TYPE caufvd,
+       gt_caufv_ds TYPE STANDARD TABLE OF caufv,
+       gi_caufv_ds TYPE caufv,
+       gt_veda_ds TYPE STANDARD TABLE OF rihveda ,
+       gi_veda_ds TYPE rihveda ,
+       gt_rihveda_ds TYPE STANDARD TABLE OF rihveda ,       "#EC NEEDED
+       gi_rihveda_ds TYPE rihveda ,
+       gt_rihveda_ds1 TYPE STANDARD TABLE OF rihveda ,       "#EC NEEDED " code added by 502287934
+       gi_rihveda_ds1 TYPE rihveda .                                     " code added by 502287934
+
+TYPES :        BEGIN OF i_output,
+           text(20),
+           aufnr TYPE aufnr, " order
+           auart TYPE aufart, " order type
+           ktext TYPE auftext, " short text
+           vaplz TYPE gewrk, " main work center
+           gstrp TYPE co_gstrp, " basic start
+**
+           posnr TYPE aposn, " component item
+           matnr TYPE matnr,  " component material
+           matxt TYPE maktx,  " component description
+           menge TYPE co_menge,  "  component quantity
+**
+           equnr TYPE equnr, " equipment number
+           eqart TYPE eqart,   " equipment type
+           eqktx TYPE ktx01,   " equipment description
+           invnr TYPE invnr,   " inventory number
+           serge TYPE serge,   " Man.serial number
+           txline TYPE txline, " internal note
+
+**  equipment general data
+
+          inbdt TYPE  ilom_datab,             " Start-up Date of the Technical Object
+          herst TYPE  herst,                  " Manufacturer of asset
+          herld TYPE  herld,                  " Country of manufacture
+          typbz TYPE  typbz,                  " Manufacturer model number
+          baujj TYPE  baujj,                  " Year of construction
+          mapar TYPE  mapar,                  " Manufacturer part number
+
+** equipment ser data
+
+                  ser_matnr TYPE  matnr,    " Material Number
+                  ser_maktx TYPE  maktx,    " Material Description (Short Text)
+                  ser_sernr TYPE  gernr,    " Serial Number
+
+**classifiction
+           atbez TYPE atbez,
+           value(15),
+           uom(10),
+**Fuctional location
+           tplnr TYPE tplnr,
+           pltxt TYPE pltxt,
+           arbpl TYPE arbpl,
+           abckz TYPE abckz,
+*address
+*  code changes started by 502287934 RITM3049332
+*           anred TYPE anred,
+*           name1 TYPE name1_bas,
+*           name2 TYPE name2_bas,
+*           stras TYPE stras_gp,
+*           ort01 TYPE ort01_gp,
+*           pstlz TYPE pstlz_bas,
+*           land1 TYPE land1,
+*           telnr TYPE tlfnr,
+*           bezng TYPE num_des,
+
+            title       TYPE    ad_title,
+            name1       TYPE    ad_name1,
+            name2       TYPE    ad_name2,
+*           city_code	  TYPE    ad_citynum,
+            mc_street   TYPE    ad_mc_strt,    " Street name in upper case for search help  " Added by 502287934
+            city1       TYPE    ad_city1,
+            post_code1  TYPE    ad_pstcd1,
+            country	    TYPE    land1,
+            tel_number  TYPE    ad_tlnmbr1,
+
+*  code changes ended by 502287934 RITM3049332
+
+**order
+           kauart TYPE auart,
+           sdaufnr TYPE vbeln_va,
+           sdposnr TYPE posnr_va,
+           kunnr   TYPE kunnr,
+           kname1 TYPE name1_gp,
+           kname2 TYPE name1_gp,
+           ktelf1 TYPE telf1,
+*Internal note .
+           internalnote(80),
+       END   OF i_output,
+       BEGIN OF i_resb,
+           posnr  TYPE aposn,
+           matnr  TYPE matnr,
+           bdmng  TYPE bdmng,
+           rsnum  TYPE rsnum,
+           xloek  TYPE xloek,
+
+       END   OF i_resb,
+       BEGIN OF i_excel,
+         field1(40),
+         field2(80),
+         field3(80),
+         field4(40),
+       END   OF i_excel.
+
+DATA:  gt_excel_ds TYPE STANDARD TABLE OF i_excel,
+       gi_excel_ds TYPE i_excel,
+
+       gt_clvalue_ds TYPE STANDARD TABLE OF i_clvalue,
+       gi_clvalue_ds TYPE i_clvalue,
+
+       gt_resb_ds TYPE STANDARD TABLE OF i_resb,
+       gi_resb_ds TYPE i_resb,
+       gt_resb1_ds TYPE STANDARD TABLE OF i_resb,
+       gi_resb1_ds TYPE i_resb,
+
+       gt_ksskausp_ds TYPE STANDARD TABLE OF i_ksskausp,
+       gi_ksskausp_ds TYPE i_ksskausp,
+
+       gt_output_ds  TYPE STANDARD TABLE OF i_output,
+       gi_output_ds  TYPE i_output,
+
+       gt_aufk_ds  TYPE STANDARD TABLE OF i_aufk,
+       gi_aufk_ds  TYPE i_aufk.
+
+DATA : gw_atflv TYPE p, " decimals 2,
+       gw_atwtb(3).
+
+DATA: gt_zline_ds TYPE STANDARD TABLE OF tline,
+      gi_zline_ds TYPE tline,
+      gi_zhead_ds TYPE thead.
+
+DATA :  gt_afih_ds  TYPE STANDARD TABLE OF i_afih,
+        gt_iloa_ds  TYPE STANDARD TABLE OF i_iloa,
+        gt_crhd_ds  TYPE STANDARD TABLE OF i_crhd,
+        gt_equi_ds  TYPE STANDARD TABLE OF i_equi,
+        gt_eqkt_ds  TYPE STANDARD TABLE OF i_eqkt,
+        gt_itob_ds  TYPE STANDARD TABLE OF i_itob,  " changes by 502287934 RITM3049332
+        gt_iflo_ds  TYPE STANDARD TABLE OF i_iflo,
+        gt_sadr_ds  TYPE STANDARD TABLE OF i_sadr,
+        gt_sadr2_ds TYPE STANDARD TABLE OF i_sadr2,
+        gt_stxh_ds  TYPE STANDARD TABLE OF i_stxh,
+        gt_crtx_ds  TYPE STANDARD TABLE OF i_crtx,
+        gt_kna1_ds  TYPE STANDARD TABLE OF i_kna1,
+        gt_makt_ds  TYPE STANDARD TABLE OF i_makt,
+        gt_serdata_ds TYPE STANDARD TABLE OF i_serdata,  " changes by 502287934 RITM3049332
+
+        gi_afih_ds  TYPE i_afih,
+        gi_iloa_ds  TYPE i_iloa,
+        gi_crhd_ds  TYPE i_crhd,
+        gi_equi_ds  TYPE i_equi,
+        gi_eqkt_ds  TYPE i_eqkt,
+        gi_itob_ds  TYPE i_itob, " changes by 502287934 RITM3049332
+        gi_iflo_ds  TYPE i_iflo,
+        gi_sadr_ds  TYPE i_sadr,
+        gi_sadr2_ds TYPE i_sadr2,
+        gi_crtx_ds  TYPE i_crtx,
+        gi_stxh_ds  TYPE i_stxh,
+        gi_kna1_ds  TYPE i_kna1,
+        gi_makt_ds  TYPE i_makt,
+        gi_serdata_ds TYPE  i_serdata. " changes by 502287934 RITM3049332
+
+DATA :   gt_klah1_ds TYPE STANDARD TABLE OF i_klah,
+         gi_klah1_ds TYPE i_klah,
+         gt_klah2_ds TYPE STANDARD TABLE OF i_klah,
+         gi_klah2_ds TYPE i_klah,
+         gt_ksml1_ds TYPE STANDARD TABLE OF i_ksml,
+         gi_ksml1_ds TYPE i_ksml,                           "#EC NEEDED
+         gt_ksml2_ds TYPE STANDARD TABLE OF i_ksml,
+         gi_ksml2_ds TYPE i_ksml,                           "#EC NEEDED
+         gt_cabnt1_ds TYPE STANDARD TABLE OF i_cabnt,
+         gi_cabnt1_ds  TYPE i_cabnt,
+         gt_cabnt2_ds TYPE STANDARD TABLE OF i_cabnt,
+         gi_cabnt2_ds  TYPE i_cabnt,
+         gt_ksskausp1_ds TYPE STANDARD TABLE OF i_ksskausp,
+         gi_ksskausp1_ds TYPE i_ksskausp,                   "#EC NEEDED
+         gt_ksskausp2_ds TYPE STANDARD TABLE OF i_ksskausp,
+         gi_ksskausp2_ds TYPE i_ksskausp,                   "#EC NEEDED
+         gt_cabn1_ds TYPE STANDARD TABLE OF i_cabn,
+         gi_cabn1_ds TYPE i_cabn,
+         gt_cabn2_ds TYPE STANDARD TABLE OF i_cabn,
+         gi_cabn2_ds TYPE i_cabn,
+         gt_cawnt1_ds TYPE STANDARD TABLE OF i_cawnt,
+         gi_cawnt1_ds TYPE i_cawnt,
+         gt_cawnt2_ds TYPE STANDARD TABLE OF i_cawnt,
+         gi_cawnt2_ds TYPE i_cawnt,
+         gw_file_ds   TYPE string.
+
+CONSTANTS : gc_class1_tx TYPE klasse_d VALUE 'UPS-SYSTEMS',
+            gc_class2_tx TYPE klasse_d VALUE 'UPS-CONTRACTS',
+            gc_tdid_tx   TYPE tdid     VALUE 'INTV',
+            gc_tdobj_tx  TYPE tdobject VALUE 'EQUI',
+            gc_objty_tx  TYPE cr_objty VALUE 'A',
+            gc_x         TYPE eqhie    VALUE 'X',
+            gc_order_tx     TYPE string VALUE 'ORDER',
+            gc_component_tx TYPE string VALUE 'COMPONENT',
+            gc_equipment_tx TYPE string VALUE 'EQUIPMENT',
+            gc_equipmentgd_tx  TYPE string VALUE 'EQUIPMENT_GD',  " code added by 502287934 RITM3049332
+            gc_equipmentser_tx TYPE string VALUE 'EQUIPMENT_SER', " code added by 502287934 RITM3049332
+            gc_upssy_tx     TYPE string VALUE 'UPS-SYSTEMS',
+            gc_upscn_tx     TYPE string VALUE 'UPS-CONTRACTS',
+            gc_funcl_tx     TYPE string VALUE 'FUNCTIONAL LOCATION',
+            gc_addr_tx      TYPE string VALUE 'ADDRESS',
+            gc_tel_tx       TYPE string VALUE 'TELEPHONE',
+            gc_contr_tx     TYPE string VALUE 'CONTRACT',
+            gc_int_not_tx   TYPE string VALUE 'INTERNAL NOTE',
+            gc_file_ty_tx   TYPE char10 VALUE 'DAT'.
+

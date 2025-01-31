@@ -1,0 +1,62 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_IDOC_STATUS
+*&---------------------------------------------------------------------*
+************************************************************************
+* Program Documentation
+************************************************************************
+*** Created by                    :Rajesh kumar Regonda(502225516)
+***                                Sandhyrani chintala
+*** Creation Date                 :12-04-2021
+*** Transport Request #           :DE3K9A0557
+*** RICEF Object No #             :RICEF2380
+****CR no #                       : CHG0171321
+****Transaction code              :ZIDOC_STATUS
+*** Description                   :
+************************************************************************
+*************************************************************************
+* DATE      | CR No.       |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 12-04-2021 |  CHG0171321 |Sandhya   | Initial program
+* 16-04-2021 | CHG0171321  |Badar     |  remoed orderby primery key DE3K9A067U
+* 03-06-2021 | CHG0171321  |          | added logic for status .msg no.794
+* 03-06-2021 | CHG0176150  |503162060 | Added logic for the Min Lot size,roundvalue
+*                           DE3K9A07O5  and info record fields.
+* 03-06-2021 | CHG0176150  |503162060 | corrected logic for index of
+*                           DE3K9A07QA   final table
+* 07-06-2021 | CHG0176150  |503162060 | modified the field catlog text
+*                           DE3K9A07QT
+* 29-07-2021 | CHG0176150  |503162060 | Added ranges logic in the EDID4 select query.
+*                           DE3K9A08Y6
+* 29-07-2021 | CHG0176150  |503162060 | Added logic for the IDOC Reference Text.
+*                           DE3K9A08YG
+* 30-07-2021 | CHG0176150  |503162060 | Added logic for the E1EKD01.
+*                           DE3K9A08Z2
+* 09/05/2022    DE3K9A0CZH    USDEJAI     EHP8 Defect - LCHR issue
+REPORT  zrmm_idoc_status MESSAGE-ID zmm.
+************************************************************************
+*          top include
+************************************************************************
+INCLUDE znmm_idoc_status_top.
+************************************************************************
+*         Selection screen  include
+************************************************************************
+INCLUDE znmm_idoc_status_sel.
+INCLUDE znmm_idoc_status_forms.
+
+************************************************************************
+*         Strat of selection.
+************************************************************************
+
+START-OF-SELECTION.
+** Fetch the required records from various tables
+  PERFORM fetch_records.
+  PERFORM prepare_data.
+*Layout for alv
+  PERFORM build_layout.
+** Preparing fieldcat to build output display
+  PERFORM fieldcatalog.
+** or hotspot for field IDOC no, PO no, INF no.
+  PERFORM hotspotcatalog.
+*output display
+  PERFORM display_data.
+

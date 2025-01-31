@@ -1,0 +1,54 @@
+*&----------------------------------------------------------------*
+*&  Include           ZNSD_ITRADE_PO_ANALYZER_SEL
+*&----------------------------------------------------------------*
+*   Selection fields definition.                                  *
+*&----------------------------------------------------------------*
+SELECTION-SCREEN: BEGIN OF BLOCK a WITH FRAME TITLE text-001.
+
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN POSITION 33.
+PARAMETERS: po_ngen AS CHECKBOX .
+SELECTION-SCREEN: COMMENT 35(15) text-028.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN: COMMENT 17(15) text-024.
+SELECTION-SCREEN POSITION 33.
+PARAMETERS: po_nproc AS CHECKBOX .
+SELECTION-SCREEN: COMMENT 35(15) text-023.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN: BEGIN OF LINE.
+SELECTION-SCREEN: COMMENT 17(15) text-026.
+PARAMETERS: po_sproc AS CHECKBOX .
+SELECTION-SCREEN: COMMENT 35(22) text-025.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN POSITION 33.
+PARAMETERS: po_iproc AS CHECKBOX .
+SELECTION-SCREEN: COMMENT 35(22) text-027.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN SKIP.
+
+*Begin of changes by 503146489 CR-GECHG0657413  DE3K994936 27/11/2019
+SELECT-OPTIONS: s_status FOR gw_stat NO INTERVALS NO-EXTENSION
+                                                DEFAULT 'OPEN',
+*End of changes by 503146489 CR-GECHG0657413  DE3K994936 27/11/2019
+                s_bukrs FOR ekko-bukrs NO INTERVALS NO-EXTENSION
+                                                      OBLIGATORY,
+                s_ekorg FOR ekko-ekorg,
+                s_ebeln FOR ekko-ebeln ,
+                s_bedat FOR ekko-bedat ,
+                s_ernam FOR ekko-ernam,
+                s_bstyp FOR ekko-bstyp,
+                s_bsart FOR ekko-bsart,
+                s_frgke FOR ekko-frgke,
+                s_stat  FOR edidc-status,
+                s_push  FOR gw_push,
+*                s_push  FOR zselpush-low,
+                s_ktokk FOR lfa1-ktokk NO INTERVALS OBLIGATORY,
+                s_kschl FOR nast-kschl NO INTERVALS OBLIGATORY.
+SELECTION-SCREEN: SKIP.
+SELECTION-SCREEN END OF BLOCK a.
+

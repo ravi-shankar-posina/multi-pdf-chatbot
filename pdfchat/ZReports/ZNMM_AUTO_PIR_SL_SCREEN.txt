@@ -1,0 +1,80 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_AUTO_PIR_SL_SCREEN
+*&---------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 28-May-2019        | GECHG0488738     |502277866 | Initial Development
+* 03-Jun-2019        | GECHG0488738     |502277866 | Added logic for formating error in ME11 bdc for NETPR
+* 04-Jun-2019        | GECHG0488738     |502277866 | Added logic for custom message for me11 and me01 BDC
+* 17-Jun-2019        | GECHG0488738     |502277866 | Added logic to restict for single plant in selection screen
+*                                                   and corrected the text message
+* 09-Jul-2019        | GECHG0532576     |502277866 | Added logic for EMAX option
+* 17-Jul-2019        | GECHG0532576     |502277866 | Modified  logic for  BOM Price calucclation for EMAX option
+* 19-Jul-2019        | GECHG0532576     |502277866 | Modified  logic for   retriving PB00 price  for EMAX option
+* 09-SEP-2019        | GECHG0588463     |502277866 | Added logic to update the material price
+* 12-SEP-2019        | GECHG0588463     |502277866 | modifed logic to pick correct tcode for bdc processing.
+* 16-SEP-2019        | GECHG0588463     |502277866 | modified logic for displaying correct message.
+* 10-OCT-2019        | GECHG0626527     |503119365 | Generation 4 logic implementation
+* 21-NOV-2023        |  DE3K9A0NSH      |USPRSAH   | Added logic to create pir and sl on mulitple vendor
+*                    |                  |          | Added logic to , bifurcate records with error and convert to excel and send via email
+***------------------------------------------------------------------***
+
+*   Begin of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+TYPES : BEGIN OF ty_knttp,
+        knttp TYPE eban-knttp,
+        text  TYPE char40,
+        END OF ty_knttp.
+
+DATA : gt_knttp TYPE TABLE OF ty_knttp,
+       gi_knttp TYPE ty_knttp.
+
+DATA : gw_kntp TYPE char1.
+
+TABLES : prps, eban ,  resb.
+*   End   of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+SELECTION-SCREEN BEGIN OF BLOCK b2.           "usprsah
+SELECT-OPTIONS : s_werks FOR gw_werks NO INTERVALS  NO-EXTENSION OBLIGATORY,
+                 s_ekgrp FOR gw_ekgrp NO INTERVALS OBLIGATORY MATCHCODE OBJECT h_t024,
+                 s_rdate FOR gw_rdate  OBLIGATORY,
+                 s_banfn FOR gw_banfn,
+                 s_ebakz FOR gw_ebakz NO INTERVALS,
+                 s_statu FOR gw_statu NO INTERVALS,
+                 s_matnr FOR gw_matnr,
+                 s_flief FOR gw_flief NO INTERVALS,
+                 s_knttp FOR eban-knttp NO INTERVALS MODIF ID md1, "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+                 s_psext FOR prps-posid NO INTERVALS MODIF ID md1, "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+                 s_vbeln FOR ebkn-vbeln,
+                 s_vbelp FOR gw_vbelp,
+                 s_aufnr FOR ebkn-aufnr MODIF ID md1 MATCHCODE OBJECT orde NO INTERVALS ,"(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+                 s_nplnr FOR ebkn-nplnr NO INTERVALS MODIF ID md1, "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+                 s_vornr FOR resb-vornr NO INTERVALS MODIF ID md1, "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+                 s_prdha FOR gw_prdha MATCHCODE OBJECT prodh,
+                 s_email for somlreci1-receiver NO INTERVALS.             "USPRSAH FOR RITM6256388
+SELECTION-SCREEN END OF BLOCK b2.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+
+PARAMETERS:
+ gp_r1 RADIOBUTTON GROUP rad USER-COMMAND abc
+             DEFAULT 'X',
+gp_r2  RADIOBUTTON GROUP rad,
+gp_r3  RADIOBUTTON GROUP rad."Rama DE3K9A09FN CHG0190266
+SELECTION-SCREEN END OF BLOCK b1.
+
+*   Begin of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR s_knttp-low.
+  FREE gt_knttp.
+  PERFORM update_knttp_f4 using 'Q' TEXT-024. "'Proj. make-to-order'.
+  PERFORM update_knttp_f4 using 'E' TEXT-025. "'Ind. cust. w. KD-CO'.
+  PERFORM update_knttp_f4 using 'X' TEXT-026. "'All aux.acct.assgts'.
+  PERFORM update_knttp_f4 using 'F' TEXT-027. "'Order'.
+  PERFORM update_knttp_f4 using 'N' TEXT-028. "'Network'.
+  PERFORM populate_knttp_f4.
+
+AT SELECTION-SCREEN OUTPUT.
+  PERFORM modify_screen_ats.
+*   End   of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+

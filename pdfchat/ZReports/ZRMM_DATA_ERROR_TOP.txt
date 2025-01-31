@@ -1,0 +1,141 @@
+*&---------------------------------------------------------------------*
+* Name                          : ZRMM_DATA_ERROR
+* Tcode                         : ZMM112
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 21 Sep 2023
+* Transport Request #           : DE3K9A0N0Y
+* RICEF Object No #             : RICEF2684
+* Description                   : Data errors for ZTMM_PICT
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* 25.09.2023   | RICEF-2684|USSOSUB1  |Quality bug fix
+*----------------------------------------------------------------------*
+* 15.11.2023   | RICEF-2684|USANBOD11 | Physical_inventory Changes
+*----------------------------------------------------------------------*
+*****************************************************************************************
+* CHANGED BY  | DATE        | TR #       |CR No(INCUM | DESCRIPTION OF CHANG
+*****************************************************************************************
+* CHTAMUR     | 09/09/2024  | DE3K9A0T02 | CHG2078268 | PI tool issue fixes and improvements   *
+*----------------------------------------------------------------------*
+REPORT zrmm_data_error.
+
+TABLES:ztmm_pict, ztmm_picc_log , ztmm_pict_1.  " DE3K9A0QXS        USANBOD11
+
+*Start of Change for DE3K9A0T02 by CHTAMUR
+*TYPES: BEGIN OF ty_final,
+*         zintc        TYPE ztmm_pict-zintc,
+*         zcount       TYPE ztmm_pict-zcount,
+*         werks        TYPE ztmm_pict-werks,
+*         gjahr        TYPE ztmm_pict-gjahr,
+*         gidat        TYPE ztmm_pict-gidat,
+*         inccd        TYPE ztmm_pict-inccd,
+*         lgort        TYPE ztmm_pict-lgort,
+*         zuser        TYPE ztmm_pict-zuser,
+*         matnr        TYPE ztmm_pict-matnr,
+*         bismt        TYPE ztmm_pict-bismt,
+*         alqty        TYPE ztmm_pict-alqty,
+*         aluom        TYPE ztmm_pict-aluom,
+*         bsqty        TYPE ztmm_pict-bsqty,
+*         bsuom        TYPE ztmm_pict-bsuom,
+*         bkqty        TYPE ztmm_pict-bkqty,
+*         vbkqty       TYPE ztmm_pict-vbkqty,
+*         ecount       TYPE ztmm_pict-ecount,
+*         dfqty        TYPE ztmm_pict-dfqty,
+*         dumps        TYPE ztmm_pict-dumps,
+*         sobkz        TYPE ztmm_pict-sobkz,
+*         bstar        TYPE ztmm_pict-bstar,
+*         charg        TYPE ztmm_pict-charg,
+*         iblnr        TYPE ztmm_pict-iblnr,
+*         zeili        TYPE ztmm_pict-zeili,
+*         pspnr        TYPE ztmm_pict-pspnr,
+*         vbeln        TYPE ztmm_pict-vbeln,
+*         posnr        TYPE ztmm_pict-posnr,
+*         lifnr        TYPE ztmm_pict-lifnr,
+*         ztext        TYPE ztmm_pict-ztext,
+*         adcom        TYPE ztmm_pict-adcom,
+*         xloek        TYPE ztmm_pict-xloek,
+*         aufnr        TYPE ztmm_pict-aufnr,
+*         entdate      TYPE ztmm_pict-entdate,
+*         schgt        TYPE ztmm_pict-schgt,
+*         bklas        TYPE ztmm_pict-bklas,
+*         line         TYPE ztmm_pict-line,
+*         wip          TYPE ztmm_pict-wip,
+*         sbdkz        TYPE ztmm_pict-sbdkz,
+*         splstkind    TYPE ztmm_pict-splstkind,
+*         shpsplst     TYPE ztmm_pict-shpsplst,
+*         stprs        TYPE ztmm_pict-stprs,
+*         bom_explode  TYPE ztmm_pict-bom_explode,
+*         summary(158) TYPE c,
+*         mmsta        TYPE ztmm_pict-mmsta,
+*       END OF ty_final.
+
+TYPES: BEGIN OF ty_final.
+         INCLUDE STRUCTURE ztmm_pict.
+         TYPES: summary(158) TYPE c,
+       END OF ty_final.
+
+*End of Change for DE3K9A0T02 by CHTAMUR
+
+DATA: gt_ztmm_pict     TYPE STANDARD TABLE OF ztmm_pict_1, " DE3K9A0QXS        USANBOD11
+      gt_duplicate     TYPE STANDARD TABLE OF ztmm_pict_1, " DE3K9A0QXS        USANBOD11
+      gs_ztmm_pict     TYPE ztmm_pict_1,                   " DE3K9A0QXS        USANBOD11
+      gs_duplicate     TYPE ztmm_pict_1,
+      gt_final         TYPE TABLE OF ty_final,
+      gs_final         TYPE ty_final,
+      lv_lines         TYPE i,
+      gt_fieldcatalog1 TYPE slis_t_fieldcat_alv,
+      wa_fcat1         TYPE slis_fieldcat_alv,
+      lv_col           TYPE i,
+      gs_layout        TYPE slis_layout_alv.
+** BOC DE3K9A0NN9| RICEF-2684 | USANBOD11
+TYPES:BEGIN OF ty_date,
+        pidate TYPE ztmm_pi_date-pidate,
+      END OF ty_date.
+** BOC Anil DE3K9A0QXS        USANBOD11
+DATA: gt_ztmm_pict11 TYPE TABLE OF ztmm_pict_1,
+      gs_ztmm_pict11 TYPE ztmm_pict_1,
+      gt_ztmm_pict1  TYPE STANDARD TABLE OF ztmm_pict_1,
+      gt_pidate      TYPE TABLE OF ty_date,
+      gs_pidate      TYPE ty_date.
+** EOC Anil DE3K9A0QXS        USANBOD11
+DATA :
+  gv_iblnr     TYPE ztmm_picc_log-usedcard,
+  gv_schgt     TYPE ztmm_picc_log-usedcard,
+  gv_bklas     TYPE ztmm_picc_log-usedcard,
+  gv_wip       TYPE ztmm_picc_log-usedcard,
+  gv_splstkind TYPE ztmm_picc_log-usedcard,
+  gv_shpsplst  TYPE ztmm_picc_log-usedcard,
+  gv_num       TYPE ztmm_picc_log-usedcard,
+  gv_duplicate TYPE ztmm_picc_log-usedcard,
+  gv_all       TYPE ztmm_picc_log-usedcard.
+** EOC DE3K9A0NN9| RICEF-2684 | USANBOD11
+SELECTION-SCREEN:BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-000.
+
+SELECT-OPTIONS: s_plant FOR ztmm_pict-werks NO INTERVALS NO-EXTENSION,
+                s_year FOR ztmm_pict-gjahr NO INTERVALS NO-EXTENSION DEFAULT sy-datum+0(4),
+                s_ver   FOR ztmm_picc_log-version NO INTERVALS NO-EXTENSION.
+SELECTION-SCREEN:END OF BLOCK b1.
+
+SELECTION-SCREEN :BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-012.
+
+PARAMETERS:rad1      RADIOBUTTON GROUP rad USER-COMMAND frad1 DEFAULT 'X',
+           count1(9) MODIF ID md1 ,   "DE3K9A0NN9| RICEF-2684 | USANBOD11
+           rad2      RADIOBUTTON GROUP rad,
+           count2(9) MODIF ID md1 ,   "DE3K9A0NN9| RICEF-2684 | USANBOD11
+           rad3      RADIOBUTTON GROUP rad,
+           count3(9) MODIF ID md1 ,   "DE3K9A0NN9| RICEF-2684 | USANBOD11
+           rad4      RADIOBUTTON GROUP rad,
+           count4(9) MODIF ID md1 ,   "DE3K9A0NN9| RICEF-2684 | USANBOD11
+           rad5      RADIOBUTTON GROUP rad,
+           count5(9) MODIF ID md1 ,   "DE3K9A0NN9| RICEF-2684 | USANBOD11
+           rad6      RADIOBUTTON GROUP rad,
+           count6(9) MODIF ID md1 ,   "DE3K9A0NN9| RICEF-2684 | USANBOD11
+           rad7      RADIOBUTTON GROUP rad,
+           count7(9) MODIF ID md1 ,   "DE3K9A0NN9| RICEF-2684 | USANBOD11
+           rad8      RADIOBUTTON GROUP rad,
+           count8(9) MODIF ID md1 ,   "DE3K9A0NN9| RICEF-2684 | USANBOD11
+           rad9      RADIOBUTTON GROUP rad, "DE3K9A0NN9| RICEF-2684 | USANBOD11
+           count9(9) MODIF ID md1 .   "DE3K9A0NN9| RICEF-2684 | USANBOD11
+
+SELECTION-SCREEN:END OF BLOCK b2.
+

@@ -1,0 +1,461 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_STO_AB_CONFIRM_PROCESS
+*&---------------------------------------------------------------------*
+TYPES : BEGIN OF ty_final1,
+       ebeln TYPE ebeln,
+       END OF ty_final1.
+DATA : gt_final1 TYPE TABLE OF ty_final1,
+       gs_final1 TYPE ty_final1,
+       gw_flag5 .
+
+
+LOOP AT gt_cdhdr1 INTO gs_cdhdr1  .
+  gs_final1-ebeln = gs_cdhdr1-ebeln.
+  APPEND gs_final1 TO gt_final1.
+ENDLOOP.
+
+SORT gt_final1 BY ebeln.
+
+DELETE ADJACENT DUPLICATES FROM gt_final1.
+
+LOOP AT gt_final1 INTO gs_final1.
+  REFRESH : gt_return , gt_schedule , gt_confirm_line , gt_item.
+  gw_ponumber = gs_final1-ebeln.
+  CALL FUNCTION 'BAPI_PO_GETDETAIL1'
+    EXPORTING
+      purchaseorder  = gw_ponumber
+    IMPORTING
+      poheader       = gs_header
+    TABLES
+      return         = gt_return
+      poitem         = gt_item
+      poschedule     = gt_schedule
+      poconfirmation = gt_confirm_line.
+
+  LOOP AT gt_item INTO gs_item.
+    IF gs_item-delete_ind IS INITIAL.
+      gt_cdhdr2 = gt_cdhdr1.
+      DELETE gt_cdhdr1 WHERE ebeln NE gw_ponumber.
+
+      CLEAR : gw_flag.
+      LOOP AT gt_cdhdr1 INTO gs_cdhdr1.
+
+        IF gs_cdhdr1-ebelp IS INITIAL.
+          gw_flag = 'X'.
+          EXIT.
+        ELSEIF gs_item-po_item EQ gs_cdhdr1-ebelp.
+          gw_flag = 'X'.
+        ENDIF.
+      ENDLOOP.
+*      endif.
+      gt_cdhdr1 = gt_cdhdr2.
+      IF gw_flag EQ 'X' .
+        IF gs_item-no_more_gr NE 'X' AND gs_item-deliv_compl NE 'X' ."AND gs_item-delete_ind NE 'X'. "checking for deletion flag and delivery completion flag
+
+          gt_schedule1 = gt_schedule.
+          gt_confirm_line1 = gt_confirm_line.
+          gt_eket21 = gt_eket2.
+          DELETE gt_schedule WHERE po_item NE gs_item-po_item.
+          DELETE gt_eket2  WHERE ebeln NE gw_ponumber .
+          DELETE gt_eket2  WHERE ebelp NE gs_item-po_item.
+*
+*          DELETE gt_eket2  WHERE ebelp NE gs_item-po_item.
+**                              AND ebeln NE gw_ponumber."added on 15.12.2014 for CHG0479283 DE3K957053 by 502277866
+          DELETE gt_confirm_line WHERE po_item NE gs_item-po_item.
+*** statrt of comments on 11.12.2014 for CHG0479283  DE3K956705 by 502277866
+*          READ TABLE gt_schedule INTO gs_schedule INDEX 1.
+*          IF sy-subrc EQ 0.
+*            lw_menge =  gs_schedule-quantity.
+*          ENDIF.
+*** end of comments on 11.12.2014 for CHG0479283  DE3K956705 by 502277866
+          DELETE gt_schedule WHERE quantity IS NOT INITIAL.
+**** start of changes  by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+*          DELETE gt_eket2 WHERE menge IS NOT INITIAL.
+          IF gt_schedule IS   NOT INITIAL.
+*            LOOP AT gt_eket2 INTO gs_eket2.
+*              lw_wemng =   lw_wemng +  gs_eket2-wemng.
+*              CLEAR : gs_eket2.
+*            ENDLOOP.
+            DELETE gt_eket2 WHERE menge IS INITIAL.
+            READ TABLE gt_eket2 INTO gs_eket2 INDEX 1.
+            IF sy-subrc EQ 0.
+              lw_wemng = gs_eket2-wamng.
+              lw_menge = gs_eket2-menge." *** changes on  11.12.2014 for CHG0479283  DE3K956705 by 502277866
+            ENDIF.
+********** end of changes by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+            CLEAR : lw_count.
+
+*  changes started by 502287934 for RITM RITM4668448 FOR CR CHG1249876
+            IF lw_menge LE lw_wemng AND lw_menge IS NOT INITIAL.
+           CLEAR : gw_flag5.
+              LOOP AT gt_confirm_line INTO gs_confirm_line  WHERE conf_type EQ 'AB' .
+                READ TABLE gt_ekes INTO gs_ekes WITH KEY ebeln = gw_ponumber
+                                                          ebelp = gs_confirm_line-po_item
+                                                          etens = gs_confirm_line-conf_ser
+                                                          ebtyp = gs_confirm_line-conf_type.
+                IF sy-subrc EQ 0.
+
+                  IF gs_ekes-menge EQ gs_ekes-dabmg.
+                    gs_ekes1-mandt = sy-mandt.
+                    gs_ekes1-ebeln = gw_ponumber.
+                    gs_ekes1-ebelp = gs_schedule-po_item.
+                    gs_ekes1-etens = gs_confirm_line-conf_ser.
+                    gs_ekes1-ebtyp = 'AB'.
+                    gs_ekes1-lpein = '1'.
+                    gs_ekes1-erdat = sy-datum.
+                    gs_ekes1-eindt = gs_schedule-com_date.
+                    gs_ekes1-menge = gs_schedule-com_qty.
+                    gs_ekes1-xblnr = 'AUTO_AB_CONFIRMATION'.
+                    gs_ekes1-kz    = 'U'.
+                    gs_ekes1-kzdis = 'X'.
+                    APPEND gs_ekes1 TO gt_ekes1.
+                    CLEAR gs_ekes1.
+                  ELSE.
+                    gs_ekes1-mandt = sy-mandt.
+                    gs_ekes1-ebeln = gw_ponumber.
+                    gs_ekes1-ebelp = gs_confirm_line-po_item.
+                    gs_ekes1-etens = gs_confirm_line-conf_ser.
+                    gs_ekes1-ebtyp = 'AB'.
+                    gs_ekes1-lpein = '1'.
+                    gs_ekes1-erdat = sy-datum.
+                    gs_ekes1-eindt = gs_confirm_line-deliv_date.
+                    gs_ekes1-menge = gs_confirm_line-quantity.
+                    gs_ekes1-xblnr = 'AUTO_AB_CONFIRMATION'.
+                    gs_ekes1-kz    = 'D'.
+                    gs_ekes1-kzdis = 'X'.
+                    APPEND gs_ekes1 TO gt_ekes1.
+                    GW_FLAG5 = 'X'.
+                    CLEAR  : gs_ekes1 , gs_final .
+                  ENDIF.
+                ENDIF.
+                CLEAR gs_confirm_line.
+                CLEAR gs_ekes.
+              ENDLOOP.
+              IF gt_ekes1 IS NOT INITIAL.
+                CALL FUNCTION 'ME_CONFIRMATION_MAINTAIN_AVIS'
+                  EXPORTING
+                    i_ibtyp                 = '1'
+                  TABLES
+                    t_ekes                  = gt_ekes1
+                    errors                  = gt_err1
+                  EXCEPTIONS
+                    confirmation_not_found  = 1
+                    conversion_not_possible = 2
+                    po_not_found            = 3
+                    po_not_valid            = 4
+                    etens_overflow          = 5
+                    OTHERS                  = 6.
+                IF sy-subrc <> 0.
+* Implement suitable error handling here
+                ELSE.
+                  CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+                    EXPORTING
+                      wait = 'X'.
+                ENDIF.
+
+" Changes started by 502287934 for RITM RITM4668448 for CR CHG1249876 on 08/06/2015
+               gt_schedule = gt_schedule1.
+                gt_confirm_line = gt_confirm_line1.
+                gt_eket2 = gt_eket21.
+                gs_final-ebeln   = gw_ponumber.
+                gs_final-ebelp   = gs_item-po_item .
+                if gw_flag5 ne 'X'.
+                gs_final-message = 'Confirmations already exist'(011).
+                gs_final-mess_typ = 'E'.
+                ELSE.
+                  gs_final-message =  TEXT-013.
+                    gs_final-mess_typ = 'S'.
+
+                   ENDIF.
+
+                APPEND gs_final TO gt_final.
+" Changes end by 502287934 for RITM RITM4668448 for CR CHG1249876 on 08/06/2015
+                else.
+" Changes started by 502287934 for RITM RITM4668448 for CR CHG1249876 on 09/06/2015
+                   gt_schedule      = gt_schedule1.
+                   gt_confirm_line  = gt_confirm_line1.
+                   gt_eket2         = gt_eket21.
+                   gs_final-ebeln   = gw_ponumber.
+                   gs_final-ebelp   = gs_item-po_item .
+                   gs_final-message = 'No AB Confirmation Exist'(014).
+                   gs_final-mess_typ = 'S'.
+                   APPEND gs_final TO gt_final.
+ " Changes end by 502287934 for RITM RITM4668448 for CR CHG1249876 on 09/06/2015
+              ENDIF.
+              REFRESH : gt_ekes1 , gt_err1.
+* End of changes by 502287934 for RITM RITM4668448 FOR CR CHG1249876
+            ELSEIF lw_menge GT lw_wemng. "checking for schedule quantity id greater than gr quantity
+              CLEAR : lw_wemng1.
+              LOOP AT gt_confirm_line INTO gs_confirm_line.
+
+                IF gs_confirm_line-conf_type EQ 'LA'.
+                  READ TABLE gt_ekes INTO gs_ekes WITH KEY ebeln = gw_ponumber
+                                                           ebelp = gs_confirm_line-po_item
+                                                           etens = gs_confirm_line-conf_ser
+                                                           ebtyp = gs_confirm_line-conf_type.
+                  IF sy-subrc EQ 0.
+                    gs_confirm-creat_date =  gs_ekes-erdat.
+                  ENDIF.
+                  lw_wemng1 =   lw_wemng1 +  gs_confirm_line-quantity.
+
+                ELSE.
+                  lw_count = lw_count + 1.
+                ENDIF.
+
+                CLEAR : gs_confirm_line.
+              ENDLOOP.
+
+*              IF lw_menge GT lw_wemng1. "CHECKING FOR SCHEDULED QUANTITY IS GREATER THAN LA CONFIRMATION QUANTITY.
+
+              IF lw_count EQ 0. " IF NO AB CONFIRMATIONS ARE THERE.
+
+                LOOP AT gt_schedule INTO gs_schedule.
+**** start of comment by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+*                    IF NOT gs_schedule-delivery_date IS INITIAL.
+*                  IF NOT gs_schedule-com_date IS INITIAL.
+*                    CALL FUNCTION 'CONVERT_DATE_TO_INTERNAL'
+*                      EXPORTING
+*                        date_external = gs_schedule-com_date " gs_schedule-delivery_date
+*                      IMPORTING
+*                        date_internal = gs_ekes1-eindt.
+*                  ENDIF.
+*                CLEAR : gs_schedule.
+***** end of comments by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+                  gs_ekes1-mandt = sy-mandt.
+                  gs_ekes1-ebeln = gw_ponumber.
+                  gs_ekes1-ebelp = gs_schedule-po_item.
+                  gs_ekes1-ebtyp = 'AB'.
+                  gs_ekes1-lpein = '1'.
+                  gs_ekes1-erdat = sy-datum.
+                  gs_ekes1-eindt = gs_schedule-com_date. ""changes by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+                  gs_ekes1-menge = gs_schedule-com_qty.
+                  gs_ekes1-xblnr = 'AUTO_AB_CONFIRMATION'.
+                  gs_ekes1-kz    = 'I'.
+                  gs_ekes1-kzdis = 'X'.
+                  APPEND gs_ekes1 TO gt_ekes1.
+                  CLEAR : gs_ekes1 , gs_schedule.
+                ENDLOOP.
+              ELSEIF lw_count GT 0.
+                CLEAR : lw_value,
+                       lw_diff .
+******Reading Threshold value for supplying plant of STO
+                READ TABLE  gt_threshold INTO  gs_threshold WITH KEY reswk = gs_header-suppl_plnt.
+                IF sy-subrc EQ 0.
+                  lw_value = gs_threshold-threshold.
+                ENDIF.
+                DELETE gt_confirm_line WHERE conf_type NE 'AB'.
+****** case for Ab confirmation having same quantiy
+                LOOP AT gt_confirm_line INTO gs_confirm_line.
+                  READ TABLE gt_schedule INTO gs_schedule WITH KEY com_qty =  gs_confirm_line-quantity.
+                  IF sy-subrc EQ 0.
+****   start of comments  by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+*                      IF NOT gs_schedule-delivery_date IS INITIAL.
+*                    IF NOT gs_schedule-com_date IS INITIAL.
+*                      CALL FUNCTION 'CONVERT_DATE_TO_INTERNAL'
+*                        EXPORTING
+*                          date_external = gs_schedule-com_date "gs_schedule-delivery_date
+*                        IMPORTING
+*                          date_internal = gs_schedule-com_date. "gs_schedule-delivery_date.
+*                          endif.
+*** end of comments  by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+                    lw_date1 = gs_schedule-com_date . " gs_schedule-delivery_date."changes by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+                    lw_date2 = gs_confirm_line-deliv_date.
+                    lw_diff1 = lw_date1 - lw_date2.
+* start of changes by 502287934 for RITM for RITM RITM4668448 CR CHG1249876
+                    IF lw_diff1 LT 0.
+                      lw_diff1 = lw_diff1 * -1.
+                    ENDIF.
+* End of changes by 502287934 for RITM for RITM RITM4668448 CR CHG1249876
+                    IF lw_diff1 NE 0 AND  lw_diff1 GT lw_value.
+                      gs_ekes1-mandt = sy-mandt.
+                      gs_ekes1-ebeln = gw_ponumber.
+                      gs_ekes1-ebelp = gs_schedule-po_item.
+                      gs_ekes1-etens = gs_confirm_line-conf_ser.
+                      gs_ekes1-ebtyp = 'AB'.
+                      gs_ekes1-lpein = '1'.
+                      gs_ekes1-erdat = sy-datum.
+                      gs_ekes1-eindt = gs_schedule-com_date ."gs_schedule-delivery_date."changes by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+                      gs_ekes1-menge = gs_schedule-com_qty.
+                      gs_ekes1-xblnr = 'AUTO_AB_CONFIRMATION'.
+                      gs_ekes1-kz    = 'U'.
+                      gs_ekes1-kzdis = 'X'.
+                      APPEND gs_ekes1 TO gt_ekes1.
+                    ENDIF.
+                    DELETE gt_confirm_line WHERE conf_ser = gs_confirm_line-conf_ser.
+                    DELETE gt_schedule WHERE sched_line = gs_schedule-sched_line.
+                    CLEAR : gs_ekes1, gs_confirm_line , gs_schedule .
+                  ELSE.
+                    gs_ekes1-mandt = sy-mandt.
+                    gs_ekes1-ebeln = gw_ponumber.
+                    gs_ekes1-ebelp = gs_confirm_line-po_item.
+                    gs_ekes1-etens = gs_confirm_line-conf_ser.
+                    gs_ekes1-ebtyp = 'AB'.
+                    gs_ekes1-lpein = '1'.
+                    gs_ekes1-erdat = sy-datum.
+                    gs_ekes1-eindt = gs_confirm_line-deliv_date.
+                    gs_ekes1-menge = gs_confirm_line-quantity.
+                    gs_ekes1-xblnr = 'AUTO_AB_CONFIRMATION'.
+                    gs_ekes1-kz    = 'D'.
+                    gs_ekes1-kzdis = 'X'.
+                    APPEND gs_ekes1 TO gt_ekes1.
+                  ENDIF.
+                  CLEAR : gs_confirm_line , gs_ekes1.
+                ENDLOOP.
+
+                DESCRIBE TABLE gt_schedule LINES lw_x.
+                LOOP AT gt_schedule INTO gs_schedule.
+**** start of comments by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+*                    IF NOT gs_schedule-delivery_date IS INITIAL.
+*                    IF NOT gs_schedule-com_date IS INITIAL.
+*                      CALL FUNCTION 'CONVERT_DATE_TO_INTERNAL'
+*                        EXPORTING
+*                          date_external = gs_schedule-com_date "gs_schedule-delivery_date
+*                        IMPORTING
+*                          date_internal = gs_schedule-com_date. "gs_schedule-delivery_date.
+*                          endif.
+***** end of comments by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+                  gs_ekes1-mandt = sy-mandt.
+                  gs_ekes1-ebeln = gw_ponumber.
+                  gs_ekes1-ebelp = gs_schedule-po_item.
+                  gs_ekes1-ebtyp = 'AB'.
+                  gs_ekes1-lpein = '1'.
+                  gs_ekes1-erdat = sy-datum.
+                  gs_ekes1-eindt = gs_schedule-com_date ."gs_schedule-delivery_date."changes by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+                  gs_ekes1-menge = gs_schedule-com_qty.
+                  gs_ekes1-xblnr = 'AUTO_AB_CONFIRMATION'.
+                  gs_ekes1-kz    = 'I'.
+                  gs_ekes1-kzdis = 'X'.
+                  APPEND gs_ekes1 TO gt_ekes1.
+                  CLEAR : gs_schedule.
+                ENDLOOP.
+
+              ENDIF.
+              IF gt_ekes1 IS NOT INITIAL.
+                CALL FUNCTION 'ME_CONFIRMATION_MAINTAIN_AVIS'
+                  EXPORTING
+                    i_ibtyp                 = '1'
+                  TABLES
+                    t_ekes                  = gt_ekes1
+                    errors                  = gt_err1
+                  EXCEPTIONS
+                    confirmation_not_found  = 1
+                    conversion_not_possible = 2
+                    po_not_found            = 3
+                    po_not_valid            = 4
+                    etens_overflow          = 5
+                    OTHERS                  = 6.
+                IF sy-subrc <> 0.
+* Implement suitable error handling here
+                ELSE.
+                  CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+                    EXPORTING
+                      wait = 'X'.
+                ENDIF.
+                gt_schedule = gt_schedule1.
+                gt_confirm_line = gt_confirm_line1.
+                gt_eket2 = gt_eket21.
+                gs_final-ebeln   = gw_ponumber.
+                gs_final-ebelp   = gs_item-po_item .
+                gs_final-message = 'Confirmations are successfully Done'(005).
+                gs_final-mess_typ = 'S'.
+                APPEND gs_final TO gt_final.
+                wa_ztmm_abconf-ebeln = gw_ponumber.
+                wa_ztmm_abconf-ebelp = gs_item-po_item.
+                wa_ztmm_abconf-wemng =  lw_menge.
+                wa_ztmm_abconf-type  =  'S'.
+                wa_ztmm_abconf-zlog_text = 'Confirmations are successfully Done'(005).
+                wa_ztmm_abconf-zdate = sy-datum.
+                GET TIME STAMP FIELD wa_ztmm_abconf-time_stamp.
+                APPEND wa_ztmm_abconf TO it_ztmm_abconf.
+              ELSE.
+                gt_schedule = gt_schedule1.
+                gt_confirm_line = gt_confirm_line1.
+                gt_eket2 = gt_eket21.
+                gs_final-ebeln   = gw_ponumber.
+                gs_final-ebelp   = gs_item-po_item .
+                gs_final-message = 'Confirmations already exist'(011).
+                gs_final-mess_typ = 'E'.
+                APPEND gs_final TO gt_final.
+              ENDIF.
+              CLEAR : gs_final.
+              REFRESH : gt_confr , gt_confirm , gt_confirm , gt_con_itemx , gt_con_item , gt_ekes1 , gt_err1.
+              CLEAR : lw_menge , lw_wemng1 ,lw_wemng , gs_ekes1.
+              REFRESH :  gt_schedule1 , gt_confirm_line1 , gt_eket21.
+*              ELSE.
+*                gs_final-ebeln   = gw_ponumber.
+*                gs_final-ebelp   = gs_item-po_item .
+*                gs_final-message = 'Totaled Scheduled Quantity Confirmed By LA confirmations'(004).
+*                gs_final-mess_typ = 'E'.
+*                APPEND gs_final TO gt_final.
+*                CLEAR : gs_final.
+*                gt_schedule = gt_schedule1.
+*                gt_confirm_line = gt_confirm_line1.
+*                gt_eket2 = gt_eket21.
+*                REFRESH :  gt_schedule1 , gt_confirm_line1 , gt_eket21.
+*              ENDIF.
+
+            ELSE.
+
+              gs_final-ebeln   = gw_ponumber.
+              gs_final-ebelp   = gs_item-po_item .
+              gs_final-message = 'Total scheduled Quantity has already been issued'(012).
+              gs_final-mess_typ = 'E'.
+              APPEND gs_final TO gt_final.
+              CLEAR : gs_final.
+              gt_schedule = gt_schedule1.
+              gt_confirm_line = gt_confirm_line1.
+              gt_eket2 = gt_eket21.
+              REFRESH :  gt_schedule1 , gt_confirm_line1 , gt_eket21.
+            ENDIF.
+          ELSE.
+            gs_final-ebeln   = gw_ponumber.
+            gs_final-ebelp   = gs_item-po_item .
+            gs_final-message = 'No Committed schedule lines exist'(007).
+            gs_final-mess_typ = 'E'.
+            APPEND gs_final TO gt_final.
+            CLEAR : gs_final.
+            gt_schedule = gt_schedule1.
+            gt_confirm_line = gt_confirm_line1.
+            gt_eket2 = gt_eket21.
+            REFRESH :  gt_schedule1 , gt_confirm_line1 , gt_eket21.
+          ENDIF.
+        ELSE.
+          gs_final-ebeln   = gw_ponumber.
+          gs_final-ebelp   = gs_item-po_item .
+          IF gs_item-no_more_gr EQ 'X'.
+            gs_final-message = 'Delivery completed flag activated'(009).
+          ELSE.
+            gs_final-message = 'Final delivery flag activated'(010).
+          ENDIF.
+          gs_final-mess_typ = 'E'.
+          APPEND gs_final TO gt_final.
+          CLEAR : gs_final.
+        ENDIF.
+      ELSE.
+*        gs_final-ebeln   = gw_ponumber.
+*        gs_final-ebelp   = gs_item-po_item .
+*        gs_final-message = 'Item not changed'(001).
+*        gs_final-mess_typ = 'E'.
+*        APPEND gs_final TO gt_final.
+*        CLEAR : gs_final.
+      ENDIF.
+    ELSE.
+      gs_final-ebeln   = gw_ponumber.
+      gs_final-ebelp   = gs_item-po_item .
+      gs_final-message = 'Item is alredy deleted'(006).
+      gs_final-mess_typ = 'E'.
+      APPEND gs_final TO gt_final.
+      CLEAR : gs_final.
+    ENDIF.
+*             gt_schedule = gt_schedule1.
+*            gt_confirm_line = gt_confirm_line1.
+*            gt_eket2 = gt_eket21.
+    CLEAR : gs_item.
+  ENDLOOP.
+  CLEAR : gs_cdhdr1 , gs_final1.
+ENDLOOP.
+IF it_ztmm_abconf IS NOT INITIAL.
+  MODIFY ztmm_abconf FROM TABLE it_ztmm_abconf.
+  COMMIT WORK.
+ENDIF.
+

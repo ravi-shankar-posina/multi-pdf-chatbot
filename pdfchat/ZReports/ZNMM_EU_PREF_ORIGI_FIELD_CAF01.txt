@@ -1,0 +1,63 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZRMM_EU_PREF_ORIGI_FIELD_CAF01 .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  FIELD_CATALOG
+form FIELD_CATALOG USING gw_name gw_sel .
+
+  CLEAR gs_FIELDCAT.
+  gs_FIELDCAT-FIELDNAME = gw_name.
+  gs_FIELDCAT-SELTEXT_L = gw_sel.
+  gs_FIELDCAT-DDICTXT = 'L'.
+  APPEND gs_FIELDCAT TO gt_FIELDCAT.
+endform.                    " FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*&      Form  PRPEAR_FIELD_CAT
+*&---------------------------------------------------------------------*
+form PRPEAR_FIELD_CAT .
+ CLEAR gs_fieldcat.
+  refresh gt_fieldcat.
+  gs_fieldcat-fieldname = 'MATNR'.
+  gs_fieldcat-seltext_l = 'Material No'(002).
+  gs_fieldcat-fix_column = 'X'.
+  APPEND gs_fieldcat TO gt_fieldcat.
+  PERFORM field_catalog USING : 'STAWN' 'Tariff Code'(003),
+                                'HERKL' 'COO SAP'(004),
+                                'LIFNR' 'Vendor ID'(023),
+                                'EKORG' 'Purchase Or.'(007),
+                                'LABOR' ' Product Owner'(008),
+                                'LIFNR' 'Fixed vendor ID'(011),
+                              'VEND_TYP' 'Fixed vendor type'(010),
+                               'MEINS' 'UOM'(012),
+                              'STAWN1' 'commodity code Component'(044),
+                              'HERKL1' 'coo sap Component'(045),
+                              'STPRS' 'STD.COST$-Header'(014),
+                              'STPRS1' 'STD.COST$-Component'(041),
+                              'BLDAT' 'create date'(015),
+                              'RMWWR' 'ir net value'(016),
+                              'WAERS' 'currency id'(017),
+                              'WRBTR' 'ir value euro'(018),
+                              'MENGE2' 'ir quantity'(019),
+                              'PREIS' 'po price'(020),
+                              'EBELN' 'po number'(021),
+                              'EBELP' 'PO Line Item'(022),
+                              'MEINH' ' Alternate Unit'(024),
+                              'UMREZ' 'Numaretor'(025),
+                              'UMREN' 'Denominator'(026),
+                              'DESC' 'DEscription'(028),
+                              'MMSTA' 'Plant-Specific Material Status-Header'(042),
+                              'DISPO' 'Mrp'(030),
+                              'VALIDTO' 'Valid To'(031),
+                              'REQ_H_QTY' 'Required Quantity'(032),
+                              'BASE_H_QTY' ' Base Quantity'(033),
+                              'EMGME' 'UN'(034),
+                              'STUFE' 'LVL'(035),
+                              'POSNR' 'ITEM'(036),
+                              'IDNRK' 'COMPONENT'(040),
+                              'OJTXP' 'Item Desc'(037),
+                              'MPITEM' 'Plant-Specific Material Status-Component'(043),
+                              'MENGE1' 'ITEM QTY BOM'(038),
+                              'ZLCLID' 'LOCAL CODE'(039).
+
+endform.                    " PRPEAR_FIELD_CAT
+

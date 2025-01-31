@@ -1,0 +1,420 @@
+*----------------------------------------------------------------------*
+*   INCLUDE ZPBOMT                                                     *
+*----------------------------------------------------------------------*
+
+* Tables
+
+TABLES:
+   mara,
+   marc,
+   mard,
+  tcspr,
+  stxh,
+  stko,
+ mast." Added by GECHG0711807 502765654 09.03.2020
+TYPES: BEGIN OF ty_mara,
+  matnr TYPE matnr,
+  mtart TYPE mtart,
+  END OF ty_mara,
+* CHG1305881  DE3K963546  Changes begin by 502209589.
+  BEGIN OF ty_mast,
+    matnr TYPE matnr,
+    werks TYPE werks,
+    stlan TYPE stlan,
+    andat TYPE andat, " Added by GECHG0711807 502765654 09.03.2020
+    END OF ty_mast.
+* CHG1305881  DE3K963546  Changes End by 502209589.
+* Internal tables
+
+DATA: BEGIN OF gi_selpool.
+        INCLUDE STRUCTURE cstmat.
+DATA: END OF gi_selpool,
+      gt_selpool LIKE TABLE OF gi_selpool.
+
+DATA: BEGIN OF gi_stb.
+        INCLUDE STRUCTURE stpox.
+DATA: END OF gi_stb,
+      gt_stb LIKE TABLE OF gi_stb,
+      gi_ztuhcd1 TYPE ztuhcd1,
+      gt_ztuhcd1 TYPE TABLE OF ztuhcd1,
+      gc_name(11) TYPE c VALUE 'ZRPP_BOMIMV',
+      gc_key(4)   TYPE c VALUE 'LGRT',
+      gc_field(5) TYPE c VALUE 'LGORT',
+      gc_key1(4)   TYPE c VALUE 'MTRT',
+      gc_field1(5) TYPE c VALUE 'MTART'.
+
+DATA: BEGIN OF gi_stbwa.
+        INCLUDE STRUCTURE stpox.
+DATA: END OF gi_stbwa.
+
+DATA: BEGIN OF gi_matcat.
+        INCLUDE STRUCTURE cscmat.
+DATA: END OF gi_matcat,
+      gt_matcat LIKE TABLE OF gi_matcat.
+
+TYPES: BEGIN OF ty_mat_list2,
+*Begin of Change by USSRGAJ1 on 2nd jan 2024 CHG2052338
+*        level(2),
+         step(2),
+*End of Change by USSRGAJ1 on 2nd jan 2024 CHG2052338
+        fgmat TYPE matnr,
+        matnr TYPE matnr,
+        werks TYPE werks_d,
+        zoldn TYPE zlclid,
+        maktx TYPE maktx,
+        quant(17),
+        bsqty(17),
+        meins TYPE meins,
+        lgort TYPE lgort_d,
+        schgt TYPE schgt,
+        lgpbe TYPE lgpbe,
+        potx1(40),
+        ltex1(75),
+        wegxx TYPE wegxx,
+        posnr TYPE posnr,
+        stlty TYPE stlty,
+        stlnr TYPE stnum,
+        stlkn TYPE stlkn,
+        stpoz TYPE cim_count,
+        msign TYPE cs_e_msign,
+        rgekz TYPE rgekz,
+        mmein TYPE meins,
+        bmeng TYPE bmeng,
+        stlkz TYPE stlkz,
+        kstnr TYPE cs_kstnr,
+        xtlnr TYPE cs_e_xstnr,
+        stlan TYPE stlan,
+        mschg TYPE cs_e_mschg,
+        bindc TYPE schgt,
+        aenam TYPE annam,
+        aedat TYPE aedat,
+        ausch TYPE ausch,
+        mnglg TYPE string,"cs_e_mnglg,
+        mngko TYPE cs_e_mngko,
+        kausf TYPE string,"kausf,
+        idnrk TYPE idnrk,
+*        IDNRK TYPE
+        menge TYPE string,"kmpmg,
+*        MNGKO TYPE MNGKO
+        kzkup TYPE kzkup,
+        sakto TYPE sakto,
+        kstpz TYPE cs_kstpz,
+        annam TYPE annam,
+        andat TYPE andat,
+        waers TYPE waers,
+        lkenz TYPE lkenz,
+        umren TYPE string,"umren,
+        xloek TYPE xloek,
+        loekz TYPE loekz,
+        doknr TYPE doknr,
+        dokar TYPE dokar,
+        stufe TYPE string,"stufe,
+        dspst TYPE cs_dispo,
+        fmeng TYPE fmeng,
+        webaz TYPE string,"webaz,
+        sbdkz TYPE sbdkz,
+        pswrk TYPE pswrk,
+        postp TYPE postp,
+*        POSNR TYPE POSNR,
+*        POTX1 TYPE POTX1,
+        potx2 TYPE potx2,
+        matkl TYPE matkl,
+        mtart TYPE mtart,
+        dismm TYPE dismm,
+        umrez TYPE string,"umrez,
+        ojtxb TYPE ojtxb,
+        dumps TYPE dumps,
+*        WERKS TYPE WERKS,
+        mmsta TYPE mmsta,
+        preis TYPE string,"preis,
+        vprsv TYPE vprsv,
+        peinh TYPE string,"peinh,
+        preih TYPE preih,
+        fbskz TYPE fbskz,
+*        LGORT TYPE LGORT,
+        prvbe TYPE prvbe,
+        prctr TYPE prctr,
+        ekorg TYPE ekorg,
+        ekgrp TYPE ekgrp,
+        sanka TYPE sanka,
+        amglg TYPE string,"cs_e_amglg,
+        sortf TYPE sortp,
+        itsob TYPE cs_sobmx,
+        stprs TYPE string,"stprs,
+*        MMEIN TYPE MEINs,
+        kzwsm TYPE kzwso,
+        datuv TYPE datuv,
+        datub TYPE datub,
+        lifnr TYPE lifnr,
+        mstae TYPE mstae,
+        END OF ty_mat_list2.
+* CHG1305881  DE3K963546  Changes begin by 502209589.
+TYPES: BEGIN OF ty_title,
+        title(2235) TYPE c,
+       END OF ty_title.
+* CHG1305881  DE3K963546  Changes End by 502209589.
+DATA:  gi_mat_list2 TYPE ty_mat_list2,
+       gt_mat_list2 TYPE TABLE OF ty_mat_list2,
+       gi_mat_list3 TYPE ty_mat_list2,
+       gt_mat_list3 TYPE TABLE OF ty_mat_list2.
+
+TYPES: BEGIN OF ty_mard ,
+      matnr TYPE matnr,
+      werks TYPE werks_d,
+      lgort TYPE lgort_d,
+      labst TYPE labst,
+      lgpbe TYPE lgpbe,
+      END OF ty_mard.
+DATA: gi_mard TYPE ty_mard,
+      gt_mard TYPE TABLE OF ty_mard.
+
+TYPES: BEGIN OF ty_marc,
+      matnr TYPE matnr,
+      werks TYPE werks_d,
+      lgpro TYPE lgpro,
+      schgt TYPE schgt,
+      zoldn TYPE zlclid,
+      END OF ty_marc.
+
+TYPES: BEGIN OF ty_marc1,
+      matnr TYPE matnr,
+      werks TYPE werks_d,
+      schgt TYPE schgt,
+      END OF ty_marc1.
+
+DATA: gi_marc TYPE ty_marc,
+      gt_marc TYPE TABLE OF ty_marc,
+      gt_marc1 TYPE TABLE OF ty_marc1. "MALLIK
+
+DATA: gi_tline TYPE tline ,
+      gt_tline TYPE TABLE OF tline ,
+      gi_tlinebom TYPE tline,
+      gt_tlinebom TYPE TABLE OF tline.
+
+
+TYPES : BEGIN OF ty_thead,
+        posnr TYPE posnr,
+        wegxx TYPE wegxx,
+        stlty TYPE stlty,
+        stlnr TYPE stnum,
+        stlkn TYPE stlkn,
+        stpoz TYPE cim_count,
+        END OF ty_thead.
+DATA: gi_theadt TYPE ty_thead.
+DATA : BEGIN OF gi_thead.
+        INCLUDE STRUCTURE: thead,gi_theadt.
+DATA :
+      END OF gi_thead,
+      gt_thead  LIKE TABLE OF gi_thead,
+      gt_thead1 TYPE TABLE OF ty_thead .
+
+* Data Declarations
+
+DATA:
+      pm_altvo(1)   TYPE c,
+      pm_ausch(1)   TYPE c,
+      pm_bagrp TYPE matnr,
+      pm_beikz(1)   TYPE c,
+      pm_bessl(1)   TYPE c,
+      pm_brems(1)   TYPE c,
+      pm_emeng TYPE bmeng,
+      pm_erskz(1)   TYPE c,
+      pm_erssl(1)   TYPE c,
+      mem_mngmt(1) TYPE c,
+      pm_postp(1)   TYPE c,
+      pm_sanko TYPE sanko,
+      pm_sanfe TYPE sanfe,
+      pm_sanka TYPE sanka,
+      pm_sanin TYPE sanin,
+      pm_sanvs TYPE sanvs,
+      pm_rvrel TYPE rvrel,
+      pm_schgt TYPE schgt,
+      pm_stkkz TYPE stkkz,
+      pm_stlal TYPE stlal,
+      pm_stlan TYPE stlan,
+      dstst_flg TYPE xfeld,
+      pm_ehndl(1)       TYPE c VALUE '1',
+      regist TYPE i VALUE 0,
+      text_name TYPE tdname,
+      no_line(1),
+      gt_mara TYPE TABLE OF ty_mara,
+      gi_mara TYPE ty_mara,
+      gt_fieldc TYPE slis_t_fieldcat_alv,
+      gi_fieldc TYPE slis_fieldcat_alv,
+* CHG1305881  DE3K963546  Changes begin by 502209589.
+      gw_layout_ds TYPE slis_layout_alv,
+      gw_filename  TYPE string,
+      gt_title TYPE STANDARD TABLE OF ty_title,
+      gi_title TYPE ty_title,
+      gt_mast TYPE TABLE OF ty_mast,
+      gi_mast TYPE ty_mast.
+* CHG1305881  DE3K963546  Changes End by 502209589.
+*----------------------------------------------------------------------*
+*   CONSTANDS                                                          *
+*----------------------------------------------------------------------*
+DATA: gc_stpox(5) TYPE c VALUE 'STPOX',
+      gc_mat_list3(12) TYPE c VALUE 'GT_MAT_LIST3',
+      gc_msign(5) TYPE c VALUE 'MSIGN',
+      gc_stkkz(5) TYPE c VALUE 'STLKZ',
+      gc_kstnr(5) TYPE c VALUE 'KSTNR',
+      gc_xtlnr(5) TYPE c VALUE 'XTLNR',
+      gc_stlan(5) TYPE c VALUE 'STLAN',
+      gc_mschg(5) TYPE c VALUE 'MSCHG',
+      gc_bindc(5) TYPE c VALUE 'BINDC',
+      gc_annam(5) TYPE c VALUE 'ANNAM',
+      gc_aedat(5) TYPE c VALUE 'AEDAT',
+      gc_ausch(5) TYPE c VALUE 'AUSCH',
+      gc_mnglg(5) TYPE c VALUE 'MNGLG',
+*      gw_MNGKO(5) TYPE c VALUE 'MNGKO',
+      gc_kausf(5) TYPE c VALUE 'KAUSF',
+      gc_idnrk(5) TYPE c VALUE 'IDNRK',
+      gc_menge(5) TYPE c VALUE 'MENGE',
+      gc_mngko(5) TYPE c VALUE 'MNGKO',
+      gc_kzkup(5) TYPE c VALUE 'KZKUP',
+      gc_sakto(5) TYPE c VALUE 'SAKTO',
+      gc_aenam(5) TYPE c VALUE 'AENAM',
+      gc_andat(5) TYPE c VALUE 'ANDAT',
+      gc_waers(5) TYPE c VALUE 'WAERS',
+      gc_lkenz(5) TYPE c VALUE 'LKENZ',
+      gc_umren(5) TYPE c VALUE 'UMREN',
+      gc_xloek(5) TYPE c VALUE 'XLOEK',
+      gc_loekz(5) TYPE c VALUE 'LOEKZ',
+      gc_doknr(5) TYPE c VALUE 'DOKNR',
+      gc_dokar(5) TYPE c VALUE 'DOKAR',
+      gc_stufe(5) TYPE c VALUE 'STUFE',
+      gc_dspst(5) TYPE c VALUE 'DSPST',
+      gc_fmeng(5) TYPE c VALUE 'FMENG',
+      gc_webaz(5) TYPE c VALUE 'WEBAZ',
+      gc_sbdkz(5) TYPE c VALUE 'SBDKZ',
+      gc_pswrk(5) TYPE c VALUE 'PSWRK',
+      gc_postp(5) TYPE c VALUE 'POSTP',
+*      gc_POSNR(5) TYPE c VALUE 'POSNR',
+*      gc_POTX1(5) TYPE c VALUE 'POTX1',
+      gc_potx2(5) TYPE c VALUE 'POTX2',
+      gc_matkl(5) TYPE c VALUE 'MATKL',
+      gc_mtart(5) TYPE c VALUE 'MTART',
+      gc_dismm(5) TYPE c VALUE 'DISMM',
+      gc_umrez(5) TYPE c VALUE 'UMREZ',
+      gc_ojtxb(5) TYPE c VALUE 'OJTXB',
+      gc_dumps(5) TYPE c VALUE 'DUMPS',
+*      gc_WERKS(5) TYPE c VALUE 'WERKS',
+      gc_mmsta(5) TYPE c VALUE 'MMSTA',
+      gc_preis(5) TYPE c VALUE 'PREIS',
+      gc_vprsv(5) TYPE c VALUE 'VPRSV',
+      gc_peinh(5) TYPE c VALUE 'PEINH',
+      gc_preih(5) TYPE c VALUE 'PREIH',
+      gc_fbskz(5) TYPE c VALUE 'FBSKZ',
+*      gc_LGORT(5) TYPE c VALUE 'LGORT',
+      gc_prvbe(5) TYPE c VALUE 'PRVBE',
+      gc_prctr(5) TYPE c VALUE 'PRCTR',
+      gc_ekorg(5) TYPE c VALUE 'EKORG',
+      gc_ekgrp(5) TYPE c VALUE 'EKGRP',
+      gc_sanka(5) TYPE c VALUE 'SANKA',
+      gc_amglg(5) TYPE c VALUE 'AMGLG',
+      gc_sortf(5) TYPE c VALUE 'SORTF',
+      gc_itsob(5) TYPE c VALUE 'ITSOB',
+      gc_stprs(5) TYPE c VALUE 'STPRS',
+      gc_mmein(5) TYPE c VALUE 'MMEIN',
+      gc_kzwsm(5) TYPE c VALUE 'KZWSM',
+      gc_datuv(5) TYPE c VALUE 'DATUV',
+      gc_datub(5) TYPE c VALUE 'DATUB',
+      gc_lifnr(5) TYPE c VALUE 'LIFNR',
+      gc_mstae(5) TYPE c VALUE 'MSTAE',
+*Begin of Change by USSRGAJ1 on 2nd jan 2024 CHG2052338
+*      gc_level(5) TYPE c VALUE 'LEVEL',
+      gc_level(4) TYPE c VALUE 'STEP',
+*End of Change by USSRGAJ1 on 2nd jan 2024 CHG2052338
+      gc_matnr(5) TYPE c VALUE 'MATNR',
+      gc_werks(5) TYPE c VALUE 'WERKS',
+      gc_zoldn(5) TYPE c VALUE 'ZOLDN',
+      gc_lgort(5) TYPE c VALUE 'LGORT',
+      gc_schgt(5) TYPE c VALUE 'SCHGT',
+      gc_lgpbe(5) TYPE c VALUE 'LGPBE',
+      gc_maktx(5) TYPE c VALUE 'MAKTX',
+      gc_quant(5) TYPE c VALUE 'QUANT',
+      gc_meins(5) TYPE c VALUE 'MEINS',
+      gc_potx1(5) TYPE c VALUE 'POTX1',
+      gc_ltex1(5) TYPE c VALUE 'LTEX1',
+      gc_wegxx(5) TYPE c VALUE 'WEGXX',
+      gc_posnr(5) TYPE c VALUE 'POSNR',
+      gc_stlty(5) TYPE c VALUE 'STLTY',
+      gc_stlnr(5) TYPE c VALUE 'STLNR',
+      gc_stlkn(5) TYPE c VALUE 'STLKN',
+* CHG1305881  DE3K963546  Changes begin by 502209589.
+      gc_stpoz(5) TYPE c VALUE 'STPOZ',
+      gw_filename1  TYPE string,
+      gc_fname1 VALUE '_',
+      gc_tcode TYPE char7 VALUE 'ZPP003',
+*Begin of changes by Kishore Ale as per the CR GECHG0878761 02/08/2020 DE3K999203
+*      gc_rep_name(15) VALUE '/REPORTS/',
+*      gc_rep_name1(15) VALUE '/ACTIVE',
+       gc_rep_name(15)  VALUE '/reports/',
+       gc_rep_name1(15) VALUE '/active',
+*End of changes by Kishore Ale as per the CR GECHG0878761 02/08/2020 DE3K999203
+      gc_fname2(4) VALUE '.XLS',
+      gc_fname(20) VALUE '/ZPP003_',
+      gc_fgmat(5) VALUE 'FGMAT',
+      gc_bsqty(5) VALUE 'BSQTY'..
+* CHG1305881  DE3K963546  Changes End by 502209589.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.
+*      gw_(5) TYPE c VALUE '',
+*      gw_(5) TYPE c VALUE '',
+*----------------------------------------------------------------------*
+*   SELECTION-CRITERIA                                                 *
+*----------------------------------------------------------------------*
+SELECTION-SCREEN: BEGIN OF BLOCK an1 WITH FRAME TITLE text-001.
+SELECTION-SCREEN SKIP 1.
+SELECT-OPTIONS s_mtnrv FOR mara-matnr  MEMORY ID mat .
+PARAMETERS:  pm_werks TYPE marc-werks MEMORY ID wrk OBLIGATORY,
+             p_bomus  TYPE stzu-stlan OBLIGATORY,
+             p_level(2)  TYPE n .
+SELECT-OPTIONS:s_lgort FOR mard-lgort,
+               s_datuv FOR stko-datuv DEFAULT sy-datum OBLIGATORY,
+               s_dispo FOR marc-dispo,
+               s_andat FOR mast-andat." Added by GECHG0711807 502765654 09.03.2020.
+
+SELECTION-SCREEN SKIP 1.
+PARAMETERS:     p_solcom AS CHECKBOX DEFAULT ' '.
+SELECTION-SCREEN SKIP 1.
+PARAMETERS:     p_zrohch AS CHECKBOX DEFAULT ' '.
+*PARAMETERS: p_stoloc AS CHECKBOX DEFAULT ' '.
+SELECTION-SCREEN: END   OF BLOCK an1.
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-035.
+PARAMETER:
+          p_alv RADIOBUTTON GROUP r01,
+          p_excel RADIOBUTTON GROUP r01,
+          p_exfile LIKE rlgrap-filename,
+          p_appl RADIOBUTTON GROUP r01,
+          p_fname TYPE eps2filnam,
+          p_ftp RADIOBUTTON GROUP r01,
+          p_count(5) TYPE n DEFAULT 5000, "Added default value as 5000  BY Anil G CHG2683792 DE3K980714  09.08.2017.
+          p_file(50) TYPE c .
+SELECTION-SCREEN END OF BLOCK b2.
+

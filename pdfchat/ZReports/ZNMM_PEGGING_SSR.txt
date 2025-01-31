@@ -1,0 +1,17 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PEGGING_SSR
+*&---------------------------------------------------------------------*
+
+
+************************************************************************
+***Selection Screen
+************************************************************************
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+SELECT-OPTIONS:s_plant      FOR   gv_plant NO INTERVALS NO-EXTENSION  OBLIGATORY,"plant
+               s_ortype     FOR   gv_ortype,"order type
+               s_profl      FOR   gv_prof DEFAULT 'ZORD_OP' NO INTERVALS NO-EXTENSION ,"selection status profile
+               s_mrp        FOR   gv_mrp. "OBLIGATORY."mrp controller *17/06/2014 CHG0479115 add of changes by502277866 for DE3K939977
+PARAMETERS : p_regio TYPE char10 OBLIGATORY,"Region"Added for 27/06/2014 CHG0479115 502277866 DE3K941256
+             p_LAST TYPE c OBLIGATORY."LAST_RUN_INDICATOR"Added for 23/06/2014 CHG0479115 502277866 DE3K940314
+SELECTION-SCREEN END OF BLOCK b1.
+

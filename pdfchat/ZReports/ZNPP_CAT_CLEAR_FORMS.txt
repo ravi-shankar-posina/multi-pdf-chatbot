@@ -1,0 +1,122 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZNPP_CAT_CLEAR_FORMS .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM PROCESS_DATA .
+ SELECT * FROM ztpp_cart_pwo  INTO TABLE gt_table."We will retrive all records which are in ztbale.
+
+  IF sy-subrc EQ 0.
+    SORT gt_table BY aufnr.
+  ENDIF.
+
+
+  IF NOT gt_table IS INITIAL.
+
+    SELECT aufnr
+           objnr FROM aufk INTO TABLE gt_aufk
+                           FOR ALL ENTRIES IN gt_table
+                           WHERE aufnr EQ gt_table-aufnr.
+    IF sy-subrc EQ 0.
+
+      SORT gt_aufk BY  aufnr.
+    ENDIF.
+  ENDIF.
+
+  IF NOT gt_aufk IS INITIAL.
+
+    SELECT objnr
+           stat FROM jest INTO TABLE gt_jest
+                          FOR ALL ENTRIES IN gt_aufk
+                          WHERE objnr EQ gt_aufk-objnr
+                            AND ( stat EQ 'I0012' OR
+                                  stat EQ 'I0009' )
+                            AND  inact EQ ' '.
+    IF sy-subrc EQ 0.
+      SORT gt_jest BY objnr.
+    ENDIF.
+  ENDIF.
+
+
+  LOOP AT gt_table INTO gi_table.
+
+    READ TABLE gt_aufk INTO gi_aufk WITH KEY aufnr = gi_table-aufnr BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+
+      READ TABLE gt_jest INTO gi_jest WITH KEY objnr = gi_aufk-objnr BINARY SEARCH.
+
+      IF sy-subrc EQ 0.
+
+        APPEND gi_table TO gt_table1.
+
+      ENDIF.
+    ENDIF.
+
+    CLEAR : gi_table , gi_aufk , gi_jest.
+  ENDLOOP.
+
+
+
+
+ENDFORM.                    " PROCESS_DATA
+*&---------------------------------------------------------------------*
+*&      Form  DISLAY_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM DISLAY_DATA .
+IF NOT gt_table1 IS INITIAL.
+
+    DELETE  ztpp_cart_pwo FROM TABLE  gt_table1.
+
+    IF sy-subrc EQ 0.
+
+      TRY.
+**** prpearing alv for the final table
+          cl_salv_table=>factory( IMPORTING r_salv_table = gt_alv
+                             CHANGING  t_table   = gt_table1 ).
+        CATCH cx_salv_msg INTO gc_msg .
+      ENDTRY.
+
+      TRY.
+      go_layout = gt_alv->get_layout( ).
+      gi_key-report = sy-repid.
+      go_layout->set_key( gi_key ).
+      go_layout->set_default( abap_true ).
+*    go_layout->set_initial_layout( go_layout ).
+      go_layout->set_save_restriction( if_salv_c_layout=>restrict_none ).
+      go_function =    gt_alv->get_functions( ).
+      go_function->set_all( abap_true ).
+
+      go_function->set_layout_save( abap_true ).
+
+      go_cols = gt_alv->get_columns( ).
+      go_column ?= go_cols->get_column( 'MANDT' ).
+      go_column->set_visible( abap_false ).
+       go_column ?= go_cols->get_column( 'GRUND' ).
+       go_column->set_medium_text( 'Cart'(001) ).
+      go_display = gt_alv->get_display_settings( ).
+      go_display->set_list_header( 'Deleted Records'(002) ).
+
+      CATCH cx_salv_not_found.
+
+        ENDTRY.
+      gt_alv->display( ).  " calling alv to dispaly
+    ENDIF.
+else.
+
+  MESSAGE 'No data Found '(003) TYPE 'I'.
+  ENDIF.
+
+ENDFORM.                    " DISLAY_DATA
+

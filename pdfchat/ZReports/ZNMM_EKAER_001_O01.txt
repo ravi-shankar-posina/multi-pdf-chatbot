@@ -1,0 +1,149 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_EKAER_001_O01
+*&---------------------------------------------------------------------*
+MODULE status_0001 OUTPUT.
+  SET:
+    PF-STATUS 'PF_0001',
+    TITLEBAR 'TI_0001'.
+
+ENDMODULE.                    "STATUS_0001 OUTPUT
+
+*----------------------------------------------------------------------*
+*  MODULE CREATE_OBJECTS_0001 OUTPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+MODULE create_objects_0001 OUTPUT.
+  IF go_docking IS NOT BOUND.
+    CREATE OBJECT go_docking
+      EXPORTING
+        extension                   = 5000
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5
+        OTHERS                      = 6.
+
+    IF sy-subrc NE 0.
+      LEAVE PROGRAM.
+    ENDIF.
+
+    CREATE OBJECT go_alv
+      EXPORTING
+        i_parent          = go_docking
+      EXCEPTIONS
+        error_cntl_create = 1
+        error_cntl_init   = 2
+        error_cntl_link   = 3
+        error_dp_create   = 4
+        OTHERS            = 5.
+
+    IF sy-subrc NE 0.
+      LEAVE PROGRAM.
+    ENDIF.
+
+    PERFORM set_layout.
+    PERFORM set_field_catalog.
+
+*Column fix
+    PERFORM set_fix_column USING 'werks'.
+    PERFORM set_fix_column USING 'lgort'.
+    PERFORM set_fix_column USING 'truckid'.
+    PERFORM set_fix_column USING 'tknum'.
+
+*Column title
+    PERFORM set_title_column USING 'netpr' text-t02.
+    PERFORM set_title_column USING 'kunnr_to' text-t03.
+    PERFORM set_title_column USING 'name1_to' text-t05.
+    PERFORM set_title_column USING 'land1_to' text-t07.
+    PERFORM set_title_column USING 'pstlz_to' text-t08.
+    PERFORM set_title_column USING 'ort01_to' text-t09.
+    PERFORM set_title_column USING 'stras_to' text-t10.
+    PERFORM set_title_column USING 'regio_to' text-t11.
+
+    PERFORM set_title_column USING 'kunnr_ship' text-t04.
+    PERFORM set_title_column USING 'name1_ship' text-t06.
+    PERFORM set_title_column USING 'land1_ship' text-t12.
+    PERFORM set_title_column USING 'pstlz_ship' text-t13.
+    PERFORM set_title_column USING 'ort01_ship' text-t14.
+    PERFORM set_title_column USING 'stras_ship' text-t15.
+    PERFORM set_title_column USING 'regio_ship' text-t16.
+
+
+    PERFORM set_variant.
+
+    CALL METHOD go_alv->set_table_for_first_display
+      EXPORTING
+*       i_buffer_active               =
+*       i_bypassing_buffer            =
+*       i_consistency_check           =
+*       i_structure_name              =
+        is_variant                    = gs_variant
+        i_save                        = 'U'
+        i_default                     = 'X'
+        is_layout                     = gs_layout
+*       is_print                      =
+*       it_special_groups             =
+*       it_toolbar_excluding          =
+*       it_hyperlink                  =
+*       it_alv_graphics               =
+*       it_except_qinfo               =
+*       ir_salv_adapter               =
+      CHANGING
+        it_outtab                     = gt_output
+        it_fieldcatalog               = gt_fieldcatalog
+      EXCEPTIONS
+        invalid_parameter_combination = 1
+        program_error                 = 2
+        too_many_lines                = 3
+        OTHERS                        = 4.
+
+    IF sy-subrc NE 0.
+      LEAVE TO SCREEN 0.
+    ENDIF.
+
+  ENDIF.
+
+ENDMODULE.                    "CREATE_OBJECTS_0001 OUTPUT
+
+*
+FORM set_fix_column USING pd_column.
+  DATA:
+    ld_column(50).
+
+  FIELD-SYMBOLS:
+    <fs_catalog> LIKE LINE OF gt_fieldcatalog.
+
+  ld_column = pd_column.
+  TRANSLATE ld_column TO UPPER CASE.
+
+  READ TABLE gt_fieldcatalog ASSIGNING <fs_catalog> WITH KEY fieldname = ld_column.
+  CHECK sy-subrc EQ 0.
+
+  <fs_catalog>-fix_column = 'X'.
+
+ENDFORM.                    "set_fix_column
+
+*
+FORM set_title_column USING pd_column pd_text.
+  STATICS:
+    ld_column(60).
+
+  FIELD-SYMBOLS:
+    <fs_catalog> LIKE LINE OF gt_fieldcatalog.
+
+  ld_column = pd_column.
+  TRANSLATE ld_column TO UPPER CASE.
+  READ TABLE gt_fieldcatalog ASSIGNING <fs_catalog> WITH KEY fieldname = ld_column.
+  CHECK sy-subrc EQ 0.
+
+  <fs_catalog>-scrtext_s = pd_text.
+  <fs_catalog>-scrtext_m = pd_text.
+  <fs_catalog>-scrtext_l = pd_text.
+  <fs_catalog>-tooltip = pd_text.
+  <fs_catalog>-reptext = pd_text.
+
+ENDFORM.                    "set_title_column
+

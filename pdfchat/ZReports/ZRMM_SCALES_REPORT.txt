@@ -1,0 +1,874 @@
+************************************************************************
+*      P R O G R A M  D O C U M E N T A T I O N
+************************************************************************
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Name             : ZRMM_SCALES_REPORT                                *
+* Created by       : Ankita Gulave(USANGUL2)
+* Transport Request: DE3K9A0GIG                                        *
+* RICEF Object No  : RICEF-2594 (RITM5161755)                          *
+* Transaction code : ZMM2594                                           *
+* Description:      Fill in the selection screen and produce a report. *
+*                   The get data routine is documented for what is     *
+*                   going on in the program.                           *
+*                                                                      *
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+************************************************************************
+* DATE               | CR No.        |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+*&---------------------------------------------------------------------*
+REPORT zrmm_scales_report
+       NO STANDARD PAGE HEADING
+       LINE-SIZE  125
+       LINE-COUNT 65(0).
+
+************************************************************************
+*       D A T A B A S E  T A B L E S
+************************************************************************
+TABLES: a017, konm, konp.
+TABLES: eine.
+************************************************************************
+*       D A T A
+************************************************************************
+
+DATA hold_esokz LIKE a017-esokz.
+
+*ALV STUFF****************************************************************
+**** ALV Declaration                                                     *
+**************************************************************************
+TYPES: BEGIN OF const_fnames,
+         fld1(15) TYPE c,
+       END OF const_fnames.
+
+TYPE-POOLS slis.
+** Data - List Viewer
+DATA: t_fieldcat  TYPE slis_t_fieldcat_alv,
+      fieldcat_ln LIKE LINE OF t_fieldcat.
+
+DATA: t_sortcat  TYPE slis_t_sortinfo_alv,
+      sortcat_ln LIKE LINE OF t_sortcat.
+
+DATA: t_eventcat  TYPE slis_t_event,
+      eventcat_ln LIKE LINE OF t_eventcat.
+
+DATA: t_filter  TYPE slis_t_filter_alv,
+      filter_ln LIKE LINE OF t_filter.
+
+DATA: BEGIN OF alv,
+        layout  TYPE slis_layout_alv,
+        save(1) TYPE c,
+        repid   LIKE sy-repid,
+        variant LIKE disvariant,
+        col_pos TYPE i,
+        row_pos TYPE i,
+      END   OF alv.
+
+DATA  BEGIN OF disp_variant_in.
+INCLUDE STRUCTURE disvariant.
+DATA  END OF disp_variant_in.
+*****************************************************************
+**  Data                                                       **
+*****************************************************************
+
+** Data structures / Strings download **
+DATA: w_names  TYPE const_fnames,
+      ws_labst LIKE mard-labst.
+DATA: i_fields TYPE const_fnames OCCURS 31.
+*DATA: i_fields1 TYPE const_fnames OCCURS 31.
+
+DATA rec_key(32) TYPE c.
+DATA hold_key(32) TYPE c.
+DATA kount TYPE i VALUE 0.
+DATA lines TYPE i VALUE 0.
+DATA files TYPE filetable.
+FIELD-SYMBOLS <ft> LIKE LINE OF files.
+DATA rc TYPE i.
+
+******************************************************************
+** INTERNAL TABLES                                              **
+******************************************************************
+
+DATA: BEGIN OF t_a017  OCCURS 0 ,
+        kschl LIKE a017-kschl,   "Condition type   added by USSRKUM for CMT NP20160413165939
+        lifnr LIKE a017-lifnr,   "vendor
+        matnr LIKE a017-matnr,   "material
+        werks LIKE a017-werks,  "plant
+        ekorg LIKE a017-ekorg,  "purchase org
+        datab LIKE a017-datab,  "Validity start date of the condition record
+        datbi LIKE a017-datbi,  "Validity end date of the condition record
+        knumh LIKE a017-knumh,  "key to konm which is a pool table
+        esokz LIKE a017-esokz,  "info record category
+        infnr LIKE eine-infnr,  "info-record ++ NP20160705174036
+        loekz LIKE eine-loekz,   "++ NP20160705174036
+      END OF t_a017.
+
+DATA: t_a017_hold LIKE t_a017.
+
+DATA: BEGIN OF iscal OCCURS 0,
+        knumh   LIKE konm-knumh,  "key
+        kstbm   LIKE konm-kstbm,  "qty
+        kbetr   LIKE konm-kbetr,  "amount
+        kpein   LIKE konp-kpein,  "condition pricing unit with no condition applied
+        kbetrnc LIKE konp-kbetr, "condition amount with no condition applied
+      END OF iscal.
+
+DATA: BEGIN OF t_a017_final  OCCURS 0 ,
+        lifnr   LIKE a017-lifnr,   "vendor
+        matnr   LIKE a017-matnr,   "material
+        werks   LIKE a017-werks,  "plant
+        ekorg   LIKE a017-ekorg,  "purchase org
+        datab   LIKE a017-datab,  "Validity start date of the condition record
+        datbi   LIKE a017-datbi,  "Validity end date of the condition record
+        knumh   LIKE a017-knumh,  "key to konm which is a pool table
+        knumh2  LIKE konm-knumh,  "key to iscal
+        kstbm   LIKE konm-kstbm,  "qty where scale exist
+        kbetr   LIKE konm-kbetr,  "amount where scale exist
+        kpein   LIKE konp-kpein,  "condition pricing unit with no condition applied
+        kbetrnc LIKE konp-kbetr,  "condition amt where no scale exist
+        esokz   LIKE a017-esokz,  "info record category
+        infnr   LIKE eine-infnr,  "info-record
+        loekz   LIKE eine-loekz,
+      END OF t_a017_final.
+
+
+
+DATA: BEGIN OF t_a017_rpt OCCURS 0,
+        lifnr  LIKE a017-lifnr,  "vendor
+        matnr  LIKE a017-matnr,  "material
+        ekorg  LIKE a017-ekorg,  "purchase org
+*      kbetrnc      LIKE konp-kbetr,  "condition amt without condition
+        kstbm1 LIKE konm-kstbm,  "qty for rec
+        kbetr1 LIKE konm-kbetr,  "amount for rec
+        kpein  LIKE konp-kpein,  "pricing unit without condition
+        esokz  LIKE a017-esokz,  "info record category
+        werks  TYPE a017-werks,  "plant
+        infnr  LIKE eine-infnr,  "info-record
+        loekz  LIKE eine-loekz,
+      END OF t_a017_rpt.
+
+DATA: BEGIN OF t_a017_dwn OCCURS 0,
+        lifnr  LIKE a017-lifnr,  "vendor
+        matnr  LIKE a017-matnr,  "material
+        ekorg  LIKE a017-ekorg,  "purchase org
+*      kbetrnc      LIKE konp-kbetr,  "condition amt without condition
+        kstbm1 LIKE konm-kstbm,  "qty for rec
+        kbetr1 LIKE konm-kbetr,  "amount for rec
+        kpein  LIKE konp-kpein,  "pricing unit without condition
+        esokz  LIKE a017-esokz,  "info record category
+        werks  TYPE a017-werks,  "plant
+      END OF t_a017_dwn.
+
+TYPES : BEGIN OF ty_eine,
+          lifnr LIKE a017-lifnr,   "vendor
+          matnr LIKE a017-matnr,   "material
+          ekorg LIKE a017-ekorg,  "purchase org
+          esokz LIKE a017-esokz,  "info record category
+          werks LIKE a017-werks,  "plant
+          infnr LIKE eine-infnr,  "info-record
+          loekz LIKE eine-loekz,
+        END OF ty_eine.
+DATA : it_eine TYPE TABLE OF ty_eine,
+       wa_eine TYPE          ty_eine.
+DATA: idx      TYPE sy-tabix,
+      lv_index TYPE sy-tabix.
+************************************************************************
+*       P A R A M E T E R S  /  S E L E C T - O P T I O N S
+************************************************************************
+
+PARAMETERS: rb_lifnr RADIOBUTTON GROUP rb2 USER-COMMAND u1 DEFAULT 'X',
+            rb_infnr RADIOBUTTON GROUP rb2.
+
+SELECT-OPTIONS:  s_lifnr FOR a017-lifnr NO INTERVALS MODIF ID abc,
+*                 s_lifnr FOR a017-lifnr NO INTERVALS OBLIGATORY,
+                 s_infnr FOR wa_eine-infnr NO INTERVALS MODIF ID abc,
+                 s_matnr FOR a017-matnr,
+                 s_werks FOR a017-werks,
+*                 s_ekorg FOR a017-ekorg NO INTERVALS OBLIGATORY,
+*                 s_kschl FOR a017-kschl NO INTERVALS OBLIGATORY,
+                 s_ekorg FOR a017-ekorg NO INTERVALS,
+                 s_kschl FOR a017-kschl NO INTERVALS.
+SELECT-OPTIONS : s_loekz FOR eine-loekz.
+
+SELECTION-SCREEN: BEGIN OF BLOCK 1 WITH FRAME
+                    TITLE TEXT-001.
+PARAMETERS: rb_stan RADIOBUTTON GROUP rb1,
+            rb_sub  RADIOBUTTON GROUP rb1,
+            rb_pipe RADIOBUTTON GROUP rb1,
+            rb_cons RADIOBUTTON GROUP rb1.
+
+SELECTION-SCREEN: END OF BLOCK 1.
+
+
+************************************************************************
+*        I N I T I A L I Z A T I O N
+************************************************************************
+INITIALIZATION.
+***************************************************************************
+*        A T  S E L E C T I O N   S C R E E N
+************************************************************************
+AT SELECTION-SCREEN.
+
+AT SELECTION-SCREEN OUTPUT.
+  LOOP AT SCREEN.
+    IF screen-group1 = 'ABC'.
+      IF rb_infnr = 'X' AND
+        ( screen-name = 'S_INFNR-LOW' OR
+        screen-name = 'S_INFNR-HIGH' OR
+        screen-name = '%_S_INFNR_%_APP_%-VALU_PUSH' OR
+        screen-name = '%_S_INFNR_%_APP_%-TEXT' ).
+        screen-input = 1.
+      ELSEIF
+      rb_infnr = ' ' AND
+        ( screen-name = 'S_INFNR-LOW' OR
+        screen-name = 'S_INFNR-HIGH' OR
+        screen-name = '%_S_INFNR_%_APP_%-VALU_PUSH' OR
+        screen-name = '%_S_INFNR_%_APP_%-TEXT' ).
+        screen-input = 0.
+        screen-active = 0.
+        screen-invisible = 1.
+      ENDIF.
+      IF rb_lifnr ='X' AND
+        ( screen-name = 'S_LIFNR-LOW' OR
+        screen-name = 'S_LIFNR-HIGH' OR
+        screen-name = '%_S_LIFNR_%_APP_%-VALU_PUSH' OR
+        screen-name = '%_S_LIFNR_%_APP_%-TEXT' ).
+        screen-input = 1.
+      ELSEIF
+        rb_lifnr = ' ' AND
+        ( screen-name = 'S_LIFNR-LOW' OR
+        screen-name = 'S_LIFNR-HIGH' OR
+        screen-name = '%_S_LIFNR_%_APP_%-VALU_PUSH' OR
+        screen-name = '%_S_LIFNR_%_APP_%-TEXT' ).
+        screen-input = 0.
+        screen-active = 0.
+        screen-invisible = 1.
+      ENDIF.
+    ENDIF.
+    MODIFY SCREEN.
+  ENDLOOP.
+
+*************************************************************************
+*        T O P   O F   P A G E
+************************************************************************
+TOP-OF-PAGE.
+*top of page in this program is handled by the alv call to form top_of_page.
+
+************************************************************************
+*        E N D   O F   P A G E
+************************************************************************
+END-OF-PAGE.
+
+************************************************************************
+*        S T A R T   O F   S E L E C T I O N
+************************************************************************
+START-OF-SELECTION.
+  IF rb_stan = 'X'.
+    MOVE '0' TO hold_esokz.
+  ELSEIF rb_sub = 'X'.
+    MOVE '3' TO hold_esokz.
+  ELSEIF rb_pipe = 'X'.
+    MOVE 'P' TO hold_esokz.
+  ELSEIF rb_cons = 'X'.
+    MOVE '2' TO hold_esokz.
+  ENDIF.
+  PERFORM get_data.
+***** Display List
+  PERFORM set_layout.
+  PERFORM set_fieldcat.
+  PERFORM set_eventcat.
+  PERFORM set_sortcat.
+  PERFORM set_filter.
+  PERFORM call_list_viewer.
+  STOP.
+
+************************************************************************
+*        E N D   O F   S E L E C T I O N
+************************************************************************
+END-OF-SELECTION.
+
+************************************************************************
+*        A T   L I N E   S E L E C T I O N
+************************************************************************
+AT LINE-SELECTION.
+
+************************************************************************
+*        A T   U S E R   C O M M A N D
+************************************************************************
+AT USER-COMMAND.
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+FORM get_data .
+*select the data depending on the info from the selection screen.
+*some thing are hard coded that were not on the selection screen.
+  CLEAR t_a017[].
+*  SELECT lifnr matnr werks ekorg knumh datab datbi esokz
+  SELECT kschl lifnr matnr werks ekorg knumh datab datbi esokz
+  FROM a017
+  INTO CORRESPONDING FIELDS OF TABLE t_a017
+  WHERE lifnr IN s_lifnr
+  AND   matnr IN s_matnr
+  AND   werks IN s_werks
+  AND   ekorg IN s_ekorg
+  AND   esokz = hold_esokz
+  AND   kschl IN s_kschl
+  AND   kappl ='M'
+  ORDER BY PRIMARY KEY.           "USANGUL2
+
+  IF s_werks[] IS INITIAL.
+*    SELECT lifnr matnr ekorg knumh datab datbi esokz
+    SELECT kschl lifnr matnr ekorg knumh datab datbi esokz
+      FROM a018
+      APPENDING CORRESPONDING FIELDS OF TABLE t_a017
+      WHERE lifnr IN s_lifnr
+      AND   matnr IN s_matnr
+      AND   ekorg IN s_ekorg
+      AND   esokz = hold_esokz
+      AND   kschl IN s_kschl
+      AND   kappl ='M'
+      ORDER BY PRIMARY KEY.
+  ENDIF.
+
+
+  DESCRIBE TABLE t_a017 LINES lines.
+*sort table in descending order so the latest dates will come to the top and then
+*delete the ones not wanted.  the user requested that only the latest dates go to the report.
+  IF lines > 0.      "get rid of records except the one with the latest date
+    SELECT  a~lifnr a~matnr b~ekorg b~esokz b~werks
+      b~infnr b~loekz
+      FROM eina AS a INNER JOIN eine AS b
+                      ON a~infnr = b~infnr
+                      INTO TABLE it_eine
+                      FOR ALL ENTRIES IN t_a017
+                      WHERE a~lifnr EQ t_a017-lifnr
+                      AND a~matnr EQ t_a017-matnr
+                      AND b~ekorg EQ t_a017-ekorg
+                      AND b~werks EQ t_a017-werks
+                      AND b~loekz IN s_loekz
+                      AND a~infnr IN s_infnr.
+    SORT it_eine BY lifnr matnr ekorg esokz werks.
+    SORT t_a017 BY lifnr matnr werks datab DESCENDING.
+    LOOP AT t_a017.
+      CLEAR: lv_index.
+      lv_index = sy-tabix.
+      READ TABLE it_eine INTO wa_eine WITH KEY lifnr = t_a017-lifnr
+                                               matnr = t_a017-matnr
+                                               ekorg = t_a017-ekorg
+                                               esokz = t_a017-esokz
+                                               werks = t_a017-werks BINARY SEARCH.
+      IF sy-subrc EQ 0.
+*        idx = sy-tabix.
+        t_a017-infnr = wa_eine-infnr.
+        t_a017-loekz = wa_eine-loekz.
+        MODIFY  t_a017 INDEX lv_index TRANSPORTING infnr loekz.
+      ENDIF.
+
+      CONCATENATE t_a017-lifnr t_a017-matnr t_a017-werks INTO rec_key.
+
+      IF hold_key IS INITIAL.
+        CONCATENATE t_a017-lifnr t_a017-matnr t_a017-werks INTO hold_key.
+        CONTINUE.
+      ELSEIF rec_key = hold_key.
+        DELETE t_a017.
+      ELSEIF rec_key <> hold_key.
+        CONCATENATE t_a017-lifnr t_a017-matnr t_a017-werks INTO hold_key.
+      ENDIF.
+
+    ENDLOOP.
+    DELETE t_a017 WHERE infnr IS INITIAL.
+  ENDIF.
+
+  DESCRIBE TABLE t_a017 LINES lines.
+*get the qty and amount for each record in the t_a017 using the knumh.
+*i think that each set of dates will have its own knumh.
+*gets the scale record amounts and qty into a table for those that have them.
+  IF lines > 0.
+    CLEAR iscal[].
+    LOOP AT t_a017.
+      SELECT konm~kstbm konm~kbetr konm~knumh konp~kpein konp~kbetr AS kbetrnc
+        FROM konm
+        JOIN konp ON konp~knumh = konm~knumh
+        APPENDING CORRESPONDING FIELDS OF TABLE iscal
+        WHERE konm~knumh = t_a017-knumh
+        AND   konp~kschl = t_a017-kschl.
+    ENDLOOP.
+  ENDIF.
+
+*below creates records for scales
+*creates records for those without scales
+*creates  a record with qty 1 for each scale record.
+
+  CLEAR t_a017_final[].
+*loop at the two tables from above and combine them into one table.
+  LOOP AT t_a017.
+*move the fields out so i can use them in the at end
+    CLEAR t_a017_hold.
+    MOVE t_a017-lifnr TO t_a017_hold-lifnr.
+    MOVE t_a017-matnr TO t_a017_hold-matnr.
+    MOVE t_a017-werks TO t_a017_hold-werks.
+    MOVE t_a017-ekorg TO t_a017_hold-ekorg.
+    MOVE t_a017-datab TO t_a017_hold-datab.
+    MOVE t_a017-datbi TO t_a017_hold-datbi.
+    MOVE t_a017-knumh TO t_a017_hold-knumh.
+    MOVE t_a017-esokz TO t_a017_hold-esokz.
+    MOVE t_a017-infnr TO t_a017_final-infnr.
+    MOVE t_a017-loekz TO t_a017_final-loekz.
+*creates scale records
+    LOOP AT iscal WHERE knumh = t_a017-knumh.  "there are scale records.
+      MOVE t_a017-lifnr TO t_a017_final-lifnr.
+      MOVE t_a017-matnr TO t_a017_final-matnr.
+      MOVE t_a017-werks TO t_a017_final-werks.
+      MOVE t_a017-ekorg TO t_a017_final-ekorg.
+      MOVE t_a017-datab TO t_a017_final-datab.
+      MOVE t_a017-datbi TO t_a017_final-datbi.
+      MOVE t_a017-knumh TO t_a017_final-knumh.
+      MOVE t_a017-esokz TO t_a017_final-esokz.
+      MOVE iscal-knumh  TO t_a017_final-knumh2.
+      MOVE iscal-kstbm  TO t_a017_final-kstbm.
+      MOVE iscal-kbetr  TO t_a017_final-kbetr.
+      MOVE iscal-kpein  TO t_a017_final-kpein.
+      MOVE iscal-kbetrnc TO t_a017_final-kbetrnc.
+      APPEND t_a017_final.
+    ENDLOOP.
+    IF sy-subrc <> 0.   "there were no scale records so create a record.
+      MOVE t_a017-lifnr TO t_a017_final-lifnr.
+      MOVE t_a017-matnr TO t_a017_final-matnr.
+      MOVE t_a017-werks TO t_a017_final-werks.
+      MOVE t_a017-ekorg TO t_a017_final-ekorg.
+      MOVE t_a017-datab TO t_a017_final-datab.
+      MOVE t_a017-datbi TO t_a017_final-datbi.
+      MOVE t_a017-knumh TO t_a017_final-knumh.
+      MOVE t_a017-esokz TO t_a017_final-esokz.
+      CLEAR: konp-kpein, konp-kbetr.
+      SELECT SINGLE konp~kpein konp~kbetr
+        INTO (konp-kpein, konp-kbetr)
+        FROM konp
+        WHERE konp~knumh = t_a017-knumh.
+      IF sy-subrc = 0.
+        MOVE t_a017-knumh TO t_a017_final-knumh2.
+        MOVE konp-kpein TO t_a017_final-kpein.
+        MOVE konp-kbetr TO t_a017_final-kbetr.
+        MOVE 1 TO t_a017_final-kstbm.
+*        APPEND t_a017_final.
+      ENDIF.
+    ENDIF.
+    AT END OF matnr.
+*create a scale of 1 in case it does not exits.  It will be sorted out and deleted
+*later if it does exist.
+      READ TABLE t_a017_final WITH KEY knumh = t_a017_hold-knumh
+      TRANSPORTING NO FIELDS.
+      IF sy-subrc <> 0.
+        MOVE t_a017_hold-lifnr TO t_a017_final-lifnr.
+        MOVE t_a017_hold-matnr TO t_a017_final-matnr.
+        MOVE t_a017_hold-werks TO t_a017_final-werks.
+        MOVE t_a017_hold-ekorg TO t_a017_final-ekorg.
+        MOVE t_a017_hold-datab TO t_a017_final-datab.
+        MOVE t_a017_hold-datbi TO t_a017_final-datbi.
+        MOVE t_a017_hold-knumh TO t_a017_final-knumh.
+        MOVE t_a017_hold-esokz TO t_a017_final-esokz.
+        CLEAR: konp-kpein, konp-kbetr.
+
+*        SELECT SINGLE konp~kpein konp~kbetr
+*          INTO (konp-kpein, konp-kbetr)
+*          FROM konp
+*          WHERE konp~knumh = t_a017_hold-knumh.
+
+*        IF sy-subrc = 0.
+*          MOVE t_a017_hold-knumh TO t_a017_final-knumh2.
+*          MOVE konp-kpein TO t_a017_final-kpein.
+*          MOVE konp-kbetr TO t_a017_final-kbetr.
+*          MOVE 1 TO t_a017_final-kstbm.
+*          APPEND t_a017_final.
+*        ENDIF.
+
+        SELECT SINGLE a~kpein,
+                      a~kbetr,
+                      a~knumh,
+                      b~kstbm
+          FROM konp AS a
+          INNER JOIN konm AS b
+          ON a~knumh = b~knumh
+          INTO @DATA(ls_konm)
+          WHERE a~knumh = @t_a017_hold-knumh
+          AND a~kschl = @t_a017-kschl.
+
+        IF sy-subrc = 0.
+          t_a017_final-knumh2 = ls_konm-knumh.
+          t_a017_final-kpein = ls_konm-kpein.
+          t_a017_final-kbetr = ls_konm-kbetr.
+          t_a017_final-kstbm = ls_konm-kstbm.
+          APPEND t_a017_final.
+        ENDIF.
+      ENDIF.
+    ENDAT.
+
+  ENDLOOP.
+
+*make sure there are records in the table
+  DESCRIBE TABLE t_a017_final LINES lines.
+
+* delete any records that are the same,,,example there was already a scale for 1 and
+* we created another one.
+  IF lines > 0.
+    SORT t_a017_final BY lifnr matnr ekorg kstbm kbetr ASCENDING.
+    DELETE ADJACENT DUPLICATES FROM t_a017_final COMPARING ALL FIELDS.
+  ENDIF.
+
+
+  IF lines > 0.
+    CLEAR t_a017_rpt[].
+    LOOP AT t_a017_final.
+      PERFORM build_report_line.
+      APPEND t_a017_rpt.
+    ENDLOOP.
+  ENDIF.
+
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_REPORT_LINE
+*&---------------------------------------------------------------------*
+FORM build_report_line .
+
+  MOVE t_a017_final-lifnr TO t_a017_rpt-lifnr.
+  MOVE t_a017_final-matnr TO t_a017_rpt-matnr.
+  MOVE t_a017_final-ekorg TO t_a017_rpt-ekorg.
+  MOVE t_a017_final-werks TO t_a017_rpt-werks.
+*  MOVE t_a017_final-kbetrnc TO t_a017_rpt-kbetrnc.
+  MOVE t_a017_final-kpein TO t_a017_rpt-kpein.
+  MOVE t_a017_final-kstbm TO t_a017_rpt-kstbm1.
+  MOVE t_a017_final-kbetr TO t_a017_rpt-kbetr1.
+  MOVE t_a017_final-esokz TO t_a017_rpt-esokz.
+  MOVE t_a017_final-infnr TO t_a017_rpt-infnr.
+  MOVE t_a017_final-loekz TO t_a017_rpt-loekz.
+
+ENDFORM.                    " BUILD_REPORT_LINE
+*&---------------------------------------------------------------------*
+*&      Form  SET_LAYOUT
+*&---------------------------------------------------------------------*
+FORM set_layout .
+**********************************************************************
+*  SET LAYOUT CHARACTERISTICS HERE
+************************************************************************
+  alv-layout-colwidth_optimize = 'X'.
+  alv-layout-zebra             = 'X'.
+
+ENDFORM.                    " SET_LAYOUT
+*&---------------------------------------------------------------------*
+*&      Form  SET_FIELDCAT
+*&---------------------------------------------------------------------*
+FORM set_fieldcat .
+  CLEAR: alv-col_pos,
+       alv-row_pos.
+  alv-repid = sy-repid.
+  ADD 1 TO alv-row_pos.
+
+  PERFORM fill_fieldcat USING:                                      "don't"
+  "field Name"   "col heading" "len col" "hotspot "data type" "key" "show" "bold" "justify'
+    'LIFNR'         'Vendor'       10     space      'CHAR'    'X'   space  space   'L',
+    'MATNR'         'Material'     18     space      'CHAR'    'X'   space  space   'L',
+    'EKORG'         'Purch Org'     9     space      'CHAR'    space space  space   'L',
+    'WERKS'         'Plant'         6     space      'CHAR'    space space  space   'L',
+*   'KBETRNC'       'Base Amt'     10     space      'CURR'    space space  space   'L',
+    'KSTBM1'        'Scale Qty'    10     space      'DEC3'    space space  space   'L',
+    'KBETR1'        'Price    '    16     space      'CURR'    space space  space   'L',
+    'KPEIN'         'Price Unit'   10     space      'DEC'     space space  space   'L',
+    'ESOKZ'         'IR Category'  11     space      'CHAR'    space space  space   'L',
+    'INFNR'         'Info Record'  11     space      'CHAR'    space space  space   'L',
+    'LOEKZ'         'Deletion Indicator'  3 space    'CHAR'    space space  space   'L'.
+ENDFORM.                    " SET_FIELDCAT
+*&---------------------------------------------------------------------*
+*&      Form  SET_EVENTCAT
+*&---------------------------------------------------------------------*
+FORM set_eventcat .
+
+  eventcat_ln-name        = slis_ev_top_of_page.
+  eventcat_ln-form        = 'TOP_OF_PAGE'.
+  APPEND eventcat_ln TO t_eventcat.
+
+ENDFORM.                    " SET_EVENTCAT
+*&---------------------------------------------------------------------*
+*&      Form  SET_SORTCAT
+*&---------------------------------------------------------------------*
+FORM set_sortcat .
+
+  sortcat_ln-spos      = '1'.
+  sortcat_ln-fieldname = 'LIFNR'.
+  sortcat_ln-tabname = 't_a017_rpt'.
+  sortcat_ln-up        = 'X'.
+  sortcat_ln-down      = space.
+  sortcat_ln-subtot    = space.
+*  sortcat_ln-group     = '*'.
+  APPEND sortcat_ln TO t_sortcat.
+
+  sortcat_ln-spos      = '2'.
+  sortcat_ln-fieldname = 'MATNR'.
+  sortcat_ln-up        = 'X'.
+  sortcat_ln-down      = space.
+  sortcat_ln-subtot    = space.
+  APPEND sortcat_ln TO t_sortcat.
+
+  sortcat_ln-spos      = '3'.
+  sortcat_ln-fieldname = 'WERKS'.
+  sortcat_ln-up        = 'X'.
+  sortcat_ln-down      = space.
+  sortcat_ln-subtot    = space.
+  APPEND sortcat_ln TO t_sortcat.
+
+ENDFORM.                    " SET_SORTCAT
+*&---------------------------------------------------------------------*
+*&      Form  SET_FILTER
+*&---------------------------------------------------------------------*
+FORM set_filter .
+
+ENDFORM.                    " SET_FILTER
+*&---------------------------------------------------------------------*
+*&      FORM  SET_PF-STATUS
+*&---------------------------------------------------------------------*
+FORM set_pf_status USING
+
+     rt_extag TYPE slis_t_extab.
+
+  SET PF-STATUS 'ALVSTD' EXCLUDING rt_extag.
+
+ENDFORM.                               "SET_PF_STATUS
+*&---------------------------------------------------------------------*
+*&      Form  CALL_LIST_VIEWER
+*&---------------------------------------------------------------------*
+FORM call_list_viewer .
+
+  CALL FUNCTION 'REUSE_ALV_LIST_DISPLAY'
+    EXPORTING
+*     I_INTERFACE_CHECK        = ' '
+      i_callback_program       = alv-repid
+      i_callback_pf_status_set = 'SET_PF_STATUS'
+      i_callback_user_command  = 'USER_COMMANDS'
+*     I_STRUCTURE_NAME         =
+*     is_layout                =
+      it_fieldcat              = t_fieldcat
+*     IT_EXCLUDING             =
+*     it_special_groups        =
+      it_sort                  = t_sortcat
+*     IT_FILTER                =
+*     IS_SEL_HIDE              =
+*     I_DEFAULT                = 'X'
+      i_save                   = alv-save
+      is_variant               = disp_variant_in
+      it_events                = t_eventcat
+*     IT_EVENT_EXIT            =
+*     IS_PRINT                 =
+*     I_SCREEN_START_COLUMN    = 0
+*     I_SCREEN_START_LINE      = 0
+*     I_SCREEN_END_COLUMN      = 0
+*     I_SCREEN_END_LINE        = 0
+*      IMPORTING
+*     E_EXIT_CAUSED_BY_CALLER  =
+*     ES_EXIT_CAUSED_BY_USER   =
+    TABLES
+*     t_outtab                 = t_report
+      t_outtab                 = t_a017_rpt
+    EXCEPTIONS
+      program_error            = 1
+      OTHERS                   = 2.
+
+  CASE sy-subrc.
+    WHEN 1.
+      MESSAGE e980(za).
+*   Program Error occurs in List Viewer Function
+
+    WHEN 2.
+      MESSAGE e990(za) WITH 'REUSE_ALV_LIST_DISPLAY'
+                            sy-subrc.
+*   INVALID RETURN CODE FROM FUNCTION & ... RETURN CODE = &
+
+  ENDCASE.
+
+ENDFORM.                    " CALL_LIST_VIEWER
+*&---------------------------------------------------------------------*
+*&      FORM  FILL_FIELDCAT
+*&---------------------------------------------------------------------*
+FORM fill_fieldcat USING i_field_name   "Field Name"
+                         i_rpt_text     "Col Heading"
+                         i_length       "Length of Column Input"
+                         i_hotspot      "hot spot"
+                         i_data_type    "data type"
+                         i_key          "key"
+                         i_no_out       "do not show on output
+                         i_emphasize    "make it bold
+                         i_just.        "justify"
+
+  ADD 1 TO alv-col_pos.
+
+  CLEAR fieldcat_ln.
+  fieldcat_ln-row_pos          = alv-row_pos.
+  fieldcat_ln-col_pos          = alv-col_pos.
+  fieldcat_ln-tabname          = 't_a017_rpt'.   "Int Report Table Name
+
+  fieldcat_ln-fieldname        = i_field_name.
+  fieldcat_ln-reptext_ddic     = i_rpt_text.   " Col Heading
+  fieldcat_ln-do_sum           = space.    "X=Auto Sub-total Col
+  fieldcat_ln-hotspot          = i_hotspot.
+  fieldcat_ln-outputlen        = i_length.     "Length of Col Output
+  fieldcat_ln-no_out           = i_no_out.     "X=Don't Display Col
+  fieldcat_ln-just             = i_just.   "(L)eft "(C)enter (R)ight
+  fieldcat_ln-key              = i_key.
+  fieldcat_ln-datatype         = i_data_type.
+  fieldcat_ln-emphasize        = i_emphasize.
+
+  CASE i_data_type.
+    WHEN 'DEC'.
+      fieldcat_ln-decimals_out  = '0'.
+      fieldcat_ln-no_zero       = 'X'.
+    WHEN 'DEC2'.
+      fieldcat_ln-decimals_out  = '2'.
+      fieldcat_ln-no_zero       = 'X'.
+      fieldcat_ln-datatype      = 'DEC'.
+    WHEN 'DEC3'.
+      fieldcat_ln-decimals_out  = '3'.
+      fieldcat_ln-no_zero       = 'X'.
+      fieldcat_ln-datatype      = 'DEC'.
+  ENDCASE.
+
+  APPEND fieldcat_ln TO t_fieldcat.
+
+ENDFORM.                    "FILL_FIELDCAT
+*&---------------------------------------------------------------------*
+*&      FORM  TOP_OF_PAGE
+*&---------------------------------------------------------------------*
+FORM top_of_page.
+
+* Print standard list header
+  CALL FUNCTION 'ZMM_REPORT_HEADER_FM'
+    EXPORTING
+      p_title = 'ABB Inc.'.
+
+ENDFORM.                               "TOP_OF_PAGE
+*&---------------------------------------------------------------------*
+*&      FORM  USER_COMMANDS
+*&---------------------------------------------------------------------*
+FORM user_commands USING p_comm LIKE sy-ucomm
+                         p_selfield TYPE slis_selfield.
+
+  CASE p_comm.
+    WHEN 'EXL'.
+      PERFORM download_list.
+    WHEN OTHERS.
+  ENDCASE.
+
+ENDFORM.                               "USER_COMMANDS
+*&---------------------------------------------------------------------*
+*&      Form  DOWNLOAD_LIST
+*&---------------------------------------------------------------------*
+FORM download_list .
+* move field names to table
+  MOVE 'Vendor' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+  MOVE 'Material' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+  MOVE 'Purch Org' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+*  MOVE 'Base Amt' TO w_names-fld1.
+*  APPEND w_names TO i_fields.
+  MOVE 'Scale Qty' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+  MOVE 'Price' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+  MOVE 'Price Unit' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+  MOVE 'IR Category' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+  MOVE 'Plant' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+  MOVE 'Info Record' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+  MOVE 'Del. Ind.' TO w_names-fld1.
+  APPEND w_names TO i_fields.
+
+  DATA: s_fname     TYPE string,
+        s_path      TYPE string,
+        s_temp      TYPE string,
+        s_name      TYPE string,
+        ld_filename TYPE string,
+        ld_path     TYPE string,
+        ld_fullpath TYPE string,
+        ld_result   TYPE i,
+        itab        TYPE TABLE OF string WITH HEADER LINE.
+
+  CALL METHOD cl_gui_frontend_services=>file_save_dialog
+    EXPORTING
+      default_extension = 'XLS'
+      default_file_name = s_name
+      initial_directory = s_path
+    CHANGING
+      filename          = ld_filename
+      path              = ld_path
+      fullpath          = ld_fullpath
+      user_action       = ld_result.
+
+* Check user did not cancel request
+  IF ld_result EQ '0'.
+*    REFRESH t_a017_dwn[].
+*    LOOP AT t_a017_rpt.
+*      CLEAR t_a017_dwn.
+*      MOVE-CORRESPONDING t_a017_rpt TO t_a017_dwn.
+*      APPEND t_a017_dwn TO t_a017_dwn[].
+*    ENDLOOP.
+
+    CALL FUNCTION 'GUI_DOWNLOAD'
+      EXPORTING
+*       BIN_FILESIZE            = ' '
+*       CODEPAGE                = ' '
+*       filename                = s_fname
+        filename                = ld_fullpath
+        filetype                = 'DBF'
+*       item                    = 'Vendor Report'
+*       mode                    = ' '
+*       WK1_N_FORMAT            = ' '
+*       WK1_N_SIZE              = ' '
+*       WK1_T_FORMAT            = ' '
+*       WK1_T_SIZE              = ' '
+*       FILEMASK_MASK           = ' '
+*       FILEMASK_TEXT           = ' '
+*       FILETYPE_NO_CHANGE      = ' '
+*       FILEMASK_ALL            = ' '
+*       filetype_no_show        = 'X'
+*       silent                  = 'X'
+*       col_select              = 'x'
+*       col_selectmask          = 'x xxxxxxxxxxxx'
+*       NO_AUTH_CHECK           = ' '
+*    IMPORTING
+*       ACT_FILENAME            =
+*       ACT_FILETYPE            =
+*       FILESIZE                =
+*       CANCEL                  =
+      TABLES
+        data_tab                = t_a017_rpt
+        fieldnames              = i_fields
+      EXCEPTIONS
+        file_write_error        = 1
+        no_batch                = 2
+        gui_refuse_filetransfer = 3
+        invalid_type            = 4
+        no_authority            = 5
+        unknown_error           = 6
+        header_not_allowed      = 7
+        separator_not_allowed   = 8
+        filesize_not_allowed    = 9
+        header_too_long         = 10
+        dp_error_create         = 11
+        dp_error_send           = 12
+        dp_error_write          = 13
+        unknown_dp_error        = 14
+        access_denied           = 15
+        dp_out_of_memory        = 16
+        disk_full               = 17
+        dp_timeout              = 18
+        file_not_found          = 19
+        dataprovider_exception  = 20
+        control_flush_error     = 21
+        OTHERS                  = 22.
+
+  ENDIF.
+
+ENDFORM.                    " DOWNLOAD_LIST
+

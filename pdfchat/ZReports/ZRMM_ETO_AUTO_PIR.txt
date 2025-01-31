@@ -1,0 +1,54 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_ETO_AUTO_PIR
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+*=======================================================================
+*= Copyright © 2013 ABB IS                                              =
+*= ALL RIGHTS RESERVED                                                 =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRMM_ETO_AUTO_PIR
+* Created by        : Ramakrishna, 502319303
+* Transport Request : DE3K9A08H9
+* RICEF Object No   : RICEF2417
+* Transaction code  : ZMM2417
+* Change request No : CHG0181468
+* Description       : This program will craete automatically PIR, Material cost
+*                      and remove the IN status of Material
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+
+REPORT  zrmm_eto_auto_pir.
+
+INCLUDE znmm_eto_auto_pir_top.
+
+INCLUDE znmm_eto_auto_pir_screen.
+
+INCLUDE znmm_eto_auto_pir_forms.
+
+
+START-OF-SELECTION.
+
+  PERFORM get_harcode_values.
+
+  PERFORM  get_pr_data.
+
+  PERFORM template_data.
+
+  PERFORM  final_data.
+
+  PERFORM bcd_me11_me01.
+
+  PERFORM dispaly_data.
+

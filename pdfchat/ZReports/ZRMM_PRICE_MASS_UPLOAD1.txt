@@ -1,0 +1,277 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_PRICE_MASS_UPLOAD1
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  ZRMM_PRICE_MASS_UPLOAD1 MESSAGE-ID ZMM.
+
+
+TYPES : BEGIN OF TY_FILE ,
+         MATNR       TYPE MARA-MATNR,
+         WERKS       TYPE MARC-WERKS,
+         PLNDPRICE1  TYPE CHAR20, "VBAP-NETWR,
+         PLNDPRDATE1 TYPE CHAR10, "BAPI_MBEW-PLNDPRDATE1,
+         MESSAGE     TYPE CHAR100,
+        END OF TY_FILE .
+
+TYPES : BEGIN OF TY_MARA,
+        MATNR TYPE MARA-MATNR,
+        MTART TYPE MARA-MTART,
+        MBRSH TYPE MARA-MBRSH,
+        END OF TY_MARA.
+
+TYPES : BEGIN OF TY_MSTA,
+        MATNR TYPE MSTA-MATNR,
+        STATM TYPE MSTA-STATM,
+        BWKEY TYPE MSTA-BWKEY,
+        END OF TY_MSTA.
+
+DATA : I_FILE TYPE TABLE OF ALSMEX_TABLINE.
+DATA : I_FILE2 TYPE standard  TABLE OF TY_FILE.
+DATA : I_MSTA TYPE TABLE OF TY_MSTA .
+DATA : I_MARA TYPE TABLE OF TY_MARA.
+
+DATA : WA_FILE TYPE ALSMEX_TABLINE.
+DATA : WA_FILE2 TYPE TY_FILE.
+DATA : WA_MSTA TYPE TY_MSTA .
+DATA : WA_MARA TYPE TY_MARA.
+
+DATA V_PRICE    TYPE CHAR15.
+DATA V_DECIMALS TYPE CHAR5.
+DATA V_TABIX TYPE SY-TABIX.
+DATA V_PLNDPRICE1 TYPE STRING .
+DATA V_LENGTH TYPE I.
+DATA V_DATE TYPE SY-DATUM .
+
+DATA I_HEADDATA TYPE TABLE OF BAPIE1MATHEADER.
+DATA I_VALUATIONDATA TYPE TABLE OF BAPIE1MBEW.
+DATA I_VALUATIONDATAX TYPE TABLE OF BAPIE1MBEWX.
+DATA I_RET_MSGS TYPE TABLE OF BAPIE1RET2.
+
+DATA WA_HEADDATA TYPE   BAPIE1MATHEADER.
+DATA WA_VALUATIONDATA TYPE  BAPIE1MBEW.
+DATA WA_VALUATIONDATAX TYPE  BAPIE1MBEWX.
+DATA WA_RET_MSGS TYPE  BAPIE1RET2.
+DATA WA_RETURN TYPE BAPIRET2.
+
+
+PARAMETERS : P_FNAME TYPE RLGRAP-FILENAME .
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR P_FNAME .
+  PERFORM GET_FILE_NAME .
+
+START-OF-SELECTION.
+  PERFORM UPLOAD_DATA .
+  PERFORM VALIDATE_AND_UPDATE.
+
+
+FORM GET_FILE_NAME .
+  CALL FUNCTION 'KD_GET_FILENAME_ON_F4'
+    EXPORTING
+      PROGRAM_NAME  = SYST-REPID
+      DYNPRO_NUMBER = SYST-DYNNR
+      FIELD_NAME    = 'P_FNAME'
+    CHANGING
+      FILE_NAME     = P_FNAME
+    EXCEPTIONS
+      MASK_TOO_LONG = 1
+      OTHERS        = 2.
+
+
+ENDFORM.                    " GET_FILE_NAME
+
+FORM UPLOAD_DATA .
+
+  CALL FUNCTION 'ALSM_EXCEL_TO_INTERNAL_TABLE'
+    EXPORTING
+      FILENAME                = P_FNAME
+      I_BEGIN_COL             = 1
+      I_BEGIN_ROW             = 1
+      I_END_COL               = 60
+      I_END_ROW               = 50000
+    TABLES
+      INTERN                  = I_FILE
+    EXCEPTIONS
+      INCONSISTENT_PARAMETERS = 1
+      UPLOAD_OLE              = 2
+      OTHERS                  = 3.
+  IF SY-SUBRC <> 0.
+*    MESSAGE 'Problem uploading Excel Spreadsheet' TYPE 'E' .
+    MESSAGE E000(ZMM) WITH text-000.
+  ENDIF.
+
+
+
+* Sort table by rows and colums
+  SORT I_FILE BY ROW COL.
+
+
+  LOOP AT I_FILE INTO WA_FILE FROM 5."IGNORE THE FIRST 8 RECORDS WHICH CONTAINS HEADING
+    CASE WA_FILE-COL.
+      WHEN '0001'.
+        WA_FILE2-MATNR = WA_FILE-VALUE.
+      WHEN '0002'.
+        WA_FILE2-WERKS = WA_FILE-VALUE.
+      WHEN '0003'.
+        WA_FILE2-PLNDPRICE1 = WA_FILE-VALUE.
+      WHEN '0004'.
+        WA_FILE2-PLNDPRDATE1 = WA_FILE-VALUE.
+      WHEN '0005'.
+        WA_FILE2-MESSAGE = WA_FILE-VALUE.
+    ENDCASE.
+    AT END OF ROW .
+      APPEND WA_file2 TO I_FILE2.
+    ENDAT .
+  ENDLOOP.
+
+ENDFORM.                    "UPLOAD_DATA
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_AND_UPDATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM VALIDATE_AND_UPDATE .
+  IF I_FILE2 IS NOT INITIAL .
+    SELECT MATNR MTART MBRSH
+           FROM MARA INTO TABLE I_MARA
+           FOR ALL ENTRIES IN I_FILE2
+           WHERE MATNR = I_FILE2-MATNR.
+
+    SELECT  MATNR STATM BWKEY
+            FROM  MSTA  INTO  TABLE I_MSTA
+            FOR ALL ENTRIES IN I_FILE2
+            WHERE MATNR = I_FILE2-MATNR
+            AND   STATM = 'G'
+            AND   BWKEY = I_FILE2-WERKS .
+    SORT I_MARA BY MATNR.
+    SORT I_MSTA BY MATNR STATM BWKEY.
+  ENDIF .
+
+  LOOP AT I_FILE2 INTO WA_FILE2.
+    V_TABIX = SY-TABIX .
+*    PERFORM VALIDATE_MATNR.
+    PERFORM VALIDATE_COSTING_VIEW.
+    PERFORM VALIDATE_PRICE.
+    PERFORM CALL_BAPI .
+  ENDLOOP.
+
+ENDFORM.                    " VALIDATE_AND_UPDATE
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_COSTING_VIEW
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM VALIDATE_COSTING_VIEW .
+  READ TABLE I_MSTA INTO WA_MSTA WITH KEY MATNR = WA_FILE2-MATNR
+                                          STATM = 'G'
+                                          BWKEY = WA_FILE2-WERKS BINARY SEARCH .
+  IF SY-SUBRC <> 0 .
+    WA_FILE2-MESSAGE = 'Costing view does not exist in material master' .
+    MODIFY I_FILE2 FROM WA_FILE2 INDEX V_TABIX TRANSPORTING MESSAGE.
+  ENDIF .
+ENDFORM.                    " VALIDATE_COSTING_VIEW
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_PRICE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM VALIDATE_PRICE .
+  V_PLNDPRICE1 = WA_FILE2-PLNDPRICE1.
+  SPLIT  V_PLNDPRICE1 AT '.' INTO V_PRICE V_DECIMALS.
+  V_LENGTH = STRLEN( V_DECIMALS ).
+  IF V_LENGTH > 2 .
+    CONCATENATE  WA_FILE2-MESSAGE 'Invalid Price' into WA_FILE2-MESSAGE separated by '/' .
+    if WA_FILE2-MESSAGE+0(1) = '/' .
+      WA_FILE2-MESSAGE = ' ' .
+    endif .
+    MODIFY I_FILE2 FROM WA_FILE2 INDEX V_TABIX TRANSPORTING MESSAGE.
+  ENDIF .
+ENDFORM.                    " VALIDATE_PRICE
+*&---------------------------------------------------------------------*
+*&      Form  CALL_BAPI
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM CALL_BAPI .
+  IF WA_FILE2-MESSAGE IS INITIAL .
+    READ TABLE I_MARA INTO WA_MARA WITH KEY MATNR = WA_FILE2-MATNR BINARY SEARCH .
+    WA_HEADDATA-FUNCTION   = 'UPD' .
+    WA_HEADDATA-MATERIAL   = WA_MARA-MATNR .
+    WA_HEADDATA-IND_SECTOR = WA_MARA-MBRSH .
+    WA_HEADDATA-MATL_TYPE  = WA_MARA-MTART .
+*    WA_HEADDATA-COST_VIEW  = 'X' .
+    APPEND WA_HEADDATA TO I_HEADDATA .
+
+
+    WA_VALUATIONDATA-FUNCTION = 'UPD' .
+    WA_VALUATIONDATA-MATERIAL = WA_MARA-MATNR .
+    WA_VALUATIONDATA-VAL_AREA = WA_FILE2-WERKS .
+    WA_VALUATIONDATA-PLNDPRICE1 = WA_FILE2-PLNDPRICE1 .
+    CONCATENATE WA_FILE2-PLNDPRDATE1+6(4)  WA_FILE2-PLNDPRDATE1+3(2) WA_FILE2-PLNDPRDATE1+0(2) INTO V_DATE .
+    WA_VALUATIONDATA-PLNDPRDATE1 = V_DATE .
+    APPEND WA_VALUATIONDATA TO I_VALUATIONDATA.
+
+    WA_VALUATIONDATAX-FUNCTION = 'UPD' .
+    WA_VALUATIONDATAX-MATERIAL = WA_MARA-MATNR .
+    WA_VALUATIONDATAX-VAL_AREA = WA_FILE2-WERKS .
+    WA_VALUATIONDATAX-PLNDPRICE1 = 'X' .
+    WA_VALUATIONDATAX-PLNDPRDATE1 = 'X' .
+    APPEND WA_VALUATIONDATAX TO I_VALUATIONDATAX.
+
+    CALL FUNCTION 'BAPI_MATERIAL_SAVEREPLICA'
+      EXPORTING
+        NOAPPLLOG      = 'X'
+        NOCHANGEDOC    = 'X'
+        TESTRUN        = ' '
+        INPFLDCHECK    = 'E'
+      IMPORTING
+        RETURN         = WA_RETURN
+      TABLES
+        HEADDATA       = I_HEADDATA
+        VALUATIONDATA  = I_VALUATIONDATA
+        VALUATIONDATAX = I_VALUATIONDATAX
+        RETURNMESSAGES = I_RET_MSGS.
+    IF WA_RETURN-TYPE = 'S' .
+      CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+        EXPORTING
+          WAIT = 'X'.
+      WA_FILE2-MESSAGE = 'Updated Successfully' .
+      MODIFY I_FILE2 FROM WA_FILE2 INDEX V_TABIX TRANSPORTING MESSAGE.
+    ELSE.
+      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+      WA_FILE2-MESSAGE = WA_RETURN-MESSAGE .
+      MODIFY I_FILE2 FROM WA_FILE2 INDEX V_TABIX TRANSPORTING MESSAGE.
+    ENDIF .
+  ENDIF .
+ENDFORM.                    " CALL_BAPI
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_MATNR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM VALIDATE_MATNR .
+  READ TABLE I_MARA INTO WA_MARA WITH KEY MATNR = WA_FILE2-MATNR BINARY SEARCH .
+  IF SY-SUBRC <> 0 .
+    WA_FILE2-MESSAGE = 'Material does not exist in material master' .
+    MODIFY I_FILE2 FROM WA_FILE2 INDEX V_TABIX TRANSPORTING MESSAGE.
+  ENDIF .
+ENDFORM.                    " VALIDATE_MATNR
+

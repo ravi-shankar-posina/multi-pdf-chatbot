@@ -1,0 +1,8 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_LP_BP_DETAILS_SS
+*&---------------------------------------------------------------------*
+
+
+SELECT-OPTIONS : s_ebeln FOR ekko-ebeln OBLIGATORY,
+                 s_aedat FOR ekko-aedat.
+

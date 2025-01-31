@@ -1,0 +1,32 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SHPMNT_IDOC_REPROCESS_TOP
+*&---------------------------------------------------------------------*
+
+TABLES : edidc , edoc_stli , edoc_stat.
+
+TYPES : BEGIN OF gy_output,
+          docnum TYPE edi_docnum,
+          tknum  TYPE tknum,
+          datbg  TYPE datbg,
+          uatbg  TYPE uatbg,
+          msg    TYPE char50,
+          msgty  TYPE msgtyp,
+        END OF gy_output.
+
+DATA: gv_time0  LIKE edidc-updtim VALUE '000000',
+      gv_time24 LIKE edidc-updtim VALUE '235959'.
+
+DATA : go_shpmnt_start TYPE REF TO lcl_shpmnt_start,
+       gt_shpmnt       TYPE TABLE OF edid4,
+       gwa_final       TYPE gy_output,
+       gt_final        TYPE TABLE OF gy_output,
+       gt_output       TYPE TABLE OF gy_output,
+       gwa_output      TYPE gy_output.
+
+CONSTANTS: gc_e       TYPE char1 VALUE 'E',
+           gc_s       TYPE char1 VALUE 'S',
+           gc_x       TYPE char1 VALUE 'X',
+           gc_c       TYPE char1 VALUE 'C',
+           gc_e1edt20 TYPE edi_segnam VALUE 'E1EDT20',
+           gc_53      TYPE edi_status VALUE '53'.
+

@@ -1,0 +1,2970 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_AUTO_PIR_SL_FORMS_MVPIR_D
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+***INCLUDE ZNMM_AUTO_PIR_SL_FORMS .
+*----------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 29-AUG-2024        |  DE3K9A0SQZ      |USPRSAH   | Added this duplicate program to indentify the error in Production
+*-------------------------------------------------------------------------------------------
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  TEMPLATE_DATA_MVPIR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM template_data_mvpir .
+
+
+  IF NOT s_werks IS INITIAL.
+
+    SELECT werks
+           ekorg FROM t024w
+                 INTO TABLE gt_t024w
+                 WHERE werks EQ s_werks-low.
+    IF sy-subrc EQ 0.
+      SORT gt_t024w BY werks.
+    ENDIF.
+
+  ENDIF.
+
+
+  LOOP AT gt_t024w INTO gi_t024w.
+
+    gw_ekorg-sign = gc_i.
+    gw_ekorg-option = gc_eq.
+    gw_ekorg-low = gi_t024w-ekorg.
+
+    APPEND gw_ekorg TO gr_ekorg.
+
+    CLEAR : gw_ekorg , gi_t024w.
+
+  ENDLOOP.
+
+
+
+  IF  gt_mara IS INITIAL  AND  gt_pr_list IS NOT INITIAL.
+
+    SELECT  matnr
+           bismt
+           meins
+           bstme
+           prdha FROM mara
+                 INTO TABLE gt_mara
+                 FOR ALL ENTRIES IN gt_pr_list
+                 WHERE matnr EQ gt_pr_list-matnr.
+
+    IF sy-subrc EQ 0.
+
+      SORT gt_mara BY matnr.
+
+    ENDIF.
+
+  ENDIF.
+  DATA : lw_flag5.
+  IF gp_r1  IS NOT   INITIAL.
+    LOOP AT gt_mara INTO gi_mara.
+
+      READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY zkey = 'PRDH'
+                                                     field = 'PRDHA'
+                                                     low = gi_mara-prdha.
+      IF sy-subrc EQ 0.
+
+        IF gi_ztuhcd1_ds-high EQ 'ATS'.
+          gi_mara-venmatgrp = 'ATS'.
+          MODIFY gt_mara FROM gi_mara TRANSPORTING venmatgrp.
+          CONTINUE.
+        ELSEIF gi_ztuhcd1_ds-high EQ 'ELS'..
+          gi_mara-venmatgrp = 'ELS'.
+          MODIFY gt_mara FROM gi_mara TRANSPORTING venmatgrp.
+          CONTINUE.
+
+        ELSEIF gi_ztuhcd1_ds-high EQ 'ENTELLIGUARD'..
+          gi_mara-venmatgrp = 'ENTELLIGUARD'.
+          MODIFY gt_mara FROM gi_mara TRANSPORTING venmatgrp.
+          CONTINUE.
+
+        ELSE.
+          DELETE TABLE gt_mara FROM gi_mara.
+        ENDIF.
+        CLEAR gi_mara.
+      ELSE.
+        DELETE TABLE gt_mara FROM gi_mara.
+      ENDIF.
+    ENDLOOP.
+
+  ELSEIF   gp_r3  IS NOT   INITIAL.
+    LOOP AT gt_mara INTO gi_mara.
+      READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY zkey = 'PRDH'
+                                                     field = 'PRDHA'
+                                                     low = gi_mara-prdha
+                                                     high = 'ATS_NETPR'.
+      IF sy-subrc EQ 0.
+
+        gi_mara-venmatgrp = 'ATS_NETPR'.
+        MODIFY gt_mara FROM gi_mara TRANSPORTING venmatgrp.
+        CONTINUE.
+
+      ELSE.
+        DELETE TABLE gt_mara FROM gi_mara.
+      ENDIF.
+    ENDLOOP.
+
+  ELSE.
+
+
+    LOOP AT gt_mara INTO gi_mara.
+      CLEAR lw_flag5 .
+      lw_tab = sy-tabix.
+
+      READ TABLE gt_ztuhcd1_ds1 INTO gi_ztuhcd1_ds WITH KEY low = gi_mara-prdha.
+      IF sy-subrc NE 0.
+        lw_flag5 = 'X'.
+      ENDIF.
+
+      IF lw_flag5 EQ 'X'.
+
+        DELETE gt_mara  INDEX lw_tab.
+        gi_mess-matnr = gi_mara-matnr.
+        gi_mess-bismt = gi_mara-bismt.
+        CONCATENATE 'PR material '(011) gi_mara-matnr 'Product Hierachy Not belongs to EMAX/TMAX/RETROFIL'(010) INTO gi_mess-mes SEPARATED BY space.
+
+        APPEND gi_mess TO gt_mess.
+
+        gi_mess-mes = gi_mara-matnr.
+
+      ENDIF.
+
+      CLEAR : lw_flag5 , gi_mara , gi_mess.
+
+    ENDLOOP.
+  ENDIF.
+
+  LOOP AT gt_pr_list INTO gi_pr_list.
+
+    READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_pr_list-matnr BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+
+      APPEND gi_pr_list TO gt_pr_list1.
+    ENDIF.
+
+    CLEAR : gi_pr_list , gi_mara.
+  ENDLOOP.
+
+  gt_pr_list = gt_pr_list1.
+
+
+
+  IF NOT gt_mara IS INITIAL.
+
+
+    SELECT infnr
+           matnr
+           lifnr
+           loekz FROM eina
+                 INTO TABLE gt_eina
+                 FOR ALL ENTRIES IN gt_mara
+                 WHERE matnr EQ gt_mara-bismt
+                   AND  loekz NE gc_x.
+
+    IF sy-subrc EQ 0.
+
+      SELECT infnr
+             ekorg
+             esokz
+             werks
+             loekz
+             ekgrp
+             waers
+             minbm
+             norbm
+             mwskz
+             netpr
+             peinh
+             bprme
+             bstae
+               FROM eine
+                   INTO TABLE gt_eine
+                   FOR ALL ENTRIES IN gt_eina
+                   WHERE infnr EQ gt_eina-infnr
+                     AND werks EQ s_werks-low
+                     AND ekorg IN gr_ekorg
+                     AND  loekz NE gc_x.
+
+      IF sy-subrc EQ 0.
+
+        SORT gt_eine BY infnr.
+
+
+        SELECT matnr
+               werks
+               zeord
+               lifnr
+               ekorg
+               flifn
+               autet
+               notkz
+                     FROM eord
+                     INTO TABLE gt_eord6
+                     FOR ALL ENTRIES IN gt_mara
+                     WHERE matnr EQ gt_mara-bismt
+                      AND werks EQ s_werks-low
+                      AND vdatu LE sy-datum
+                      AND bdatu GE sy-datum.
+
+        IF sy-subrc EQ 0.
+          SORT gt_eord6 BY matnr werks lifnr ekorg.
+        ENDIF.
+        "usprsah
+      ENDIF.
+    ENDIF.
+
+
+
+    SELECT matnr
+           werks
+           zeord FROM eord
+                 INTO TABLE gt_eord
+                 FOR ALL ENTRIES IN gt_mara
+                 WHERE matnr EQ gt_mara-matnr
+                  AND werks EQ s_werks-low
+                  AND vdatu LE sy-datum
+                  AND bdatu GE sy-datum.
+
+    IF sy-subrc EQ 0.
+
+      SORT gt_eord BY matnr werks.
+
+    ENDIF.
+
+
+  ENDIF.
+
+
+
+
+  IF NOT gt_ebkn IS  INITIAL.
+
+    SELECT vbeln
+           vkorg FROM vbak
+                 INTO TABLE gt_vbak
+                 FOR ALL ENTRIES IN gt_ebkn
+                 WHERE vbeln EQ gt_ebkn-vbeln.
+    IF sy-subrc EQ 0.
+
+      SORT gt_vbak BY vbeln.
+    ENDIF.
+
+
+  ENDIF.
+
+  IF gp_r1  IS NOT   INITIAL
+    OR gp_r3  IS NOT   INITIAL.
+    LOOP AT gt_eina INTO gi_eina.
+
+
+      READ TABLE gt_eine INTO gi_eine WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+
+      IF sy-subrc EQ 0.
+        gi_info-infnr = gi_eina-infnr.
+        gi_info-matnr = gi_eina-matnr.
+        gi_info-lifnr = gi_eina-lifnr.
+        gi_info-ekgrp = gi_eine-ekgrp.
+        gi_info-ekorg = gi_eine-ekorg.
+        gi_info-werks = gi_eine-werks.
+        gi_info-minbm = gi_eine-minbm.
+        gi_info-norbm = gi_eine-norbm.
+        gi_info-mwskz = gi_eine-mwskz.
+        gi_info-netpr = gi_eine-netpr.
+        gi_info-peinh = gi_eine-peinh.
+        gi_info-waers = gi_eine-waers.
+        gi_info-bprme = gi_eine-bprme.
+        gi_info-bstae = gi_eine-bstae .
+
+
+
+        READ TABLE gt_eord6 TRANSPORTING NO FIELDS WITH KEY matnr = gi_eina-matnr
+                                                           werks = gi_eine-werks
+                                                           lifnr = gi_eina-lifnr
+                                                           ekorg = gi_eine-ekorg BINARY SEARCH.
+        IF sy-subrc = 0.
+
+
+          READ TABLE gt_info  INTO gi_info1 WITH KEY matnr = gi_eina-matnr
+                                                     werks = gi_eine-werks
+                                                     ekorg = gi_eine-ekorg
+                                                     lifnr = gi_eina-lifnr.
+          IF sy-subrc EQ 0.
+            gi_info1-msg  = 'More than 1 Template PIR is existing'(009).
+            MODIFY gt_info FROM gi_info1 INDEX sy-tabix .
+          ELSE.
+            APPEND gi_info TO gt_info.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+      CLEAR : gi_info , gi_eine,gi_eina, gi_info1.
+
+    ENDLOOP.
+    SORT gt_info BY matnr werks ekorg
+                                lifnr.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  FINAL_DATA_mvpir
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM final_data_mvpir .
+
+
+  TYPES : BEGIN OF lty_vbap,
+            vbeln TYPE  vbeln_va,
+            posnr TYPE  posnr_va,
+            pstyv TYPE  pstyv,
+            netpr TYPE  netpr,
+            waerk TYPE  waerk,
+            kpein TYPE  kpein,
+            kmein TYPE  kmein,
+          END OF lty_vbap.
+
+  DATA : lt_vbap TYPE STANDARD TABLE OF lty_vbap,
+         li_vbap TYPE                   lty_vbap.
+
+  LOOP AT gt_pr_list  INTO gi_pr_list.
+
+    gw_vbeln =  gi_pr_list-vbeln.
+    gi_pr_list2 = gi_pr_list.
+    AT NEW werks.
+
+      gi_fin_mat-matnr = gi_pr_list-matnr.
+      gi_fin_mat-werks = gi_pr_list-werks.
+
+      gi_fin_mat-aufnr      = gi_pr_list-aufnr.
+      gi_fin_mat-ps_psp_pnr = gi_pr_list-ps_psp_pnr.
+      gi_fin_mat-nplnr      = gi_pr_list-nplnr.
+      gi_fin_mat-vornr      = gi_pr_list-vornr.
+
+      gi_fin_mat-vbeln      = gi_pr_list2-vbeln.
+      gi_fin_mat-vbelp      = gi_pr_list2-vbelp.
+
+      READ TABLE gt_vbak INTO gi_vbak WITH KEY vbeln = gw_vbeln BINARY SEARCH.
+      IF sy-subrc EQ 0.
+
+        gi_fin_mat-vkorg = gi_vbak-vkorg.
+
+      ENDIF.
+      READ TABLE gt_t024w INTO gi_t024w WITH KEY werks = gi_pr_list-werks BINARY SEARCH.
+
+      IF sy-subrc EQ 0.
+
+        gi_fin_mat-ekorg = gi_t024w-ekorg.
+
+
+      ENDIF.
+
+      READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_fin_mat-matnr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        APPEND gi_fin_mat TO gt_fin_mat.
+
+      ENDIF.
+
+    ENDAT.
+    CLEAR : gi_pr_list , gi_t024w , gi_fin_mat ,  gi_vbak  .
+
+  ENDLOOP.
+*
+
+
+  IF gp_r2 IS NOT INITIAL.
+*
+    PERFORM emax_comp_price_mvpir.
+  ELSE.
+    IF NOT gt_fin_mat IS INITIAL.
+      IF gp_r1 IS NOT INITIAL.
+
+        SELECT * FROM a503
+                 INTO TABLE gt_a503
+                 FOR ALL ENTRIES IN gt_fin_mat
+                 WHERE kappl EQ gc_v
+                   AND kschl EQ gc_zpro
+                   AND vkorg EQ gt_fin_mat-vkorg
+                   AND matnr EQ gt_fin_mat-matnr
+                   AND datbi GE sy-datum
+                   AND datab LE sy-datum.
+
+        IF sy-subrc EQ 0.
+          SORT gt_a503 BY vkorg matnr.
+          SELECT knumh
+                 kopos
+                 kbetr
+                 konwa
+                 kpein
+                 kmein FROM konp
+                       INTO TABLE gt_konp
+                       FOR ALL ENTRIES IN gt_a503
+                       WHERE knumh EQ gt_a503-knumh
+                        AND kopos  EQ '01'.
+          IF sy-subrc EQ 0.
+
+            SORT gt_konp BY knumh.
+
+          ENDIF.
+
+
+        ENDIF.
+
+      ELSEIF gp_r3 IS NOT INITIAL.
+        SELECT vbeln knumv FROM vbak INTO TABLE gt_vbak1
+          FOR ALL ENTRIES IN gt_fin_mat
+          WHERE vbeln EQ gt_fin_mat-vbeln.
+        IF sy-subrc EQ 0.
+
+
+          SELECT  vbeln
+                  posnr
+                  pstyv
+                  netpr
+                  waerk
+                  kpein
+                  kmein
+            INTO TABLE lt_vbap
+            FROM vbap
+            FOR ALL ENTRIES IN gt_vbak1
+            WHERE vbeln = gt_vbak1-vbeln.
+          IF sy-subrc = 0.
+            SORT lt_vbap[] BY vbeln posnr.
+          ENDIF.
+
+        ENDIF.
+
+      ENDIF.
+
+      SELECT * FROM a971
+             INTO TABLE gt_a971
+             FOR ALL ENTRIES IN gt_fin_mat
+             WHERE kappl EQ gc_m
+               AND kschl EQ gw_kschl
+               AND ekorg EQ gt_fin_mat-ekorg
+               AND datbi GE sy-datum
+               AND datab LE sy-datum.
+
+
+      IF sy-subrc EQ 0.
+        SORT gt_a971  BY ekorg wglif .
+
+        SELECT knumh
+              kopos
+              kbetr
+              konwa
+              kpein
+              kmein FROM konp
+                    INTO TABLE gt_konp1
+                    FOR ALL ENTRIES IN gt_a971
+                    WHERE knumh EQ gt_a971-knumh
+                     AND kopos  EQ '01'.
+        IF sy-subrc EQ 0.
+
+          SORT gt_konp1 BY knumh.
+
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+
+
+    IF NOT gt_info IS INITIAL.
+      SELECT lifnr
+             ekorg
+             waers FROM lfm1
+                   INTO TABLE gt_lfm1
+                   FOR ALL ENTRIES IN gt_info
+                   WHERE lifnr EQ gt_info-lifnr
+                    AND  ekorg EQ gt_info-ekorg.
+      IF sy-subrc EQ 0.
+
+        SORT gt_lfm1 BY lifnr ekorg.
+
+      ENDIF.
+
+    ENDIF.
+
+
+    SELECT  matnr
+            werks
+            zeord
+            lifnr
+            ekorg
+            flifn FROM eord
+                INTO TABLE gt_eord_r3
+                FOR ALL ENTRIES IN gt_fin_mat
+                WHERE matnr EQ gt_fin_mat-matnr
+                 AND werks EQ s_werks-low
+                 AND flifn EQ 'X'.
+    IF sy-subrc EQ 0.
+      SORT gt_eord2 BY matnr werks ekorg.
+    ENDIF.
+
+
+    LOOP AT gt_fin_mat INTO gi_fin_mat.
+
+      READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_fin_mat-matnr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        READ TABLE gt_info INTO gi_info WITH KEY matnr = gi_mara-bismt
+                                                 werks  = gi_fin_mat-werks
+                                                 ekorg  = gi_fin_mat-ekorg BINARY SEARCH.
+
+        IF sy-subrc EQ 0.
+          gi_mat_temp-matnr = gi_fin_mat-matnr.
+          gi_mat_temp-werks = gi_fin_mat-werks.
+
+
+          READ TABLE gt_eord_r3 INTO gi_eord_r3 WITH KEY matnr   = gi_fin_mat-matnr
+                                                         werks   = gi_fin_mat-werks.
+          IF sy-subrc = 0.
+            gi_mat_temp-lifnr = gi_eord_r3-lifnr.
+          ELSE.
+            gi_mat_temp-lifnr = gi_info-lifnr.
+          ENDIF.
+
+
+
+          gi_mat_temp-ekgrp = gi_info-ekgrp.
+          gi_mat_temp-infnr = gi_info-infnr.
+          gi_mat_temp-vkorg = gi_fin_mat-vkorg.
+          gi_mat_temp-minbm = gi_info-minbm.
+          gi_mat_temp-norbm = gi_info-norbm.
+          gi_mat_temp-mwskz = gi_info-mwskz.
+          gi_mat_temp-peinh = gi_info-peinh.
+          gi_mat_temp-ekorg = gi_info-ekorg.
+          gi_mat_temp-bstae = gi_info-bstae .
+          gi_mat_temp-msg1 = gi_info-msg.
+          gi_mat_temp-msg2 = gi_info-msg.
+          IF gi_info-msg IS INITIAL.
+
+
+            READ TABLE gt_lfm1 INTO gi_lfm1 WITH KEY lifnr = gi_info-lifnr
+                                                     ekorg = gi_fin_mat-ekorg BINARY SEARCH.
+
+            IF sy-subrc EQ 0.
+
+              gw_waers = gi_lfm1-waers.
+
+            ENDIF.
+
+            IF gp_r1 IS NOT INITIAL.
+              READ TABLE gt_a503 INTO gi_a503 WITH KEY vkorg = gi_fin_mat-vkorg
+                                                       matnr = gi_fin_mat-matnr BINARY SEARCH.
+              IF sy-subrc EQ 0.
+
+                READ TABLE gt_konp INTO gi_konp WITH KEY knumh = gi_a503-knumh BINARY SEARCH.
+
+                IF sy-subrc EQ 0.
+
+
+
+                  gw_kbetr1 = gi_konp-kbetr.
+                  gw_konwa1 = gi_konp-konwa.
+                  gw_kpein1 = gi_konp-kpein.
+                  gw_kmein1 = gi_konp-kmein.
+
+
+                ENDIF.
+
+              ENDIF.
+
+            ELSE.
+              READ TABLE gt_vbak1 INTO gi_vbak1 WITH KEY vbeln = gi_fin_mat-vbeln.
+
+              IF sy-subrc EQ 0.
+
+
+                READ TABLE lt_vbap INTO li_vbap WITH KEY vbeln = gi_vbak1-vbeln
+                                                         posnr = gi_fin_mat-vbelp.
+
+                IF sy-subrc EQ 0.
+
+                  gw_kbetr1 = li_vbap-netpr.
+                  gw_konwa1 = li_vbap-waerk.
+                  gw_kpein1 = li_vbap-kpein.
+                  gw_kmein1 = li_vbap-kmein.
+                  CLEAR li_vbap.
+                ENDIF.
+
+              ENDIF.
+
+
+            ENDIF.
+
+            IF gw_kbetr1 IS INITIAL.
+
+              READ TABLE lt_vbap INTO li_vbap WITH KEY vbeln = gi_vbak1-vbeln
+                                                       posnr = gi_fin_mat-vbelp
+                                                       BINARY SEARCH.
+              IF sy-subrc = 0.
+                READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name  = 'ZRMM_AUTO_PIR_SL'
+                                                                     zkey  = 'PSTY'
+                                                                     field = 'PSTYV'
+                                                                     low   =  li_vbap-pstyv
+                                                                     high  =  'ATS_NETPR'
+                                                                     BINARY SEARCH.
+                IF sy-subrc = 0.
+                  gw_kbetr1 = '0.01'.
+                  gw_kpein1 = '1'.
+                ELSE.
+                  gi_mat_temp-msg1 = 'List Price Not maintained'(007).
+                ENDIF.
+              ENDIF.
+            ENDIF.
+            CLEAR : gi_konp, li_vbap, gi_ztuhcd1_ds.
+
+
+            CLEAR gi_ztuhcd1_ds.
+            READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY
+                                                                 zkey   = 'WGLIF'
+                                                                 field  = 'PRDHA'
+                                                                 low    = gi_mara-prdha BINARY SEARCH.
+            IF sy-subrc EQ 0.
+
+              READ TABLE gt_a971 INTO gi_a971 WITH KEY ekorg = gi_info-ekorg
+                                                       wglif = gi_ztuhcd1_ds-high BINARY SEARCH.
+              IF sy-subrc EQ 0.
+
+                READ TABLE gt_konp1 INTO gi_konp WITH KEY knumh = gi_a971-knumh BINARY SEARCH.
+
+                IF sy-subrc EQ 0.
+                  gw_kbetr2 = gi_konp-kbetr.
+                  gw_konwa2 = gi_konp-konwa.
+                  gw_kpein2 = gi_konp-kpein.
+                  gw_kmein2 = gi_konp-kmein.
+
+                ENDIF.
+              ENDIF.
+            ELSE.
+
+
+              READ TABLE gt_a971 INTO gi_a971 WITH KEY ekorg = gi_info-ekorg
+                                                        wglif = gi_mara-venmatgrp BINARY SEARCH.
+              IF sy-subrc EQ 0.
+
+                READ TABLE gt_konp1 INTO gi_konp WITH KEY knumh = gi_a971-knumh BINARY SEARCH.
+
+                IF sy-subrc EQ 0.
+                  gw_kbetr2 = gi_konp-kbetr.
+                  gw_konwa2 = gi_konp-konwa.
+                  gw_kpein2 = gi_konp-kpein.
+                  gw_kmein2 = gi_konp-kmein.
+
+                ENDIF.
+              ENDIF.
+
+            ENDIF.
+
+            IF gw_kbetr2 IS INITIAL.
+              CONCATENATE gi_mat_temp-msg1 'Multiplier Condition record for ZDPG is not maintained'(008) INTO gi_mat_temp-msg1.
+            ENDIF.
+
+            IF  gw_kmein1 NE  gi_info-bprme.
+
+              gw_menge = 1.
+
+              CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+                EXPORTING
+                  i_matnr              = gi_mat_temp-matnr
+                  i_in_me              = gw_kmein1
+                  i_out_me             = gi_info-bprme
+                  i_menge              = gw_menge
+                IMPORTING
+                  e_menge              = gw_menge1
+                EXCEPTIONS
+                  error_in_application = 1
+                  error                = 2
+                  OTHERS               = 3.
+              IF sy-subrc EQ 0.
+
+                gw_kbetr1 = gw_kbetr1 / gw_menge1.
+
+              ENDIF.
+
+
+            ENDIF.
+
+            IF  gw_konwa1 EQ gi_lfm1-waers.
+
+              IF gw_kpein1 IS NOT INITIAL.
+
+                IF gw_menge1 IS INITIAL.
+
+                  gi_mat_temp-netpr = ( ( ( gw_kbetr1 * gi_info-peinh ) / gw_kpein1 ) * gw_kbetr2 ) / 1000.
+
+                ELSE.
+                  gi_mat_temp-netpr = ( ( ( gw_kbetr1 * gi_info-peinh ) ) * gw_kbetr2 ) / 1000.
+
+                ENDIF.
+
+              ENDIF.
+
+            ELSE.
+
+              PERFORM exchange_rate USING gw_konwa1 gi_lfm1-waers.
+
+
+              IF gw_kpein1 IS NOT INITIAL.
+                IF gw_menge1 IS INITIAL.
+                  gi_mat_temp-netpr = ( ( ( ( gw_kbetr1 * gi_info-peinh ) / gw_kpein1 ) * gw_kbetr2 ) / 1000 ) * gw_erate.
+                ELSE.
+                  gi_mat_temp-netpr = ( ( ( ( gw_kbetr1 * gi_info-peinh )  ) * gw_kbetr2 ) / 1000 ) * gw_erate.
+                ENDIF.
+              ENDIF.
+
+
+
+            ENDIF.
+          ENDIF.
+
+
+        ENDIF.
+        APPEND gi_mat_temp TO gt_mat_temp.
+      ENDIF.
+
+
+
+
+      CLEAR  : gi_mara , gi_info , gi_lfm1 , gi_mat_temp , gi_fin_mat ,
+               gw_konwa1 , gw_kbetr1 ,gw_kpein1 ,
+               gw_konwa2 , gw_kbetr2 ,gw_kpein2  , gw_erate , gw_er , gw_ff , gw_lf, gw_menge.
+    ENDLOOP.
+
+*
+
+    gt_mat_temp1[] = gt_mat_temp[].
+
+
+    IF gt_mat_temp1 IS NOT INITIAL.
+      REFRESH gt_eina.
+
+      SELECT infnr
+             matnr
+             lifnr
+             loekz
+        INTO TABLE gt_eina
+        FROM eina
+        FOR ALL ENTRIES IN gt_mat_temp1
+        WHERE matnr = gt_mat_temp1-matnr.
+
+      IF sy-subrc = 0.
+        SORT gt_eina BY matnr.
+      ENDIF.
+      REFRESH gt_eine.
+
+      IF gt_eina IS NOT INITIAL.
+        SELECT infnr
+               ekorg
+               esokz
+               werks
+               loekz
+               ekgrp
+               waers
+               minbm
+               norbm
+               mwskz
+               netpr
+               peinh
+               bprme
+               bstae
+                     FROM eine
+                     INTO TABLE gt_eine1
+                     FOR ALL ENTRIES IN gt_eina
+                     WHERE infnr EQ gt_eina-infnr AND
+                           werks EQ s_werks-low AND
+                           ekorg IN gr_ekorg.
+
+
+        IF sy-subrc = 0.
+          SORT gt_eine1 BY infnr.
+        ENDIF.
+
+        IF sy-subrc = 0.
+          SORT gt_eina BY matnr lifnr.
+        ENDIF.
+      ENDIF.
+      SELECT matnr
+            werks
+            zeord
+            lifnr
+            ekorg
+            flifn FROM eord
+                  INTO TABLE gt_eord2
+                  FOR ALL ENTRIES IN gt_mat_temp1
+                  WHERE matnr EQ gt_mat_temp1-matnr
+                   AND werks EQ s_werks-low
+                   AND flifn EQ 'X'.
+
+
+      IF sy-subrc EQ 0.
+        SORT gt_eord2 BY matnr werks ekorg.
+      ENDIF.
+
+      SELECT    banfn
+                bnfpo
+                ekgrp
+                matnr
+                werks
+                knttp
+                flief
+                infnr FROM eban
+                      INTO TABLE gt_eban1
+                      FOR ALL ENTRIES IN gt_mat_temp1
+                      WHERE matnr = gt_mat_temp1-matnr AND
+                            werks = gt_mat_temp1-werks  AND
+                            ekgrp = gt_mat_temp1-ekgrp AND
+                            flief NE ' '.
+
+
+      IF sy-subrc = 0.
+        SORT gt_eban1 BY matnr.
+      ENDIF.
+
+      LOOP AT gt_mat_temp1 INTO gi_mat_temp1.
+        IF gi_mat_temp1-msg1 IS INITIAL.
+          READ TABLE gt_eban1 INTO gi_eban1 WITH KEY matnr = gi_mat_temp1-matnr
+                                                     flief = gi_mat_temp1-lifnr.
+          IF sy-subrc = 0.
+            IF gi_eban1-flief = gi_mat_temp1-lifnr .
+
+              READ TABLE gt_eina INTO gi_eina WITH KEY matnr = gi_mat_temp1-matnr
+                                                       lifnr = gi_mat_temp1-lifnr BINARY SEARCH.
+
+              IF  sy-subrc = 0.
+                IF gi_eina-loekz = 'X'.
+                  gi_mess-matnr = gi_mat_temp1-matnr.
+                  CONCATENATE 'PIR'(038) gi_eina-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr  'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                  APPEND gi_mess TO gt_mess.
+
+                ELSE.
+                  READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+**
+                  IF sy-subrc = 0.
+                    IF gi_eine1-loekz = 'X'.
+                      gi_mess-matnr = gi_mat_temp1-matnr.
+                      CONCATENATE 'PIR'(038) gi_eine1-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr gi_eine1-werks gi_eine1-ekorg 'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                      APPEND gi_mess TO gt_mess.
+                    ELSE.
+                      gi_pir_exist-infnr = gi_eine1-infnr.
+                      gi_pir_exist-matnr = gi_mat_temp1-matnr.
+                      gi_pir_exist-lifnr = gi_mat_temp1-lifnr.
+                      APPEND gi_pir_exist TO gt_pir_exist.
+                    ENDIF.
+                  ENDIF.
+                ENDIF.
+              ENDIF.
+            ELSE.
+              gi_mess-matnr = gi_mat_temp1-matnr.
+              CONCATENATE 'Template vendor'(041) gi_mat_temp1-lifnr 'differs from PR vendor'(042) gi_eban1-flief  INTO gi_mess-mes SEPARATED BY space.
+              APPEND gi_mess TO gt_mess.
+            ENDIF.
+
+          ELSE.
+            READ TABLE gt_eord2 INTO gi_eord2 WITH KEY matnr = gi_mat_temp1-matnr BINARY SEARCH.
+            IF  sy-subrc = 0.
+              IF gi_eord2-lifnr = gi_mat_temp1-lifnr.
+
+                READ TABLE gt_eina INTO gi_eina WITH KEY matnr = gi_mat_temp1-matnr
+                                                         lifnr = gi_mat_temp1-lifnr BINARY SEARCH.
+                IF  sy-subrc = 0.
+                  IF gi_eina-loekz = 'X'.
+                    gi_mess-matnr = gi_mat_temp1-matnr.
+                    CONCATENATE 'PIR'(038) gi_eina-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr  'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                    APPEND gi_mess TO gt_mess.
+                  ELSE.
+                    READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+                    IF sy-subrc = 0.
+                      IF gi_eine1-loekz = 'X'.
+                        gi_mess-matnr = gi_mat_temp1-matnr.
+                        CONCATENATE 'PIR'(038) gi_eine1-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr gi_eine1-werks gi_eine1-ekorg 'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                        APPEND gi_mess TO gt_mess.
+                      ELSE.
+                        gi_pir_exist-infnr = gi_eine1-infnr.
+                        gi_pir_exist-matnr = gi_mat_temp1-matnr.
+                        gi_pir_exist-lifnr = gi_mat_temp1-lifnr.
+                        APPEND gi_pir_exist TO gt_pir_exist.
+                      ENDIF.
+                    ELSE.
+                      gi_pir_create-matnr = gi_mat_temp1-matnr.
+                      APPEND gi_pir_create TO gt_pir_create.
+                    ENDIF.
+                  ENDIF.
+                ELSE.
+                  gi_pir_create-matnr = gi_mat_temp1-matnr.
+                  APPEND gi_pir_create TO gt_pir_create.
+                ENDIF.
+
+              ELSE.
+                gi_mess-matnr = gi_mat_temp1-matnr.
+                CONCATENATE 'Template vendor'(041) gi_mat_temp1-lifnr 'differs from Config material vendor'(043) gi_eord2-lifnr INTO gi_mess-mes SEPARATED BY space.
+                APPEND gi_mess TO gt_mess.
+
+              ENDIF.
+            ELSE.
+              READ TABLE gt_eina INTO gi_eina WITH KEY matnr = gi_mat_temp1-matnr
+                                                       lifnr = gi_mat_temp1-lifnr BINARY SEARCH.
+              IF  sy-subrc = 0.
+                IF gi_eina-loekz = 'X'.
+                  gi_mess-matnr = gi_mat_temp1-matnr.
+                  CONCATENATE 'PIR'(038) gi_eina-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr  'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                  APPEND gi_mess TO gt_mess.
+                ELSE.
+                  READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+                  IF sy-subrc = 0.
+                    IF gi_eine1-loekz = 'X'.
+                      gi_mess-matnr = gi_mat_temp1-matnr.
+                      CONCATENATE 'PIR'(038) gi_eine1-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr gi_eine1-werks gi_eine1-ekorg 'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                      APPEND gi_mess TO gt_mess.
+                    ELSE.
+                      gi_pir_exist-infnr = gi_eine1-infnr.
+                      gi_pir_exist-matnr = gi_mat_temp1-matnr.
+                      gi_pir_exist-lifnr = gi_mat_temp1-lifnr.
+                      APPEND gi_pir_exist TO gt_pir_exist.
+                    ENDIF.
+                  ELSE.
+                    gi_pir_create-matnr = gi_mat_temp1-matnr.
+                    APPEND gi_pir_create TO gt_pir_create.
+                  ENDIF.
+                ENDIF.
+              ELSE.
+                gi_pir_create-matnr = gi_mat_temp1-matnr.
+                APPEND gi_pir_create TO gt_pir_create.
+              ENDIF.
+
+
+            ENDIF.
+          ENDIF.
+          CLEAR : gi_mat_temp1, gi_eban1,gi_eine1,gi_eina,gi_pir_exist,gi_pir_create,gi_eord2.
+        ENDIF.
+      ENDLOOP.
+
+      SORT gt_pir_create BY matnr.
+
+      LOOP AT gt_mat_temp INTO gi_mat_temp.
+        READ TABLE gt_pir_create INTO gi_pir_create WITH KEY matnr = gi_mat_temp-matnr BINARY SEARCH.
+        IF sy-subrc = 0.
+          CONTINUE.
+        ELSE.
+          IF gi_mat_temp-msg1 IS INITIAL.
+            DELETE gt_mat_temp WHERE matnr = gi_mat_temp-matnr.
+          ENDIF.
+        ENDIF.
+        CLEAR : gi_mat_temp, gi_pir_create.
+      ENDLOOP.
+
+      REFRESH :gt_bdcdata,git_mess.
+      CLEAR  :gi_bdcdata,gi_mess1.
+
+      IF gt_pir_exist IS NOT INITIAL.
+
+        SELECT matnr
+               werks
+               zeord
+               lifnr
+               ekorg FROM eord
+                     INTO TABLE gt_eord3
+                     FOR ALL ENTRIES IN gt_pir_exist
+                     WHERE matnr EQ gt_pir_exist-matnr
+                      AND werks EQ s_werks-low
+                      AND lifnr EQ gt_pir_exist-lifnr
+                       AND flifn EQ 'X'.
+
+        IF sy-subrc EQ 0.
+          SORT gt_eord3 BY matnr werks ekorg.
+        ENDIF.
+        SORT gt_mat_temp1 BY matnr.
+
+        LOOP AT gt_pir_exist INTO gi_pir_exist.
+          READ TABLE gt_eord3 INTO gi_eord3  WITH KEY matnr = gi_pir_exist-matnr BINARY SEARCH.
+          IF sy-subrc = 0.
+            CONTINUE.
+          ENDIF.
+          READ TABLE gt_mat_temp1 INTO gi_mat_temp1 WITH  KEY matnr = gi_pir_exist-matnr BINARY SEARCH.
+          IF sy-subrc = 0.
+
+            PERFORM bdc_me01.
+
+          ENDIF.
+
+          CLEAR : gi_mess1,gi_pir_exist,gi_eord3,gi_mat_temp1.
+          REFRESH : git_mess, gt_bdcdata.
+        ENDLOOP.
+
+        SELECT matnr
+               werks
+               zeord
+               lifnr
+               ekorg FROM eord
+                     INTO TABLE gt_eord4
+                     FOR ALL ENTRIES IN gt_pir_exist
+                     WHERE matnr EQ gt_pir_exist-matnr
+                      AND werks EQ s_werks-low
+                      AND lifnr EQ gt_pir_exist-lifnr
+                       AND flifn EQ 'X'.
+
+        IF sy-subrc EQ 0.
+          SORT gt_eord4 BY matnr werks ekorg.
+        ENDIF.
+
+        LOOP AT gt_mat_temp1 INTO gi_mat_temp1.
+          IF gi_mat_temp1-msg1 IS INITIAL.
+
+            READ TABLE gt_pir_exist INTO gi_pir_exist WITH KEY matnr = gi_mat_temp1-matnr BINARY SEARCH.
+            IF sy-subrc = 0.
+
+              READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_pir_exist-infnr BINARY SEARCH.
+
+              IF sy-subrc = 0.
+
+                IF gi_eine1-peinh = gi_mat_temp1-peinh.
+                ELSE.
+                  gi_mat_temp1-netpr = ( gi_mat_temp1-netpr * gi_eine1-peinh ) / gi_mat_temp1-peinh.
+
+                ENDIF.
+
+                IF gi_eine1-netpr = gi_mat_temp1-netpr.
+
+                  gi_netpr_equal-matnr = gi_mat_temp1-matnr.
+                  gi_netpr_equal-lifnr = gi_mat_temp1-lifnr.
+                  gi_netpr_equal-werks = gi_mat_temp1-werks.
+                  CONCATENATE 'Purchasing Info Record'(031) gi_eine1-infnr gi_eine1-ekorg gi_eine1-werks 'No change required'(029) INTO gi_netpr_equal-msg1 SEPARATED BY space.
+
+                  READ TABLE gt_eord3 INTO gi_eord3 WITH KEY matnr = gi_mat_temp1-matnr
+                                                           werks = gi_mat_temp1-werks BINARY SEARCH.
+                  IF sy-subrc = 0.
+                    gi_netpr_equal-msg2  = 'Source List already assigned'(006).
+                  ELSE.
+                    READ TABLE gt_eord4 INTO gi_eord4 WITH KEY matnr = gi_mat_temp1-matnr
+                                                             werks = gi_mat_temp1-werks BINARY SEARCH.
+                    IF sy-subrc = 0.
+                      gi_netpr_equal-msg2  = 'Source List is Created'(035).
+                    ELSE.
+                      gi_netpr_equal-msg2  = 'Source List is not found'(032).
+                    ENDIF.
+                  ENDIF.
+                  gi_netpr_equal-msg3  = ' Material Cost not updated'(022).
+
+                  APPEND gi_netpr_equal TO  gt_netpr_equal.
+                ELSE.
+                  gi_bdc_me12_mat-matnr = gi_mat_temp1-matnr.
+                  gi_bdc_me12_mat-netpr = gi_mat_temp1-netpr.
+                  gi_bdc_me12_mat-netpr1 = gi_eine1-netpr.
+                  gi_bdc_me12_mat-lifnr = gi_pir_exist-lifnr.
+                  gi_bdc_me12_mat-ekorg = gi_eine1-ekorg.
+                  gi_bdc_me12_mat-esokz = gi_eine1-esokz.
+                  gi_bdc_me12_mat-werks = gi_eine1-werks.
+                  gi_bdc_me12_mat-loekz = gi_eine1-loekz.
+                  gi_bdc_me12_mat-ekgrp = gi_eine1-ekgrp.
+                  gi_bdc_me12_mat-waers = gi_eine1-waers.
+                  gi_bdc_me12_mat-minbm = gi_eine1-minbm.
+                  gi_bdc_me12_mat-norbm = gi_eine1-norbm.
+                  gi_bdc_me12_mat-mwskz = gi_eine1-mwskz.
+                  gi_bdc_me12_mat-peinh = gi_eine1-peinh.
+                  gi_bdc_me12_mat-bprme = gi_eine1-bprme.
+
+                  APPEND gi_bdc_me12_mat TO gt_bdc_me12_mat.
+                ENDIF.
+
+              ENDIF.
+
+
+
+            ENDIF.
+
+          ENDIF.
+          CLEAR : gi_mat_temp1, gi_pir_exist, gi_eine1,gi_bdc_me12_mat,gi_netpr_equal.
+
+        ENDLOOP.
+
+      ENDIF.
+    ENDIF.
+
+  ENDIF.
+
+
+
+
+  SELECT bwkey
+         bukrs FROM t001k
+               INTO TABLE gt_t001k
+               WHERE bwkey EQ s_werks-low.
+
+  IF sy-subrc EQ 0.
+
+    SELECT bukrs
+           waers FROM t001
+                 INTO TABLE gt_t001
+                 FOR ALL ENTRIES IN gt_t001k
+                 WHERE bukrs EQ gt_t001k-bukrs.
+
+    IF sy-subrc EQ 0.
+
+      SORT gt_t001k BY bwkey.
+      SORT gt_t001 BY  bukrs.
+
+    ENDIF.
+  ENDIF.
+
+  IF NOT gt_mat_temp1 IS INITIAL.
+    SELECT matnr
+           bwkey
+           bwtar
+           pprdl
+           peinh    FROM mbew INTO  TABLE gt_mbew
+                       FOR ALL ENTRIES IN gt_mat_temp1
+                       WHERE matnr EQ gt_mat_temp1-matnr
+                         AND bwkey EQ gt_mat_temp1-werks.
+    IF sy-subrc EQ 0.
+      SORT gt_mbew BY matnr bwkey.
+    ENDIF.
+  ENDIF.
+
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  BCD_ME11_ME01_mvpir
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM bcd_me11_me01_mvpir .
+  IF gt_mat_temp IS NOT INITIAL.
+
+    DATA lv_bprme TYPE bprme.
+
+    SELECT matnr
+           werks
+           mmsta
+      FROM marc
+      INTO TABLE gt_marc1
+      FOR ALL ENTRIES IN gt_mat_temp
+      WHERE matnr = gt_mat_temp-matnr.
+
+    IF  sy-subrc = 0.
+      SORT gt_marc1 BY matnr werks.
+
+    ENDIF.
+
+    gw_date2 = sy-datum - gw_days.
+
+    WRITE  gw_date2 TO gw_databi.
+
+    SORT gt_mat_temp BY matnr flifn.
+    LOOP AT gt_mat_temp INTO gi_mat_temp.
+      AT NEW matnr.
+
+        gw_loop = 1.
+
+      ENDAT.
+
+      IF  gi_mat_temp-msg1 IS INITIAL.
+        PERFORM bdc_dynpro      USING 'SAPMM06I' '0100'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'EINA-LIFNR'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '/00'.
+        PERFORM bdc_field       USING 'EINA-LIFNR'
+                                      gi_mat_temp-lifnr.
+        PERFORM bdc_field       USING 'EINA-MATNR'
+                                      gi_mat_temp-matnr.
+        PERFORM bdc_field       USING 'EINE-EKORG'
+                                      gi_mat_temp-ekorg.
+        PERFORM bdc_field       USING 'EINE-WERKS'
+                                      gi_mat_temp-werks.
+        PERFORM bdc_field       USING 'RM06I-NORMB'
+                                      'X'.
+        PERFORM bdc_dynpro      USING 'SAPMM06I' '0101'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'EINA-TXZ01'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '/00'.
+
+
+        READ TABLE gt_eban INTO gi_eban WITH KEY matnr = gi_mat_temp-matnr
+                                                 werks = gi_mat_temp-werks
+                                                 ekgrp = gc_ekgrp BINARY SEARCH.
+        IF sy-subrc = 0.
+          PERFORM bdc_field       USING 'EINA-IDNLF' gi_mat_temp-matnr.
+        ENDIF.
+
+
+        CALL FUNCTION 'CONVERSION_EXIT_CUNIT_OUTPUT'
+          EXPORTING
+            input          = gi_mat_temp-bprme
+            language       = sy-langu
+          IMPORTING
+*           LONG_TEXT      =
+            output         = lv_bprme
+*           SHORT_TEXT     =
+          EXCEPTIONS
+            unit_not_found = 1
+            OTHERS         = 2.
+        IF sy-subrc <> 0.
+
+        ENDIF.
+
+        IF lv_bprme IS NOT INITIAL.
+          PERFORM bdc_field       USING 'EINA-MEINS'           lv_bprme.
+          CLEAR lv_bprme.
+        ENDIF.
+
+
+        PERFORM bdc_dynpro      USING 'SAPMM06I' '0102'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'EINE-NETPR'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '/00'.
+        PERFORM bdc_field       USING 'EINE-EKGRP'
+                                      gi_mat_temp-ekgrp.
+
+        WRITE gi_mat_temp-norbm TO gw_norbm.
+
+        PERFORM bdc_field       USING 'EINE-NORBM'
+                                      gw_norbm.
+
+        PERFORM bdc_field       USING 'EINE-MWSKZ'
+                                      gi_mat_temp-mwskz.
+        WRITE gi_mat_temp-netpr TO gw_netpr.
+
+        PERFORM bdc_field       USING 'EINE-NETPR'
+
+                                      gw_netpr.
+        CLEAR gw_norbm.
+        WRITE gi_mat_temp-minbm TO gw_norbm.
+        PERFORM bdc_field       USING 'EINE-MINBM' "
+                                     gw_norbm.
+
+        PERFORM bdc_field       USING 'EINE-PEINH'
+                                     gi_mat_temp-peinh.
+
+        CALL FUNCTION 'CONVERSION_EXIT_CUNIT_OUTPUT'
+          EXPORTING
+            input    = gi_mat_temp-bprme
+            language = sy-langu
+          IMPORTING
+            output   = gi_mat_temp-bprme.
+        IF sy-subrc <> 0.
+
+        ENDIF.
+        IF gi_mat_temp-bprme IS NOT INITIAL.
+          PERFORM bdc_field       USING 'EINE-BPRME'
+                                       gi_mat_temp-bprme.
+        ENDIF.
+
+        IF gi_mat_temp-bstae IS NOT INITIAL.
+          PERFORM bdc_field       USING 'EINE-BSTAE'
+                                      gi_mat_temp-bstae.
+        ENDIF.
+
+        PERFORM bdc_dynpro      USING 'SAPMM06I' '0105'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'EINE-INFNR'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '=KO'.
+        PERFORM bdc_dynpro      USING 'SAPMV13A' '0201'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'RV13A-DATBI'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '/00'.
+        PERFORM bdc_dynpro      USING 'SAPMV13A' '0201'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'RV13A-DATAB'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '=SICH'.
+
+        PERFORM bdc_field        USING 'RV13A-DATAB'
+                                 gw_databi.
+        gc_me11 = 'X'.
+        CLEAR gc_me01.
+        PERFORM f1002call_transaction .
+
+        DELETE gt_messtab WHERE  msgtyp = 'W'.
+
+        READ TABLE gt_messtab INTO gi_messtab WITH KEY msgnr = '331'
+                                                       msgid = '06'
+                                                       msgtyp = 'S'.
+        IF sy-subrc EQ 0.
+          PERFORM message_collect CHANGING gi_mat_temp-msg1 .
+          gw_piir = 'X'.
+        ELSE.
+          READ TABLE gt_messtab INTO gi_messtab  INDEX 1.
+          IF sy-subrc EQ 0.
+            PERFORM message_collect CHANGING gi_mat_temp-msg1 .
+          ENDIF.
+        ENDIF.
+
+
+        READ TABLE gt_eord INTO gi_eord WITH KEY matnr = gi_mat_temp-matnr
+                                                 werks = gi_mat_temp-werks BINARY SEARCH.
+        IF sy-subrc EQ 0.
+
+          gi_mat_temp-msg2  = 'Source List already assigned'(006).
+
+        ELSE.
+          IF gp_r2 IS NOT INITIAL.
+            REFRESH gt_bdcdata.
+            CLEAR  gi_bdcdata.
+
+            CONCATENATE 'EORD-AUTET(0' gw_loop ' )' INTO gw_autet.
+            CONCATENATE 'EORD-VDATU(0' gw_loop ' )' INTO gw_vdatu.
+            CONCATENATE 'EORD-BDATU(0' gw_loop ' )' INTO gw_bdatu.
+            CONCATENATE 'EORD-LIFNR(0' gw_loop ' )' INTO gw_lifnr.
+            CONCATENATE 'EORD-EKORG(0' gw_loop ' )' INTO gw_ekorg1.
+            CONCATENATE 'RM06W-FESKZ(0' gw_loop ' )' INTO gw_feskz.
+            CONCATENATE 'EORD-NOTKZ(0' gw_loop ' )' INTO gw_notkz.
+            gw_yy = '9999'.
+            gw_mm =  '12'.
+            gw_dd = '31'.
+            CONCATENATE gw_yy gw_mm gw_dd INTO gw_datab1.
+            CLEAR: gw_yy, gw_mm, gw_dd.
+            WRITE gw_datab1 TO gw_databi1.
+
+
+            PERFORM bdc_dynpro      USING 'SAPLMEOR' '0200'.
+            PERFORM bdc_field       USING 'BDC_CURSOR'
+                                          'EORD-WERKS'.
+            PERFORM bdc_field       USING 'BDC_OKCODE'
+                                          '/00'.
+            PERFORM bdc_field       USING 'EORD-MATNR'
+                                          gi_mat_temp-matnr.
+            PERFORM bdc_field       USING 'EORD-WERKS'
+                                          gi_mat_temp-werks.
+            PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+            PERFORM bdc_field       USING 'BDC_CURSOR'
+                                           gw_autet.
+*                                            'EORD-AUTET(01)'.
+            PERFORM bdc_field       USING 'BDC_OKCODE'
+                                          '/00'.
+
+            PERFORM bdc_field       USING  gw_vdatu
+*                                            'EORD-VDATU(01)'
+                                           gw_databi.
+            PERFORM bdc_field       USING  gw_bdatu
+*                                             'EORD-BDATU(01)'
+                                           gw_databi1.
+            PERFORM bdc_field       USING  gw_lifnr
+*                                            'EORD-LIFNR(01)'
+                                          gi_mat_temp-lifnr.
+            PERFORM bdc_field       USING  gw_ekorg1
+*                                            'EORD-EKORG(01)'
+                                          gi_mat_temp-ekorg.
+            READ TABLE gt_eord1 INTO gi_eord1 WITH KEY flifn = 'X'
+                                                       lifnr = gi_mat_temp-lifnr.
+            IF sy-subrc = 0.
+              PERFORM bdc_field       USING   gw_feskz
+*                                             'RM06W-FESKZ(01)'
+                                             'X'.
+            ENDIF.
+            READ TABLE gt_eord6 INTO li_eord WITH KEY autet = '1'
+                                                      lifnr = gi_mat_temp-lifnr.
+            IF sy-subrc = 0.
+              PERFORM bdc_field       USING   gw_autet
+*                                             'EORD-AUTET(01)'
+                                            '1'.
+            ENDIF.
+            READ TABLE gt_eord6 INTO li_eord WITH KEY notkz = 'X'
+                                                      lifnr = gi_mat_temp-lifnr.
+            IF sy-subrc = 0.
+              PERFORM bdc_field       USING   gw_notkz
+*                                             'EORD-NOTKZ(X)'
+                                            'X'.
+            ENDIF.
+            PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+            PERFORM bdc_field       USING 'BDC_CURSOR'
+                                           gw_autet .
+*                                            'EORD-AUTET(01)'.
+            PERFORM bdc_field       USING 'BDC_OKCODE'
+                                          '=BU'.
+
+            gc_me01 = 'X'.
+            CLEAR gc_me11.
+            PERFORM f1002call_transaction .
+
+
+
+            DELETE gt_messtab WHERE  msgtyp = 'W'.
+            READ TABLE gt_messtab INTO gi_messtab WITH KEY msgtyp = 'S'.
+            IF sy-subrc EQ 0.
+              PERFORM message_collect CHANGING gi_mat_temp-msg2.
+            ENDIF.
+            gw_loop = gw_loop + 1.
+
+          ELSE.
+
+            REFRESH gt_bdcdata.
+            CLEAR  gi_bdcdata.
+
+
+            gw_yy = '9999'.
+            gw_mm =  '12'.
+            gw_dd = '31'.
+            CONCATENATE gw_yy gw_mm gw_dd INTO gw_datab1.
+            CLEAR: gw_yy, gw_mm, gw_dd.
+            WRITE gw_datab1 TO gw_databi1.
+
+
+            PERFORM bdc_dynpro      USING 'SAPLMEOR' '0200'.
+            PERFORM bdc_field       USING 'BDC_CURSOR'
+                                          'EORD-WERKS'.
+            PERFORM bdc_field       USING 'BDC_OKCODE'
+                                          '/00'.
+            PERFORM bdc_field       USING 'EORD-MATNR'
+                                          gi_mat_temp-matnr.
+            PERFORM bdc_field       USING 'EORD-WERKS'
+                                          gi_mat_temp-werks.
+            PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+            PERFORM bdc_field       USING 'BDC_CURSOR'
+                                          'EORD-AUTET(01)'.
+            PERFORM bdc_field       USING 'BDC_OKCODE'
+                                          '/00'.
+            PERFORM bdc_field       USING 'EORD-VDATU(01)'
+                                           gw_databi.
+            PERFORM bdc_field       USING 'EORD-BDATU(01)'
+                                           gw_databi1.
+            PERFORM bdc_field       USING 'EORD-LIFNR(01)'
+                                          gi_mat_temp-lifnr.
+            PERFORM bdc_field       USING 'EORD-EKORG(01)'
+                                          gi_mat_temp-ekorg.
+            PERFORM bdc_field       USING 'RM06W-FESKZ(01)'
+                                           'X'.
+            PERFORM bdc_field       USING 'EORD-AUTET(01)'
+                                          '1'.
+            PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+            PERFORM bdc_field       USING 'BDC_CURSOR'
+                                          'EORD-AUTET(01)'.
+            PERFORM bdc_field       USING 'BDC_OKCODE'
+                                          '=BU'.
+            gc_me01 = 'X'.
+            CLEAR gc_me11.
+            PERFORM f1002call_transaction .
+
+            DELETE gt_messtab WHERE  msgtyp = 'W'.
+            READ TABLE gt_messtab INTO gi_messtab INDEX 1.
+            IF sy-subrc EQ 0.
+              PERFORM message_collect CHANGING gi_mat_temp-msg2.
+            ENDIF.
+
+          ENDIF.
+        ENDIF.
+
+
+
+        IF gw_piir EQ 'X'.
+          READ TABLE gt_mbew INTO gi_mbew WITH KEY matnr = gi_mat_temp-matnr
+                                                     bwkey = gi_mat_temp-werks.
+          IF sy-subrc EQ 0 .
+            IF gi_mbew-pprdl IS NOT INITIAL.
+
+            ELSE.
+              REFRESH : gt_bdcdata , gt_messtab.
+              READ TABLE gt_marc1 INTO gi_marc1 WITH KEY matnr = gi_mat_temp-matnr
+                                           werks = gi_mat_temp-werks BINARY SEARCH.
+
+              PERFORM material_price_update.
+              CLEAR gw_prcupd.
+
+
+              IF gi_mat_temp-flifn = 'X'.
+                PERFORM mat_cost_update.
+              ENDIF.
+
+              IF gw_costupd IS INITIAL.
+                PERFORM material_cost_release.
+              ENDIF.
+
+
+            ENDIF.
+          ENDIF.
+
+        ELSE.
+          gi_mat_temp-msg3 = ' Material Cost not updated'(022).
+        ENDIF.
+
+
+
+        MODIFY gt_mat_temp FROM gi_mat_temp.
+
+      ENDIF.
+
+      CLEAR : gi_mat_temp ,gi_bdcdata , gi_messtab , gi_eord , gw_netpr , gw_mes ,gw_norbm,
+              gw_piir ,
+              gc_mr21 , gc_me11, gc_me01.
+
+      REFRESH : gt_bdcdata , gt_messtab.
+
+    ENDLOOP.
+
+    SORT gt_mat_temp BY matnr werks.
+
+  ENDIF.
+
+
+  IF gt_bdc_me12_mat IS NOT INITIAL.
+
+    PERFORM bdc_me12_mat.
+
+  ENDIF.
+
+  SORT :gt_bdc_me12_mat BY matnr werks,
+        gt_netpr_equal BY matnr werks,
+        gt_pir_exist BY matnr.
+
+
+
+
+  IF gp_r1 IS NOT INITIAL.
+
+    LOOP AT gt_pr_list INTO gi_pr_list.
+
+      gi_result-banfn = gi_pr_list-banfn.
+      gi_result-bnfpo = gi_pr_list-bnfpo.
+      gi_result-vbeln = gi_pr_list-vbeln.
+      gi_result-vbelp = gi_pr_list-vbelp.
+      gi_result-matnr = gi_pr_list-matnr.
+      gi_result-werks =  gi_pr_list-werks.
+
+
+      gi_result-aufnr      = gi_pr_list-aufnr.
+      gi_result-ps_psp_pnr = gi_pr_list-ps_psp_pnr.
+      gi_result-nplnr      = gi_pr_list-nplnr.
+      gi_result-vornr      = gi_pr_list-vornr.
+      gi_result-knttp      = gi_pr_list-knttp.
+
+
+
+      READ TABLE gt_mat_temp INTO gi_mat_temp WITH KEY matnr = gi_pr_list-matnr
+                                                      werks = gi_pr_list-werks BINARY SEARCH.
+
+      IF sy-subrc EQ 0.
+
+        gi_result-msg1 = gi_mat_temp-msg1.
+        gi_result-msg2 = gi_mat_temp-msg2.
+        gi_result-msg3 = gi_mat_temp-msg3.
+        gi_result-lifnr = gi_mat_temp-lifnr.
+      ELSE.
+        READ TABLE gt_mess INTO gi_mess WITH  KEY matnr =  gi_pr_list-matnr.
+        IF sy-subrc = 0.
+          CONTINUE.
+        ELSE.
+          gi_result-msg1 = 'No Template exisit'(005).
+          gi_result-msg2 = 'No Template exisit'(005).
+          gi_result-msg3 = 'No Template exisit'(005).
+        ENDIF.
+      ENDIF.
+*
+      READ TABLE gt_bdc_me12_mat INTO gi_bdc_me12_mat WITH KEY matnr = gi_pr_list-matnr
+                                                    werks = gi_pr_list-werks BINARY SEARCH.
+
+      IF sy-subrc = 0.
+        gi_result-msg1 = gi_bdc_me12_mat-msg1.
+        gi_result-msg2 = gi_bdc_me12_mat-msg2.
+        gi_result-msg3 = gi_bdc_me12_mat-msg3.
+        gi_result-lifnr = gi_bdc_me12_mat-lifnr.
+
+      ENDIF.
+
+      READ TABLE gt_netpr_equal INTO gi_netpr_equal WITH KEY matnr = gi_pr_list-matnr
+                                                    werks = gi_pr_list-werks BINARY SEARCH.
+
+      IF sy-subrc = 0.
+        gi_result-msg1 = gi_netpr_equal-msg1.
+        gi_result-msg2 = gi_netpr_equal-msg2.
+        gi_result-msg3 = gi_netpr_equal-msg3.
+        gi_result-lifnr = gi_netpr_equal-lifnr.
+
+      ENDIF.
+
+
+
+      READ TABLE gt_mess INTO gi_mess WITH  KEY matnr =  gi_pr_list-matnr.
+      IF sy-subrc = 0.
+        CONTINUE.
+      ELSE.
+
+        APPEND gi_result TO gt_result.
+      ENDIF.
+
+      CLEAR : gi_result , gi_mat_temp , gi_pr_list,gi_bdc_me12_mat,gi_del_flag,gi_mess.
+
+    ENDLOOP.
+
+  ENDIF.
+
+  IF gp_r2 IS NOT INITIAL
+    OR gp_r3 IS NOT INITIAL.
+
+    LOOP AT gt_pr_list INTO gi_pr_list.
+
+      READ TABLE gt_eord INTO gi_eord WITH KEY matnr = gi_pr_list-matnr.
+      IF sy-subrc NE 0.
+        LOOP AT gt_mat_temp INTO gi_mat_temp WHERE matnr = gi_pr_list-matnr.
+
+          READ TABLE gt_pr_list INTO gi_pr_list WITH KEY matnr = gi_mat_temp-matnr
+                                                         werks = gi_mat_temp-werks.
+
+
+          gi_result-banfn = gi_pr_list-banfn.
+          gi_result-bnfpo = gi_pr_list-bnfpo.
+          gi_result-vbeln = gi_pr_list-vbeln.
+          gi_result-vbelp = gi_pr_list-vbelp.
+          gi_result-matnr = gi_pr_list-matnr.
+          gi_result-werks =  gi_pr_list-werks.
+
+          gi_result-aufnr      = gi_pr_list-aufnr.
+          gi_result-ps_psp_pnr = gi_pr_list-ps_psp_pnr.
+          gi_result-nplnr      = gi_pr_list-nplnr.
+          gi_result-vornr      = gi_pr_list-vornr.
+          gi_result-knttp      = gi_pr_list-knttp.
+
+
+          IF sy-subrc EQ 0.
+
+            gi_result-msg1 = gi_mat_temp-msg1.
+            gi_result-msg2 = gi_mat_temp-msg2.
+            gi_result-msg3 = gi_mat_temp-msg3.
+            gi_result-lifnr = gi_mat_temp-lifnr.
+          ENDIF.
+
+          READ TABLE gt_bdc_me12_mat INTO gi_bdc_me12_mat WITH KEY matnr = gi_pr_list-matnr
+                                                        werks = gi_pr_list-werks BINARY SEARCH.
+
+          IF sy-subrc = 0.
+            gi_result-msg1 = gi_bdc_me12_mat-msg1.
+            gi_result-msg2 = gi_bdc_me12_mat-msg2.
+            gi_result-msg3 = gi_bdc_me12_mat-msg3.
+            gi_result-lifnr = gi_bdc_me12_mat-lifnr.
+
+          ENDIF.
+
+
+          READ TABLE gt_netpr_equal INTO gi_netpr_equal WITH KEY matnr = gi_pr_list-matnr
+                                                      werks = gi_pr_list-werks BINARY SEARCH.
+
+          IF sy-subrc = 0.
+            gi_result-msg1 = gi_netpr_equal-msg1.
+            gi_result-msg2 = gi_netpr_equal-msg2.
+            gi_result-msg3 = gi_netpr_equal-msg3.
+            gi_result-lifnr = gi_netpr_equal-lifnr.
+
+          ENDIF.
+
+
+
+          READ TABLE gt_mess INTO gi_mess WITH  KEY matnr =  gi_pr_list-matnr
+                                                    lifnr = gi_mat_temp-lifnr.
+          IF sy-subrc = 0.
+            CONTINUE.
+          ELSE.
+
+            IF gt_mat_temp IS NOT INITIAL OR gt_mat_temp1 IS NOT INITIAL.
+              APPEND gi_result TO gt_result.
+            ENDIF.
+          ENDIF.
+
+
+
+          CLEAR : gi_result , gi_mat_temp , gi_pr_list,gi_bdc_me12_mat, gi_del_flag,gi_mess.
+
+        ENDLOOP.
+      ELSE.
+
+
+        gi_result-banfn = gi_pr_list-banfn.
+        gi_result-bnfpo = gi_pr_list-bnfpo.
+        gi_result-vbeln = gi_pr_list-vbeln.
+        gi_result-vbelp = gi_pr_list-vbelp.
+        gi_result-matnr = gi_pr_list-matnr.
+        gi_result-werks =  gi_pr_list-werks.
+
+        gi_result-aufnr      = gi_pr_list-aufnr.
+        gi_result-ps_psp_pnr = gi_pr_list-ps_psp_pnr.
+        gi_result-nplnr      = gi_pr_list-nplnr.
+        gi_result-vornr      = gi_pr_list-vornr.
+        gi_result-knttp      = gi_pr_list-knttp.
+
+
+        READ TABLE gt_mat_temp INTO gi_mat_temp WITH KEY matnr = gi_pr_list-matnr
+                                                        werks = gi_pr_list-werks BINARY SEARCH.
+
+        IF sy-subrc EQ 0.
+
+          gi_result-msg1 = gi_mat_temp-msg1.
+          gi_result-msg2 = gi_mat_temp-msg2.
+          gi_result-msg3 = gi_mat_temp-msg3."
+          gi_result-lifnr = gi_mat_temp-lifnr.
+        ENDIF.
+
+        READ TABLE gt_bdc_me12_mat INTO gi_bdc_me12_mat WITH KEY matnr = gi_pr_list-matnr
+                                                      werks = gi_pr_list-werks BINARY SEARCH.
+
+        IF sy-subrc = 0.
+          gi_result-msg1 = gi_bdc_me12_mat-msg1.
+          gi_result-msg2 = gi_bdc_me12_mat-msg2.
+          gi_result-msg3 = gi_bdc_me12_mat-msg3.
+          gi_result-lifnr = gi_bdc_me12_mat-lifnr.
+
+        ENDIF.
+
+
+        READ TABLE gt_netpr_equal INTO gi_netpr_equal WITH KEY matnr = gi_pr_list-matnr
+                                                    werks = gi_pr_list-werks BINARY SEARCH.
+
+        IF sy-subrc = 0.
+          gi_result-msg1 = gi_netpr_equal-msg1.
+          gi_result-msg2 = gi_netpr_equal-msg2.
+          gi_result-msg3 = gi_netpr_equal-msg3.
+          gi_result-lifnr = gi_netpr_equal-lifnr.
+
+        ENDIF.
+
+
+
+        READ TABLE gt_mess INTO gi_mess WITH  KEY matnr =  gi_pr_list-matnr.
+
+        IF sy-subrc = 0.
+          CONTINUE.
+        ELSE.
+
+          IF gt_mat_temp IS NOT INITIAL OR gt_mat_temp1 IS NOT INITIAL.
+            APPEND gi_result TO gt_result.
+          ENDIF.
+        ENDIF.
+
+
+
+        CLEAR : gi_result , gi_mat_temp , gi_pr_list,gi_bdc_me12_mat, gi_del_flag,gi_mess.
+
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+
+  LOOP AT gt_mess INTO gi_mess.
+
+    READ TABLE gt_pr_list INTO gi_pr_list WITH KEY matnr = gi_mess-matnr.
+    IF sy-subrc = 0.
+      gi_result-banfn = gi_pr_list-banfn.
+      gi_result-bnfpo = gi_pr_list-bnfpo.
+      gi_result-vbeln = gi_pr_list-vbeln.
+      gi_result-vbelp = gi_pr_list-vbelp.
+      gi_result-matnr = gi_pr_list-matnr.
+      gi_result-werks =  gi_pr_list-werks.
+      gi_result-msg1 =  gi_mess-mes.
+
+
+      gi_result-aufnr      = gi_pr_list-aufnr.
+      gi_result-ps_psp_pnr = gi_pr_list-ps_psp_pnr.
+      gi_result-nplnr      = gi_pr_list-nplnr.
+      gi_result-vornr      = gi_pr_list-vornr.
+      gi_result-knttp      = gi_pr_list-knttp.
+      gi_result-lifnr      = gi_mess-lifnr.
+
+
+      APPEND gi_result TO gt_result.
+    ENDIF.
+    CLEAR : gi_result , gi_mess , gi_pr_list.
+  ENDLOOP.
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  EMAX_COMP_PRICE_mvpir
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM emax_comp_price_mvpir .
+
+
+
+  LOOP  AT gt_fin_mat  INTO gi_fin_mat.
+
+    gw_fin_index =  sy-tabix.
+
+    PERFORM bom_components.
+
+    CLEAR gi_fin_mat.
+  ENDLOOP.
+
+  SORT gt_topmat BY matnr.
+  IF NOT gt_mara IS INITIAL.
+
+    SELECT matnr
+          werks
+          zeord
+          lifnr
+          ekorg
+          flifn  FROM eord
+                INTO TABLE gt_eord1
+                FOR ALL ENTRIES IN gt_mara
+                WHERE matnr EQ gt_mara-bismt
+                 AND werks EQ s_werks-low
+                 AND vdatu LE sy-datum
+                 AND bdatu GE sy-datum.
+
+    IF sy-subrc EQ 0.
+      SORT gt_eord1 BY matnr werks ekorg.
+    ENDIF.
+
+
+    SELECT matnr
+          werks
+          zeord
+          lifnr
+          ekorg FROM eord
+                INTO TABLE gt_eord_fix
+                FOR ALL ENTRIES IN gt_mara
+                WHERE matnr EQ gt_mara-matnr
+                 AND werks EQ s_werks-low
+                 AND vdatu LE sy-datum
+                 AND bdatu GE sy-datum
+                 AND flifn EQ 'X'.
+    IF sy-subrc EQ 0.
+      SORT gt_eord_fix BY matnr werks ekorg.
+    ENDIF.
+
+  ENDIF.
+
+  gt_eord5[] = gt_eord1[].
+  CLEAR : gt_eord1[].
+
+  LOOP AT gt_pr_list ASSIGNING FIELD-SYMBOL(<ls_pr_list>).
+
+    READ TABLE  gt_mara ASSIGNING FIELD-SYMBOL(<ls_mara>) WITH KEY matnr = <ls_pr_list>-matnr.
+    IF sy-subrc = 0.
+
+      LOOP AT gt_eord5 ASSIGNING FIELD-SYMBOL(<fs_eord5>) WHERE matnr = <ls_mara>-bismt.
+
+        gi_eord1 = <fs_eord5>.
+        gi_eord1-m_matnr = <ls_mara>-matnr.
+        APPEND gi_eord1 TO gt_eord1.
+        CLEAR: gi_eord1.
+      ENDLOOP.
+    ENDIF.
+  ENDLOOP.
+
+  IF NOT gt_eord1 IS INITIAL.
+
+    SELECT lifnr
+           loevm
+           sperm FROM lfa1 INTO TABLE gt_lfa1
+                       FOR ALL ENTRIES IN gt_eord1
+                       WHERE lifnr EQ gt_eord1-lifnr.
+    IF sy-subrc EQ 0.
+      SELECT lifnr
+             ekorg
+             sperm
+             loevm
+             waers
+                       FROM lfm1 INTO TABLE gt_lfm11
+                         FOR ALL ENTRIES IN gt_eord1
+                         WHERE lifnr EQ gt_eord1-lifnr
+                          AND  ekorg  EQ gt_eord1-ekorg.
+      IF sy-subrc EQ 0.
+
+        SORT gt_lfa1 BY lifnr.
+        SORT gt_lfm11 BY lifnr ekorg.
+
+      ENDIF.
+
+    ENDIF.
+
+
+  ENDIF.
+
+
+*  SELECT lifnr
+*                     matnr
+*                     werks
+*                     FROM eban
+*                     INTO TABLE gt_eban_des_ven
+*                    FOR ALL ENTRIES IN gt_mara
+*                              WHERE matnr EQ gt_mara-matnr
+*                               AND werks EQ s_werks-low.            "--DE3K9A0U11 USPRSAH
+
+
+
+  SORT gt_mara BY bismt.
+  LOOP AT gt_fin_mat INTO gi_fin_mat.
+
+    READ TABLE  gt_eord1 INTO gi_eord1 WITH KEY m_matnr = gi_fin_mat-matnr.
+    IF sy-subrc = 0.
+      LOOP AT gt_eord1 INTO gi_eord1 WHERE m_matnr = gi_fin_mat-matnr.                                                                             "usprsah
+
+
+
+        READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_eord1-m_matnr
+                                                 bismt = gi_eord1-matnr.
+
+        IF sy-subrc EQ 0.
+
+          READ TABLE gt_fin_mat INTO gi_fin_mat WITH KEY matnr = gi_mara-matnr.
+
+
+          IF sy-subrc EQ 0.
+            DATA : gw_strw TYPE string.
+            READ TABLE gt_lfa1 INTO gi_lfa1 WITH KEY lifnr = gi_eord1-lifnr BINARY SEARCH.
+
+            IF gi_lfa1-loevm EQ 'X' OR gi_lfa1-sperm EQ 'X'.
+
+              IF gi_lfa1-loevm EQ 'X'.
+
+                gw_strw = 'Vendor is deleted'(012).
+
+              ELSE.
+                gw_strw = 'Vendor is blocked'(013).
+              ENDIF.
+
+              gi_mess-matnr = gi_mara-matnr.
+              gi_mess-bismt = gi_mara-bismt.
+              CONCATENATE gw_strw gi_eord1-lifnr INTO gi_mess-mes SEPARATED BY space..
+              APPEND gi_mess TO gt_mess.
+
+
+            ELSE.
+              READ TABLE gt_lfm11 INTO gi_lfm11 WITH KEY lifnr = gi_eord1-lifnr
+                                                       ekorg  = gi_eord1-ekorg BINARY SEARCH.
+              IF gi_lfm11-loevm EQ 'X' OR gi_lfm11-sperm EQ 'X'.
+
+                IF gi_lfm11-loevm EQ 'X'.
+
+                  gw_strw = 'Vendor is deleted'(012).
+
+                ELSE.
+                  gw_strw = 'Vendor is blocked'(013).
+                ENDIF.
+
+                gi_mess-matnr = gi_mara-matnr.
+                gi_mess-bismt = gi_mara-bismt.
+                CONCATENATE gw_strw gi_eord1-lifnr 'At Purchase org '(014) gi_eord1-ekorg INTO gi_mess-mes SEPARATED BY space.
+                APPEND gi_mess TO gt_mess.
+              ELSE.
+                gi_ven-m_matnr = gi_mara-matnr.
+                gi_ven-matnr = gi_eord1-matnr.
+
+
+
+                 "SOC--DE3K9A0U11 USPRSAH
+*                READ TABLE gt_eban_des_ven INTO gi_eban_des_ven WITH KEY matnr = gi_ven-m_matnr
+*                                                                              werks = gi_fin_mat-werks .
+*
+*                IF sy-subrc = 0 AND gi_eban_des_ven-lifnr NE ' '.
+
+*                  gi_ven-lifnr = gi_eban_des_ven-lifnr.
+
+*                ELSE.   "EOC--DE3K9A0U11 USPRSAH
+
+                  READ TABLE gt_eord_fix INTO gi_eord_fix WITH KEY  matnr = gi_ven-m_matnr
+                                                                    werks = gi_fin_mat-werks
+                                                                    ekorg = gi_fin_mat-ekorg BINARY SEARCH.
+                  IF sy-subrc = 0.
+                    gi_ven-lifnr = gi_eord_fix-lifnr.
+                    CLEAR gi_eord_fix.
+                  ELSE.
+                    gi_ven-lifnr = gi_eord1-lifnr.
+                  ENDIF.
+*                ENDIF. "--DE3K9A0U11 USPRSAH
+
+
+
+                gi_ven-werks = gi_eord1-werks.
+                gi_ven-ekorg = gi_eord1-ekorg.
+
+                APPEND gi_ven TO gt_ven.
+
+
+              ENDIF.
+            ENDIF.
+          ELSE.
+
+            gi_mess-matnr = gi_mara-matnr.
+            gi_mess-bismt = gi_mara-bismt.
+            gi_mess-lifnr = gi_eord1-lifnr.
+            CONCATENATE 'No Vendor Exists for Template material'(015) gi_mara-bismt INTO gi_mess-mes SEPARATED BY space.
+            APPEND gi_mess TO gt_mess.
+          ENDIF.
+
+
+
+          CLEAR : gi_fin_mat , gi_mara , gi_ven , gi_eord1 , gi_mess , gi_lfa1 , gi_lfm11.
+
+        ENDIF.
+      ENDLOOP.
+
+    ELSE.
+
+
+      READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_fin_mat-matnr.
+
+      IF sy-subrc EQ 0.
+
+        READ TABLE gt_eord1 INTO gi_eord1 WITH KEY matnr = gi_mara-bismt
+                                                    werks = gi_fin_mat-werks
+                                                    ekorg = gi_fin_mat-ekorg BINARY SEARCH.
+
+        IF sy-subrc EQ 0.
+
+          READ TABLE gt_lfa1 INTO gi_lfa1 WITH KEY lifnr = gi_eord1-lifnr BINARY SEARCH.
+
+          IF gi_lfa1-loevm EQ 'X' OR gi_lfa1-sperm EQ 'X'.
+
+            IF gi_lfa1-loevm EQ 'X'.
+
+              gw_strw = 'Vendor is deleted'(012).
+
+            ELSE.
+              gw_strw = 'Vendor is blocked'(013).
+            ENDIF.
+
+            gi_mess-matnr = gi_mara-matnr.
+            gi_mess-bismt = gi_mara-bismt.
+            CONCATENATE gw_strw gi_eord1-lifnr INTO gi_mess-mes SEPARATED BY space..
+            APPEND gi_mess TO gt_mess.
+
+
+          ELSE.
+            READ TABLE gt_lfm11 INTO gi_lfm11 WITH KEY lifnr = gi_eord1-lifnr
+                                                     ekorg  = gi_eord1-ekorg BINARY SEARCH.
+            IF gi_lfm11-loevm EQ 'X' OR gi_lfm11-sperm EQ 'X'.
+
+              IF gi_lfm11-loevm EQ 'X'.
+
+                gw_strw = 'Vendor is deleted'(012).
+
+              ELSE.
+                gw_strw = 'Vendor is blocked'(013).
+              ENDIF.
+
+              gi_mess-matnr = gi_mara-matnr.
+              gi_mess-bismt = gi_mara-bismt.
+              CONCATENATE gw_strw gi_eord1-lifnr 'At Purchase org '(014) gi_eord1-ekorg INTO gi_mess-mes SEPARATED BY space.
+              APPEND gi_mess TO gt_mess.
+            ELSE.
+              gi_ven-m_matnr = gi_mara-matnr.
+              gi_ven-matnr = gi_eord1-matnr.
+
+
+              READ TABLE gt_eord_fix INTO gi_eord_fix WITH KEY  matnr = gi_ven-m_matnr
+                                                                werks = gi_fin_mat-werks
+                                                                ekorg = gi_fin_mat-ekorg BINARY SEARCH.
+              IF sy-subrc = 0.
+                gi_ven-lifnr = gi_eord_fix-lifnr.
+                CLEAR gi_eord_fix.
+              ELSE.
+                gi_ven-lifnr = gi_eord1-lifnr.
+              ENDIF.
+
+
+              gi_ven-werks = gi_eord1-werks.
+              gi_ven-ekorg = gi_eord1-ekorg.
+
+              APPEND gi_ven TO gt_ven.
+
+            ENDIF.
+          ENDIF.
+
+        ELSE.
+
+          gi_mess-matnr = gi_mara-matnr.
+          gi_mess-bismt = gi_mara-bismt.
+          CONCATENATE 'No Vendor Exists for Template material'(015) gi_mara-bismt INTO gi_mess-mes SEPARATED BY space.
+          APPEND gi_mess TO gt_mess.
+        ENDIF.
+
+      ENDIF.
+
+      CLEAR : gi_fin_mat , gi_mara , gi_ven , gi_eord1 , gi_mess , gi_lfa1 , gi_lfm11.
+
+
+    ENDIF.
+  ENDLOOP.
+  SORT gt_ven by m_matnr lifnr.  "++USPRSAH for DE3K9A0U11
+  DELETE ADJACENT DUPLICATES FROM gt_ven.
+
+  LOOP AT gt_ven INTO gi_ven.
+    LOOP AT gt_comp INTO gi_comp WHERE matnr = gi_ven-m_matnr.
+
+
+
+      gi_comp1 = gi_comp.
+      AT NEW matnr.
+
+
+        gi_comp_ven-matnr  =  gi_comp-matnr.
+
+        gi_comp_ven-lifnr  = gi_ven-lifnr.
+        gi_comp_ven-werks  = gi_comp-werks.
+        gi_comp_ven-ekorg  = gi_comp-ekorg.
+        gi_comp_ven-flag   = 'X'.
+        READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_comp-matnr.
+        IF sy-subrc EQ 0.
+          gi_comp_ven-comp  =  gi_mara-bismt.
+          gi_comp_ven-bismt  =  gi_mara-bismt.
+        ENDIF.
+
+        APPEND gi_comp_ven TO gt_comp_ven.
+
+      ENDAT.
+
+
+      CLEAR : gi_comp_ven.
+
+      gi_comp_ven-matnr  =  gi_comp-matnr.
+      gi_comp_ven-comp  =  gi_comp-matnr1.
+      gi_comp_ven-mnglg = gi_comp-mnglg.
+      gi_comp_ven-lifnr  = gi_ven-lifnr.
+      gi_comp_ven-werks  = gi_comp-werks.
+      gi_comp_ven-ekorg  = gi_comp-ekorg.
+      READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_comp-matnr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+
+        gi_comp_ven-bismt  =  gi_mara-bismt.
+      ENDIF.
+
+      APPEND gi_comp_ven TO gt_comp_ven.
+
+      CLEAR : gi_comp , gi_comp_ven .
+
+    ENDLOOP.
+    CLEAR : gi_ven.
+  ENDLOOP.
+  SORT gt_comp_ven BY matnr lifnr bismt comp.
+*  DELETE ADJACENT DUPLICATES FROM gt_comp_ven.   "usprsah for DE3K9A0U11
+
+  IF NOT gt_comp_ven IS INITIAL.
+
+    SELECT infnr
+              matnr
+              lifnr
+              loekz FROM eina
+                    INTO TABLE gt_eina
+                    FOR ALL ENTRIES IN gt_comp_ven
+                    WHERE lifnr EQ gt_comp_ven-lifnr
+                      AND matnr EQ gt_comp_ven-comp
+                      AND  loekz NE gc_x.
+
+    IF sy-subrc EQ 0.
+
+      SELECT infnr
+             ekorg
+             esokz
+             werks
+             loekz
+             ekgrp
+             waers
+             minbm
+             norbm
+             mwskz
+             netpr
+             peinh
+             bprme
+             bstae FROM eine
+                   INTO TABLE gt_eine
+                   FOR ALL ENTRIES IN gt_eina
+                   WHERE infnr EQ gt_eina-infnr
+                     AND werks EQ s_werks-low
+                     AND ekorg IN gr_ekorg
+                     AND  loekz NE gc_x.
+
+      IF sy-subrc EQ 0.
+
+        SORT gt_eine BY infnr.
+
+      ENDIF.
+
+    ENDIF.
+
+  ENDIF.
+
+  LOOP AT gt_eina INTO gi_eina.
+
+
+    READ TABLE gt_eine INTO gi_eine WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+      gi_info-infnr = gi_eina-infnr.
+      gi_info-matnr = gi_eina-matnr.
+      gi_info-lifnr = gi_eina-lifnr.
+      gi_info-ekgrp = gi_eine-ekgrp.
+      gi_info-ekorg = gi_eine-ekorg.
+      gi_info-werks = gi_eine-werks.
+      gi_info-minbm = gi_eine-minbm.
+      gi_info-norbm = gi_eine-norbm.
+      gi_info-mwskz = gi_eine-mwskz.
+      gi_info-netpr = gi_eine-netpr.
+      gi_info-peinh = gi_eine-peinh.
+      gi_info-waers = gi_eine-waers.
+      gi_info-bprme = gi_eine-bprme.
+      gi_info-bstae = gi_eine-bstae .
+      READ TABLE gt_info  INTO gi_info1 WITH KEY matnr = gi_eina-matnr
+                                                 werks = gi_eine-werks
+                                                 ekorg = gi_eine-ekorg
+                                                 lifnr = gi_eina-lifnr.
+      IF sy-subrc EQ 0.
+        gi_info1-msg  = 'More than 1 Template PIR is existing'(009).
+        MODIFY gt_info FROM gi_info1 INDEX sy-tabix .
+      ELSE.
+        APPEND gi_info TO gt_info.
+      ENDIF.
+    ENDIF.
+
+    CLEAR : gi_info , gi_eine, gi_eina , gi_info1.
+  ENDLOOP.
+
+  SORT gt_info BY matnr werks ekorg lifnr.
+
+  LOOP AT gt_ven INTO gi_ven.
+
+    READ TABLE gt_eord_fix INTO gi_eord_fix WITH KEY      matnr = gi_ven-m_matnr
+                                                          werks = gi_ven-werks
+                                                          ekorg = gi_ven-ekorg
+                                                          lifnr = gi_ven-lifnr .
+    IF sy-subrc NE 0.
+
+      READ TABLE gt_info INTO gi_info WITH KEY     matnr = gi_ven-matnr
+                                                   werks = gi_ven-werks
+                                                   ekorg = gi_ven-ekorg
+                                                   lifnr = gi_ven-lifnr .
+      IF sy-subrc NE 0.
+
+        DELETE gt_comp_ven WHERE bismt EQ gi_ven-matnr.
+
+        gi_mess-matnr = gi_ven-m_matnr.
+        gi_mess-bismt = gi_ven-matnr.
+
+        CONCATENATE 'No Info Rcord Exists for Tempalte Material '(016) gi_ven-matnr INTO gi_mess-mes SEPARATED BY space.
+
+        APPEND gi_mess TO gt_mess.
+
+      ENDIF.
+    ENDIF.
+    CLEAR gi_eord_fix.
+
+  ENDLOOP.
+
+  SORT gt_comp BY matnr matnr1 mnglg.
+
+  DELETE gt_comp_ven WHERE flag EQ gc_x.
+
+  SORT gt_comp_ven BY lifnr.
+
+
+
+
+  IF NOT gt_comp_ven IS INITIAL.
+
+    SELECT * FROM a017 INTO TABLE gt_a017
+                       FOR ALL ENTRIES IN gt_comp_ven
+                       WHERE kappl = 'M'
+                        AND  kschl = 'PB00'
+                        AND  lifnr = gt_comp_ven-lifnr
+                        AND  matnr = gt_comp_ven-comp
+                        AND  ekorg = gt_comp_ven-ekorg
+                        AND  werks = gt_comp_ven-werks
+                        AND datbi GE sy-datum
+                        AND datab LE sy-datum
+                       ORDER BY PRIMARY KEY.
+
+
+    IF sy-subrc EQ 0 .
+      SORT gt_a017 BY matnr lifnr ekorg werks.
+
+      SELECT knumh
+             kopos
+             kbetr
+             konwa
+             kpein
+             kmein
+             zaehk_ind   FROM konp INTO TABLE gt_konp3
+                         FOR ALL ENTRIES IN gt_a017
+                         WHERE knumh = gt_a017-knumh
+                           AND loevm_ko NE 'X'.
+      IF sy-subrc EQ 0.
+
+        SORT gt_konp3 BY knumh zaehk_ind DESCENDING.
+
+      ENDIF.
+
+    ENDIF.
+
+  ENDIF.
+
+  LOOP AT gt_comp_ven INTO gi_comp_ven.
+
+    gi_comp_ven1 = gi_comp_ven.
+
+
+    AT NEW lifnr.
+      CLEAR : lw_wears, gi_info3.
+      READ TABLE gt_info INTO gi_info WITH KEY     matnr = gi_comp_ven1-bismt
+                                                werks = gi_comp_ven1-werks
+                                                ekorg = gi_comp_ven1-ekorg
+                                                lifnr = gi_comp_ven1-lifnr  BINARY SEARCH.
+
+      IF sy-subrc EQ 0.
+        lw_wears = gi_info-waers.
+        gi_info3 = gi_info.
+      ELSE.
+        READ TABLE gt_info INTO gi_info WITH KEY  matnr = gi_comp_ven1-comp
+                                                  werks = gi_comp_ven1-werks
+                                                  ekorg = gi_comp_ven1-ekorg
+                                                  lifnr = gi_comp_ven1-lifnr.
+
+        IF sy-subrc EQ 0.
+          lw_wears = gi_info-waers.
+          gi_info3 = gi_info.
+        ENDIF.
+
+      ENDIF.
+      CLEAR : gi_comp_ven1.
+    ENDAT.
+    READ TABLE gt_comp INTO gi_comp WITH KEY   matnr = gi_comp_ven-matnr
+                                               matnr1  = gi_comp_ven-comp
+                                               mnglg = gi_comp_ven-mnglg BINARY SEARCH.
+    IF sy-subrc EQ 0.
+
+      READ TABLE gt_info INTO gi_info WITH KEY     matnr = gi_comp_ven-comp
+                                                   werks = gi_comp_ven-werks
+                                                   ekorg = gi_comp_ven-ekorg
+                                                   lifnr = gi_comp_ven-lifnr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+
+        READ TABLE gt_a017 INTO gi_a017 WITH KEY matnr = gi_info-matnr
+                                                 lifnr = gi_comp_ven-lifnr
+                                                 ekorg = gi_comp_ven-ekorg
+                                                 werks = gi_comp_ven-werks  BINARY SEARCH .
+
+        IF sy-subrc EQ 0.
+          READ TABLE gt_konp3 INTO gi_konp3 WITH KEY knumh = gi_a017-knumh BINARY SEARCH.
+
+          IF sy-subrc EQ 0.
+
+            gw_kbetr1 = gi_konp3-kbetr.
+            gw_konwa1 = gi_konp3-konwa.
+            gw_kpein1 = gi_konp3-kpein.
+            gw_kmein1 = gi_konp3-kmein.
+
+          ENDIF.
+
+        ENDIF.
+
+        IF gw_kbetr1 IS NOT INITIAL.
+
+          IF  gi_comp-mmein NE  gw_kmein1.
+
+            gw_menge = 1.
+
+            CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+              EXPORTING
+                i_matnr              = gi_comp_ven-comp
+                i_in_me              = gw_kmein1
+                i_out_me             = gi_comp-mmein
+                i_menge              = gw_menge
+              IMPORTING
+                e_menge              = gw_menge1
+              EXCEPTIONS
+                error_in_application = 1
+                error                = 2
+                OTHERS               = 3.
+            IF sy-subrc EQ 0.
+
+
+              gw_kbetr1 = ( gi_comp-mnglg * ( gw_kbetr1 / gw_menge1 ) ).
+              READ TABLE gt_lfm11 INTO gi_lfm11 WITH KEY lifnr = gi_comp_ven-lifnr BINARY SEARCH.
+              IF sy-subrc = 0.
+                PERFORM exchange_rate USING gi_konp3-konwa gi_lfm11-waers.
+                gw_kbetr1 = ( gw_kbetr1 / gi_konp3-kpein ) * gw_erate.
+              ENDIF.
+
+
+              lw_netpr = lw_netpr + gw_kbetr1.
+
+            ELSE.
+
+              MESSAGE e118(zmm) WITH gi_comp_ven-comp.
+              EXIT.
+
+            ENDIF.
+
+
+          ELSE.
+
+            gw_kbetr1 = ( ( gi_comp-mnglg * ( gw_kbetr1 / gw_kpein1 ) ) ).
+            READ TABLE gt_lfm11 INTO gi_lfm11 WITH KEY lifnr = gi_comp_ven-lifnr BINARY SEARCH.
+            IF sy-subrc = 0.
+              PERFORM exchange_rate USING gi_konp3-konwa gi_lfm11-waers.
+              gw_kbetr1 = gw_kbetr1 * gw_erate.
+            ENDIF.
+
+            lw_netpr = lw_netpr + gw_kbetr1.
+
+
+
+          ENDIF.
+
+        ELSE.
+          gw_np = 'X'.
+          gi_mess-matnr = gi_comp_ven-matnr.
+          CONCATENATE 'NO Price maintained for component'(017) gi_comp_ven-comp
+                       INTO gi_mess-mes SEPARATED BY space.
+          APPEND gi_mess TO gt_mess.
+
+        ENDIF.
+
+
+      ELSE.
+        gw_np = 'X'.
+
+        gi_mess-matnr = gi_comp_ven-matnr.
+        gi_mess-lifnr = gi_comp_ven-lifnr.
+        CONCATENATE 'No Info Record Exists for the BOM component '(018) gi_comp_ven-comp
+                     INTO gi_mess-mes SEPARATED BY space.
+        APPEND gi_mess TO gt_mess.
+      ENDIF.
+    ENDIF.
+
+
+    AT END OF lifnr.
+
+
+      IF gw_np IS INITIAL.
+
+
+        READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_comp_ven-matnr BINARY SEARCH.
+        IF sy-subrc EQ 0.
+          IF gi_mara-bstme IS NOT INITIAL.
+
+            IF gi_info3-bprme NE gi_mara-bstme.
+
+
+              gw_menge = 1.
+
+              CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+                EXPORTING
+                  i_matnr              = gi_comp_ven-matnr
+                  i_in_me              = gi_info3-bprme
+                  i_out_me             = gi_mara-bstme
+                  i_menge              = gw_menge
+                IMPORTING
+                  e_menge              = gw_menge1
+                EXCEPTIONS
+                  error_in_application = 1
+                  error                = 2
+                  OTHERS               = 3.
+              IF sy-subrc EQ 0.
+              ELSE.
+                gw_check = 'X'.
+              ENDIF.
+
+
+            ENDIF.
+
+          ELSE.
+            IF gi_info3-bprme NE gi_mara-meins.
+              gw_menge = 1.
+
+              CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+                EXPORTING
+                  i_matnr              = gi_comp_ven-matnr
+                  i_in_me              = gi_info3-bprme
+                  i_out_me             = gi_mara-meins
+                  i_menge              = gw_menge
+                IMPORTING
+                  e_menge              = gw_menge1
+                EXCEPTIONS
+                  error_in_application = 1
+                  error                = 2
+                  OTHERS               = 3.
+              IF sy-subrc EQ 0.
+
+              ELSE.
+                gw_check = 'X'.
+              ENDIF.
+
+
+            ENDIF.
+
+
+          ENDIF.
+
+        ENDIF.
+        IF gw_check IS INITIAL.
+
+          READ TABLE gt_topmat INTO gi_topmat WITH KEY matnr = gi_comp_ven-matnr BINARY SEARCH.
+
+          IF sy-subrc EQ 0.
+            IF gi_topmat-bmein NE gi_info3-bprme.
+
+              gw_menge = 1.
+
+              CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+                EXPORTING
+                  i_matnr              = gi_comp_ven-matnr
+                  i_in_me              = gi_topmat-bmein
+                  i_out_me             = gi_info3-bprme
+                  i_menge              = gw_menge
+                IMPORTING
+                  e_menge              = gw_menge1
+                EXCEPTIONS
+                  error_in_application = 1
+                  error                = 2
+                  OTHERS               = 3.
+              IF sy-subrc EQ 0.
+                lw_netpr = lw_netpr / gw_menge1.
+                lw_netpr = lw_netpr * gi_info3-peinh.
+
+              ENDIF.
+            ELSE.
+
+              lw_netpr = lw_netpr * gi_info3-peinh.
+
+            ENDIF.
+          ENDIF.
+
+
+          lw_netpr = lw_netpr / 1000.
+          lw_netpr1 = lw_netpr.
+          gi_mat_temp-netpr = lw_netpr1.
+          gi_mat_temp-matnr = gi_comp_ven-matnr.
+          gi_mat_temp-werks = s_werks-low.
+          gi_mat_temp-lifnr = gi_info3-lifnr.
+          gi_mat_temp-ekgrp = gi_info3-ekgrp.
+          gi_mat_temp-infnr = gi_info3-infnr.
+          gi_mat_temp-minbm = gi_info3-minbm.
+          gi_mat_temp-norbm = gi_info3-norbm.
+          gi_mat_temp-mwskz = gi_info3-mwskz.
+          gi_mat_temp-peinh = gi_info3-peinh.
+          gi_mat_temp-ekorg = gi_info3-ekorg.
+          gi_mat_temp-bprme = gi_info3-bprme.
+          gi_mat_temp-bstae = gi_info3-bstae .
+          gi_mat_temp-bstme = gi_mara-bstme .
+          gi_mat_temp-meins = gi_mara-meins .
+          READ TABLE gt_eord1 INTO gi_eord1 WITH KEY lifnr = gi_info3-lifnr
+                                                     flifn = 'X'.
+          IF sy-subrc = 0.
+            gi_mat_temp-flifn = gi_eord1-flifn.
+          ELSE.
+            gi_mat_temp-flifn = ' '.
+          ENDIF.
+          APPEND gi_mat_temp TO gt_mat_temp.
+
+        ELSE.
+          gi_mess-matnr = gi_comp_ven-matnr.
+
+          CONCATENATE 'There is no conversion factor for material'(045) gi_comp_ven-matnr 'and unit of measure'(046) INTO gi_mess-mes SEPARATED BY space.
+          APPEND gi_mess TO gt_mess.
+          CLEAR : gi_mess.
+
+
+        ENDIF.
+
+      ENDIF.
+
+      CLEAR : lw_netpr , gi_mat_temp , gi_info3 , gw_np ,
+              gw_check.
+    ENDAT.
+
+    CLEAR : gi_ven , gi_comp_ven , gi_mess , gw_kbetr1 , gw_konwa1 , gw_kpein1 , gw_kmein1 .
+
+  ENDLOOP.
+  SORT gt_mat_temp BY infnr.
+
+
+  IF gt_mat_temp IS NOT INITIAL.
+    gt_mat_temp1[] = gt_mat_temp[].
+    IF gt_mat_temp1 IS NOT INITIAL.
+      REFRESH gt_eina.
+      SELECT infnr
+             matnr
+             lifnr
+             loekz
+        INTO TABLE gt_eina
+        FROM eina
+        FOR ALL ENTRIES IN gt_mat_temp1
+        WHERE matnr = gt_mat_temp1-matnr.
+
+
+      IF sy-subrc = 0.
+        SORT gt_eina BY matnr.
+      ENDIF.
+
+      REFRESH gt_eine.
+
+      IF gt_eina IS NOT INITIAL.
+        SELECT infnr
+               ekorg
+               esokz
+               werks
+               loekz
+               ekgrp
+               waers
+               minbm
+               norbm
+               mwskz
+               netpr
+               peinh
+               bprme
+               bstae
+                     FROM eine
+                     INTO TABLE gt_eine1
+                     FOR ALL ENTRIES IN gt_eina
+                     WHERE infnr EQ gt_eina-infnr AND
+                           werks EQ s_werks-low AND
+                           ekorg IN gr_ekorg.
+
+        IF sy-subrc = 0.
+          SORT gt_eine1 BY infnr.
+        ENDIF.
+
+        IF sy-subrc = 0.
+          SORT gt_eina BY matnr lifnr.
+        ENDIF.
+      ENDIF.
+      SELECT matnr
+            werks
+            zeord
+            lifnr
+            ekorg
+            flifn FROM eord
+                  INTO TABLE gt_eord2
+                  FOR ALL ENTRIES IN gt_mat_temp1
+                  WHERE matnr EQ gt_mat_temp1-matnr
+                   AND werks EQ s_werks-low.
+
+
+      IF sy-subrc EQ 0.
+        SORT gt_eord2 BY matnr werks ekorg.
+      ENDIF.
+
+      SELECT    banfn
+                bnfpo
+                ekgrp
+                matnr
+                werks
+                knttp
+                flief
+                infnr FROM eban
+                      INTO TABLE gt_eban1
+                      FOR ALL ENTRIES IN gt_mat_temp1
+                      WHERE matnr = gt_mat_temp1-matnr AND
+                            werks = gt_mat_temp1-werks AND
+                            ekgrp = gt_mat_temp1-ekgrp AND
+                            banfn IN s_banfn[] AND
+                            badat IN s_rdate[] AND
+                            statu IN s_statu[] AND
+                            knttp IN s_knttp[] AND
+                            loekz  NE 'X'      AND
+                            flief NE ' '.
+
+
+      IF sy-subrc = 0.
+        SORT gt_eban1 BY matnr.
+      ENDIF.
+
+      LOOP AT gt_mat_temp1 INTO gi_mat_temp1.
+        IF gi_mat_temp1-msg1 IS INITIAL.
+          READ TABLE gt_eban1 INTO gi_eban1 WITH KEY matnr = gi_mat_temp1-matnr.
+          IF sy-subrc = 0.
+
+            IF gi_eban1-flief NE gi_mat_temp1-lifnr .
+              gi_mat_temp1-lifnr = gi_eban1-flief.
+            ENDIF.
+
+            READ TABLE gt_eina INTO gi_eina WITH KEY matnr = gi_mat_temp1-matnr
+                                                     lifnr = gi_mat_temp1-lifnr BINARY SEARCH.
+
+            IF  sy-subrc = 0.
+              IF gi_eina-loekz = 'X'.
+                gi_mess-matnr = gi_mat_temp1-matnr.
+                CONCATENATE 'PIR'(038) gi_eina-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr  'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                APPEND gi_mess TO gt_mess.
+
+              ELSE.
+                READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+
+                IF sy-subrc = 0.
+                  IF gi_eine1-loekz = 'X'.
+                    gi_mess-matnr = gi_mat_temp1-matnr.
+                    CONCATENATE 'PIR'(038) gi_eine1-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr gi_eine1-werks gi_eine1-ekorg 'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                    APPEND gi_mess TO gt_mess.
+                  ELSE.
+                    gi_pir_exist-infnr = gi_eine1-infnr.
+                    gi_pir_exist-matnr = gi_mat_temp1-matnr.
+                    gi_pir_exist-lifnr = gi_mat_temp1-lifnr.
+                    APPEND gi_pir_exist TO gt_pir_exist.
+                  ENDIF.
+                ENDIF.
+              ENDIF.
+            ENDIF.
+
+
+          ELSE.
+            READ TABLE gt_eord2 INTO gi_eord2 WITH KEY matnr = gi_mat_temp1-matnr
+                                                       lifnr = gi_mat_temp1-lifnr.
+            IF  sy-subrc = 0.
+
+              IF gi_eord2-lifnr NE gi_mat_temp1-lifnr.
+                gi_mat_temp1-lifnr = gi_eord2-lifnr.
+              ENDIF.
+
+
+              READ TABLE gt_eina INTO gi_eina WITH KEY matnr = gi_mat_temp1-matnr
+                                                       lifnr = gi_mat_temp1-lifnr BINARY SEARCH.
+              IF  sy-subrc = 0.
+                IF gi_eina-loekz = 'X'.
+                  gi_mess-matnr = gi_mat_temp1-matnr.
+                  CONCATENATE 'PIR'(038) gi_eina-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr  'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                  APPEND gi_mess TO gt_mess.
+                ELSE.
+                  READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+                  IF sy-subrc = 0.
+                    IF gi_eine1-loekz = 'X'.
+                      gi_mess-matnr = gi_mat_temp1-matnr.
+                      CONCATENATE 'PIR'(038) gi_eine1-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr gi_eine1-werks gi_eine1-ekorg 'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                      APPEND gi_mess TO gt_mess.
+                    ELSE.
+                      gi_pir_exist-infnr = gi_eine1-infnr.
+                      gi_pir_exist-matnr = gi_mat_temp1-matnr.
+                      gi_pir_exist-lifnr = gi_mat_temp1-lifnr.
+                      APPEND gi_pir_exist TO gt_pir_exist.
+                    ENDIF.
+                  ELSE.
+                    gi_pir_create-matnr = gi_mat_temp1-matnr.
+                    APPEND gi_pir_create TO gt_pir_create.
+                  ENDIF.
+                ENDIF.
+              ELSE.
+                gi_pir_create-matnr = gi_mat_temp1-matnr.
+                APPEND gi_pir_create TO gt_pir_create.
+              ENDIF.
+
+            ELSE.
+              READ TABLE gt_eina INTO gi_eina WITH KEY matnr = gi_mat_temp1-matnr "BINARY SEARCH.
+                                                       lifnr = gi_mat_temp1-lifnr BINARY SEARCH.
+              IF  sy-subrc = 0.
+                IF gi_eina-loekz = 'X'.
+                  gi_mess-matnr = gi_mat_temp1-matnr.
+                  CONCATENATE 'PIR'(038) gi_eina-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr  'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                  APPEND gi_mess TO gt_mess.
+                ELSE.
+                  READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+                  IF sy-subrc = 0.
+                    IF gi_eine1-loekz = 'X'.
+                      gi_mess-matnr = gi_mat_temp1-matnr.
+                      CONCATENATE 'PIR'(038) gi_eine1-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr gi_eine1-werks gi_eine1-ekorg 'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                      APPEND gi_mess TO gt_mess.
+                    ELSE.
+                      gi_pir_exist-infnr = gi_eine1-infnr.
+                      gi_pir_exist-matnr = gi_mat_temp1-matnr.
+                      gi_pir_exist-lifnr = gi_mat_temp1-lifnr.
+                      APPEND gi_pir_exist TO gt_pir_exist.
+                    ENDIF.
+                  ELSE.
+                    gi_pir_create-matnr = gi_mat_temp1-matnr.
+                    APPEND gi_pir_create TO gt_pir_create.
+                  ENDIF.
+                ENDIF.
+              ELSE.
+                gi_pir_create-matnr = gi_mat_temp1-matnr.
+                APPEND gi_pir_create TO gt_pir_create.
+              ENDIF.
+
+
+            ENDIF.
+          ENDIF.
+          CLEAR : gi_mat_temp1, gi_eban1,gi_eine1,gi_eina,gi_pir_exist,gi_pir_create,gi_eord2.
+        ENDIF.
+      ENDLOOP.
+
+      SORT gt_pir_create BY matnr.
+
+      LOOP AT gt_mat_temp INTO gi_mat_temp.
+        READ TABLE gt_pir_create INTO gi_pir_create WITH KEY matnr = gi_mat_temp-matnr BINARY SEARCH.
+        IF sy-subrc = 0.
+          CONTINUE.
+        ELSE.
+          IF gi_mat_temp-msg1 IS INITIAL.
+            DELETE gt_mat_temp WHERE matnr = gi_mat_temp-matnr.
+          ENDIF.
+        ENDIF.
+        CLEAR : gi_mat_temp, gi_pir_create.
+      ENDLOOP.
+
+      REFRESH :gt_bdcdata,git_mess.
+      CLEAR  :gi_bdcdata,gi_mess1.
+
+      IF gt_pir_exist IS NOT INITIAL.
+
+
+        SELECT matnr
+               werks
+               zeord
+               lifnr
+               ekorg FROM eord
+                     INTO TABLE gt_eord3
+                     FOR ALL ENTRIES IN gt_pir_exist
+                     WHERE matnr EQ gt_pir_exist-matnr
+                      AND werks EQ s_werks-low
+                      AND lifnr EQ gt_pir_exist-lifnr
+                      AND flifn EQ 'X'.
+
+
+
+        IF sy-subrc EQ 0.
+          SORT gt_eord3 BY matnr werks ekorg.
+        ENDIF.
+        SORT gt_mat_temp1 BY matnr.
+
+        LOOP AT gt_pir_exist INTO gi_pir_exist.
+          READ TABLE gt_eord3 INTO gi_eord3  WITH KEY matnr = gi_pir_exist-matnr BINARY SEARCH.
+          IF sy-subrc = 0.
+            CONTINUE.
+          ENDIF.
+          READ TABLE gt_mat_temp1 INTO gi_mat_temp1 WITH  KEY matnr = gi_pir_exist-matnr BINARY SEARCH.
+          IF sy-subrc = 0.
+
+            PERFORM bdc_me01.
+
+          ENDIF.
+
+          CLEAR : gi_mess1,gi_pir_exist,gi_eord3,gi_mat_temp1.
+          REFRESH : git_mess, gt_bdcdata.
+        ENDLOOP.
+
+
+        SELECT matnr
+               werks
+               zeord
+               lifnr
+               ekorg FROM eord
+                     INTO TABLE gt_eord4
+                     FOR ALL ENTRIES IN gt_pir_exist
+                     WHERE matnr EQ gt_pir_exist-matnr
+                      AND werks EQ s_werks-low
+                      AND lifnr EQ gt_pir_exist-lifnr
+                      AND flifn EQ 'X'.
+
+
+        IF sy-subrc EQ 0.
+          SORT gt_eord4 BY matnr werks ekorg.
+        ENDIF.
+
+        LOOP AT gt_mat_temp1 INTO gi_mat_temp1.
+          IF gi_mat_temp1-msg1 IS INITIAL.
+
+            READ TABLE gt_pir_exist INTO gi_pir_exist WITH KEY matnr = gi_mat_temp1-matnr
+                                                               lifnr = gi_mat_temp1-lifnr.
+            IF sy-subrc = 0.
+
+              READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_pir_exist-infnr .
+
+
+              IF sy-subrc = 0.
+
+
+                IF gi_eine1-peinh = gi_mat_temp1-peinh.
+                ELSE.
+                  gi_mat_temp1-netpr = ( gi_mat_temp1-netpr * gi_eine1-peinh ) / gi_mat_temp1-peinh.
+
+                ENDIF.
+                IF gi_eine1-netpr = gi_mat_temp1-netpr.
+
+                  gi_netpr_equal-matnr = gi_mat_temp1-matnr.
+
+                  gi_netpr_equal-werks = gi_mat_temp1-werks.
+*                  READ TABLE gt_eban_des_ven INTO gi_eban_des_ven WITH KEY matnr = gi_mat_temp1-matnr  "SOC--DE3K9A0U11 USPRSAH
+*                                                                         werks = gi_mat_temp1-werks.
+*
+*                  IF sy-subrc = 0 AND gi_eban_des_ven-lifnr NE ' '.
+*                    gi_netpr_equal-lifnr = gi_eban_des_ven-lifnr.
+*                  ELSE.  "EOC--DE3K9A0U11 USPRSAH
+                    gi_netpr_equal-lifnr = gi_mat_temp1-lifnr.
+*                  ENDIF. "--DE3K9A0U11 USPRSAH
+                  CONCATENATE 'Purchasing Info Record'(031) gi_eine1-infnr gi_eine1-ekorg gi_eine1-werks 'No change required'(029) INTO gi_netpr_equal-msg1 SEPARATED BY space.
+
+                  READ TABLE gt_eord3 INTO gi_eord3 WITH KEY matnr = gi_mat_temp1-matnr
+                                                           werks = gi_mat_temp1-werks BINARY SEARCH.
+                  IF sy-subrc = 0.
+                    gi_netpr_equal-msg2  = 'Source List already assigned'(006).
+                  ELSE.
+                    READ TABLE gt_eord4 INTO gi_eord4 WITH KEY matnr = gi_mat_temp1-matnr
+                                                             werks = gi_mat_temp1-werks BINARY SEARCH.
+                    IF sy-subrc = 0.
+                      gi_netpr_equal-msg2  = 'Source List is Created'(035).
+                    ELSE.
+                      gi_netpr_equal-msg2  = 'Source List is not found'(032).
+                    ENDIF.
+                  ENDIF.
+                  gi_netpr_equal-msg3  = ' Material Cost not updated'(022).
+
+                  APPEND gi_netpr_equal TO  gt_netpr_equal.
+                ELSE.
+                  gi_bdc_me12_mat-matnr = gi_mat_temp1-matnr.
+                  gi_bdc_me12_mat-netpr = gi_mat_temp1-netpr.
+                  gi_bdc_me12_mat-netpr1 = gi_eine1-netpr.
+                  gi_bdc_me12_mat-lifnr = gi_pir_exist-lifnr.
+                  gi_bdc_me12_mat-ekorg = gi_eine1-ekorg.
+                  gi_bdc_me12_mat-esokz = gi_eine1-esokz.
+                  gi_bdc_me12_mat-werks = gi_eine1-werks.
+                  gi_bdc_me12_mat-loekz = gi_eine1-loekz.
+                  gi_bdc_me12_mat-ekgrp = gi_eine1-ekgrp.
+                  gi_bdc_me12_mat-waers = gi_eine1-waers.
+                  gi_bdc_me12_mat-minbm = gi_eine1-minbm.
+                  gi_bdc_me12_mat-norbm = gi_eine1-norbm.
+                  gi_bdc_me12_mat-mwskz = gi_eine1-mwskz.
+                  gi_bdc_me12_mat-peinh = gi_eine1-peinh.
+                  gi_bdc_me12_mat-bprme = gi_eine1-bprme.
+
+                  gi_bdc_me12_mat-bstme = gi_mat_temp1-bstme.
+                  gi_bdc_me12_mat-meins = gi_mat_temp1-meins.
+
+                  APPEND gi_bdc_me12_mat TO gt_bdc_me12_mat.
+                ENDIF.
+
+
+              ENDIF.
+
+
+
+            ENDIF.
+
+          ENDIF.
+          CLEAR : gi_mat_temp1, gi_pir_exist, gi_eine1,gi_bdc_me12_mat,gi_netpr_equal.
+
+        ENDLOOP.
+
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+
+
+
+
+ENDFORM.
+

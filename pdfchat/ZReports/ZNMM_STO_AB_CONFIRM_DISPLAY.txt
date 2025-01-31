@@ -1,0 +1,12 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_STO_AB_CONFIRM_DISPLAY
+*&---------------------------------------------------------------------*
+  IF NOT gt_final IS INITIAL.
+    cl_salv_table=>factory( IMPORTING r_salv_table = gt_alv
+                       CHANGING  t_table   = gt_final ).
+    gt_alv->display( ).
+
+  ELSE.
+    WRITE :/ 'NO Data Found '(008) . ""changes by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+  ENDIF.
+

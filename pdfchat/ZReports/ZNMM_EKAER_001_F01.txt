@@ -1,0 +1,833 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_EKAER_001_F01
+*&---------------------------------------------------------------------*
+FORM get_data.
+
+  PERFORM get_from_db.
+*Nothing to do if nothing is retrieved
+  IF lines( gt_input ) EQ 0.
+    MESSAGE i090(zmm) WITH text-m01.
+    STOP.
+  ENDIF.
+
+  PERFORM fill_buffers.
+
+  PERFORM preparing_output.
+
+  IF lines( gt_input ) EQ 0.
+    MESSAGE i090(zmm) WITH text-m01.
+    STOP.
+  ENDIF.
+
+ENDFORM.                    "get_data
+
+*
+FORM show_data.
+  PERFORM show_pi USING text-m05.
+  CALL SCREEN '0001'.
+ENDFORM.                    "show_data
+
+
+*&---------------------------------------------------------------------*
+*&      Form  set_field_catalog
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM set_field_catalog.
+  DATA:
+    ld_line TYPE dd02l-tabname.
+
+  PERFORM get_type_line USING gt_output ld_line.
+
+  CALL FUNCTION 'LVC_FIELDCATALOG_MERGE'
+    EXPORTING
+      i_structure_name = 'ZSMM_EKAER_001'
+    CHANGING
+      ct_fieldcat      = gt_fieldcatalog.
+
+ENDFORM.                    "set_field_catalog
+
+*
+FORM get_type_line USING pt_output LIKE gt_output pd_line.
+  DATA:
+    ls_line TYPE x030l,
+    lo_table TYPE REF TO cl_abap_tabledescr,
+    lo_line TYPE REF TO cl_abap_datadescr.
+
+  lo_table ?= cl_abap_tabledescr=>describe_by_data( pt_output ).
+
+  pd_line = 'ZSMM_EKAER_001'.
+ENDFORM.                    "get_type_line
+
+*
+FORM show_package_pi USING pd_count.
+  DATA:
+    ld_msg(50).
+
+  ADD 1 TO pd_count.
+  ld_msg = pd_count.
+  CONDENSE ld_msg.
+  CONCATENATE text-m02 ld_msg INTO ld_msg.
+
+  PERFORM show_pi USING ld_msg.
+
+ENDFORM.                    "show_package_pi
+
+*
+FORM show_pi USING pd_msg.
+  CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+    EXPORTING
+      text = pd_msg.
+
+ENDFORM.                    "show_pi
+
+*
+FORM set_layout.
+  PERFORM set_grid_title USING gs_layout-grid_title.
+  gs_layout-cwidth_opt = 'X'.
+  gs_layout-sel_mode = 'D'.
+ENDFORM.                    "set_layout
+
+*
+FORM set_variant.
+  gs_variant-report = sy-repid.
+  gs_variant-handle = 1.
+ENDFORM.                    "set_variant
+
+*
+FORM get_from_db.
+  DATA:
+    ld_case.
+*Trucking -> Shipment -> Delivery
+  PERFORM solve_case USING ld_case.
+
+  CASE ld_case.
+    WHEN 'D'. "Delivery
+      PERFORM get_deliveries USING ld_case.
+      PERFORM get_trucking1 USING ld_case.
+      PERFORM get_shipments USING ld_case.
+
+    WHEN 'S'.
+      PERFORM get_shipments USING ld_case.
+      PERFORM get_deliveries USING ld_case.
+      PERFORM get_trucking1 USING ld_case.
+
+    WHEN 'T'.
+      PERFORM get_trucking1 USING ld_case.
+      PERFORM get_deliveries USING ld_case.
+      PERFORM get_shipments USING ld_case.
+
+  ENDCASE.
+ENDFORM.                    "get_from_db
+
+*
+FORM fill_buffers.
+  DATA:
+    so_kunnr TYPE RANGE OF kunnr,
+    so_matnr TYPE RANGE OF matnr.
+
+  DATA:
+    ls_kunnr LIKE LINE OF so_kunnr,
+    ls_matnr LIKE LINE OF so_matnr.
+
+  FIELD-SYMBOLS:
+    <fs_input> LIKE LINE OF gt_input,
+    <fs_kunnr> LIKE LINE OF so_kunnr,
+    <fs_matnr> LIKE LINE OF so_matnr.
+
+  CHECK lines( gt_input ) GT 0.
+
+  PERFORM show_pi USING text-m03.
+  ls_kunnr = 'IEQ'.
+  ls_matnr = 'IEQ'.
+
+  LOOP AT gt_input ASSIGNING <fs_input>.
+*Customer to
+    READ TABLE so_kunnr ASSIGNING <fs_kunnr> WITH KEY low = <fs_input>-kunnr_to.
+    IF sy-subrc NE 0.
+      ls_kunnr-low = <fs_input>-kunnr_to.
+      INSERT ls_kunnr INTO TABLE so_kunnr.
+    ENDIF.
+
+*Customer ship
+    READ TABLE so_kunnr ASSIGNING <fs_kunnr> WITH KEY low = <fs_input>-kunnr_ship.
+    IF sy-subrc NE 0.
+      ls_kunnr-low = <fs_input>-kunnr_ship.
+      INSERT ls_kunnr INTO TABLE so_kunnr.
+    ENDIF.
+
+*Material
+    READ TABLE so_matnr ASSIGNING <fs_matnr> WITH KEY low = <fs_input>-matnr.
+    IF sy-subrc NE 0.
+      ls_matnr-low = <fs_input>-matnr.
+      INSERT ls_matnr INTO TABLE so_matnr.
+    ENDIF.
+
+  ENDLOOP.
+
+*Fill buffers
+*Customers
+  PERFORM get_kna1 USING so_kunnr.
+
+*Materials
+  PERFORM get_mara_marc USING so_matnr.
+
+*Fill buffer former document
+  PERFORM fill_last_document.
+
+*Buffer for exchange rate
+  SELECT *
+  FROM tcurr
+  INTO TABLE gt_tcurr
+  WHERE
+*    kurst = 'HUFV' AND
+    tcurr = 'HUF'.
+
+ENDFORM.                    "fill_buffers
+
+*
+FORM preparing_output.
+  DATA:
+    ld_to_delete,
+    ls_output LIKE LINE OF gt_output.
+
+  FIELD-SYMBOLS:
+    <fs_vekp> LIKE LINE OF gt_vekp,
+    <fs_vbfa> LIKE LINE OF gt_vbfa,
+    <fs_kna1> LIKE LINE OF gt_kna1,
+    <fs_marc> LIKE LINE OF gt_marc,
+    <fs_mara> LIKE LINE OF gt_mara,
+    <fs_input> LIKE LINE OF gt_input.
+
+  PERFORM show_pi USING text-m04.
+  LOOP AT gt_input ASSIGNING <fs_input>.
+*Common data
+    CLEAR ls_output.
+    MOVE-CORRESPONDING <fs_input> TO ls_output.
+
+*Shipment number
+    READ TABLE gt_vbfa ASSIGNING <fs_vbfa> WITH KEY
+      vbelv = <fs_input>-vbeln vbtyp_n = '8'.
+    IF sy-subrc EQ 0.
+      ls_output-tknum = <fs_vbfa>-vbeln.
+    ENDIF.
+
+    IF ls_output-tknum NOT IN s_tknum.
+      <fs_input>-to_delete = 'X'.
+      ld_to_delete = 'X'.
+    ENDIF.
+
+    PERFORM get_truckid USING ls_output-tknum ls_output-truckid .
+    IF ls_output-truckid NOT IN s_truk.
+      <fs_input>-to_delete = 'X'.
+      ld_to_delete = 'X'.
+    ENDIF.
+
+    CHECK <fs_input>-to_delete EQ space.
+*Specific data
+*Customer to
+    IF <fs_input>-kunnr_to IS INITIAL.
+      <fs_input>-kunnr_to = <fs_input>-kunnr_ship.
+      ls_output-kunnr_to = <fs_input>-kunnr_ship.
+    ENDIF.
+
+    IF <fs_input>-kunnr_ship IS INITIAL.
+      <fs_input>-kunnr_ship = <fs_input>-kunnr_to.
+    ENDIF.
+
+    READ TABLE gt_kna1 ASSIGNING <fs_kna1> WITH KEY kunnr = <fs_input>-kunnr_to.
+    IF sy-subrc EQ 0.
+      ls_output-stceg_to = <fs_kna1>-stceg.
+      CONCATENATE <fs_kna1>-name1 <fs_kna1>-name2 INTO ls_output-name1_to.
+      ls_output-land1_to = <fs_kna1>-land1.
+      ls_output-pstlz_to = <fs_kna1>-pstlz.
+      ls_output-ort01_to = <fs_kna1>-ort01.
+      ls_output-stras_to = <fs_kna1>-stras.
+      ls_output-regio_to = <fs_kna1>-regio.
+    ENDIF.
+
+*Customer ship
+    READ TABLE gt_kna1 ASSIGNING <fs_kna1> WITH KEY kunnr = <fs_input>-kunnr_ship.
+    IF sy-subrc EQ 0.
+      CONCATENATE <fs_kna1>-name1 <fs_kna1>-name2 INTO ls_output-name1_ship.
+      ls_output-land1_ship = <fs_kna1>-land1.
+      ls_output-pstlz_ship = <fs_kna1>-pstlz.
+      ls_output-ort01_ship = <fs_kna1>-ort01.
+      ls_output-stras_ship = <fs_kna1>-stras.
+      ls_output-regio_ship = <fs_kna1>-regio.
+    ENDIF.
+
+*Material
+    READ TABLE gt_marc ASSIGNING <fs_marc> WITH KEY werks = <fs_input>-werks matnr = <fs_input>-matnr.
+    IF sy-subrc EQ 0.
+      ls_output-stawn = <fs_marc>-stawn.
+    ENDIF.
+
+    READ TABLE gt_mara ASSIGNING <fs_mara> WITH KEY matnr = <fs_input>-matnr.
+    IF sy-subrc EQ 0.
+      ls_output-brgew = <fs_mara>-brgew * ls_output-lfimg.
+      ls_output-gewei = <fs_mara>-gewei.
+
+    ENDIF.
+
+    PERFORM get_delivery_value USING <fs_input>.
+    ls_output-netpr = <fs_input>-netpr.
+    ls_output-waers = <fs_input>-waers.
+
+    ls_output-netwr = <fs_input>-lfimg * <fs_input>-netpr * <fs_input>-ukurs.
+    ls_output-waerk = 'HUF'.
+    APPEND ls_output TO gt_output.
+  ENDLOOP.
+
+  IF ld_to_delete CA 'xX'.
+    DELETE gt_input WHERE to_delete CA 'xX'.
+  ENDIF.
+
+ENDFORM.                    "preparing_output
+
+*
+FORM get_shipments USING pd_case.
+  DATA:
+    ld_count TYPE i.
+  PERFORM show_pi USING text-m09.
+
+*Shipment
+  CASE pd_case.
+    WHEN 'D'.
+      IF lines( gt_input ) GT 0.
+        OPEN CURSOR gc_cursor FOR
+        SELECT
+          vbelv posnv vbtyp_v vbeln posnn vbtyp_n
+        FROM vbfa
+        FOR ALL ENTRIES IN gt_input
+        WHERE
+          vbelv EQ gt_input-vbeln AND
+          vbeln IN s_tknum AND
+          vbtyp_v EQ 'J' .
+      ELSE.
+        RETURN.
+      ENDIF.
+
+    WHEN 'S'.
+      OPEN CURSOR gc_cursor FOR
+      SELECT
+        vbelv posnv vbtyp_v vbeln posnn vbtyp_n
+      FROM vbfa
+      WHERE
+        vbelv IN s_vbeln AND
+        vbeln IN s_tknum AND
+        vbtyp_v EQ 'J' .
+
+    WHEN 'T'.
+      IF lines( gt_vekp ) GT 0.
+        OPEN CURSOR gc_cursor FOR
+        SELECT
+          vbelv posnv vbtyp_v vbeln posnn vbtyp_n
+        FROM vbfa
+        FOR ALL ENTRIES IN gt_vekp
+        WHERE
+          vbelv EQ gt_vekp-vbeln AND
+          vbeln IN s_tknum AND
+          vbtyp_v EQ 'J' .
+      ELSE.
+        RETURN.
+      ENDIF.
+
+  ENDCASE.
+
+  PERFORM show_package_pi USING ld_count.
+  FETCH NEXT CURSOR gc_cursor APPENDING TABLE gt_vbfa PACKAGE SIZE 1000.
+  WHILE sy-subrc EQ 0.
+    PERFORM show_package_pi USING ld_count.
+    FETCH NEXT CURSOR gc_cursor APPENDING TABLE gt_vbfa PACKAGE SIZE 1000.
+    IF sy-subrc NE 0.
+      EXIT.
+    ENDIF.
+  ENDWHILE.
+  CLOSE CURSOR gc_cursor.
+
+ENDFORM.                    "get_shipments
+
+*
+FORM get_deliveries USING pd_case.
+  DATA:
+    lt_vbfa LIKE gt_vbfa,
+    lc_cursor TYPE cursor,
+    ld_count TYPE i.
+
+*Deliveries
+  CASE pd_case.
+    WHEN 'D'.
+      OPEN CURSOR lc_cursor FOR
+      SELECT
+        likp~vbeln lips~posnr likp~erdat likp~wadat_ist
+        likp~vstel likp~vkoiv likp~vtwiv likp~route
+        likp~kunag likp~kunnr
+        lips~matnr lips~arktx lips~werks lips~lgort lips~lfimg lips~vrkme
+        lips~vgbel lips~vgpos vbtyv
+      FROM likp JOIN lips ON
+        likp~vbeln = lips~vbeln
+      JOIN vbuk ON
+        likp~vbeln = vbuk~vbeln
+      WHERE
+        likp~vbeln IN s_vbeln AND
+        likp~erdat IN s_erdat AND
+        wadat_ist IN s_wadat AND
+        vstel IN s_vstel AND
+        vkoiv IN s_vkoiv AND
+        vtwiv IN s_vtwiv AND
+        route IN s_route AND
+        kunnr IN s_kunnr AND
+        kunag IN s_kunag AND
+        wbstk IN s_wbstk.
+
+    WHEN 'S'.
+      OPEN CURSOR lc_cursor FOR
+      SELECT
+        likp~vbeln lips~posnr likp~erdat likp~wadat_ist
+        likp~vstel likp~vkoiv likp~vtwiv likp~route
+        likp~kunag likp~kunnr
+        lips~matnr lips~arktx lips~werks lips~lgort lips~lfimg lips~vrkme
+        lips~vgbel lips~vgpos vbtyv
+      FROM likp JOIN lips ON
+        likp~vbeln = lips~vbeln
+      JOIN vbuk ON
+        likp~vbeln = vbuk~vbeln
+      FOR ALL ENTRIES IN gt_vbfa
+      WHERE
+        likp~vbeln EQ gt_vbfa-vbelv AND
+        likp~erdat IN s_erdat AND
+        wadat_ist IN s_wadat AND
+        vstel IN s_vstel AND
+        vkoiv IN s_vkoiv AND
+        vtwiv IN s_vtwiv AND
+        route IN s_route AND
+        kunnr IN s_kunnr AND
+        kunag IN s_kunag AND
+        wbstk IN s_wbstk.
+
+    WHEN 'T'.
+      OPEN CURSOR lc_cursor FOR
+      SELECT
+        likp~vbeln lips~posnr likp~erdat likp~wadat_ist
+        likp~vstel likp~vkoiv likp~vtwiv likp~route
+        likp~kunag likp~kunnr
+        lips~matnr lips~arktx lips~werks lips~lgort lips~lfimg lips~vrkme
+        lips~vgbel lips~vgpos vbtyv
+      FROM likp JOIN lips ON
+        likp~vbeln = lips~vbeln
+      JOIN vbuk ON
+        likp~vbeln = vbuk~vbeln
+      FOR ALL ENTRIES IN gt_vekp
+      WHERE
+        likp~vbeln EQ gt_vekp-vbeln AND
+        likp~erdat IN s_erdat AND
+        wadat_ist IN s_wadat AND
+        vstel IN s_vstel AND
+        vkoiv IN s_vkoiv AND
+        vtwiv IN s_vtwiv AND
+        route IN s_route AND
+        kunnr IN s_kunnr AND
+        kunag IN s_kunag AND
+        wbstk IN s_wbstk.
+  ENDCASE.
+
+  PERFORM show_package_pi USING ld_count.
+  FETCH NEXT CURSOR lc_cursor APPENDING TABLE gt_input PACKAGE SIZE 1000.
+  WHILE sy-subrc EQ 0.
+    PERFORM show_package_pi USING ld_count.
+    FETCH NEXT CURSOR lc_cursor APPENDING TABLE gt_input PACKAGE SIZE 1000.
+    IF sy-subrc NE 0.
+      EXIT.
+    ENDIF.
+  ENDWHILE.
+  CLOSE CURSOR lc_cursor.
+ENDFORM.                    "get_deliveries
+
+*
+FORM get_delivery_value USING ps_input TYPE gty_input.
+  DATA:
+    ld_ebelp TYPE ebelp.
+
+  FIELD-SYMBOLS:
+    <fs_tcurr> LIKE LINE OF gt_tcurr,
+    <fs_vbap> LIKE LINE OF gt_vbap,
+    <fs_ekpo> LIKE LINE OF gt_ekpo.
+
+  READ TABLE gt_vbap ASSIGNING <fs_vbap> WITH KEY
+    vbeln = ps_input-vgbel posnr = ps_input-vgpos.
+  IF sy-subrc EQ 0.
+    ps_input-netpr = <fs_vbap>-netpr.
+    ps_input-waers = <fs_vbap>-waerk.
+  ELSE.
+    ld_ebelp = ps_input-vgpos.
+    READ TABLE gt_ekpo ASSIGNING <fs_ekpo> WITH KEY
+      ebeln = ps_input-vgbel ebelp = ld_ebelp.
+
+    IF sy-subrc EQ 0.
+      ps_input-netpr = <fs_ekpo>-netpr.
+      ps_input-waers = <fs_ekpo>-waers.
+    ENDIF.
+  ENDIF.
+
+  PERFORM get_exchange_rate USING ps_input.
+
+ENDFORM.                    "get_delivery_value
+
+*
+FORM validate_input.
+
+  IF NOT
+     ( s_vstel IS NOT INITIAL OR
+     s_vkoiv IS NOT INITIAL OR
+     s_vbeln IS NOT INITIAL OR
+     s_tknum IS NOT INITIAL OR
+     s_truk IS NOT INITIAL ).
+    MESSAGE e070(zmm) WITH text-e01 .
+  ENDIF.
+ENDFORM.                    "validate_input
+
+*
+FORM get_truckid USING pd_tknum pd_trukid.
+  STATICS:
+    ld_tknum TYPE tknum.
+
+  FIELD-SYMBOLS:
+    <fs_vekp> LIKE LINE OF gt_vekp.
+
+  ld_tknum = pd_tknum.
+*Table is Sorted -> Faster than pararell curso
+  LOOP AT gt_vekp ASSIGNING <fs_vekp> WHERE tknum = ld_tknum.
+    IF <fs_vekp>-ztrukid IS NOT INITIAL.
+      pd_trukid = <fs_vekp>-ztrukid.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                    "get_truckid
+
+*
+FORM set_grid_title USING pd_title.
+  TYPES:
+  BEGIN OF lty,
+    vbeln TYPE vbeln,
+    lines TYPE i,
+  END OF lty.
+
+  DATA:
+    lt TYPE HASHED TABLE OF lty WITH UNIQUE KEY vbeln,
+    ls LIKE LINE OF lt.
+
+  FIELD-SYMBOLS:
+    <fs> LIKE LINE OF lt,
+    <fs_input> LIKE LINE OF gt_input.
+
+  LOOP AT gt_input ASSIGNING <fs_input>.
+    READ TABLE lt ASSIGNING <fs> WITH KEY vbeln = <fs_input>-vbeln.
+    IF sy-subrc NE 0.
+      ls-vbeln = <fs_input>-vbeln.
+      INSERT ls INTO TABLE lt.
+      READ TABLE lt ASSIGNING <fs> WITH KEY vbeln = <fs_input>-vbeln.
+    ENDIF.
+    ADD 1 TO <fs>-lines.
+  ENDLOOP.
+
+  pd_title = lines( lt ).
+  CONDENSE pd_title.
+  CONCATENATE text-m06 pd_title INTO pd_title.
+ENDFORM.                    "set_grid_title
+
+*
+FORM get_exchange_rate USING ps_input TYPE gty_input.
+  DATA:
+    ld_datum(10),
+    ld_gdatu TYPE gdatu_inv,
+    ld_erdat TYPE d.
+
+  FIELD-SYMBOLS:
+    <fs_tcurr> LIKE LINE OF gt_tcurr.
+
+  ld_erdat = sy-datum.
+  ld_erdat+4(4) = '0101'.
+  SUBTRACT 1 FROM ld_erdat.
+
+  ps_input-ukurs = 1.
+  CHECK ps_input-waers NE 'HUF'.
+
+  WRITE ld_erdat TO ld_datum.
+  CALL FUNCTION 'CONVERSION_EXIT_INVDT_INPUT'
+    EXPORTING
+      input  = ld_datum
+    IMPORTING
+      output = ld_gdatu.
+
+  LOOP AT gt_tcurr ASSIGNING <fs_tcurr> WHERE
+    fcurr EQ ps_input-waers AND kurst = 'HUFV'.
+    IF ld_gdatu LE <fs_tcurr>-gdatu.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+
+  IF sy-subrc EQ 0.
+    ps_input-ukurs = <fs_tcurr>-ukurs.
+  ELSE.
+    ps_input-ukurs = 1.
+  ENDIF.
+
+ENDFORM.                    "get_exchange_rate
+*
+FORM get_kna1 USING pso_kunnr TYPE roij_kunnr_rtab.
+  DATA:
+    ld_count TYPE i,
+    so_kunnr  LIKE pso_kunnr.
+
+  FIELD-SYMBOLS:
+    <fs_kunnr> LIKE LINE OF so_kunnr.
+
+  CLEAR gt_kna1.
+  LOOP AT pso_kunnr ASSIGNING <fs_kunnr>.
+    ADD 1 TO ld_count.
+    APPEND <fs_kunnr> TO so_kunnr.
+
+    IF ld_count GT co_package.
+      SELECT
+        kunnr stcd1 stceg name1 name2 land1
+        pstlz ort01 stras regio
+      FROM kna1
+      APPENDING TABLE gt_kna1
+      WHERE
+        kunnr IN so_kunnr.
+
+      CLEAR:
+        so_kunnr, ld_count.
+    ENDIF.
+  ENDLOOP.
+
+  IF ld_count GT 0.
+    SELECT
+      kunnr stcd1 stceg name1 name2 land1
+      pstlz ort01 stras regio
+    FROM kna1
+    APPENDING TABLE gt_kna1
+    WHERE
+      kunnr IN so_kunnr.
+  ENDIF.
+ENDFORM.                    "get_kna1
+
+*
+FORM get_mara_marc USING pso_matnr TYPE isauto_t_matnr.
+  DATA:
+    ld_count TYPE i,
+    so_matnr  LIKE pso_matnr.
+
+  FIELD-SYMBOLS:
+    <fs_matnr> LIKE LINE OF so_matnr.
+
+  CLEAR:
+    gt_mara, gt_marc.
+
+  LOOP AT pso_matnr ASSIGNING <fs_matnr>.
+    ADD 1 TO ld_count.
+    APPEND <fs_matnr> TO so_matnr.
+
+    IF ld_count GT 1000.
+      SELECT
+        werks matnr stawn
+      APPENDING TABLE gt_marc
+      FROM marc
+      WHERE
+        matnr IN so_matnr.
+
+      SELECT
+        matnr brgew gewei
+      FROM mara
+      APPENDING TABLE gt_mara
+      WHERE
+        matnr IN so_matnr.
+
+      CLEAR:
+        ld_count, so_matnr.
+    ENDIF.
+  ENDLOOP.
+
+  IF ld_count GT 0.
+    SELECT
+      werks matnr stawn
+    APPENDING TABLE gt_marc
+    FROM marc
+    WHERE
+      matnr IN so_matnr.
+
+    SELECT
+      matnr brgew gewei
+    FROM mara
+    APPENDING TABLE gt_mara
+    WHERE
+      matnr IN so_matnr.
+  ENDIF.
+ENDFORM.                    "get_mara_marc
+
+*
+*
+FORM get_trucking1 USING pd_case.
+  TYPES:
+  BEGIN OF lty_truk,
+    ztrukid TYPE ztrukid,
+    zcolliid TYPE zcolliid,
+    zexidv2 TYPE zexidv2,
+    zhubid TYPE zhubid,
+    venum TYPE venum,
+  END OF lty_truk,
+
+  BEGIN OF lty_hu,
+    venum TYPE venum,
+    vepos TYPE vepos,
+    vbeln TYPE vbeln_vl,
+    posnr TYPE posnr_vl,
+    vpobj TYPE vpobj,
+    vpobjkey TYPE vpobjkey,
+    exidv TYPE exidv,
+  END OF lty_hu.
+
+  DATA:
+    ls_vekp LIKE LINE OF gt_vekp,
+    lt_truk TYPE SORTED TABLE OF lty_truk WITH NON-UNIQUE KEY venum,
+    lt_hu TYPE TABLE OF lty_hu.
+
+  FIELD-SYMBOLS:
+    <fs_truk> LIKE LINE OF lt_truk,
+    <fs_hu> LIKE LINE OF lt_hu.
+
+  PERFORM show_pi USING text-m08.
+
+  CASE pd_case.
+    WHEN 'D'.
+      IF lines( gt_input ) GT 0.
+        SELECT
+          vepo~venum vepos vbeln vepo~posnr vekp~vpobj
+          vpobjkey exidv
+        FROM vekp JOIN vepo ON
+          vekp~venum = vepo~venum
+        INTO TABLE lt_hu
+        FOR ALL ENTRIES IN gt_input
+        WHERE
+          vbeln = gt_input-vbeln.
+
+        IF lines( lt_hu ) GT 0.
+          SELECT
+            z1~ztrukid z1~zcolliid z1~zexidv2 zhubid zcollint
+          FROM ztmm_trkcol AS z1 JOIN ztmm_colli AS z2 ON
+            z1~zcolliid = z2~zcolliid AND
+            z1~zexidv2 = z2~zexidv2
+          INTO TABLE lt_truk
+          FOR ALL ENTRIES IN lt_hu
+          WHERE
+            zcollint = lt_hu-venum.
+        ENDIF.
+      ENDIF.
+
+    WHEN 'S'.
+      SELECT
+        vepo~venum vepos vbeln vepo~posnr vekp~vpobj
+        vpobjkey exidv
+      FROM vekp JOIN vepo ON
+        vekp~venum = vepo~venum
+      INTO TABLE lt_hu
+      WHERE
+        vpobj EQ '04' AND
+        vpobjkey IN s_tknum.
+
+      IF lines( lt_hu ) GT 0.
+        SELECT
+          z1~ztrukid z1~zcolliid z1~zexidv2 zhubid zcollint
+        FROM ztmm_trkcol AS z1 JOIN ztmm_colli AS z2 ON
+          z1~zcolliid = z2~zcolliid AND
+          z1~zexidv2 = z2~zexidv2
+        INTO TABLE lt_truk
+        FOR ALL ENTRIES IN lt_hu
+        WHERE
+          zcollint = lt_hu-venum.
+      ENDIF.
+
+    WHEN 'T'.
+*Truk Id Data
+      SELECT
+        z1~ztrukid z1~zcolliid z1~zexidv2 zhubid zcollint
+      FROM ztmm_trkcol AS z1 JOIN ztmm_colli AS z2 ON
+        z1~zcolliid = z2~zcolliid AND
+        z1~zexidv2 = z2~zexidv2
+      INTO TABLE lt_truk
+      WHERE
+        ztrukid IN s_truk.
+
+      IF lines( lt_truk ) GT 0.
+        SELECT
+          vepo~venum vepos vbeln vepo~posnr vekp~vpobj
+          vpobjkey exidv
+        FROM vekp JOIN vepo ON
+          vekp~venum = vepo~venum
+        INTO TABLE lt_hu
+        FOR ALL ENTRIES IN lt_truk
+        WHERE
+          vekp~venum = lt_truk-venum.
+      ENDIF.
+
+  ENDCASE.
+
+  LOOP AT lt_hu ASSIGNING <fs_hu>.
+    CLEAR ls_vekp.
+    ls_vekp-tknum = <fs_hu>-vpobjkey. "Shipment
+    ls_vekp-vbeln = <fs_hu>-vbeln.    "Delivery
+    ls_vekp-posnr = <fs_hu>-posnr.    "Position
+    ls_vekp-exidv = <fs_hu>-exidv.
+*Table is Sorted -> Faster than paralell cursor
+    LOOP AT lt_truk ASSIGNING <fs_truk> WHERE venum = <fs_hu>-venum.
+      ls_vekp-zcolliid = <fs_truk>-zcolliid.
+      ls_vekp-zexidv2 = <fs_truk>-zexidv2.
+      ls_vekp-ztrukid = <fs_truk>-ztrukid.
+      INSERT ls_vekp INTO TABLE gt_vekp.
+    ENDLOOP.
+  ENDLOOP.
+ENDFORM.                    "get_trucking1
+
+*
+FORM fill_last_document.
+
+  CHECK gt_input IS NOT INITIAL.
+
+  SELECT
+    vbeln posnr netpr waerk
+  FROM vbap
+  INTO TABLE gt_vbap
+  FOR ALL ENTRIES IN gt_input
+  WHERE
+    vbeln = gt_input-vgbel.
+
+  SELECT
+    ekko~ebeln ekpo~ebelp ekpo~netpr ekko~waers
+  FROM ekpo JOIN ekko ON
+    ekpo~ebeln = ekko~ebeln
+  INTO TABLE gt_ekpo
+  FOR ALL ENTRIES IN gt_input
+  WHERE
+    ekko~ebeln = gt_input-vgbel.
+ENDFORM.                    "fill_last_document
+
+*
+FORM solve_case USING pd_case.
+  IF s_vbeln IS NOT INITIAL.
+    pd_case = 'D'.
+
+  ELSEIF s_truk IS NOT INITIAL.
+    pd_case = 'T'.
+
+  ELSEIF s_tknum IS NOT INITIAL.
+    pd_case = 'S'.
+
+  ELSE.
+    pd_case = 'D'.
+
+  ENDIF.
+
+ENDFORM.                    "solve_case
+

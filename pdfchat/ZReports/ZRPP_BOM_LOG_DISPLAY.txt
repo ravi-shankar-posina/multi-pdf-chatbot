@@ -1,0 +1,45 @@
+*&---------------------------------------------------------------------*
+
+*=======================================================================
+*= Copyright © 2013 GE IS                                              =
+*= ALL RIGHTS RESERVED                                                 =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : zrpp_bom_log_display
+* Created by        : Sekhar Perala, 502277866
+* Transport Request : DE3K966427
+* RICEF Object No   : RICEF1568,1605
+* Transaction code  : ZPP021
+* Change request No : CHG1520261
+* Description       : This program used to displayall the component changes
+*                      on every production order and networkorder
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+* DATE               | CR No.     |CHANGED BY |   DESCRIPTION OF CHANGE
+*11.04.2015           CHG1520261   502277866   Added mrpcontroller in selection screen and
+*                                               select query .
+*11.20.2015           CHG1520261   502277866   Added Main material in selection screen and
+*                                              crreated text element for alternate material
+*                                              Serial No
+*26.02.2016           CHG1858725   502277866   created Text elements for STPRS1 , DCOST FOR final output
+*25.08.2016           CHG2245818   502277866   changes sequence in where condition
+
+REPORT  zrpp_bom_log_display.
+**** Data Declarations
+INCLUDE znpp_bom_log_display_top.
+**** Selection Screen
+INCLUDE znpp_bom_log_display_scr.
+
+START-OF-SELECTION.
+*** retriving data
+  PERFORM get_data.
+*** displaying data
+  PERFORM display_data.
+
+  INCLUDE znpp_bom_log_display_process.
+

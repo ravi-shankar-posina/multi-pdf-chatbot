@@ -1,0 +1,1272 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_SHIPMENT
+*&
+*&---------------------------------------------------------------------*
+*&* Created by            : Krishna Chaitanya N
+*** Creation Date         : 05/02/2014
+*** Transport Request     :  DE3K922065
+*** RICEF Object No       : RICEF865
+*** Description           : EDI/Text file with all shipments sent in a truck
+*** CR No                 : CHG0479095
+*** T code                : ZMM865
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+*&---------------------------------------------------------------------*
+
+REPORT  zrmm_shipment.
+
+INCLUDE znmm_shipdecl. " Data Declarations
+
+* Selection screen
+
+*---------------------------------------------*
+
+*Begin of Modification 502225518 - TR # DE3K926485 - CR #  CHG0479095 -06/28/2014.
+* Add button to application toolbar
+
+SELECTION-SCREEN FUNCTION KEY 1.
+
+
+INITIALIZATION.
+  MOVE C_SCDAT TO sscrfields-functxt_01.
+
+
+*--------------------------------------------*
+
+  SELECTION-SCREEN : BEGIN OF BLOCK b1 WITH FRAME TITLE text-001. " : (Shipments per forwarder : Selection screen).
+
+
+  SELECT-OPTIONS : s_vstel FOR g_vstel, "Shipping Point/Receiving Point
+                   s_vbeln FOR g_vbeln NO-DISPLAY. " Delivery no
+  PARAMETERS: p_vkorg LIKE likp-vkorg OBLIGATORY.  " default 'ES01', - SAles org
+
+  SELECT-OPTIONS :  "S_VTWEG FOR G_VTWEG,  " Distribution Channel
+                   s_lifnr FOR g_lifnr. "Account Number of Vendor or Creditor
+
+  PARAMETERS: p_noship AS CHECKBOX.
+
+  SELECTION-SCREEN COMMENT 34(34) text-002. " : - (without forwarder selected above)
+
+  SELECTION-SCREEN : END OF BLOCK b1.
+
+  SELECTION-SCREEN SKIP.
+
+  SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-003. " Date and time details
+* selections for actual goods issue date from
+  SELECTION-SCREEN BEGIN OF LINE.
+  SELECTION-SCREEN COMMENT (21) text-004 FOR FIELD p_fdate .  " Text -003 : Goods issue date from
+
+  SELECTION-SCREEN POSITION POS_LOW.
+
+
+  PARAMETER : p_fdate TYPE wadak DEFAULT sy-datum MODIF ID S2. "Actual Goods Movement Date
+
+  SELECTION-SCREEN COMMENT 52(5) text-007 FOR FIELD p_ftime.  "Time   :
+
+  SELECTION-SCREEN POSITION 62.
+
+  PARAMETER: p_ftime TYPE sy-uzeit  DEFAULT sy-uzeit MODIF ID S2.      " obligatory.
+
+  SELECTION-SCREEN END OF LINE.
+
+*Selections  for Actual goods issue date to
+
+  SELECTION-SCREEN BEGIN OF LINE.
+  SELECTION-SCREEN COMMENT (21) text-009 FOR FIELD p_tdate. " Goods issue date to
+  SELECTION-SCREEN POSITION POS_LOW.
+
+  PARAMETER: p_tdate TYPE wadak DEFAULT sy-datum MODIF ID S2. "likp-wadat_ist DEFAULT sy-datum."fault sy-datum.
+
+  SELECTION-SCREEN COMMENT 52(5) text-007 FOR FIELD p_ttime. " Time   :
+
+  SELECTION-SCREEN POSITION 62.
+
+  PARAMETER: p_ttime TYPE sy-uzeit DEFAULT sy-uzeit MODIF ID S2.
+
+  SELECTION-SCREEN END OF LINE.
+  SELECTION-SCREEN END OF BLOCK b2.
+
+  SELECTION-SCREEN: SKIP.
+  SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-027.   " Goods issue date to
+
+  PARAMETERS: p_cbox AS CHECKBOX,
+              p_tfile TYPE rlgrap-filename.
+  SELECTION-SCREEN END OF BLOCK b3.
+
+
+DATA : GV_FLAG TYPE C.
+
+DATA : GV_dat type c.
+
+* --------------------------------------------------------------------*
+* AT SELECTION-SCREEN
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_tfile.
+
+  PERFORM sub_filename.
+
+AT SELECTION-SCREEN.
+  CLEAR gv_dat.
+IF SY-UCOMM = 'FC01'.
+  gv_dat = 'X'.
+ENDIF.
+
+* --------------------------------------------------------------------*
+* AT SELECTION-SCREEN OUTPUT
+*----------------------------------------------------------------------*
+
+AT SELECTION-SCREEN OUTPUT.
+
+IF gv_dat NE 'X'.
+
+Loop at SCREEN.
+
+IF SCREEN-GROUP1 EQ 'S2'.
+SCREEN-INPUT = 0.
+  modify screen.
+ENDIF.
+endloop.
+
+ELSEIF gv_dat = 'X'.
+
+loop at screen.
+  IF SCREEN-GROUP1 EQ 'S2'.
+SCREEN-INPUT = 1.
+  modify screen.
+CLEAR : p_fdate,
+        p_ftime,
+        p_tdate,
+        p_ttime.
+ENDIF.
+endloop.
+ENDIF.
+
+*End of Modification 502225518 - TR # DE3K926485 - CR #  CHG0479095 -06/28/2014.
+* --------------------------------------------------------------------*
+* START-OF-SELECTION
+*----------------------------------------------------------------------*
+START-OF-SELECTION.
+
+  PERFORM f_fill_ranges_field. "  Date ( from and to dates/time )
+  PERFORM f_getdata. " Fetch data.
+  PERFORM f_table_build.
+  IF p_cbox = 'X'.
+    PERFORM f_filedownload.
+  ENDIF.
+
+  PERFORM f_display1.
+
+
+*&---------------------------------------------------------------------*
+*&      Form  F_FILL_RANGES_FIELD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_fill_ranges_field .
+
+
+  MOVE p_fdate TO r_wadat_ist-low.
+  MOVE 'I' TO r_wadat_ist-sign.
+  MOVE 'BT' TO r_wadat_ist-option.
+  MOVE p_tdate TO r_wadat_ist-high.
+
+  APPEND r_wadat_ist.
+  CLEAR r_wadat_ist.
+
+  CLEAR: v_ftstlo, v_ttstlo.
+  CONCATENATE p_fdate p_ftime INTO v_ftstlo.
+  CONCATENATE p_tdate p_ttime INTO v_ttstlo.
+
+
+ENDFORM.                    " F_FILL_RANGES_FIELD
+
+*&---------------------------------------------------------------------*
+*&      Form  F_TABLE_BUILD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+
+FORM f_table_build .
+
+
+  DATA : gt_lips_temp TYPE STANDARD TABLE OF ty_lips,
+         gw_lips_temp TYPE ty_lips.
+
+  LOOP AT gt_lips INTO gw_lips.
+
+    READ TABLE gt_vbpa INTO gw_vbpa WITH KEY vbeln = gw_lips-vbeln BINARY SEARCH.
+
+    IF sy-subrc <> 0.
+      gw_lips-vbeln = ''.
+      APPEND gw_lips TO gt_lips_temp.
+      CLEAR gw_lips.
+    ENDIF.
+    APPEND gw_lips TO gt_lips_temp.
+    CLEAR gw_lips.
+
+  ENDLOOP.
+
+  DELETE gt_lips_temp WHERE vbeln = ''.
+  gt_lips[] = gt_lips_temp[].
+
+
+  LOOP AT gt_lips INTO gw_lips.
+
+    READ TABLE gt_likp INTO gw_likp WITH KEY vbeln = gw_lips-vbeln BINARY SEARCH.
+
+    IF sy-subrc = 0.
+      gw_final-currency = gw_likp-waerk. "Currency
+
+      READ TABLE gt_kna1 INTO gw_kna1 WITH KEY kunnr = gw_likp-kunnr.
+
+      IF sy-subrc = 0.
+        gw_final-shpname = gw_kna1-name1. "Ship to name
+        gw_final-shpstret = gw_kna1-stras. "Ship to street
+        gw_final-shpzip  = gw_kna1-pstlz. " ZIP code
+        gw_final-shpcity  = gw_kna1-ort01. " Ship to City
+        gw_final-country = gw_kna1-land1. " COuntry
+        gw_final-vatno  = gw_kna1-stceg. "VAT number
+      ENDIF. " GT_KNA1
+
+      READ TABLE gt_vttp INTO gw_vttp WITH KEY vbeln = gw_likp-vbeln.
+
+      IF sy-subrc = 0.
+        READ TABLE gt_vttk INTO gw_vttk WITH KEY tknum = gw_vttp-tknum BINARY SEARCH.
+
+        IF sy-subrc = 0.
+          gw_final-tknum = gw_vttk-tknum.   " Shipment number
+          gw_final-shpdate = gw_vttk-erdat. "Shipment date
+
+          READ TABLE gt_t001w INTO gw_t001w WITH KEY werks = gw_lips-werks.
+          IF sy-subrc = 0.
+            gw_final-werks  = gw_t001w-werks. " Sender Plant Details
+            gw_final-name   = gw_t001w-name1. " Sender
+            gw_final-stras  = gw_t001w-stras. "Sender Address
+            gw_final-pstlz  = gw_t001w-pstlz. "Sender Zip
+            gw_final-ort01  = gw_t001w-ort01. " Sender CIty
+          ENDIF.   " GT_T001W
+        ENDIF.  " GT_VTTK
+      ENDIF.   " GT_VTTP
+
+      READ TABLE gt_vbuk INTO gw_vbuk WITH KEY vbeln = gw_likp-vbeln BINARY SEARCH.
+      IF sy-subrc = 0.
+
+        READ TABLE gt_vbpa INTO gw_vbpa WITH KEY vbeln = gw_vbuk-vbeln BINARY SEARCH.
+
+        IF sy-subrc = 0.
+
+          READ TABLE i_vbfa INTO wa_vbfa WITH KEY vbelv  = gw_vbpa-vbeln BINARY SEARCH.
+
+          READ TABLE i_vbfa1 INTO wa_vbfa1 WITH KEY vbeln = wa_vbfa-vbeln.
+          IF sy-subrc = 0.
+            READ TABLE gt_vekp_t INTO gw_vekp_t WITH KEY vpobjkey = wa_vbfa1-vbeln.
+            IF sy-subrc = 0.
+              gw_final-shipunit =  gw_vekp_t-exidv. " # of shipping units  VEKP-EXIDV
+              gw_final-totwt =  gw_vekp_t-ntgew. "Total weight  VEKP-NTGEW
+              gw_final-totvol =  gw_vekp_t-btvol. "Total volume  VEKP-BTVOL
+              gw_final-tothu = gw_vekp_t-brgew. " Tot wt of Handling Unit
+            ENDIF. " I_VEKP
+          ENDIF. " I_VBFA1
+        ENDIF. " GT_VBPA
+      ENDIF.  " GT_VBUK
+    ENDIF. " GT_LIKP
+
+
+    gw_final-azkcno = c_clien. "'430106074'. "Azkar customer code
+    gw_final-poorts = c_porte1. " '1'.   "Ports type
+    gw_final-reexp = c_reexp. "'0'.    "Re-expedition
+    gw_final-destpay = c_reexp. "'0'. "Dest payment
+    gw_final-commission = c_reexp."'0'. "Commission
+    gw_final-comm = ''.  " Comments
+    gw_final-package = ''. "Package Types
+    gw_final-shpref = ''. "SHip to Reference
+    gw_final-gvi = c_reexp. "'0'. "Goods value for insurance
+    gw_final-fixcomm = ''. "Fix comments
+    gw_final-azkdeleg = ''. "
+    gw_final-labccode = c_labcode. "'6348'.
+    gw_final-labnumber = ''.
+
+
+    APPEND gw_final TO gt_final.
+    CLEAR gw_final.
+
+  ENDLOOP.
+
+  DELETE gt_final WHERE tknum IS INITIAL.
+
+ENDFORM.                    " F_TABLE_BUILD
+*&---------------------------------------------------------------------*
+*&      Form  F_DISPLAY1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_display1 .
+
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 1.
+  gw_fieldcat-fieldname =  gc_tknum. " 'TKNUM'.
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-031. "'Shipment No'. " Shipment
+  gw_fieldcat-outputlen = '10'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 2.
+  gw_fieldcat-fieldname = gc_azkcno. " 'AZKCNO'. "Azkar customer code
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-032. "'Azkar customer code'. " Azkar customer code
+  gw_fieldcat-outputlen = '10'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 3.
+  gw_fieldcat-fieldname =  gc_name. "'NAME'. "Sender
+  gw_fieldcat-tabname =  gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-033. "'Sender'. " Sender
+  gw_fieldcat-outputlen = '10'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 4.
+  gw_fieldcat-fieldname =  gc_stras. "'STRAS'. "Sender address
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-034."'Sender address'. " Sender address
+  gw_fieldcat-outputlen = '15'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 5.
+  gw_fieldcat-fieldname = gc_pstlz. " 'PSTLZ'. "Sender zip
+  gw_fieldcat-tabname = gc_final."'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-035."'Sender zip'. " Sender zip
+  gw_fieldcat-outputlen = '12'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 6.
+  gw_fieldcat-fieldname =  gc_ort01. "'ORT01'. "Sender City
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-036."'Sender City'. " Sender City
+  gw_fieldcat-outputlen = '12'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 7.
+  gw_fieldcat-fieldname = gc_shpname. " 'SHPNAME'.
+  gw_fieldcat-tabname =  gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-037. "'Ship to name'. "text-011. "Main Item'.
+  gw_fieldcat-outputlen = '13'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 8.
+  gw_fieldcat-fieldname = gc_shpstret. "'SHPSTRET'. "gc_maktxm. "'MAKTXM'.
+  gw_fieldcat-tabname =  gc_final. " 'GT_FINAL'.   "gc_output. "'GT_OUTPUT'.
+  gw_fieldcat-seltext_m = text-038. "'Ship to street'. "text-012. "'Main Item Desc'.
+  gw_fieldcat-outputlen = '40'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 9.
+  gw_fieldcat-fieldname = gc_shpzip." 'SHPZIP'. "gc_zoldnm. "'ZOLDNM'.
+  gw_fieldcat-tabname =  gc_final. "'GT_FINAL'. "gc_output."'GT_OUTPUT'.
+  gw_fieldcat-seltext_m = text-039. "'Postal Code'. "Postal Code.
+  gw_fieldcat-outputlen = '24'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 10.
+  gw_fieldcat-fieldname = gc_shpcity. "'SHPCITY'. " gc_gamng. " 'GAMNG'.
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-040. "'Ship to city'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '13'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+
+  gw_fieldcat-col_pos  = 11.
+  gw_fieldcat-fieldname = gc_shipunit. "'SHIPUNIT'. " gc_gamng. " 'GAMNG'.
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-041. "'No of shiping units'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 12.
+  gw_fieldcat-fieldname = gc_totwt. "'TOTWT'. " gc_gamng. " 'GAMNG'.
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-042. "'Total weight'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 13.
+  gw_fieldcat-fieldname = gc_totvol. "'TOTVOL'. " gc_gamng. " 'GAMNG'.
+  gw_fieldcat-tabname =  gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-043. "'Total Vol'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 14.
+  gw_fieldcat-fieldname = gc_tothu. "'TOTHU'. " gc_gamng. " 'GAMNG'.
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-044. "'Total Weight'.  " "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 15.
+  gw_fieldcat-fieldname = gc_poorts. "'POORTS'. " gc_gamng. " 'PORTS TYPE.
+  gw_fieldcat-tabname =  gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-045. "'Ports Type'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 17.
+  gw_fieldcat-fieldname =  gc_reecp. "'REECP'. " Re-expedition
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-046." 'Re-expedition'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 18.
+  gw_fieldcat-fieldname = gc_destpay. " 'DESTPAY'. " Re-expedition
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-047. "'Dest payment'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 19.
+  gw_fieldcat-fieldname = gc_commission. "'COMMISSION'. " Re-expedition
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-048. "'Commission'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 21.
+  gw_fieldcat-fieldname = gc_shpdate. " 'SHPDATE'. " Re-expedition
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-049. "'Shipment date'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 22.
+  gw_fieldcat-fieldname = gc_comm. "'COMM'. " Re-expedition
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-050."'Comments'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 23.
+  gw_fieldcat-fieldname = gc_package. "'PACKAGE'. " Re-expedition
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-051. "'Package Types'. "text-014. " 'Main Item Qty'.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 24.
+  gw_fieldcat-fieldname = gc_shpref. "'SHPREF'. " Ship to Reference
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-052. "'Ship to Reference'. "text-014. " 'Ship to Reference
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 25.
+  gw_fieldcat-fieldname = gc_currency. " 'CURRENCY'. " CURRENCY
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-053. "'CURRENCY'. "CURRENCY.
+  gw_fieldcat-outputlen = '19'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 26.
+  gw_fieldcat-fieldname = gc_gvi. "'GVI'. "
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-054. "'Goods value for insurance'. "Goods value for insurance
+  gw_fieldcat-outputlen = '26'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 27.
+  gw_fieldcat-fieldname = gc_fixcomm. "'FIXCOMM'.
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-055. "'Fixed comments'. "Fixed comments.
+  gw_fieldcat-outputlen = '14'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos  = 28.
+  gw_fieldcat-fieldname =  gc_azkdeleg. "'AZKDELEG'.
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-056. "'Azkar delegation code'. "Azkar delegation code
+  gw_fieldcat-outputlen = '22'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 29.
+  gw_fieldcat-fieldname = gc_land1. "'LAND1'.
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-057. "'COUNTRY'. "COUNTRY
+  gw_fieldcat-outputlen = '22'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+  gw_fieldcat-col_pos  = 30.
+  gw_fieldcat-fieldname = gc_labccode. "'LABCCODE'.
+  gw_fieldcat-tabname = gc_final. "'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-058. " 'Labelled customer code'. "Labelled customer code
+  gw_fieldcat-outputlen = '22'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+  gw_fieldcat-col_pos = 32.
+  gw_fieldcat-fieldname = gc_vatno. "'VATNO'.
+  gw_fieldcat-tabname = gc_final." 'GT_FINAL'.
+  gw_fieldcat-seltext_m = text-060. "'VAT number'. "Azkar delegation code
+  gw_fieldcat-outputlen = '18'.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+
+
+
+  DATA : gv_repid1 TYPE sy-repid.
+
+  gv_repid1 = sy-repid.
+
+
+* --- Calling FM to displau data in ALV Grid
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = gv_repid1
+      it_fieldcat        = gt_fieldcat[]
+    TABLES
+      t_outtab           = gt_final[]
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+    MESSAGE text-028 TYPE 'I'.
+  ENDIF.
+
+
+
+ENDFORM.                    " F_DISPLAY1
+*&---------------------------------------------------------------------*
+*&      Form  SUB_FILENAME
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM sub_filename .
+
+
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      field_name = 'p_tfile'
+    IMPORTING
+      file_name  = p_tfile.
+
+
+ENDFORM.                    " SUB_FILENAME
+*&---------------------------------------------------------------------*
+*&      Form  F_GETDATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_getdata .
+
+* *  To get all deliveries for  goods issue posting date .
+*   perform f_get_likp.
+*----------------------------------------------------------*
+*    LIKP
+*----------------------------------------------------------*
+
+  SELECT vbeln    " Delivery
+         inco1  " Incoterms (Part 1)
+         kunnr  " Ship-to party
+         btgew  " Total Weight
+         ntgew  "	Net weight
+         anzpk  "Total number of packages in delivery
+         waerk   " SD Currency
+         lifnr  "	Vendor Account Number
+       wadat_ist  "	Actual Goods Movement Date
+         FROM likp
+         INTO TABLE gt_likp
+         WHERE vbeln IN s_vbeln AND
+                vstel IN s_vstel AND
+                vkorg EQ p_vkorg AND
+                lfart IN ('LF', 'NL', 'NLCC') AND
+            wadat_ist IN r_wadat_ist.
+
+
+* Final Table
+  IF gt_likp IS NOT INITIAL.
+
+    SORT gt_likp BY vbeln.
+
+    SELECT kunnr   "Cust No
+           land1   "Country
+           name1   "Name 1
+           ort01   "City
+           pstlz   " Postal Code
+           stras   "House number and street
+           stceg   "VAT Registration Number
+           FROM kna1
+           INTO TABLE gt_kna1
+           FOR ALL ENTRIES IN gt_likp
+           WHERE kunnr EQ gt_likp-kunnr.
+
+    SELECT  vbeln   " Delivery
+            werks  "    Plant
+            vtweg   " Distribution Channel
+            FROM lips
+            INTO TABLE gt_lips
+            FOR ALL ENTRIES IN gt_likp
+            WHERE vbeln EQ gt_likp-vbeln.
+
+
+    IF sy-subrc = 0.
+
+      SORT gt_lips BY vbeln.
+
+      LOOP AT gt_lips INTO gw_lips.
+        READ TABLE gt_likp INTO gw_likp WITH KEY vbeln = gw_lips-vbeln. " Sales Ord No
+
+        IF sy-subrc = 0.
+          wa_likp-vbeln  =  gw_likp-vbeln.  " Delivery
+          wa_likp-inco1  = gw_likp-inco1. " Incoterms (Part 1)
+          wa_likp-kunnr  = gw_likp-kunnr. " Ship-to party
+          wa_likp-btgew  = gw_likp-btgew . " Total Weight
+          wa_likp-ntgew  = gw_likp-ntgew. "  Net weight
+          wa_likp-anzpk  = gw_likp-anzpk.     "Total number of packages in delivery
+          wa_likp-lifnr =  gw_likp-lifnr.     " Vendor Account Number
+          wa_likp-wadat_ist = gw_likp-wadat_ist. " Actual Goods Movement Date
+          wa_likp-vtweg = gw_lips-vtweg.  " Distribution Channel
+
+          APPEND wa_likp TO i_likp.
+          CLEAR wa_likp.
+        ENDIF. " Sy-subrc
+      ENDLOOP.
+
+      SELECT werks "  Plant
+             name1 "  Sender
+             stras "  Sender address
+             pstlz "  Sender zip
+             ort01 "  Sender City
+             FROM t001w
+             INTO TABLE gt_t001w
+             FOR ALL ENTRIES IN gt_lips
+             WHERE werks EQ  gt_lips-werks.
+
+
+    ENDIF.
+
+    SELECT tknum    "  Shipment Number
+           vbeln    "  Delivery
+           FROM vttp
+           INTO TABLE gt_vttp
+           FOR ALL ENTRIES IN gt_likp
+           WHERE vbeln EQ gt_likp-vbeln.
+
+    IF gt_vttp IS NOT INITIAL.
+
+      SORT gt_vttp BY tknum.
+
+      SELECT tknum   " 	Shipment Number
+             erdat   "  Date on Which Record Was Created
+             FROM vttk
+             INTO TABLE gt_vttk
+             FOR ALL ENTRIES IN gt_vttp
+             WHERE tknum EQ gt_vttp-tknum.
+
+    ENDIF. " GT_VTTP
+
+  ENDIF. " GT_LIKP
+
+
+  IF i_likp IS NOT INITIAL.
+    SORT i_likp BY vbeln.
+    DELETE ADJACENT DUPLICATES FROM i_likp COMPARING vbeln.
+
+    SELECT vbeln
+           FROM vbuk
+           INTO TABLE gt_vbuk
+           FOR ALL ENTRIES IN i_likp
+           WHERE vbeln EQ i_likp-vbeln. " and
+*              wbstk eq 'C'.
+
+    SORT gt_vbuk BY vbeln.
+
+    IF gt_vbuk IS NOT INITIAL.
+      LOOP AT i_likp INTO wa_likp.
+        READ TABLE gt_vbuk INTO gw_vbuk WITH KEY vbeln = wa_likp-vbeln.
+        IF sy-subrc = 0.
+          wa_vbuk-vbeln = gw_vbuk-vbeln.
+          wa_vbuk-kunnr = wa_likp-kunnr.
+          wa_vbuk-wbstk = 'C'.
+          APPEND wa_vbuk TO i_vbuk.
+          CLEAR wa_vbuk.
+        ENDIF. " Sy-subrc
+      ENDLOOP.
+    ENDIF.  " GT_VBUK
+  ENDIF. " I_LIKP
+
+*------------------------------------------------------*
+*  Perform GET_VBPA
+*------------------------------------------------------*
+
+  IF i_vbuk IS NOT INITIAL.
+    IF sy-langu = 'S'.
+      v_parvw1 = 'TR'.
+    ENDIF.
+
+    CALL FUNCTION 'CONVERSION_EXIT_PARVW_INPUT'
+      EXPORTING
+        input  = v_parvw1
+      IMPORTING
+        output = v_parvw
+      EXCEPTIONS
+        OTHERS = 1.
+
+
+  ENDIF.
+
+
+  IF p_noship = ' '.
+
+    SELECT vbeln
+           posnr
+           lifnr
+           FROM vbpa
+           INTO TABLE gt_vbpa
+           FOR ALL ENTRIES IN i_vbuk
+           WHERE vbeln EQ i_vbuk-vbeln AND
+*                 parvw = v_parvw  AND
+                lifnr IN s_lifnr.
+
+    IF sy-subrc = 0.
+      SORT gt_vbpa BY vbeln.
+    ENDIF.
+
+    LOOP AT i_vbuk INTO wa_vbuk.
+
+      READ TABLE gt_vbpa INTO gw_vbpa WITH KEY vbeln = wa_vbuk-vbeln.
+
+      IF sy-subrc = 0.
+
+        wa_vbpa-vbeln =  gw_vbpa-vbeln.
+        wa_vbpa-posnr =  gw_vbpa-posnr.
+        wa_vbpa-lifnr =  gw_vbpa-lifnr.
+        wa_vbpa-kunnr =  wa_vbuk-kunnr.
+
+        APPEND wa_vbpa TO i_vbpa.
+        CLEAR wa_vbpa.
+      ENDIF.
+
+    ENDLOOP.
+
+  ELSEIF p_noship NE ' '.
+
+
+    SELECT vbeln
+           posnr
+           lifnr
+           FROM vbpa
+           INTO TABLE gt_vbpa
+           FOR ALL ENTRIES IN i_vbuk
+           WHERE vbeln EQ i_vbuk-vbeln AND
+                 parvw = v_parvw.
+
+    SORT gt_vbpa BY vbeln.
+    LOOP AT i_vbuk INTO wa_vbuk.
+
+      READ TABLE gt_vbpa INTO gw_vbpa WITH KEY vbeln = wa_vbuk-vbeln.
+
+      IF sy-subrc = 0.
+
+        wa_vbpa-vbeln =  gw_vbpa-vbeln.
+        wa_vbpa-posnr =  gw_vbpa-posnr.
+        wa_vbpa-lifnr =  gw_vbpa-lifnr.
+        wa_vbpa-kunnr =  wa_vbuk-kunnr.
+
+        APPEND wa_vbpa TO i_vbpa.
+        CLEAR wa_vbpa.
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDIF.
+
+*---------------------------------------------------*
+****Perform GT_KNA1
+*--------------------------------------------------*
+
+  IF i_vbpa IS NOT INITIAL.
+
+
+    SELECT kunnr
+           name1
+           stras
+           pstlz
+           ort01
+           FROM kna1
+           INTO TABLE i_kna1
+           FOR ALL ENTRIES IN i_vbpa
+           WHERE kunnr EQ i_vbpa-kunnr.
+
+
+  ENDIF. " I_VBPA
+
+*----------------------------------------------------------*
+* Perform GET_VBFA
+*-----------------------------------------------------------*
+
+  IF NOT i_vbpa IS INITIAL.
+
+    SELECT vbelv
+           vbeln
+           vbtyp_n
+           FROM vbfa
+           INTO TABLE i_vbfa
+           FOR ALL ENTRIES IN i_vbpa
+            WHERE vbelv EQ i_vbpa-vbeln AND
+                  vbtyp_n = '8'.
+
+    SELECT vbelv
+           vbeln
+           vbtyp_n
+           erdat
+           erzet
+           FROM vbfa
+           INTO TABLE i_vbfa_time
+           FOR ALL ENTRIES IN i_vbpa
+           WHERE vbelv EQ i_vbpa-vbeln AND
+                 vbtyp_n = 'R' AND
+                 erdat IN r_wadat_ist.
+
+
+    IF sy-subrc = 0.
+
+      LOOP AT i_vbfa_time INTO wa_vbfa_time.
+
+        CONCATENATE wa_vbfa_time-erdat wa_vbfa_time-erzet INTO v1_tstlo.
+
+        IF v1_tstlo LT v_ftstlo OR v1_tstlo GT v_ttstlo.
+          DELETE  i_vbfa_time.
+        ENDIF.
+
+      ENDLOOP.
+
+    ENDIF.
+
+
+  ENDIF.
+
+
+*---------------------------------------------------------*
+* Perform Get VEKP
+*---------------------------------------------------------*
+
+  IF i_vbfa IS NOT INITIAL.
+
+    LOOP AT i_vbfa INTO wa_vbfa.
+      wa_vbfa1-vbeln = wa_vbfa-vbeln.
+
+      CONDENSE wa_vbfa1-vbeln.
+      APPEND wa_vbfa1 TO i_vbfa1.
+      CLEAR wa_vbfa1.
+    ENDLOOP.
+
+    SORT i_vbfa1 BY vbeln.
+    DELETE ADJACENT DUPLICATES FROM i_vbfa1.
+
+*
+*delete adjacent duplicates from I_VBFA1.
+*
+*SORT I_VBFA1 by vbeln.
+
+    SELECT venum
+           exidv   "External Handling Unit Identification
+           brgew
+           ntgew   " Loading Weight of Handling Unit
+           btvol   " Total Volume of Handling Unit
+           vpobj   "Packing Object
+           vpobjkey
+           FROM vekp
+           INTO TABLE i_vekp
+           FOR ALL ENTRIES IN i_vbfa1
+           WHERE vpobjkey EQ i_vbfa1-vbeln AND
+                vpobj = '04'.
+    SORT i_vekp BY vpobjkey.
+    CLEAR : v_index, v_brgew.
+
+    LOOP AT i_vekp INTO wa_vekp.
+
+      gw_vekp_temp-vpobjkey  = wa_vekp-vpobjkey.  "Key for Object to Which the Handling Unit is Assigned
+      gw_vekp_temp-venum = wa_vekp-venum.  "Internal Handling Unit Number
+      gw_vekp_temp-exidv = wa_vekp-exidv.  " External Handling Unit Identification
+      gw_vekp_temp-brgew = wa_vekp-brgew.  "Total Weight of Handling Unit
+      gw_vekp_temp-ntgew  = wa_vekp-ntgew.  "Loading Weight of Handling Unit
+      gw_vekp_temp-btvol = wa_vekp-btvol.  "Total Volume of Handling Unit
+      gw_vekp_temp-vpobj = wa_vekp-vpobj.   " Packing Object
+
+      APPEND gw_vekp_temp TO gt_vekp_temp.
+    ENDLOOP.
+
+
+    CLEAR : lv_ntgew,
+            lv_exidv,
+            lv_btvol,
+            lv_brgew.
+
+    LOOP AT gt_vekp_temp INTO gw_vekp_temp.
+
+      gw_vekp_t = gw_vekp_temp.
+
+      AT NEW vpobjkey.
+        CLEAR : lv_ntgew,
+                lv_exidv,
+                lv_btvol,
+                lv_brgew.
+        wa_vekp1-venum =  gw_vekp_t-venum.
+      ENDAT.
+
+      lv_ntgew = lv_ntgew + gw_vekp_t-ntgew.  " Loading Wt of Handling Unit
+
+      IF  gw_vekp_t-exidv IS NOT INITIAL.
+        lv_exidv = lv_exidv + lc_hand. "GW_VEKP_T-EXIDV.  " External Handling Unit Identification
+      ENDIF.
+
+      lv_btvol = lv_btvol + gw_vekp_t-btvol.  " Total Vol of Handling Unit
+      lv_brgew = lv_brgew + gw_vekp_t-brgew. " Tot Wt of Handling Unit
+
+      AT END OF vpobjkey.
+
+        wa_vekp1-vpobjkey = gw_vekp_t-vpobjkey.
+
+        gw_vekp_t-ntgew = lv_ntgew.
+        gw_vekp_t-exidv = lv_exidv.
+        gw_vekp_t-btvol = lv_btvol.
+        gw_vekp_t-brgew = lv_brgew.
+
+        APPEND gw_vekp_t TO gt_vekp_t.
+        CLEAR gw_vekp_t.
+
+      ENDAT.
+
+    ENDLOOP.
+
+
+  ENDIF.
+
+  SORT gt_lips BY vbeln.
+  SORT gt_likp BY vbeln.
+
+  DELETE ADJACENT DUPLICATES FROM gt_vttp COMPARING tknum.
+ENDFORM.                    " F_GETDATA
+*&---------------------------------------------------------------------*
+*&      Form  F_FILEDOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_filedownload .
+
+
+  CONSTANTS : gc_tknum(15) TYPE c VALUE 'SHIPMENT NUMBER',
+              gc_azkcno(19) TYPE c VALUE 'AZKAR CUSTOMER CODE',
+              gc_werks(20) TYPE c VALUE 'SENDER PLANT DETAILS',
+              gc_name(4) TYPE c VALUE 'NAME',
+              gc_stras(14) TYPE c VALUE 'SENDER ADDRESS',
+              gc_pstlz(10) TYPE c VALUE 'SENDER ZIP',
+              gc_ort01(11) TYPE c VALUE 'SENDER CITY',
+              gc_shipnm(12) TYPE c VALUE 'SHIP TO NAME',
+              gc_shpstret(14) TYPE c VALUE 'SHIP TO STREET',
+              gc_shpzip(15) TYPE c VALUE 'SHIP TO ZIPCODE',
+              gc_shpcity(12) TYPE c VALUE 'SHIP TO CITY',
+              gc_shipunit(20) TYPE c VALUE 'NO OF SHIPPING UNITS',
+              gc_totwt(12) TYPE c VALUE 'TOTAL WEIGHT',
+              gc_totvol(12) TYPE c VALUE 'TOTAL VOLUME',
+              gc_tothu(30) TYPE c VALUE 'TOTAL WEIGHT OF HANDLING UNIT',
+              gc_poorts(10) TYPE c VALUE 'PORTS TYPE',
+              gc_reexp(13) TYPE c VALUE 'RE-EXPEDITION',
+              gc_destpay(12) TYPE c VALUE 'DEST PAYMENT',
+              gc_commission(9) TYPE c VALUE 'COMMISION',
+              gc_shpdate(13) TYPE c VALUE 'SHIPMENT DATE',
+              gc_comm(8) TYPE c VALUE 'COMMENTS',
+              gc_pack(13) TYPE c VALUE 'PACKAGE TYPES',
+              gc_shpref(18) TYPE c VALUE 'SHIP TO REFERENCE',
+              gc_currency(8) TYPE c VALUE 'CURRENCY',
+              gc_gvi(25) TYPE c VALUE 'GOODS VALUE FOR INSURANCE',
+              gc_fixcomm(12) TYPE c VALUE 'FIX COMMENTS',
+              gc_azkdeleg(16) TYPE c VALUE 'AZKAR DELEGATION',
+              gc_country(7) TYPE c VALUE 'COUNTRY',
+              gc_labcode(15) TYPE c VALUE 'ICC LABOUR CODE',
+              gc_labno(10) TYPE c VALUE 'LAB NUMBER',
+              gc_vatno(5) TYPE c VALUE 'VATNO'.
+
+
+
+
+*Internal Table XLS File Header
+  TYPES : BEGIN OF ty_head,
+            field(30) TYPE c,
+         END OF ty_head.
+
+  DATA : gt_head TYPE STANDARD TABLE OF ty_head,
+         gw_head TYPE ty_head.
+
+
+  gw_head-field = gc_tknum.       " SHIPMENT NUMBER
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_azkcno.     " AZKAR CUSTOMER CODE
+  APPEND gw_head TO gt_head.
+
+  gw_head-field =  gc_werks.     " SENDER PLANT DETAILS
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_name.       " NAME
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_stras.     " SENDER ADDRESS
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_pstlz.    "  SENDER ZIP
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_ort01.    " 'SENDER CITY
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_shipnm.   " SHIP TO NAME
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_shpstret. " SHIP TO STREET
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_shpzip.   "SHIP TO ZIPCODE
+  APPEND gw_head TO gt_head.
+
+*--
+  gw_head-field = gc_shpcity.   "SHIP TO CITY
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_shipunit.   "NO OF SHIPPING UNITS
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_totwt.   "TOTAL WEIGHT
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_totvol.   "TOTAL VOLUME
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_tothu.   "TOTAL WEIGHT OF HANDLING UNIT
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_poorts.   "PORTS TYPE
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_reexp.   "RE-EXPEDITION
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_destpay.   "DEST PAYMENT
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_commission.   "COMMISION
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_shpdate.   "SHIPMENT DATE
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_comm.   "COMMENTS
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_pack.   "PACKAGE TYPES
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_shpref.   "SHIP TO REFERENCE
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_currency.   "CURRENCY
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_gvi.   "GOODS VALUE FOR INSURANCE
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_fixcomm.   "FIX COMMENTS
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_azkdeleg.   "AZKAR DELEGATION
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_country.   "COUNTRY
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_labcode.   "ICC LABOUR CODE
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_labno.   "LAB NUMBER
+  APPEND gw_head TO gt_head.
+
+  gw_head-field = gc_vatno.   "VATNO
+  APPEND gw_head TO gt_head.
+
+
+  LOOP AT gt_final INTO gw_final..
+
+    gw_download-tknum = gw_final-tknum. "      "Shipment number
+    gw_download-azkcno = gw_final-azkcno. "     "Azkar customer code
+    gw_download-werks = gw_final-werks. " " Sender  Plant details
+    gw_download-name = gw_final-name.    "Name
+    gw_download-stras = gw_final-stras.    "Sender address
+    gw_download-pstlz = gw_final-pstlz.    " Sender zip
+    gw_download-ort01 = gw_final-ort01.    " Sender City
+    gw_download-shpname = gw_final-shpname.  " Ship to name
+    gw_download-shpstret = gw_final-shpstret. " Ship to street  KNA1-STRAS
+    gw_download-shpzip = gw_final-shpzip.   " ZIP code  KNA1-PSTLZ
+    gw_download-shpcity = gw_final-shpcity.  " Ship to city  KNA1-ORT01
+    gw_download-shipunit = gw_final-shipunit. " # of shipping units  VEKP-EXIDV
+    gw_download-totwt = gw_final-totwt.    " Total weight
+    gw_download-totvol = gw_final-totvol.  " Total volume  VEKP-BTVOL
+    gw_download-tothu = gw_final-tothu.   " Total Weight of Handling Unit
+    gw_download-poorts = gw_final-poorts. " Ports type  1- Hardcoded
+    gw_download-reexp = gw_final-reexp.    " Re-expedition  o(Zero) By Default
+    gw_download-destpay = gw_final-destpay. " Dest payment  o(Zero) By Default
+    gw_download-commission = gw_final-commission.  " Commission	o(Zero) By Default
+    gw_download-shpdate = gw_final-shpdate. "ERDAT,         " Shipment date	VTTK-ERDAT
+    gw_download-comm = gw_final-comm.      " Comments	Default all blank
+    gw_download-package = gw_final-package. " Package types  Default all blank
+    gw_download-shpref = gw_final-shpref.     " Ship to reference	Default all blank
+    gw_download-currency = gw_final-currency. "  Currency  LIKP-WAERK
+    gw_download-gvi = gw_final-gvi.         "  Goods value for insurance  o(Zero) By Default
+    gw_download-fixcomm = gw_final-fixcomm. "  Fix comments  Default all blank
+    gw_download-azkdeleg = gw_final-azkdeleg.  " Default all blank
+    gw_download-country = gw_final-country.    " Country
+    gw_download-labccode = gw_final-labccode.  " (ICC)  Always - 6348 (Hardcoded)
+    gw_download-labnumber = gw_final-labnumber. "  Default all blank
+    gw_download-vatno  = gw_final-vatno.       " VAT number  KNA1-STCEG
+
+
+    APPEND gw_download TO gt_download.
+    CLEAR gw_download.
+
+  ENDLOOP.
+
+  gv_file = p_tfile.
+
+*Begin of Modification 502225518 - TR # DE3K926485 - CR #  CHG0479095 -06/28/2014.
+  DATA : file TYPE string.
+  file = p_tfile.
+
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+*   BIN_FILESIZE                    =
+      filename                        = file
+     filetype                        = 'DAT'
+     show_transfer_status            = 'X'
+* IMPORTING
+*   FILELENGTH                      =
+    TABLES
+      data_tab                        = gt_download
+      fieldnames                      =  gt_head
+   EXCEPTIONS
+     file_write_error                = 1
+     no_batch                        = 2
+     gui_refuse_filetransfer         = 3
+     invalid_type                    = 4
+     no_authority                    = 5
+     unknown_error                   = 6
+     header_not_allowed              = 7
+     separator_not_allowed           = 8
+     filesize_not_allowed            = 9
+     header_too_long                 = 10
+     dp_error_create                 = 11
+     dp_error_send                   = 12
+     dp_error_write                  = 13
+     unknown_dp_error                = 14
+     access_denied                   = 15
+     dp_out_of_memory                = 16
+     disk_full                       = 17
+     dp_timeout                      = 18
+     file_not_found                  = 19
+     dataprovider_exception          = 20
+     control_flush_error             = 21
+     OTHERS                          = 22
+            .
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+
+
+*
+*  CALL FUNCTION 'EXCEL_OLE_STANDARD_DAT'
+*    EXPORTING
+*      file_name                 = p_tfile
+*      data_sheet_name           = ' '
+*    TABLES
+*      data_tab                  = gt_download
+*      fieldnames                = gt_head
+*    EXCEPTIONS
+*      file_not_exist            = 1
+*      filename_expected         = 2
+*      communication_error       = 3
+*      ole_object_method_error   = 4
+*      ole_object_property_error = 5
+*      invalid_pivot_fields      = 6
+*      download_problem          = 7
+*      OTHERS                    = 8.
+*  IF sy-subrc <> 0.
+*    MESSAGE text-315 TYPE 'I'. "* Implement suitable error handling here
+*  ENDIF.
+
+*End of Modification 502225518 - TR # DE3K926485 - CR #  CHG0479095 -06/28/2014.
+
+ENDFORM.                    " F_FILEDOWNLOAD
+

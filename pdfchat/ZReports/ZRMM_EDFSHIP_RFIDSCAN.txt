@@ -1,0 +1,1838 @@
+*&---------------------------------------------------------------------*
+*& Report  ZTMM_EDFSHIP_RFIDSCAN
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+*** Created by            : Abhishek Khandelwal (502412886)
+***                         Shashiprabha Shetty (502565482)
+*** Creation Date         : 18/07/2016
+*** Transport Request #   : DE3K973169
+*** RICEF Object No #     : RICEF1752
+*** Change request No     : CHG2219524
+*** Transaction code      : ZMM733N
+*** Description           : The program has screen interface for creating
+*                           Shipment which could be opened through RFID Scanner PDA.
+*                           The program has 5 screens for scanning delivery, Packaging
+*                           Material, 2D barcode SSCC Label, display scanned data,
+*                           display create shipment log. The program calls
+*                           BAPI_CREATE_SHIPMENT to create Shipment and store
+*                           the label data to table ZTMM_EDF_LABEL and
+*                           update existing tables ZTMM_EDFSHIP, ZTMM_EDFLABEL.
+*                           This program is called through tcode ZMM733N which is called
+*                           through ITS service and hence can be opened
+*                           on RFID Scanner PDA through generated url.
+*****************************************************************************************
+*** Changed by            : Abhishek Khandelwal (502412886)
+*** Changes Date          : 23/09/2016
+*** Transport Request #   : DE3K974439
+*** RICEF Object No #     : RICEF1752
+*** Change request No     : CHG2219524
+*** Transaction code      : ZMM733N
+*** Description           : Changes done for 2d barcode Label scanning screen '9210'
+*                           to accomodate and acknowlege xml end tags. Also changes done
+*                           to segregate individual xml tag inforation in separate line
+*                           of internal table , if different xml tags are coming in same line.
+*****************************************************************************************
+
+REPORT  zrmm_edfship_rfidscan.
+
+INCLUDE znmm_edfship_rfidscan_top.
+
+" container to which control is linked
+* necessary to flush the automation queue
+CLASS cl_gui_cfw DEFINITION LOAD.
+
+CALL FUNCTION 'AUTHORITY_CHECK_TCODE'
+  EXPORTING
+    tcode  = 'ZMM733N'
+  EXCEPTIONS
+    ok     = 1
+    not_ok = 2
+    OTHERS = 3.
+IF sy-subrc NE c_tabix_1.
+* Implement suitable error handling here
+  CALL SCREEN '9195'.
+  EXIT.
+ENDIF.
+
+PERFORM clear_all_tables.
+CALL SCREEN '9200'.
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_9195  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_9195 OUTPUT.
+  SET PF-STATUS 'MAIN1'.
+  SET TITLEBAR 'EDF'.
+  MESSAGE 'You are not authorized to access this transaction.'(040)
+  TYPE 'E' DISPLAY LIKE 'I'.
+ENDMODULE.                 " STATUS_9195  OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_9200  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_9200 OUTPUT.
+  SET TITLEBAR 'EDF'.
+  SET PF-STATUS 'MAIN1'.
+
+  IF g_editor1 IS INITIAL.
+
+*   create control container
+    CREATE OBJECT g_editor_container1
+      EXPORTING
+        container_name              = 'TEXTEDITOR1'
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5.
+    IF sy-subrc NE 0.
+*      add your handling
+    ENDIF.
+    g_mycontainer1 = 'TEXTEDITOR1'.
+
+*   create calls constructor, which initializes, creats and links
+*   TextEdit Control
+    CREATE OBJECT g_editor1
+          EXPORTING
+           parent = g_editor_container1
+           wordwrap_mode =
+*             cl_gui_textedit=>wordwrap_off
+              cl_gui_textedit=>wordwrap_at_fixed_position
+*             cl_gui_textedit=>WORDWRAP_AT_WINDOWBORDER
+           wordwrap_position = c_line_length
+           wordwrap_to_linebreak_mode = cl_gui_textedit=>true.
+
+*   to handle different containers
+    g_container_linked1 = 1.
+    REFRESH it_delv_editor.  " to initialize table upon OK_CODE 'BACK' at PAI
+  ENDIF.
+
+*To fill the Editor Control with data from internal table
+  CALL METHOD g_editor1->set_text_as_r3table
+    EXPORTING
+      table = it_delv_editor.      " Internal Table
+
+*To disable the input entry to Text-Editor
+  CALL METHOD g_editor1->set_readonly_mode
+    EXPORTING
+      readonly_mode          = '1'
+    EXCEPTIONS
+      error_cntl_call_method = 1
+      invalid_parameter      = 2
+      OTHERS                 = 3.
+
+
+  IF g_relink1 NE space.
+*     relink control
+    CALL METHOD g_editor_container1->link
+      EXPORTING
+        repid     = g_repid
+        container = g_mycontainer1.
+
+    CALL METHOD g_editor1->set_toolbar_mode
+      EXPORTING
+        toolbar_mode = cl_gui_textedit=>false.
+    CALL METHOD g_editor1->set_statusbar_mode
+      EXPORTING
+        statusbar_mode = cl_gui_textedit=>false.
+
+    IF sy-subrc <> 0.
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+    ENDIF.
+
+*     reset relinking flag
+    g_relink1 = space.
+  ENDIF.
+
+ENDMODULE.                 " STATUS_9200  OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_9200  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_9200 INPUT.
+
+
+  DATA: l_tknum      TYPE tknum.
+
+  CASE g_ok_code1.
+
+    WHEN 'CLR'.
+*When Clear button is pressed, clearing scanned delivery
+      CLEAR g_delivery.
+
+    WHEN 'RST'.
+*When Restart Button is pressed clearing all
+      PERFORM restart_clear.
+
+    WHEN 'PCK'.
+*When Packaging Material screen button is pressed
+      CLEAR: it_delv_editor.
+      CALL METHOD g_editor1->get_text_as_r3table
+        IMPORTING
+          table = it_delv_editor.
+      CALL SCREEN '9205'.
+
+    WHEN 'DEL'.
+      CLEAR g_shipment.
+      CALL SCREEN '9225'.
+
+    WHEN 'SUB'.
+*When ok button is pressed on Screen
+
+*For blank scan
+      IF g_delivery IS INITIAL.
+        MESSAGE 'Delivery Scanned is blank'(001) TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ENDIF.
+
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = g_delivery
+        IMPORTING
+          output = g_delivery.
+
+*Checking if the delivery is already scanned
+      CLEAR: wa_zmm_delv_scan.
+      READ TABLE it_zmm_delv_scan INTO wa_zmm_delv_scan
+      WITH KEY vbeln = g_delivery.
+      IF sy-subrc IS INITIAL.
+        CLEAR: g_message.
+        CONCATENATE 'Delivery'(002) g_delivery 'already scanned'(003)
+        INTO g_message SEPARATED BY space.
+        MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ENDIF.
+
+* retrving data from likp table for scanned delivery on screen
+      CLEAR: wa_likp.
+      SELECT SINGLE vbeln
+             vstel FROM likp INTO wa_likp
+                   WHERE vbeln = g_delivery.
+      IF sy-subrc EQ 0.
+*Checking if Shipment already created for the delivery
+        CLEAR: l_tknum.
+        SELECT SINGLE tknum FROM vttp INTO l_tknum
+          WHERE vbeln = g_delivery.
+        IF sy-subrc EQ 0.
+          CLEAR: g_message.
+          CONCATENATE 'Shipment already completed for this delivery'(004)
+          g_delivery INTO g_message SEPARATED BY space.
+          MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+*Checking if any delivery is of different shipping point
+        CLEAR: g_diff_vstel.
+        IF it_likp IS NOT INITIAL.
+          LOOP AT it_likp INTO wa_likp1.
+            IF wa_likp-vstel NE wa_likp1-vstel.
+              g_diff_vstel = c_x.
+              EXIT.
+            ENDIF.
+          ENDLOOP.
+        ENDIF.
+
+        IF g_diff_vstel = c_x.
+*If any of the scanned delivery has different shipping point
+          CLEAR: g_message.
+          CONCATENATE 'Scanned delivery'(005) g_delivery
+          'is of different shipping point'(006)
+          INTO g_message SEPARATED BY space.
+          MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+          EXIT.
+        ELSE.
+          APPEND wa_likp TO it_likp.
+        ENDIF.
+
+*Checking if delivery already has complete status
+        CLEAR: wa_vbuk.
+        SELECT SINGLE vbeln lfgsk INTO wa_vbuk FROM vbuk
+          WHERE vbeln EQ g_delivery
+            AND lfgsk EQ 'C'.
+
+        IF sy-subrc IS INITIAL.
+          MESSAGE 'Delivery already has completed status C'(007)
+          TYPE 'I' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+*Selecting ship to party data for the delivery from vbpa
+        CLEAR: wa_vbpa.
+        SELECT SINGLE vbeln kunnr FROM vbpa INTO wa_vbpa
+          WHERE vbeln = g_delivery
+           AND  parvw = c_we.
+        IF sy-subrc IS INITIAL.
+          CLEAR: g_ship_diff.
+          IF wa_vbpa-kunnr IS NOT INITIAL.
+            IF it_zmm_delv_scan[] IS NOT INITIAL.
+              LOOP AT it_zmm_delv_scan INTO wa_zmm_delv_scan.
+                IF wa_zmm_delv_scan-kunnr NE wa_vbpa-kunnr.
+                  g_ship_diff = c_x.
+                  EXIT.
+                ENDIF.
+              ENDLOOP.
+            ENDIF.
+
+            IF g_ship_diff = c_x.
+*If any of the scanned delivery has different ship to party
+              CLEAR: g_message.
+              CONCATENATE 'Scanned delivey'(008) g_delivery
+              'is of different ship to party'(009)
+              INTO g_message SEPARATED BY space.
+              MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+              RETURN.
+            ENDIF.
+
+*Selecting the lips data for the scanned delivery
+            CLEAR: it_lips.
+            SELECT vbeln posnr matnr lfimg FROM lips INTO TABLE it_lips
+              WHERE vbeln = g_delivery .
+            IF sy-subrc = 0.
+              SORT it_lips BY matnr.
+            ENDIF.
+
+*Appending the data to internal table it_zmm_delv_scan
+            LOOP AT it_lips INTO wa_lips.
+              CLEAR: wa_zmm_delv_scan.
+              wa_zmm_delv_scan-vbeln = wa_lips-vbeln.
+              wa_zmm_delv_scan-posnr = wa_lips-posnr.
+              wa_zmm_delv_scan-kunnr = wa_vbpa-kunnr.
+              wa_zmm_delv_scan-matnr = wa_lips-matnr.
+              wa_zmm_delv_scan-lfimg = wa_lips-lfimg.
+              APPEND wa_zmm_delv_scan TO it_zmm_delv_scan.
+            ENDLOOP.
+
+            CLEAR: wa_table_editor.
+            wa_table_editor = g_delivery.
+
+            APPEND wa_table_editor TO it_delv_editor.
+
+*Appending delivery data to the Editor screen.
+* call method editor->set_text_as_stream
+            CALL METHOD g_editor1->set_text_as_r3table
+              EXPORTING
+                table = it_delv_editor.      " Internal Table
+
+            CLEAR: g_delivery.
+          ELSE.
+            MESSAGE 'Ship to party is blank'(061)
+            TYPE 'S' DISPLAY LIKE 'E'.
+            RETURN.
+          ENDIF.
+        ELSE.
+          MESSAGE 'Ship to party data not found in table vbpa'(060)
+          TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+      ELSE.
+        MESSAGE 'Delivery does not exist in system'(010)
+        TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ENDIF.
+
+    WHEN 'BACK'.
+      LEAVE TO SCREEN 0.
+
+    WHEN OTHERS.
+      MESSAGE 'Function not valid'(011) TYPE 'I'.
+
+  ENDCASE.
+  CLEAR: g_ok_code1.
+
+ENDMODULE.                 " USER_COMMAND_9200  INPUT
+
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_9205  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_9205 OUTPUT.
+
+  SET TITLEBAR 'EDF'.
+  SET PF-STATUS 'MAIN1'.
+
+  IF g_trp_point IS INITIAL.
+    g_trp_point = c_huhe.
+  ENDIF.
+
+  IF g_editor2 IS INITIAL.
+
+*   create control container
+    CREATE OBJECT g_editor_container2
+      EXPORTING
+        container_name              = 'TEXTEDITOR2'
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5.
+    IF sy-subrc NE 0.
+*      add your handling
+    ENDIF.
+    g_mycontainer2 = 'TEXTEDITOR2'.
+
+*   create calls constructor, which initializes, creats and links
+*   TextEdit Control
+    CREATE OBJECT g_editor2
+          EXPORTING
+           parent = g_editor_container2
+           wordwrap_mode =
+*             cl_gui_textedit=>wordwrap_off
+              cl_gui_textedit=>wordwrap_at_fixed_position
+*             cl_gui_textedit=>WORDWRAP_AT_WINDOWBORDER
+           wordwrap_position = c_line_length
+           wordwrap_to_linebreak_mode = cl_gui_textedit=>true.
+
+*   to handle different containers
+    g_container_linked2 = 1.
+    REFRESH it_pack_editor.  " to initialize table upon OK_CODE 'BACK' at PAI
+  ENDIF.
+
+*To disable the input entry to Text-Editor
+  CALL METHOD g_editor2->set_readonly_mode
+    EXPORTING
+      readonly_mode          = '1'
+    EXCEPTIONS
+      error_cntl_call_method = 1
+      invalid_parameter      = 2
+      OTHERS                 = 3.
+
+*To fill the Editor Control with data already scanned from internal table
+* call method editor->set_text_as_stream
+  CALL METHOD g_editor2->set_text_as_r3table
+    EXPORTING
+      table = it_pack_editor.      " Internal Table
+
+  IF g_relink2 NE space.
+
+    CALL METHOD g_editor_container2->link
+      EXPORTING
+        repid     = g_repid
+        container = g_mycontainer2.
+
+    CALL METHOD g_editor2->set_toolbar_mode
+      EXPORTING
+        toolbar_mode = cl_gui_textedit=>false.
+    CALL METHOD g_editor2->set_statusbar_mode
+      EXPORTING
+        statusbar_mode = cl_gui_textedit=>false.
+
+*     reset relinking flag
+    g_relink2 = space.
+
+  ENDIF.
+
+ENDMODULE.                 " STATUS_9205  OUTPUT
+
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_9205  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_9205 INPUT.
+
+  CASE g_ok_code2.
+*When Serial Number button is pressed
+    WHEN 'LBL'.
+*Checking if Transportation planning point is not blank
+      IF g_trp_point IS INITIAL.
+        MESSAGE 'Enter Transportation planning point'(038)
+         TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ENDIF.
+
+*Checking if valid Transportation Planning point is entered on screen
+      CLEAR: g_tplst.
+      SELECT SINGLE tplst INTO g_tplst
+        FROM ttds
+        WHERE tplst = g_trp_point.
+      IF sy-subrc IS NOT INITIAL.
+        MESSAGE 'Please Enter a valid Transportation Plann. pt.'(039)
+         TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ENDIF.
+
+      CALL SCREEN '9210'.
+
+*When Delivery Button is pressed
+    WHEN 'DELV'.
+      CALL SCREEN '9200'.
+
+*When OK button is pressed
+    WHEN 'SUB'.
+      PERFORM get_material.
+
+*When Back button is pressed
+    WHEN 'BACK'.
+      CALL SCREEN '9200'.
+
+*When Clear button is pressed
+    WHEN 'CLR'.
+      CLEAR: g_hu, g_pmaterial.
+
+    WHEN OTHERS.
+  ENDCASE.
+  CLEAR: g_ok_code2.
+
+ENDMODULE.                 " USER_COMMAND_9205  INPUT
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_9210  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_9210 OUTPUT.
+
+  SET TITLEBAR  'EDF'.
+  SET PF-STATUS 'MAIN1'.
+
+  IF g_editor3 IS INITIAL.
+
+*   create control container
+    CREATE OBJECT g_editor_container3
+      EXPORTING
+        container_name              = 'TEXTEDITOR3'
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5.
+    IF sy-subrc NE 0.
+*      add your handling
+    ENDIF.
+    g_mycontainer3 = 'TEXTEDITOR3'.
+
+*   create calls constructor, which initializes, creats and links
+*   TextEdit Control
+    CREATE OBJECT g_editor3
+          EXPORTING
+           parent = g_editor_container3
+           wordwrap_mode =
+*             cl_gui_textedit=>wordwrap_off
+              cl_gui_textedit=>wordwrap_at_fixed_position
+*             cl_gui_textedit=>WORDWRAP_AT_WINDOWBORDER
+           wordwrap_position = c_line_length
+           wordwrap_to_linebreak_mode = cl_gui_textedit=>true.
+
+*   to handle different containers
+    g_container_linked3 = 1.
+
+    REFRESH it_label_editor.  " to initialize table upon OK_CODE 'BACK' at PAI
+
+  ENDIF.
+
+  IF g_relink3 NE space.
+*     relink control
+
+    CALL METHOD g_editor_container3->link
+      EXPORTING
+        repid     = g_repid
+        container = g_mycontainer3.
+
+    CALL METHOD g_editor3->set_toolbar_mode
+      EXPORTING
+        toolbar_mode = cl_gui_textedit=>false.
+    CALL METHOD g_editor3->set_statusbar_mode
+      EXPORTING
+        statusbar_mode = cl_gui_textedit=>false.
+
+*     reset relinking flag
+    g_relink3 = space.
+  ENDIF.
+
+ENDMODULE.                 " STATUS_9210  OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_9210  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_9210 INPUT.
+
+  CASE g_ok_code3.
+
+*When OK button is pressed after Scanning Label on Editor screen
+    WHEN 'SUB'.
+      CLEAR: wa_zlabel_scan.
+*If Hu for the scanned Label is not entered
+      IF g_hu1 IS INITIAL OR g_hu1 EQ c_000.
+        MESSAGE 'Enter HU for the Label'(017) TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ELSE.
+        CLEAR: wa_pack_matnr.
+        CONDENSE g_hu1.
+        SHIFT g_hu1 LEFT DELETING LEADING '0'.
+        READ TABLE it_pack_matnr INTO wa_pack_matnr
+        WITH KEY hu = g_hu1.
+        IF sy-subrc IS INITIAL.
+          wa_zlabel_scan-zvhilm = wa_pack_matnr-vhilm.
+          wa_zlabel_scan-zhu = g_hu1.
+        ELSE.
+*If Packaging Material is not scanned on previous screen for the above HU
+          CLEAR: g_message.
+          CONCATENATE 'Packaging material for HU'(018)
+          g_hu1 'is not scanned'(019)
+          INTO g_message SEPARATED BY space.
+          MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+      ENDIF.
+
+*Retrieving the Scanned Label data from Editor Screen.
+*   retrieve table from control
+      CLEAR: it_label_editor.
+      CALL METHOD g_editor3->get_text_as_r3table
+        IMPORTING
+          table = it_label_editor.
+
+      CALL METHOD cl_gui_cfw=>flush
+        EXCEPTIONS
+          OTHERS = 1.
+      IF sy-subrc NE 0.
+*       add your handling
+      ENDIF.
+
+*Deleting any blank lines in the Scanned Label data on Editor screen
+      LOOP AT it_label_editor INTO wa_label_editor.
+        IF wa_label_editor IS INITIAL.
+          DELETE it_label_editor INDEX sy-tabix.
+        ENDIF.
+      ENDLOOP.
+
+*If Scanned Label is Empty
+      IF it_label_editor[] IS INITIAL.
+        MESSAGE 'Scanned label is empty, scan label again'(020)
+        TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ELSE.
+
+        CLEAR: it_label_editor1[], wa_label_editor1,
+        g_string, g_string1, g_off, g_var.
+        LOOP AT it_label_editor INTO wa_label_editor.
+          IF sy-tabix  = c_tabix_1.
+            IF wa_label_editor CA c_geedf.
+              wa_label_editor1 = wa_label_editor(7).
+              APPEND wa_label_editor1 TO it_label_editor1.
+              wa_label_editor = wa_label_editor+7.
+              g_string = wa_label_editor+sy-fdpos.
+            ENDIF.
+          ELSE.
+            CONCATENATE g_string1 wa_label_editor INTO g_string.
+          ENDIF.
+
+          WHILE g_string CS c_slash.
+            g_off = sy-fdpos + 2.
+            g_var = g_string+g_off(5).
+            IF g_var CS c_sscc_a.
+              g_off = g_off + 5.
+            ELSEIF g_var CS c_ean_a.
+              g_off = g_off + 4.
+            ELSEIF g_var CS c_matnr_a.
+              g_off = g_off + 6.
+            ELSEIF g_var CS c_sn_a.
+              g_off = g_off + 3.
+            ELSEIF g_var CS c_geedf_a.
+              g_off = g_off + 6.
+            ENDIF.
+
+            wa_label_editor1 = g_string(g_off).
+            APPEND wa_label_editor1 TO it_label_editor1.
+            g_string = g_string+g_off.
+          ENDWHILE.
+
+          g_string1 = g_string.
+        ENDLOOP.
+
+        it_label_editor[] = it_label_editor1[].
+
+*Checking the Label Header
+        READ TABLE it_label_editor INTO wa_label_editor
+        INDEX c_tabix_1.
+        IF sy-subrc IS INITIAL.
+          IF wa_label_editor CS c_geedf.
+            g_flag1 = c_x.
+          ENDIF.
+        ENDIF.
+
+*Checking the Header Footer
+        CLEAR: g_lin.
+        DESCRIBE TABLE it_label_editor LINES g_lin.
+        READ TABLE it_label_editor INTO wa_label_editor INDEX g_lin.
+        IF sy-subrc IS INITIAL.
+          IF wa_label_editor CS c_geedf1.
+            g_flag2 = c_x.
+          ENDIF.
+        ENDIF.
+
+*If Header or Footer is missing in the Label
+        IF g_flag1 NE c_x OR g_flag2 NE c_x.
+          MESSAGE 'Improper label information'(021) TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+        CLEAR: g_snoqty.
+        LOOP AT it_label_editor INTO wa_label_editor.
+          CLEAR: g_flag1, g_flag2, g_out.
+          g_tabix = sy-tabix.
+
+*Checking the beginning position of '<' in the data lines of label
+          CLEAR: g_beg, g_end.
+          IF sy-tabix NE c_tabix_1 AND sy-tabix NE g_lin.
+            IF wa_label_editor CA c_lt.
+              g_beg = sy-fdpos.
+              g_flag1 = c_x.
+            ENDIF.
+
+*Checking the position of '>' in the data lines of label
+            IF wa_label_editor CA c_gt.
+              g_end = sy-fdpos.
+              g_flag2 = c_x.
+            ENDIF.
+          ENDIF.
+
+*If '<' or '>' is not present in the data lines of label
+          IF ( g_flag1 NE c_x OR g_flag2 NE c_x )
+            AND ( sy-tabix NE c_tabix_1 AND sy-tabix NE g_lin ).
+            g_out = c_x.
+            EXIT.
+          ENDIF.
+
+*If the line is not the Header or Footer line on label
+          IF ( sy-tabix NE c_tabix_1 AND sy-tabix NE g_lin ).
+            CLEAR: g_value, g_value1.
+            g_beg = g_beg + c_1.
+            g_len = g_end - g_beg.
+*Getting the data name in variable g_value
+            g_value = wa_label_editor+g_beg(g_len).
+            g_end = g_end + c_1.
+*Getting the data value in variable g_value1
+            g_value1 = wa_label_editor+g_end.
+            TRANSLATE g_value TO UPPER CASE.
+
+            CASE g_value.
+*When data name is SSCC code
+              WHEN c_sscc_a.
+*Checking if end tag '</SSCC> is there
+                IF g_value1 CS c_sscc.
+                  wa_zlabel_scan-zsscc = g_value1(sy-fdpos).
+                ELSE.
+                  g_out = c_x.
+                  EXIT.
+                ENDIF.
+*When data name is EAN code
+              WHEN c_ean_a.
+*Checking if end tag '</EAN> is there
+                IF g_value1 CS c_ean.
+                  wa_zlabel_scan-zean = g_value1(sy-fdpos).
+                ELSE.
+                  g_out = c_x.
+                  EXIT.
+                ENDIF.
+*When data name is Material
+              WHEN c_matnr_a.
+*Checking if end tag '</MATNR> is there
+                IF g_value1 CS c_matnr.
+                  wa_zlabel_scan-zmatnr = g_value1(sy-fdpos).
+
+                  IF wa_zlabel_scan-zmatnr IS NOT INITIAL.
+                    CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+                      EXPORTING
+                        input  = wa_zlabel_scan-zmatnr
+                      IMPORTING
+                        output = wa_zlabel_scan-zmatnr.
+                  ENDIF.
+                ELSE.
+                  g_out = c_x.
+                  EXIT.
+                ENDIF.
+*When data name is Serial Number
+              WHEN c_sn_a.
+*Checking if end tag '</SN> is there
+                IF g_value1 CS c_sn.
+                  g_value1 = g_value1(sy-fdpos).
+                  IF wa_zlabel_scan-zserialno1 IS INITIAL.
+                    wa_zlabel_scan-zserialno1 = g_value1.
+                    g_snoqty = c_1.
+                  ELSEIF wa_zlabel_scan-zserialno2 IS INITIAL.
+                    wa_zlabel_scan-zserialno2 = g_value1.
+                    g_snoqty = c_2.
+                  ELSEIF wa_zlabel_scan-zserialno3 IS INITIAL.
+                    wa_zlabel_scan-zserialno3 = g_value1.
+                    g_snoqty = c_3.
+                  ELSEIF wa_zlabel_scan-zserialno4 IS INITIAL.
+                    wa_zlabel_scan-zserialno4 = g_value1.
+                    g_snoqty = c_4.
+                  ELSEIF wa_zlabel_scan-zserialno5 IS INITIAL.
+                    wa_zlabel_scan-zserialno5 = g_value1.
+                    g_snoqty = c_5.
+                  ELSEIF wa_zlabel_scan-zserialno6 IS INITIAL.
+                    wa_zlabel_scan-zserialno6 = g_value1.
+                    g_snoqty = c_6.
+                  ELSEIF wa_zlabel_scan-zserialno7 IS INITIAL.
+                    wa_zlabel_scan-zserialno7 = g_value1.
+                    g_snoqty = c_7.
+                  ELSEIF wa_zlabel_scan-zserialno8 IS INITIAL.
+                    wa_zlabel_scan-zserialno8 = g_value1.
+                    g_snoqty = c_8.
+                  ELSEIF wa_zlabel_scan-zserialno9 IS INITIAL.
+                    wa_zlabel_scan-zserialno9 = g_value1.
+                    g_snoqty = c_9.
+                  ELSEIF wa_zlabel_scan-zserialno10 IS INITIAL.
+                    wa_zlabel_scan-zserialno10 = g_value1.
+                    g_snoqty = c_10.
+                  ELSE.
+*If data of serial numbers exceed more than 10 serial numbers
+                    g_snoqty = c_11.
+                  ENDIF.
+                ELSE.
+                  g_out = c_x.
+                  EXIT.
+                ENDIF.
+            ENDCASE.
+          ENDIF.
+        ENDLOOP.
+
+*If '<' or '>' is missing or any improper label information
+        IF g_out = c_x.
+          MESSAGE 'Improper label information'(021) TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+*When SSCC code is blank in the Scanned 2D Label
+        IF wa_zlabel_scan-zsscc IS INITIAL.
+          MESSAGE 'Scanned SSCC code is empty'(022) TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+*When EAN code is blank in the scanned 2D Label
+        IF wa_zlabel_scan-zean IS INITIAL.
+          MESSAGE 'Scanned EAN code is empty'(041) TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+*When Material is blank in the scanned 2D Label
+        IF wa_zlabel_scan-zmatnr IS INITIAL.
+          MESSAGE 'Scanned Material is empty'(023) TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+*Checking if Material in Label scanned, exists in the system
+        CLEAR: g_matnr.
+        SELECT SINGLE matnr FROM mara INTO g_matnr
+          WHERE matnr = wa_zlabel_scan-zmatnr.
+        IF sy-subrc IS NOT INITIAL.
+          MESSAGE 'Material scanned does not exist in system'(024)
+           TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+*If the Serial Numbers in the Scanned Label Exceeds more than 10
+        IF g_snoqty GT c_10.
+          MESSAGE 'Serial number count on label is greater than 10'(025)
+           TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+*If the SSCC code is already scanned
+        CLEAR: wa_zlabel_scan1.
+        READ TABLE it_zlabel_scan INTO wa_zlabel_scan1
+        WITH KEY zsscc = wa_zlabel_scan-zsscc.
+        IF sy-subrc IS INITIAL.
+          MESSAGE 'SSCC code aready scanned'(026) TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+
+        IF wa_zlabel_scan-zsscc  IS NOT INITIAL
+        AND wa_zlabel_scan-zean   IS NOT INITIAL
+          AND wa_zlabel_scan-zmatnr IS NOT INITIAL.
+
+*Checking if the SSCC code is already scanned earlier for another shipment
+          CLEAR: wa_zlabel_scan1.
+          SELECT SINGLE * FROM ztmm_edf_label
+            INTO wa_zlabel_scan1
+            WHERE zsscc = wa_zlabel_scan-zsscc.
+          IF sy-subrc IS INITIAL.
+            CLEAR: g_message.
+            CONCATENATE 'SSCC Code already scanned earlier for shipment'(027)
+            wa_zlabel_scan1-ztknum
+            INTO g_message SEPARATED BY space.
+            MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+            RETURN.
+          ENDIF.
+
+          CLEAR: wa_zedfship.
+          SELECT SINGLE * FROM ztmm_edfship
+            INTO wa_zedfship
+            WHERE zsscc = wa_zlabel_scan-zsscc.
+          IF sy-subrc IS INITIAL.
+            CLEAR: g_message.
+            CONCATENATE 'SSCC Code already scanned earlier for shipment'(027)
+            wa_zedfship-tknum
+            INTO g_message SEPARATED BY space.
+            MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+            RETURN.
+          ENDIF.
+
+*Checking if delivery is scanned in previous screen
+*for the material in the scanned label
+          READ TABLE it_zmm_delv_scan INTO wa_zmm_delv_scan
+          WITH KEY matnr = wa_zlabel_scan-zmatnr.
+          IF sy-subrc IS NOT INITIAL.
+            CLEAR: g_message.
+            CONCATENATE 'No delivery is scanned for material'(028)
+            wa_zlabel_scan-zmatnr
+            INTO g_message SEPARATED BY space.
+            MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+            RETURN.
+          ENDIF.
+
+*Checking if there is open quantity in the delivery for the
+*material and quantity of serial numbers in the scanned 2D Label
+          CLEAR: g_open.
+          LOOP AT it_zmm_delv_scan INTO wa_zmm_delv_scan.
+            CLEAR: g_openqty.
+            g_tabix = sy-tabix.
+            IF wa_zmm_delv_scan-matnr = wa_zlabel_scan-zmatnr.
+              g_openqty = wa_zmm_delv_scan-lfimg - wa_zmm_delv_scan-pikmg.
+              IF g_openqty GE g_snoqty.
+                wa_zlabel_scan-zvbeln = wa_zmm_delv_scan-vbeln.
+                wa_zlabel_scan-zposnr = wa_zmm_delv_scan-posnr.
+                wa_zlabel_scan-zmenge = g_snoqty.
+                CONDENSE wa_zlabel_scan-zmenge.
+                SHIFT wa_zlabel_scan-zmenge LEFT DELETING LEADING space.
+                wa_zmm_delv_scan-pikmg = wa_zmm_delv_scan-pikmg + g_snoqty.
+*Modifying the scanned delivery internal table by adding the label qty
+*to picked qty field
+                MODIFY it_zmm_delv_scan FROM wa_zmm_delv_scan
+                INDEX g_tabix TRANSPORTING pikmg .
+                g_open = c_x.
+*Adding the Label data to internla table it_zlabel_scan
+                APPEND wa_zlabel_scan TO it_zlabel_scan.
+                EXIT.
+              ENDIF.
+            ENDIF.
+          ENDLOOP.
+
+*If no delivery is found open for material quantities in the scanned 2D Label
+          IF g_open NE c_x.
+            CLEAR: g_message.
+            g_message = g_snoqty.
+            CONCATENATE 'No delivery item open for material'(029)
+            wa_zlabel_scan-zmatnr 'with qty'(030) g_message
+            INTO g_message SEPARATED BY space.
+            MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+            RETURN.
+          ELSE.
+
+
+*Adding the Label data and delivery data to it_final1 display table
+            wa_final1-hu = wa_zlabel_scan-zhu.
+            wa_final1-sscc = wa_zlabel_scan-zsscc.
+            wa_final1-matnr = wa_zlabel_scan-zmatnr.
+            wa_final1-delivery = wa_zlabel_scan-zvbeln.
+            wa_final1-item = wa_zlabel_scan-zposnr.
+            wa_final1-qty = g_snoqty.
+            APPEND wa_final1 TO it_final1.
+            MESSAGE 'Label added to shipment items'(031) TYPE 'S'.
+            PERFORM free_label_editor.
+          ENDIF.
+        ELSE.
+          MESSAGE 'Improper label information'(021) TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
+      ENDIF.
+
+    WHEN 'ARR'.
+
+*retrieving the scanned label data from editor screen.
+*   retrieve table from control
+      CLEAR: it_label_editor.
+      CALL METHOD g_editor3->get_text_as_r3table
+        IMPORTING
+          table = it_label_editor.
+
+      CALL METHOD cl_gui_cfw=>flush
+        EXCEPTIONS
+          OTHERS = 1.
+      IF sy-subrc NE 0.
+*       add your handling
+      ENDIF.
+
+*Deleting any blank lines in the Scanned Label data on Editor screen
+      LOOP AT it_label_editor INTO wa_label_editor.
+        IF wa_label_editor IS INITIAL.
+          DELETE it_label_editor INDEX sy-tabix.
+        ENDIF.
+      ENDLOOP.
+
+*If Scanned Label is Empty
+      IF it_label_editor[] IS INITIAL.
+        MESSAGE 'Scanned label is empty, scan label again'(020)
+        TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ELSE.
+
+        CLEAR: it_label_editor1[], wa_label_editor1,
+        g_string, g_string1, g_off, g_var.
+        LOOP AT it_label_editor INTO wa_label_editor.
+          IF sy-tabix  = c_tabix_1.
+            IF wa_label_editor CA c_geedf.
+              wa_label_editor1 = wa_label_editor(7).
+              APPEND wa_label_editor1 TO it_label_editor1.
+              wa_label_editor = wa_label_editor+7.
+              g_string = wa_label_editor+sy-fdpos.
+            ENDIF.
+          ELSE.
+            CONCATENATE g_string1 wa_label_editor INTO g_string.
+          ENDIF.
+
+          WHILE g_string CS c_slash.
+            g_off = sy-fdpos + 2.
+            g_var = g_string+g_off(5).
+            IF g_var CS c_sscc_a.
+              g_off = g_off + 5.
+            ELSEIF g_var CS c_ean_a.
+              g_off = g_off + 4.
+            ELSEIF g_var CS c_matnr_a.
+              g_off = g_off + 6.
+            ELSEIF g_var CS c_sn_a.
+              g_off = g_off + 3.
+            ELSEIF g_var CS c_geedf_a.
+              g_off = g_off + 6.
+            ENDIF.
+
+            wa_label_editor1 = g_string(g_off).
+            APPEND wa_label_editor1 TO it_label_editor1.
+            g_string = g_string+g_off.
+          ENDWHILE.
+
+          g_string1 = g_string.
+        ENDLOOP.
+
+        it_label_editor[] = it_label_editor1[].
+
+*To fill the Editor Control with data already scanned from internal table
+* call method editor->set_text_as_stream
+        CALL METHOD g_editor3->set_text_as_r3table
+          EXPORTING
+            table = it_label_editor[].      " Internal Table
+      ENDIF.
+
+
+    WHEN 'BACK'.
+      CALL SCREEN '9205'.
+
+    WHEN 'EXIT'.
+      LEAVE SCREEN.
+
+    WHEN 'SHOW'.
+      CALL SCREEN '9215'.
+
+    WHEN 'PCK'.
+      CALL SCREEN '9205'.
+
+    WHEN 'CLR'.
+      CLEAR g_hu1.
+      PERFORM free_label_editor.
+
+  ENDCASE.
+
+  CLEAR g_ok_code3.
+
+ENDMODULE.                 " USER_COMMAND_9210  INPUT
+
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_9215  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_9215 OUTPUT.
+
+  SET TITLEBAR  'EDF'.
+  SET PF-STATUS 'MAIN1'.
+
+
+  DATA: l_lines(255) TYPE c.
+
+  IF g_editor4 IS INITIAL.
+*   create control container
+    CREATE OBJECT g_editor_container4
+      EXPORTING
+        container_name              = 'TEXTEDITOR4'
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5.
+    IF sy-subrc NE 0.
+*      add your handling
+    ENDIF.
+    g_mycontainer4 = 'TEXTEDITOR4'.
+
+*   create calls constructor, which initializes, creats and links
+*   TextEdit Control
+    CREATE OBJECT g_editor4
+          EXPORTING
+           parent = g_editor_container4
+           wordwrap_mode =
+*             cl_gui_textedit=>wordwrap_off
+              cl_gui_textedit=>wordwrap_at_fixed_position
+*             cl_gui_textedit=>WORDWRAP_AT_WINDOWBORDER
+           wordwrap_position = c_line_length
+           wordwrap_to_linebreak_mode = cl_gui_textedit=>true.
+
+*   to handle different containers
+    g_container_linked4 = 1.
+
+    REFRESH it_final_editor.  " to initialize table upon OK_CODE 'BACK' at PAI
+  ENDIF.
+
+  IF g_relink4 NE space.
+*     relink control
+    CALL METHOD g_editor_container4->link
+      EXPORTING
+        repid     = g_repid
+        container = g_mycontainer4.
+
+    CALL METHOD g_editor4->set_toolbar_mode
+      EXPORTING
+        toolbar_mode = cl_gui_textedit=>false.
+    CALL METHOD g_editor4->set_statusbar_mode
+      EXPORTING
+        statusbar_mode = cl_gui_textedit=>false.
+
+*     reset relinking flag
+    g_relink4 = space.
+  ENDIF.
+
+*To disable the input entry to Text-Editor
+  CALL METHOD g_editor4->set_readonly_mode
+    EXPORTING
+      readonly_mode          = '1'
+    EXCEPTIONS
+      error_cntl_call_method = 1
+      invalid_parameter      = 2
+      OTHERS                 = 3.
+
+
+  CLEAR: it_final_editor[].
+  IF it_final1[] IS NOT INITIAL.
+**Title lines for editor4
+    CLEAR: l_lines, wa_table_editor.
+    l_lines     = 'HU'(052).
+    l_lines+4   = 'SSCC'(053).
+    l_lines+35  = 'Delivery'(002).
+    l_lines+46  = '/'(057).
+    l_lines+47  = 'item'(050).
+    l_lines+54  = 'Material'(054).
+    l_lines+73  = 'Qty'(055).
+    wa_table_editor = l_lines.
+    APPEND wa_table_editor TO it_final_editor.
+
+    CLEAR: l_lines, wa_table_editor.
+    l_lines     = c_line.
+    l_lines+4   = c_line1.
+    l_lines+35  = c_line2.
+    l_lines+46  = '-------'(058).
+    l_lines+54  = c_line2.
+    l_lines+73  = c_line.
+    wa_table_editor = l_lines.
+    APPEND wa_table_editor TO it_final_editor.
+
+*Filling data in the Display Text-editor
+    LOOP AT it_final1 INTO wa_final1.
+      l_lines(3)      = wa_final1-hu.
+      l_lines+4(30)   = wa_final1-sscc.
+      l_lines+35(10)  = wa_final1-delivery.
+      l_lines+46(18)  = '/'(057).
+      l_lines+47  = wa_final1-item.
+      l_lines+54  = wa_final1-matnr.
+      CONDENSE wa_final1-qty.
+      SHIFT wa_final1-qty LEFT DELETING LEADING '0'.
+      SHIFT wa_final1-qty LEFT DELETING LEADING space.
+      l_lines+73  = wa_final1-qty.
+      wa_table_editor = l_lines.
+      APPEND wa_table_editor TO it_final_editor.
+    ENDLOOP.
+
+    CLEAR: wa_final1.
+
+*Assiging the data of final editor internal table it_final_editor
+*to Text Editor control
+* call method editor->set_text_as_stream
+    CALL METHOD g_editor4->set_text_as_r3table
+      EXPORTING
+        table = it_final_editor.      " Internal Table
+
+    CLEAR: l_lines.
+  ELSE.
+  ENDIF.
+
+ENDMODULE.                 " STATUS_9215  OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_9215  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_9215 INPUT.
+
+  CASE g_ok_code4.
+
+    WHEN 'LBL'.
+      CALL SCREEN '9210'.
+    WHEN 'BACK'.
+      LEAVE TO SCREEN '9210'.
+    WHEN 'SHIP'.
+      PERFORM final_validation.
+      IF g_out NE c_x.
+        CLEAR: g_mycontainer5, wa_log_editor, it_log_editor,
+        g_container_linked5, g_relink5, g_success, g_message.
+**      Call BAPI..
+        PERFORM create_shipment.
+      ENDIF.
+    WHEN 'NXT'.
+      CALL SCREEN '9220'.
+    WHEN OTHERS.
+  ENDCASE.
+  CLEAR: g_ok_code4.
+
+ENDMODULE.                 " USER_COMMAND_9215  INPUT
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_9220  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_9220 OUTPUT.
+  SET TITLEBAR 'EDF'.
+  SET PF-STATUS 'MAIN1'.
+
+
+  IF g_editor5 IS INITIAL.
+*   create control container
+    CREATE OBJECT g_editor_container5
+      EXPORTING
+        container_name              = 'TEXTEDITOR5'
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5.
+    IF sy-subrc NE 0.
+*      add your handling
+    ENDIF.
+    g_mycontainer5 = 'TEXTEDITOR5'.
+
+*   create calls constructor, which initializes, creats and links
+*   TextEdit Control
+    CREATE OBJECT g_editor5
+          EXPORTING
+           parent = g_editor_container5
+           wordwrap_mode =
+*             cl_gui_textedit=>wordwrap_off
+              cl_gui_textedit=>wordwrap_at_fixed_position
+*             cl_gui_textedit=>WORDWRAP_AT_WINDOWBORDER
+           wordwrap_position = c_line_length
+           wordwrap_to_linebreak_mode = cl_gui_textedit=>true.
+
+*   to handle different containers
+    g_container_linked5 = 1.
+
+    REFRESH it_log_editor.  " to initialize table upon OK_CODE 'BACK' at PAI
+  ENDIF.
+
+*Filling the data of BAPI_SHIPMENT_CREATE return table
+*to editor control of log editor screen
+  IF it_log_editor IS INITIAL.
+    IF it_return[] IS NOT INITIAL.
+      LOOP AT it_return INTO wa_return.
+        CLEAR: wa_log_editor.
+        wa_log_editor   = wa_return-message.
+        APPEND wa_log_editor TO it_log_editor.
+      ENDLOOP.
+    ENDIF.
+  ENDIF.
+
+*To fill the Editor Control with data from internal table
+* call method editor->set_text_as_stream
+  CALL METHOD g_editor5->set_text_as_r3table
+    EXPORTING
+      table = it_log_editor.      " Internal Table
+
+*To disable the input entry to Text-Editor
+  CALL METHOD g_editor5->set_readonly_mode
+    EXPORTING
+      readonly_mode          = '1'
+    EXCEPTIONS
+      error_cntl_call_method = 1
+      invalid_parameter      = 2
+      OTHERS                 = 3.
+
+  IF g_relink5 NE space.
+*     relink control
+    CALL METHOD g_editor_container5->link
+      EXPORTING
+        repid     = g_repid
+        container = g_mycontainer5.
+
+    CALL METHOD g_editor5->set_toolbar_mode
+      EXPORTING
+        toolbar_mode = cl_gui_textedit=>false.
+    CALL METHOD g_editor5->set_statusbar_mode
+      EXPORTING
+        statusbar_mode = cl_gui_textedit=>false.
+
+*     reset relinking flag
+    g_relink5 = space.
+  ENDIF.
+
+  IF it_return[] IS NOT INITIAL.
+*Checking if BAPI_SHIPMENT_CREATE return table has
+*shipment created success message
+    CLEAR: wa_return, g_success.
+    READ TABLE it_return INTO wa_return
+     WITH KEY type = c_s id = c_vw number = c_488.
+    IF sy-subrc IS INITIAL.
+      CONCATENATE 'Shipment'(035) wa_return-message_v1
+      'Successfully created'(036) INTO g_message SEPARATED BY space.
+      MESSAGE g_message TYPE 'S'.
+*Setting g_success flag = 'X', if shipment is created
+      g_success = c_x.
+    ELSE.
+      MESSAGE 'Error while creating shipment'(037) TYPE 'S' DISPLAY LIKE 'E'.
+      CLEAR: g_success.
+    ENDIF.
+  ENDIF.
+
+ENDMODULE.                 " STATUS_9220  OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_9220  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_9220 INPUT.
+
+  CASE g_ok_code5.
+    WHEN 'BACKK'.
+      PERFORM message_log.
+      IF g_success = c_x.
+        PERFORM restart_clear.
+      ELSE.
+        PERFORM clear_shipment_data.
+      ENDIF.
+      CALL SCREEN '9215'.
+    WHEN 'BACK'.
+      PERFORM message_log.
+      IF g_success = c_x.
+        PERFORM restart_clear.
+      ELSE.
+        PERFORM clear_shipment_data.
+      ENDIF.
+      CALL SCREEN '9215'.
+    WHEN 'RST'.
+      PERFORM restart_clear.
+      CALL SCREEN '9200'.
+    WHEN OTHERS.
+  ENDCASE.
+ENDMODULE.                 " USER_COMMAND_9220  INPUT
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_9225  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_9225 INPUT.
+
+  CASE g_ok_code6.
+
+    WHEN 'DEL1'.
+      PERFORM delete_shipment.
+    WHEN 'CRET'.
+      CALL SCREEN '9200'.
+    WHEN OTHERS.
+
+  ENDCASE.
+
+
+ENDMODULE.                 " USER_COMMAND_9225  INPUT
+*&---------------------------------------------------------------------*
+*&      Form  GET_MATERIAL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_material.
+**Declaration**
+  DATA: l_matnr           TYPE mara-matnr,
+        l_maktx           TYPE makt-maktx,
+        l_linesx(254)     TYPE c.
+
+*Checking if Packing Material is not blank
+  IF g_pmaterial IS INITIAL.
+    MESSAGE 'Packaging material not scanned'(012) TYPE 'S' DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
+*Checking if HU for Packing Material is not blank
+  IF g_hu IS INITIAL OR g_hu EQ c_000.
+    MESSAGE 'Enter HU number'(013) TYPE 'S' DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
+**Validation**
+  CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+    EXPORTING
+      input  = g_pmaterial
+    IMPORTING
+      output = g1_material.
+
+*Checking if Packing Material is valid
+  CLEAR: l_matnr, l_maktx.
+  SELECT SINGLE matnr
+    FROM mara
+    INTO l_matnr
+    WHERE matnr EQ g1_material
+      AND vhart NE ' '.
+
+  IF sy-subrc EQ 0.
+*Selecting the Packaging Material Description
+    IF l_matnr IS NOT INITIAL.
+      SELECT SINGLE maktx
+        FROM makt
+        INTO l_maktx
+        WHERE spras = 'E'
+          AND matnr = l_matnr.
+
+*Filling the Header for Editor Screen of Packing Material
+      IF it_pack_editor[] IS INITIAL.
+        CLEAR: l_linesx, wa_table_editor.
+        l_linesx(3) = 'HU'(052).
+        l_linesx+4  = 'Material'(054).
+        l_linesx+23 = 'Mat. Desc'(056).
+        wa_table_editor = l_linesx.
+        APPEND wa_table_editor TO it_pack_editor.
+
+        CLEAR: l_linesx, wa_table_editor.
+        l_linesx(3) = c_line.
+        l_linesx+4  = c_line2.
+        l_linesx+23 = c_line2.
+        wa_table_editor = l_linesx.
+        APPEND wa_table_editor TO it_pack_editor.
+      ENDIF.
+
+*Checking if Packaging material is already scanned for the HU
+      CONDENSE g_hu.
+      SHIFT g_hu LEFT DELETING LEADING '0'.
+      READ TABLE it_pack_matnr INTO wa_pack_matnr WITH KEY hu = g_hu.
+      IF sy-subrc IS INITIAL.
+        CLEAR: g_message.
+        CONCATENATE 'Packaging material already scanned for HU'(014) g_hu
+        INTO g_message SEPARATED BY space.
+        MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ELSE.
+*Appending Packaging material and HU data to editor screen
+        CLEAR: l_linesx, wa_table_editor.
+        l_linesx(3) = g_hu.
+        l_linesx+4  = g_pmaterial.
+        l_linesx+23 = l_maktx.
+        wa_table_editor = l_linesx.
+        APPEND wa_table_editor TO it_pack_editor.
+
+*Appending Packaging material and HU data to internal table
+        CLEAR: wa_pack_matnr.
+        wa_pack_matnr-hu = g_hu.
+        wa_pack_matnr-vhilm = g1_material.
+        APPEND wa_pack_matnr TO it_pack_matnr.
+
+*Filling the Editor Screen from Editor internal table
+* call method editor->set_text_as_stream
+        CALL METHOD g_editor2->set_text_as_r3table
+          EXPORTING
+            table = it_pack_editor.      " Internal Table
+
+        CLEAR: l_linesx, g_hu.
+      ENDIF.
+    ENDIF.
+  ELSE.
+*If Packaging Material does not exist
+    CLEAR: g_message.
+    CONCATENATE 'Packaging Material'(015) g_pmaterial 'does not exist'(016)
+     INTO g_message SEPARATED BY space.
+    MESSAGE g_message TYPE 'I' DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
+ENDFORM.                    " GET_MATERIAL
+*&---------------------------------------------------------------------*
+*&      Form  FREE_DELV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM free_delv_editor .
+** Destroy Control.
+  IF NOT g_editor1 IS INITIAL.
+    CALL METHOD g_editor1->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor1.
+  ENDIF.
+
+* destroy container
+  IF NOT g_editor_container1 IS INITIAL.
+    CALL METHOD g_editor_container1->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor_container1.
+  ENDIF.
+
+* finally flush
+  CALL METHOD cl_gui_cfw=>flush
+    EXCEPTIONS
+      OTHERS = 1.
+  IF sy-subrc NE 0.
+*   add your handling
+  ENDIF.
+
+ENDFORM.                    " FREE_DELV_EDITOR
+*&---------------------------------------------------------------------*
+*&      Form  FREE_PACK_EDITOR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM free_pack_editor .
+** Destroy Control.
+  IF NOT g_editor2 IS INITIAL.
+    CALL METHOD g_editor2->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor2.
+  ENDIF.
+
+* destroy container
+  IF NOT g_editor_container2 IS INITIAL.
+    CALL METHOD g_editor_container2->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor_container2.
+  ENDIF.
+
+* finally flush
+  CALL METHOD cl_gui_cfw=>flush
+    EXCEPTIONS
+      OTHERS = 1.
+  IF sy-subrc NE 0.
+*   add your handling
+  ENDIF.
+
+ENDFORM.                    " FREE_PACK_EDITOR
+*&---------------------------------------------------------------------*
+*&      Form  CLEAR_LABEL_EDITOR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM free_label_editor .
+** Destroy Control.
+  IF NOT g_editor3 IS INITIAL.
+    CALL METHOD g_editor3->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor3.
+  ENDIF.
+
+* destroy container
+  IF NOT g_editor_container3 IS INITIAL.
+    CALL METHOD g_editor_container3->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor_container3.
+  ENDIF.
+
+* finally flush
+  CALL METHOD cl_gui_cfw=>flush
+    EXCEPTIONS
+      OTHERS = 1.
+  IF sy-subrc NE 0.
+*   add your handling
+  ENDIF.
+
+ENDFORM.                    " CLEAR_LABEL_EDITOR
+*&---------------------------------------------------------------------*
+*&      Form  CLEAR_FINAL_EDITOR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM free_final_editor .
+** Destroy Control.
+  IF NOT g_editor4 IS INITIAL.
+    CALL METHOD g_editor4->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor4.
+  ENDIF.
+
+* destroy container
+  IF NOT g_editor_container4 IS INITIAL.
+    CALL METHOD g_editor_container4->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor_container4.
+  ENDIF.
+
+* finally flush
+  CALL METHOD cl_gui_cfw=>flush
+    EXCEPTIONS
+      OTHERS = 1.
+  IF sy-subrc NE 0.
+*   add your handling
+  ENDIF.
+
+ENDFORM.                    " CLEAR_FINAL_EDITOR
+*&---------------------------------------------------------------------*
+*&      Form  CLEAR_LOG_EDITOR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM free_log_editor .
+** Destroy Control.
+  IF NOT g_editor5 IS INITIAL.
+    CALL METHOD g_editor5->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor5.
+  ENDIF.
+
+* destroy container
+  IF NOT g_editor_container5 IS INITIAL.
+    CALL METHOD g_editor_container5->free
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc NE 0.
+*     add your handling
+    ENDIF.
+*   free ABAP object also
+    FREE g_editor_container5.
+  ENDIF.
+
+* finally flush
+  CALL METHOD cl_gui_cfw=>flush
+    EXCEPTIONS
+      OTHERS = 1.
+  IF sy-subrc NE 0.
+*   add your handling
+  ENDIF.
+
+ENDFORM.                    " CLEAR_LOG_EDITOR
+*&---------------------------------------------------------------------*
+*&      Form  CLEAR_ALL_TABLES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM clear_all_tables .
+  CLEAR : it_lips[], it_zmm_delv_scan[], it_likp[],
+          it_pack_matnr[], it_zmm_delv_scan[],
+          it_final1[], it_zlabel_scan[], it_zlabel_scan1, it_delv_editor[],
+          it_pack_editor[], it_label_editor[], it_final_editor[],
+          it_log_editor, it_return[].
+
+  CLEAR: g_ok_code1, g_ok_code2, g_ok_code3, g_ok_code4,
+         g_mycontainer1, g_mycontainer2, g_mycontainer3, g_mycontainer4,
+         g_mycontainer5, g_container_linked1, g_container_linked2,
+         g_container_linked3, g_container_linked4, g_container_linked5.
+
+  CLEAR: g_relink1, g_relink2, g_relink3, g_relink4, g_relink5.
+
+  CLEAR: wa_table_editor, wa_label_editor, wa_log_editor.
+
+  CLEAR: g_hu1, g_message, g_tabix.
+
+  CLEAR: g_delivery, g_pmaterial, g1_material , g_hu, g_trp_point, g_success,
+         g_message.
+
+  CLEAR: wa_lips, wa_vbpa, wa_vbuk, wa_zmm_delv_scan, wa_pack_matnr, wa_final1,
+         wa_zlabel_scan, wa_zlabel_scan1, wa_likp, wa_likp1, wa_return.
+
+  FREE: g_editor1, g_editor2, g_editor3, g_editor4, g_editor5,
+        g_editor_container1, g_editor_container2, g_editor_container3,
+        g_editor_container4, g_editor_container5.
+
+  CLEAR: it_lips[].
+
+  CLEAR: wa_lips, wa_vbpa, wa_vbuk.
+  CLEAR: g_ship_diff, g_tplst, g_open, g_openqty, g_beg, g_end, g_len,
+         g_value, g_value1, g_snoqty, g_matnr, g_lin, g_flag1, g_flag2,
+         g_flag2, g_diff_vstel, g_openqty1, g_repid, g_ok_code1, g_ok_code2,
+         g_ok_code3, g_ok_code4, g_ok_code5.
+
+  CLEAR: it_itemdata, it_hdunheader, it_hdunitem.
+  CLEAR: wa_headerdata, wa_itemdata, wa_hdunheader, wa_hdunitem.
+  CLEAR: it_vttp1, it_ship, it_vekp, it_vepo, it_lips2, it_edfship,
+         it_edfpallet, it_zlabel_scan2.
+  CLEAR: wa_vttp1, wa_ship, wa_vepo, wa_lips2, wa_zedfship, wa_zedfship,
+         wa_zlabel_scan2.
+
+  CLEAR: g_tknum, g_venum, g_vbeln1, g_del, g_hln, g_lpi, g_ship_unit, g_sscc,
+         g_hdl_unit_exid, g_pallet, g_vbeln, g_last, g_packqty, g_newtabix,
+         g_val, g_hucal, g_from_sno, g_to_sno, g_shipment.
+
+
+ENDFORM.                    " CLEAR_ALL_TABLES
+*&---------------------------------------------------------------------*
+*&      Form  FINAL_VALIDATION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM final_validation .
+
+  CLEAR: g_out, g_message.
+  IF it_zlabel_scan[] IS NOT INITIAL.
+    LOOP AT it_zmm_delv_scan INTO wa_zmm_delv_scan.
+
+      g_openqty = wa_zmm_delv_scan-lfimg - wa_zmm_delv_scan-pikmg.
+      IF g_openqty GT 0.
+        g_openqty1 = g_openqty.
+        CONCATENATE 'Pending quantity'(032) g_openqty1
+        'to be scanned for material'(034)
+         wa_zmm_delv_scan-matnr ',delivery'(049) wa_zmm_delv_scan-vbeln
+         'item'(050) wa_zmm_delv_scan-posnr
+         INTO g_message SEPARATED BY space.
+        g_out = c_x.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+
+    IF g_out = c_x.
+      MESSAGE g_message TYPE 'S' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
+  ELSE.
+    g_out = c_x.
+    MESSAGE 'No Label Data Scanned'(033) TYPE 'S' DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
+ENDFORM.                    " FINAL_VALIDATION
+*&---------------------------------------------------------------------*
+*&      Form  MESSAGE_LOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM message_log .
+
+*   retrieve table from control
+  CLEAR: it_log_editor.
+  CALL METHOD g_editor5->get_text_as_r3table
+    IMPORTING
+      table = it_log_editor.
+
+  CALL METHOD cl_gui_cfw=>flush
+    EXCEPTIONS
+      OTHERS = 1.
+  IF sy-subrc NE 0.
+*       add your handling
+  ENDIF.
+
+ENDFORM.                    " MESSAGE_LOG
+*&---------------------------------------------------------------------*
+*&      Form  RESTART_CLEAR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM restart_clear .
+
+  PERFORM free_delv_editor.
+  PERFORM free_pack_editor.
+  PERFORM free_label_editor.
+  PERFORM free_final_editor.
+  PERFORM free_log_editor.
+  PERFORM clear_all_tables.
+
+ENDFORM.                    " RESTART_CLEAR
+*&---------------------------------------------------------------------*
+*&      Form  CLEAR_SHIPMENT_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM clear_shipment_data .
+
+  CLEAR: wa_headerdata, wa_itemdata, wa_hdunheader, wa_hdunitem, wa_return.
+  CLEAR: it_itemdata, it_hdunheader, it_hdunitem, it_return.
+ENDFORM.                    " CLEAR_SHIPMENT_DATA
+INCLUDE znmm_edfship_rfid_creat_shif01.
+

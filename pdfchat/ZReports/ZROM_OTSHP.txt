@@ -1,0 +1,612 @@
+*&---------------------------------------------------------------------*
+*& Report  ZR0M_OTSHP
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZROM_OTSHP
+
+* Title             : Biweekly One time ship-to-party
+*
+* Program function  : This program is developed to report out the
+*                     one time ship to party data including Sales
+*                     orders and address details
+*
+* Transaction code  : ZSD949
+*
+* Limitations       : NA
+*
+* Table updates     : NA
+*
+* Authorizations    : NA
+*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+************************************************************************
+* DATE       | CR No.     | CHANGED BY  | DESCRIPTION OF CHANG
+************************************************************************
+* 26-MAY-14  | CHG0691823 | 320002229  | Initial Program
+*************************************************************************
+* 03-June-14  | CHG0691823 | 502286348  | Changes done according to Missing
+*                                          some field values(shipto party etc)
+*************************************************************************
+
+REPORT  zrom_otshp.
+TABLES: vbak, vbpa.
+
+TYPE-POOLS : slis.
+*----------------------------------------------------------------------*
+* S E L E C T I O N      S C R E E N
+*----------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b01 WITH FRAME TITLE text-f01.
+
+SELECT-OPTIONS: s_sdoc FOR vbak-vbeln,
+                s_sorg FOR vbak-vkorg,
+                s_ddate FOR vbak-erdat,
+                s_crby FOR vbak-ernam,
+*                s_cust  FOR kna1-kunnr,
+                s_pfun  FOR vbpa-parvw.
+PARAMETERS:     p_cust TYPE kna1-kunnr OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b01.
+
+**-----------------------------------------------------------------------*
+* data declerations
+*------------------------------------------------------------------------*
+TYPES: BEGIN OF ty_salshdr,
+       vbeln TYPE vbeln,
+       vkorg TYPE vkorg,
+       auart TYPE auart,
+       erdat TYPE erdat,
+       ernam TYPE ernam,
+       kunnr TYPE kunnr,
+       END OF ty_salshdr,
+
+       BEGIN OF ty_salsitm,
+       vbeln TYPE vbeln,
+       posnr TYPE posnr,
+       matnr TYPE matnr,
+       END OF ty_salsitm,
+
+       BEGIN OF ty_cust,
+       kunnr TYPE kunnr,
+       name1 TYPE name1,
+       name2 TYPE name2,
+       adrnr TYPE adrnr,
+       END OF ty_cust,
+
+       BEGIN OF ty_partnr,
+       vbeln TYPE vbeln,
+       posnr TYPE posnr,
+       parvw TYPE parvw,
+       kunnr TYPE kunnr,
+       adrnr TYPE adrnr,
+       END OF ty_partnr,
+
+       BEGIN OF ty_addrs,
+       addrnumber TYPE ad_addrnum,
+       name1 TYPE ad_name1,
+       name2 TYPE ad_name2,
+       city1 TYPE ad_city1,
+       post_code1 TYPE ad_pstcd1,
+       street TYPE ad_street,
+       str_suppl1 TYPE ad_strspp1,
+       house_num1 TYPE ad_hsnm1,
+       END OF ty_addrs,
+
+       BEGIN OF ty_result,
+       vbeln TYPE vbeln,
+       posnr TYPE posnr,
+       matnr TYPE matnr,
+       auart TYPE auart,
+       erdat TYPE erdat,
+       ernam TYPE ernam,
+       kunnr TYPE kunnr,
+       name1 TYPE ad_name1,
+       name2 TYPE ad_name2,
+       kunnr1 TYPE kunnr,
+       name1_sh TYPE ad_name1,
+       name2_sh TYPE ad_name2,
+       city1 TYPE ad_city1,
+       post_code1 TYPE ad_pstcd1,
+       street TYPE ad_street,
+       str_suppl1 TYPE ad_strspp1,
+       house_num1 TYPE ad_hsnm1,
+       adrnr TYPE adrnr,
+       END OF ty_result.
+
+DATA: gt_salshdr TYPE TABLE OF ty_salshdr,
+      gt_salsitm TYPE TABLE OF ty_salsitm,
+      gt_salsitmt TYPE TABLE OF ty_salsitm,
+      gt_cust TYPE TABLE OF ty_cust,
+      gt_partnr TYPE TABLE OF ty_partnr,
+      gt_partnrt TYPE TABLE OF ty_partnr,
+      gt_addrs TYPE TABLE OF ty_addrs,
+      gt_result TYPE TABLE OF ty_result,
+      gt_partnr_so TYPE TABLE OF ty_partnr,  "CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+      gs_salshdr TYPE ty_salshdr,
+      gs_salsitm TYPE ty_salsitm,
+      gs_salsitmt TYPE ty_salsitm,
+      gs_cust TYPE ty_cust,
+      gs_partnr TYPE ty_partnr,
+      gs_partnr_so TYPE ty_partnr,     ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+      gs_partnrt TYPE ty_partnr,
+      gs_addrs TYPE ty_addrs,
+      gs_result TYPE ty_result,
+      gs_fieldcat TYPE slis_fieldcat_alv,
+      v_lines TYPE i.
+
+
+DATA: gt_fieldcat TYPE  TABLE OF slis_fieldcat_alv,
+      gd_repid  TYPE sy-repid,
+      g_variant TYPE disvariant,
+      gt_events TYPE TABLE OF slis_alv_event,
+      gw_events TYPE slis_alv_event.
+
+**-----------------------------------------------------------------------*
+* start of selection
+*------------------------------------------------------------------------*
+START-OF-SELECTION.
+*get sales order Header data.
+  SELECT vbeln
+         vkorg
+         auart
+         erdat
+         ernam
+         kunnr FROM vbak INTO TABLE gt_salshdr WHERE
+         vbeln IN s_sdoc AND
+         vkorg IN s_sorg AND
+         erdat IN s_ddate AND
+         ernam IN s_crby.
+
+*Get sales order line item data.
+  IF NOT gt_salshdr[] IS INITIAL.
+    SELECT vbeln
+     posnr
+     matnr FROM vbap INTO TABLE gt_salsitm
+     FOR ALL ENTRIES IN gt_salshdr
+     WHERE vbeln = gt_salshdr-vbeln.
+  ENDIF.
+
+*Get partner function data where the partner function is only ship-to-party.
+  IF NOT gt_salsitm[] IS INITIAL.
+    SELECT vbeln
+           posnr
+           parvw
+           kunnr
+           adrnr FROM vbpa INTO TABLE gt_partnr
+           FOR ALL ENTRIES IN gt_salsitm
+           WHERE vbeln = gt_salsitm-vbeln AND
+*                 kunnr = p_cust AND
+                  ( parvw = 'WE' OR
+                    parvw = 'AG') .
+  ENDIF.
+*Get ship-to-party details data from kna1 like name1, name2, and address number
+  IF NOT gt_partnr[] IS INITIAL.
+    SELECT kunnr
+           name1
+           name2
+           adrnr FROM kna1 INTO TABLE gt_cust
+           FOR ALL ENTRIES IN gt_partnr
+           WHERE kunnr = gt_partnr-kunnr.
+  ENDIF.
+*get address details of ship-to-party
+  IF NOT gt_partnr[] IS INITIAL.
+    SELECT addrnumber
+           name1
+           name2
+           city1
+           post_code1
+           street
+           str_suppl1
+           house_num1 FROM adrc INTO TABLE gt_addrs
+           FOR ALL ENTRIES IN gt_partnr WHERE
+           addrnumber = gt_partnr-adrnr.
+  ENDIF.
+
+*Transfere data into final internal table
+  PERFORM final_data.
+
+*Build field catalog
+  PERFORM build_fieldcatalog.
+
+*ALV report output
+  PERFORM display_alv_report.
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM build_fieldcatalog .
+
+  IF gt_fieldcat[] IS INITIAL.
+    PERFORM fieldcat USING:
+     'VBELN' text-f17,
+     'POSNR' text-f02,
+     'MATNR' text-f03,
+     'AUART' text-f04,
+     'ERDAT' text-f05,
+     'ERNAM' text-f06,
+     'KUNNR' text-f07,
+     'NAME1' text-f08,
+     'NAME2' text-f09,
+     'KUNNR1' text-f10,
+     'NAME1_SH' text-f11,
+     'NAME2_SH' text-f12,
+     'CITY1' text-f13,
+     'POST_CODE1' text-f14,
+     'STREET' text-f15,
+     'STR_SUPPL1' text-f16,
+     'HOUSE_NUM1' text-f18,
+     'ADRNR' text-f20.
+
+
+
+
+
+*    gs_fieldcatalog-fieldname   = 'VBELN'.
+*    gs_fieldcatalog-seltext_m   = text-f17.
+*    gs_fieldcatalog-col_pos     = 1.
+*    gs_fieldcatalog-outputlen   = 20.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*    gs_fieldcatalog-fieldname   = 'POSNR'.
+*    gs_fieldcatalog-seltext_m   = text-f02.
+*    gs_fieldcatalog-col_pos     = 2.
+*    gs_fieldcatalog-outputlen   = 10.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*    gs_fieldcatalog-fieldname   = 'MATNR'.
+*    gs_fieldcatalog-seltext_m   = text-f03.
+*    gs_fieldcatalog-col_pos     = 3.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'AUART'.
+*    gs_fieldcatalog-seltext_m   = text-f04.
+*    gs_fieldcatalog-col_pos     = 4.
+*    gs_fieldcatalog-outputlen   = 20.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'ERDAT'.
+*    gs_fieldcatalog-seltext_m   = text-f05.
+*    gs_fieldcatalog-col_pos     = 5.
+*    gs_fieldcatalog-outputlen   = 20.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'ERNAM'.
+*    gs_fieldcatalog-seltext_m   = text-f06.
+*    gs_fieldcatalog-col_pos     = 6.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'KUNNR'.
+*    gs_fieldcatalog-seltext_m   = text-f07.
+*    gs_fieldcatalog-col_pos     = 7.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'NAME1'.
+*    gs_fieldcatalog-seltext_m   = text-f08.
+*    gs_fieldcatalog-col_pos     = 8.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'NAME2'.
+*    gs_fieldcatalog-seltext_m   = text-f09.
+*    gs_fieldcatalog-col_pos     = 9.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'KUNNR1'.
+*    gs_fieldcatalog-seltext_m   = text-f10.
+*    gs_fieldcatalog-col_pos     = 10.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'NAME1_SH'.
+*    gs_fieldcatalog-seltext_m   = text-f11.
+*    gs_fieldcatalog-col_pos     = 11.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'NAME2_SH'.
+*    gs_fieldcatalog-seltext_m   = text-f12.
+*    gs_fieldcatalog-col_pos     = 12.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'ADRNR'.
+*    gs_fieldcatalog-seltext_m   = text-f20.
+*    gs_fieldcatalog-col_pos     = 13.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*    gs_fieldcatalog-fieldname   = 'CITY1'.
+*    gs_fieldcatalog-seltext_m   = text-f13.
+*    gs_fieldcatalog-col_pos     = 14.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'POST_CODE1'.
+*    gs_fieldcatalog-seltext_m   = text-f14.
+*    gs_fieldcatalog-col_pos     = 15.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'STREET'.
+*    gs_fieldcatalog-seltext_m   = text-f15.
+*    gs_fieldcatalog-col_pos     = 16.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'STR_SUPPL1'.
+*    gs_fieldcatalog-seltext_m   = text-f16.
+*    gs_fieldcatalog-col_pos     = 17.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+*
+*
+*    gs_fieldcatalog-fieldname   = 'HOUSE_NUM1'.
+*    gs_fieldcatalog-seltext_m   = text-f18.
+*    gs_fieldcatalog-col_pos     = 18.
+*    gs_fieldcatalog-outputlen   = 30.
+*    APPEND gs_fieldcatalog TO gt_fieldcatalog.
+*    CLEAR  gs_fieldcatalog.
+  ENDIF.
+
+ENDFORM.                    " BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  FINAL_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM final_data .
+"CHG0691823 JE3K901503 modification done by 502286348 start on 03.06.2014.
+  LOOP AT gt_partnr INTO gs_partnr WHERE parvw = 'AG'.
+    gs_partnr_so  = gs_partnr.
+    APPEND gs_partnr_so TO gt_partnr_so.
+    CLEAR gs_partnr_so.
+  ENDLOOP.
+
+  DELETE gt_partnr WHERE parvw = 'AG'.
+"CHG0691823 JE3K901503 modification done by 502286348 end on 03.06.2014.
+
+  DESCRIBE TABLE gt_partnr LINES v_lines.
+
+*copying the data in to temporary internal table.
+  gt_partnrt[] = gt_partnr[].
+  gt_salsitmt[] = gt_salsitm[].
+
+*looping to temporary ship-to-party table and deleting the temporary sales item data where
+  LOOP AT gt_partnrt INTO gs_partnrt.
+    READ TABLE gt_salsitmt INTO gs_salsitmt WITH KEY vbeln = gs_partnrt-vbeln
+                                                      posnr = gs_partnrt-posnr.
+    IF sy-subrc = 0.
+      DELETE gt_salsitmt INDEX sy-tabix.
+    ENDIF.
+  ENDLOOP.
+
+
+*Main loop
+*Loop at shi-to-party internal table
+  LOOP AT gt_partnr INTO gs_partnr WHERE vbeln IN s_sdoc AND
+                                         parvw = 'WE' AND
+                                         kunnr = p_cust.
+
+*below logic was written because there was a challenge in mapping the vbap-posnr and vbpa-posnr
+*( posnr doesnt get updated in vbpa table if one slaes order having the same ship-to-party for all the line items)
+*Inorder the match the following scenarios the below logic is written.
+
+*    1. If the ship-to-party is same for all the line items then the vbpa-posnr is not updated inthis cases we need to populate
+*    all the line items so the below loop is written for that.
+
+*    2. If the ship-to-party is different for one line item and rest line item has the same number then the vbpa-posnr is updated only for
+*    that one line item
+
+    IF gs_partnr-posnr EQ ' ' AND
+        v_lines = 1.
+      gs_result-kunnr1 = gs_partnr-kunnr.
+      gs_result-posnr = gs_partnr-posnr.
+      LOOP AT gt_salsitm INTO gs_salsitm WHERE vbeln = gs_partnr-vbeln.
+        gs_result-posnr = gs_salsitm-posnr.
+        gs_result-matnr = gs_salsitm-matnr.
+        CLEAR: gs_salshdr. ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+        READ TABLE gt_salshdr INTO gs_salshdr WITH KEY vbeln = gs_partnr-vbeln.
+        IF sy-subrc = 0.
+          gs_result-vbeln = gs_salshdr-vbeln.
+          gs_result-auart = gs_salshdr-auart.
+          gs_result-erdat = gs_salshdr-erdat.
+          gs_result-ernam = gs_salshdr-ernam.
+        ENDIF.
+        CLEAR : gs_cust. ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+        READ TABLE gt_cust INTO gs_cust WITH KEY kunnr = gs_partnr-kunnr.
+        IF sy-subrc = 0.
+*  "CHG0691823 JE3K901503 modification done by 502286348 start on 03.06.2014.
+          gs_result-kunnr1 = gs_partnr-kunnr.
+          CLEAR : gs_addrs.
+          READ TABLE gt_addrs INTO gs_addrs WITH KEY addrnumber = gs_partnr-adrnr.
+** "CHG0691823 JE3K901503 modification done by 502286348 end on 03.06.2014.                                                    .
+          IF sy-subrc = 0.
+            gs_result-adrnr = gs_partnr-adrnr.
+            gs_result-name1_sh = gs_addrs-name1.
+            gs_result-name2_sh = gs_addrs-name2.
+            gs_result-city1 =  gs_addrs-city1.
+            gs_result-post_code1 = gs_addrs-post_code1.
+            gs_result-street = gs_addrs-street.
+            gs_result-str_suppl1 = gs_addrs-str_suppl1.
+            gs_result-house_num1 = gs_addrs-house_num1.
+          ENDIF.
+        ENDIF.
+*  "CHG0691823 JE3K901503 modification done by 502286348 start on 03.06.2014.
+        CLEAR gs_partnr_so.
+        READ TABLE gt_partnr_so INTO gs_partnr_so  WITH KEY vbeln = gs_salshdr-vbeln
+                                                             parvw = 'AG'.
+        IF sy-subrc = 0.
+          gs_result-kunnr = gs_partnr_so-kunnr.
+* "CHG0691823 JE3K901503 modification done by 502286348 end on 03.06.2014.
+          CLEAR : gs_cust.
+          READ TABLE gt_cust INTO gs_cust WITH KEY kunnr = gs_result-kunnr.
+          IF sy-subrc = 0.
+            gs_result-name1 = gs_cust-name1.
+            gs_result-name2 = gs_cust-name2.
+          ENDIF.
+        ENDIF.
+        APPEND : gs_result TO gt_result.
+        CLEAR : gs_result.
+      ENDLOOP.   "LOOP AT gt_salsitm
+      EXIT.
+    ELSEIF gs_partnr-posnr NE ' '.
+      CLEAR : gs_salsitm.  ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+      READ TABLE gt_salsitm INTO gs_salsitm WITH KEY vbeln = gs_partnr-vbeln
+                                                      posnr = gs_partnr-posnr.
+      IF sy-subrc = 0.
+        gs_result-posnr = gs_salsitm-posnr.
+        gs_result-matnr = gs_salsitm-matnr.
+      ENDIF.
+    ELSEIF gs_partnr-posnr EQ ' ' AND
+           v_lines NE 1.
+      CLEAR : gs_salsitmt. ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+      READ TABLE gt_salsitmt INTO gs_salsitmt WITH KEY vbeln = gs_partnrt-vbeln.
+      IF sy-subrc = 0.
+        gs_result-posnr = gs_salsitmt-posnr.
+        gs_result-matnr = gs_salsitmt-matnr.
+        DELETE gt_salsitmt INDEX sy-tabix.
+      ENDIF.
+    ENDIF.
+    CLEAR : gs_salshdr. ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+    READ TABLE gt_salshdr INTO gs_salshdr WITH KEY vbeln = gs_partnr-vbeln.
+    IF sy-subrc = 0.
+      gs_result-vbeln = gs_salshdr-vbeln.
+      gs_result-auart = gs_salshdr-auart.
+      gs_result-erdat = gs_salshdr-erdat.
+      gs_result-ernam = gs_salshdr-ernam.
+    ENDIF.
+    CLEAR : gs_cust. ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+    READ TABLE gt_cust INTO gs_cust WITH KEY kunnr = gs_partnr-kunnr.
+    IF sy-subrc = 0.
+      gs_result-kunnr1 = gs_partnr-kunnr.
+       CLEAR : gs_addrs. ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+      READ TABLE gt_addrs INTO gs_addrs WITH KEY addrnumber = gs_partnr-adrnr.
+      IF sy-subrc = 0.
+        gs_result-adrnr = gs_partnr-adrnr.
+        gs_result-name1_sh = gs_addrs-name1.
+        gs_result-name2_sh = gs_addrs-name2.
+        gs_result-city1 =  gs_addrs-city1.
+        gs_result-post_code1 = gs_addrs-post_code1.
+        gs_result-street = gs_addrs-street.
+        gs_result-str_suppl1 = gs_addrs-str_suppl1.
+        gs_result-house_num1 = gs_addrs-house_num1.
+      ENDIF.
+    ENDIF.
+** "CHG0691823 JE3K901503 modification done by 502286348 start on 03.06.2014.
+    CLEAR : gs_partnr_so.
+    READ TABLE gt_partnr_so INTO gs_partnr_so WITH KEY vbeln = gs_salshdr-vbeln
+                                                       parvw = 'AG'.
+    IF sy-subrc = 0.
+      gs_result-kunnr = gs_partnr_so-kunnr.
+      CLEAR : gs_cust.
+**  "CHG0691823 JE3K901503 modification done by 502286348 end on 03.06.2014.
+      READ TABLE gt_cust INTO gs_cust WITH KEY kunnr = gs_result-kunnr.
+      IF sy-subrc = 0.
+        gs_result-name1 = gs_cust-name1.
+        gs_result-name2 = gs_cust-name2.
+      ENDIF.
+    ENDIF.
+    APPEND gs_result TO gt_result.
+    CLEAR gs_result.
+  ENDLOOP.
+ENDFORM.                    " FINAL_DATA
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV_REPORT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_alv_report .
+  gd_repid = sy-repid.
+  gw_events-name = 'TOP_OF_PAGE'.
+  gw_events-form = 'TOP_OF_PAGE'.
+  APPEND gw_events TO gt_events.
+  CLEAR gw_events.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'                   ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+    EXPORTING
+      i_callback_program      = gd_repid
+      i_callback_user_command = 'USER_COMMAND'
+      it_fieldcat             = gt_fieldcat[]
+      i_save                  = 'X'
+      is_variant              = g_variant
+*     it_events               = gt_events           ""CHG0691823 JE3K901503 modification done by 502286348 on 03.06.2014.
+    TABLES
+      t_outtab                = gt_result
+    EXCEPTIONS
+      program_error           = 1
+      OTHERS                  = 2.
+
+ENDFORM.                    " DISPLAY_ALV_REPORT
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0542   text
+*      -->P_TEXT_F17  text
+*----------------------------------------------------------------------*
+FORM fieldcat  USING p_0542  p_text_f17.
+*      value(p_0542)  p_text_f17.
+
+  CLEAR gs_fieldcat.
+  gs_fieldcat-fieldname = p_0542.
+  gs_fieldcat-seltext_l = p_text_f17.
+  gs_fieldcat-ddictxt   = 'L'.
+**""CHG0691823 JE3K901503 modification done by 502286348 start on 03.06.2014.
+  gs_fieldcat-outputlen = 17.
+  gs_fieldcat-no_zero   = 'X'.
+** ""CHG0691823 JE3K901503 modification done by 502286348 end on 03.06.2014.
+  IF p_0542 = ''.
+    gs_fieldcat-key = 'X'.
+  ENDIF.
+  APPEND gs_fieldcat TO gt_fieldcat.
+  CLEAR gs_fieldcat.
+
+ENDFORM.                    " FIELDCAT
+

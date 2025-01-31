@@ -1,0 +1,12 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_MMRV_WRAPPER_MASS_SCR
+*&---------------------------------------------------------------------*
+
+SELECTION-SCREEN: BEGIN OF BLOCK b2 WITH FRAME TITLE text-t02.
+SELECTION-SCREEN: BEGIN OF BLOCK b3 WITH FRAME TITLE text-t03.
+SELECT-OPTIONS : s_bukrs FOR t001-bukrs NO INTERVALS OBLIGATORY MEMORY ID buk.
+PARAMETER : p_1 AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN: END OF BLOCK b3.
+
+SELECTION-SCREEN: END OF BLOCK b2.
+

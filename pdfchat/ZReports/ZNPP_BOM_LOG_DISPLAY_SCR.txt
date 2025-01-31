@@ -1,0 +1,39 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_BOM_LOG_DISPLAY_SCR
+*&---------------------------------------------------------------------*
+DATA : gw_dispo TYPE dispo.
+SELECT-OPTIONS : s_vbeln FOR gw_vbeln,
+                 s_posnr FOR gw_posnr,
+                 s_projn FOR gw_projn,
+                 s_aufnr FOR gw_aufnr,
+                 s_mainm FOR gw_matnr,
+                 s_matnr FOR gw_matnr,
+                 s_vbkz  FOR gw_vbkz,
+                 s_werks FOR gw_werks,
+                 s_beskz FOR gw_beskz,
+                 s_lgort FOR gw_lgort,
+                 s_ekgrp FOR gw_ekgrp,
+                 s_lifnr FOR gw_lifnr,
+                 s_dispo FOR gw_dispo,
+                 s_date  FOR gw_date.
+PARAMETERS:       p_layout    TYPE disvariant-variant.
+
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_layout.
+  PERFORM f4_layouts USING cl_salv_layout=>restrict_none CHANGING p_layout.
+FORM f4_layouts USING i_restrict TYPE salv_de_layout_restriction
+CHANGING c_layout TYPE disvariant-variant.
+
+  DATA: ls_layout TYPE salv_s_layout_info,
+        ls_key    TYPE salv_s_layout_key.
+
+  ls_key-report = sy-repid.
+
+  ls_layout = cl_salv_layout_service=>f4_layouts(
+  s_key    = ls_key
+  restrict = i_restrict ).
+
+  c_layout = ls_layout-layout.
+
+ENDFORM.
+

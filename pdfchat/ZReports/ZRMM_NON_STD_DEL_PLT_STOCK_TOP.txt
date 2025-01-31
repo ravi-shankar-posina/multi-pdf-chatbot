@@ -1,0 +1,96 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_NON_STD_DEL_PLT_STOCK_TOP
+*&---------------------------------------------------------------------*
+TYPES: BEGIN OF y_order_info,
+  vbeln     LIKE vbak-vbeln,            "Open sales order #
+  vbeln_x   LIKE vbak-vbeln,            " For sort purpose
+  posnr     LIKE vbap-posnr,            "Line #
+  posnr_x   LIKE vbap-posnr,            "For sort purpose
+  kunnr     LIKE vbak-kunnr,            "Sold to party
+  matnr     LIKE vbap-matnr,            "SKU #
+  kwmeng    LIKE vbap-kwmeng,           "Order line Qty
+  omeng     LIKE ekpo-menge,            "Open SKU Qty
+  werks_s   LIKE t001w-werks,           "Standard delivery plant = 'CNW1'
+  vmeng     LIKE vbbe-vmeng,            "Available Qty in standard delivery plant
+  werks_n   LIKE t001w-werks,           "Nonstandard delivery plant = 'CNW2'
+  vmeng_n   LIKE vbbe-vmeng,            "Available Qty in nonstandard delivery plant
+  vrkme     LIKE vbap-vrkme,
+  edatu     LIKE vbep-edatu,            "Required delivery date
+*  edatu_x   LIKE vbep-edatu,            " For sort purpose
+  lprio     LIKE vbap-lprio,
+  ernam     LIKE vbak-ernam,            "Entered by
+  erdat     LIKE vbak-erdat,
+  sel(1)    TYPE c,                     "Selection field
+  not_del(1)    TYPE c,                 "Deletion flag 'X'=Do not delete SPACE = DELETE
+  END OF y_order_info.
+TYPES: BEGIN OF y_vbbe,
+  vbeln     LIKE vbbe-vbeln,
+  posnr     LIKE vbbe-posnr,
+  omeng     LIKE vbbe-omeng,
+  vmeng     LIKE vbbe-vmeng,
+  END OF y_vbbe.
+
+TYPES: BEGIN OF y_material,
+  matnr     LIKE vbap-matnr,
+  vrkme     LIKE vbap-vrkme,
+  END OF y_material.
+
+DATA: w_order_info    TYPE y_order_info,
+      w_vbbe          TYPE y_vbbe,
+      w_material      TYPE y_material,
+      w_fieldcat      TYPE slis_fieldcat_alv,
+      w_layout        TYPE slis_layout_alv,
+      w_sort          TYPE slis_sortinfo_alv.
+
+DATA: tx_mss          TYPE STRING,
+*      nb_num(3)       TYPE N,
+      IX_SPOS         LIKE ALVDYNP-SORTPOS.
+
+DATA: t_order_info    TYPE STANDARD TABLE OF y_order_info,
+      t_vbbe          TYPE STANDARD TABLE OF y_vbbe,
+      t_material      TYPE STANDARD TABLE OF y_material,
+      t_fieldcat      TYPE slis_t_fieldcat_alv,
+      t_sort          TYPE slis_t_sortinfo_alv.
+
+CONSTANTS: c_werks_s              LIKE t001w-werks VALUE 'CNW1',
+           c_werks_n              LIKE t001w-werks VALUE 'CNW2',
+           c_1                    LIKE vbep-etenr  VALUE '1',
+           c_a                    LIKE vbup-gbsta  VALUE 'A',
+           c_b                    LIKE vbup-gbsta  VALUE 'B',
+           c_check_rule_a         LIKE bapit441v-prreg VALUE 'A',
+           c_read_atp_lock_c      LIKE bapicm61v-vfpst VALUE 'C',
+           c_read_atp_lock_x      TYPE bapiupdate VALUE 'X',
+           c_callback_status      TYPE slis_formname  VALUE 'F_STATUS_SET',
+           c_callback_usercommand TYPE slis_formname  VALUE 'F_USER_COMMAND',
+           c_eq(2)                TYPE c           VALUE 'EQ',
+           c_i(1)                 TYPE c           VALUE 'I',
+           c_e(1)                 TYPE c           VALUE 'E',
+           c_x(1)                 TYPE c           VALUE 'X',
+           c_vc                   LIKE bapiwmdvs-delkz  VALUE 'VC',
+           c_auart_zor            TYPE vbak-auart  VALUE 'ZOR',
+           c_auart_zdp            TYPE vbak-auart  VALUE 'ZDP',
+           c_pstyv_ztan           type vbap-pstyv  VALUE 'ZTAN'.
+
+FIELD-SYMBOLS: <fs_order_info>  LIKE w_order_info,
+               <fs_material>    LIKE w_material.
+
+DEFINE fieldcat.
+  clear w_fieldcat.
+  w_fieldcat-fieldname = &1.
+  w_fieldcat-seltext_l = &2.
+  w_fieldcat-ddictxt = 'L'.
+  w_fieldcat-no_out = &3.
+  w_fieldcat-key = &4.
+  APPEND w_fieldcat TO t_fieldcat.
+END-OF-DEFINITION.
+DEFINE mc_range.
+  CLEAR &1.
+  &1-sign = &2.
+  &1-option = &3.
+  &1-low = &4.
+  if &5 is not initial.
+    &1-high = &5.
+  endif.
+  append &1.
+END-OF-DEFINITION.
+

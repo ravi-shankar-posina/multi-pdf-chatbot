@@ -1,0 +1,239 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNRMM_PO_TAX_REPORT_FORMS
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  FETCH_RECORDS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fetch_records .
+
+  CLEAR:   gi_ztuhcd1_ds.
+  REFRESH: gt_ztuhcd1_ds.
+  gi_ztuhcd1_ds-name  = gc_form_name_ds.
+  APPEND gi_ztuhcd1_ds TO gt_ztuhcd1_ds.
+  CLEAR  gi_ztuhcd1_ds.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1 = gt_ztuhcd1_ds.
+
+  IF sy-subrc = 0.
+    SORT  gt_ztuhcd1_ds BY name zkey field.
+    CLEAR gi_ztuhcd1_ds.
+  ENDIF.
+
+  SELECT ebeln
+           ernam
+           bedat
+           ekorg
+           ekgrp
+           bsart
+           lifnr
+           knumv FROM ekko
+           INTO TABLE gt_ekko
+           WHERE ebeln IN s_ebeln
+             AND bedat IN s_bedat
+             AND ekorg IN s_ekorg
+             AND bsart IN s_bsart
+             AND lifnr IN s_lifnr
+             AND ernam IN s_ernam
+             AND ekgrp IN s_ekgrp.
+
+  IF sy-subrc = 0.
+    SORT gt_ekko BY ebeln.
+  ENDIF.
+
+  IF gt_ekko[]  IS NOT INITIAL.
+    SELECT ebeln
+           ebelp
+           werks
+           matnr
+           matkl
+           infnr
+           mwskz FROM ekpo
+           INTO TABLE gt_ekpo
+           FOR ALL ENTRIES IN gt_ekko
+           WHERE ebeln = gt_ekko-ebeln
+             AND loekz = ' '
+             AND matnr IN s_matnr
+             AND matkl IN s_matkl
+             AND mwskz IN s_mwskz.
+
+    IF sy-subrc = 0.
+      SORT gt_ekpo BY ebeln ebelp.
+    ENDIF.
+
+    READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name  = gc_form_name_ds
+                                                         zkey  = gc_tax
+                                                         field = gc_kschl BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      SELECT knumv
+             kposn
+             kschl
+             mwsk1 FROM konv
+             INTO TABLE gt_konv
+             FOR ALL ENTRIES IN gt_ekko
+             WHERE knumv = gt_ekko-knumv
+               AND kschl = gi_ztuhcd1_ds-low."'ZMST'.
+      IF sy-subrc = 0.
+        SORT gt_konv BY knumv kposn.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+  IF gt_ekpo[] IS NOT INITIAL.
+    SELECT infnr
+           ekorg
+           werks
+           mwskz FROM eine
+           INTO TABLE gt_eine
+           FOR ALL ENTRIES IN gt_ekpo
+           WHERE infnr = gt_ekpo-infnr
+             AND esokz = '0'
+             AND werks = gt_ekpo-werks.
+    IF sy-subrc = 0.
+      SORT gt_eine BY infnr ekorg werks.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " FETCH_RECORDS
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fieldcatalog .
+  PERFORM fieldcat USING:
+              'BEDAT'   'Purchasing Document Date'(002) ' ',
+              'EBELN'   'Purchasing Document'(003)      'X',
+              'EBELP'   'Item line'(004) ' ',
+              'EKORG'   'Purchasing Org'(005) ' ',
+              'WERKS'   'Plant Code'(006) ' ',
+              'BSART'   'Document Type'(007) ' ',
+              'LIFNR'   'Vendor Code'(008) ' ',
+              'MATNR'   'Material'(009) ' ',
+              'MATKL'   'Material Group'(010) ' ',
+              'MWSKZ'   'PO Tax code'(011) ' ',
+              'MWSK1'   'ZMST Tax Code'(012) ' ',
+              'MWSKZ1'  'PIR Tax Code'(013) ' ',
+              'ERNAM'   'Name of Person who Created the Object'(014) ' ',
+              'EKGRP'   'Purchasing Group'(015) ' '.
+ENDFORM.                    " FIELDCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0467   text
+*      -->P_0468   text
+*----------------------------------------------------------------------*
+FORM fieldcat  USING p_fname p_stext p_hotspot.
+  CLEAR gw_fieldcat.
+  gw_fieldcat-fieldname = p_fname.
+  gw_fieldcat-seltext_l = p_stext.
+  gw_fieldcat-hotspot = p_hotspot.
+  APPEND gw_fieldcat TO gt_fieldcat.
+  CLEAR gw_fieldcat.
+ENDFORM.                    " FIELDCAT
+*&---------------------------------------------------------------------*
+*&      Form  PREPARE_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM prepare_data .
+
+  LOOP AT gt_ekpo INTO gw_ekpo.
+    gw_final-ebelp = gw_ekpo-ebelp.
+    gw_final-matkl = gw_ekpo-matkl.
+    gw_final-matnr = gw_ekpo-matnr.
+    gw_final-werks = gw_ekpo-werks.
+    gw_final-mwskz = gw_ekpo-mwskz.
+
+    READ TABLE gt_ekko INTO gw_ekko WITH KEY ebeln = gw_ekpo-ebeln BINARY SEARCH.
+    IF  sy-subrc IS INITIAL.
+      gw_final-ebeln = gw_ekko-ebeln.
+      gw_final-ernam = gw_ekko-ernam.
+      gw_final-bedat = gw_ekko-bedat.
+      gw_final-ekorg = gw_ekko-ekorg.
+      gw_final-ekgrp = gw_ekko-ekgrp.
+      gw_final-bsart = gw_ekko-bsart.
+      gw_final-lifnr = gw_ekko-lifnr.
+
+      READ TABLE gt_konv INTO gw_konv WITH KEY knumv = gw_ekko-knumv
+                                               kposn = gw_final-ebelp BINARY SEARCH.
+      IF sy-subrc = 0.
+        gw_final-mwsk1 =  gw_konv-mwsk1.
+        IF p_tax IS NOT INITIAL AND
+           gw_final-mwsk1 = gw_final-mwskz.
+          CLEAR: gw_ekko,
+                 gw_ekpo,
+                 gw_konv,
+                 gw_eine,
+                 gw_final.
+          CONTINUE.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    READ TABLE gt_eine INTO gw_eine WITH KEY infnr = gw_ekpo-infnr
+                                             werks = gw_ekpo-werks
+                                             ekorg = gw_final-ekorg BINARY SEARCH.
+    IF sy-subrc = 0.
+      gw_final-mwskz1 = gw_eine-mwskz.
+    ENDIF.
+
+    APPEND gw_final TO gt_final.
+    CLEAR: gw_ekko,
+           gw_ekpo,
+           gw_konv,
+           gw_eine,
+           gw_final.
+  ENDLOOP.
+
+ENDFORM.                    " PREPARE_DATA
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_alv .
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      it_fieldcat             = gt_fieldcat
+      i_callback_program      = sy-repid
+      i_callback_user_command = 'USER_COMMAND'
+    TABLES
+      t_outtab                = gt_final
+    EXCEPTIONS
+      program_error           = 1
+      OTHERS                  = 2.
+
+ENDFORM.                    " DISPLAY_ALV
+
+*&---------------------------------------------------------------------*
+*&      Form  USER_COMMAND
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->R_UCOMM      text
+*      -->RS_SELFIELD  text
+*----------------------------------------------------------------------*
+FORM user_command USING r_ucomm LIKE sy-ucomm
+rs_selfield TYPE slis_selfield.
+  IF rs_selfield-fieldname = 'EBELN'.
+    SET PARAMETER ID 'BES' FIELD rs_selfield-value.
+    CALL TRANSACTION 'ME23N' ."AND SKIP FIRST SCREEN.
+  ENDIF.
+ENDFORM. "user_command
+

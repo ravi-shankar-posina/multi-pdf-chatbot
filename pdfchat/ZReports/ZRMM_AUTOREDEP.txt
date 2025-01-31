@@ -1,0 +1,579 @@
+
+REPORT  zrmm_autoredep MESSAGE-ID zmm.
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_AUTOREDEP
+*&
+*&---------------------------------------------------------------------*
+*&*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Name             : ZRMM_AUTOREDEP                                    *
+* Created by       : Laxma Reddy K (502199780)                         *
+* Transport Request: DE3K965558                                        *
+* RICEF Object No  : RICEF-1610                                            *
+* Transaction code : ZMM987                                            *
+* Description      : Report gives details about all the different stock*
+*                    quantities such as unrestricted quantity, scheduld*
+*                    delivery quantity, safety stock quanty etc.       *
+*                    for given plant, material and finally helps in    *
+*                    understanding the redeployable stock.             *
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+* DATE       |CR No.    |CHANGED BY|DESCRIPTION OF CHANGE
+*************************************************************************
+* 12-Oct-2015|CHG1491025|502199780 |Initial Development
+***------------------------------------------------------------------****
+* 26-Oct-2015|CHG1491025|502199780 |New field 'Qty other' added to output
+*                                   list and it's related changes.
+***------------------------------------------------------------------****
+* 27-Oct-2015|CHG1491025|502199780 |Made values of quantities MNG01_OTHR
+*                                   & MNG01_OPQ positive from negative
+*                                   quantity.
+***------------------------------------------------------------------****
+* 03-Nov-2015|CHG1491025|502199780 |New table: ZTPP_AUTOFG_PLSL created
+*                                   for storing plant and sloc data
+*                                   rather than using hardcode table &
+*                                   message is displayed for those plants
+*                                   which are not maintained in table.
+***------------------------------------------------------------------****
+*----------------------------------------------------------------------*
+* TYPE-POOLS Declarations
+*----------------------------------------------------------------------*
+TYPE-POOLS: slis.
+
+*----------------------------------------------------------------------*
+* TYPES Declarations
+*----------------------------------------------------------------------*
+TYPES: BEGIN OF ty_mard,
+       matnr TYPE matnr,
+       werks TYPE werks_d,
+       lgort TYPE lgort_d,
+       labst TYPE labst,
+       END OF ty_mard,
+
+       BEGIN OF ty_marc,
+       matnr TYPE matnr,
+       werks TYPE werks_d,
+       eisbe TYPE eisbe,
+       END OF ty_marc,
+
+       BEGIN OF ty_vbbe,
+       vbeln TYPE vbeln_va,
+       posnr TYPE posnr_va,
+       etenr TYPE etenr,
+       matnr TYPE matnr,
+       werks TYPE werks_d,
+       omeng TYPE omeng,
+       END OF ty_vbbe,
+
+       BEGIN OF ty_final,
+       werks TYPE werks_d,
+       lgort TYPE lgort_d,
+       mtsmto TYPE char3,
+       matnr TYPE matnr,
+       labst TYPE labst,
+       omeng TYPE omeng,
+       mng01_odsopo TYPE mng01,
+       eisbe TYPE eisbe,
+       mng01_othr TYPE mng01,
+       mng01_opq TYPE mng01,
+       remstk TYPE labst,
+       excstk TYPE labst,
+       rdpstk TYPE labst,
+       END OF ty_final,
+
+       BEGIN OF ty_msg,
+       msg  TYPE char50,
+       END OF ty_msg,
+
+       BEGIN OF ty_autofg_plsl,
+       werks TYPE werks_d,
+       lgort TYPE lgort_d,
+       END OF ty_autofg_plsl.
+
+*----------------------------------------------------------------------*
+* VARIABLE Declarations
+*----------------------------------------------------------------------*
+DATA: gw_matnr TYPE mara-matnr,
+      gw_werks TYPE t001w-werks,
+      gw_mng01_odsopo TYPE mng01,
+      gw_mng01_opq TYPE mng01,
+      gw_mng01_othr TYPE mng01,
+      gt_marc TYPE STANDARD TABLE OF ty_marc,
+      gi_marc_ds TYPE ty_marc,
+      gi_mard_ds TYPE ty_mard,
+      gt_mard TYPE STANDARD TABLE OF ty_mard,
+      gt_vbbe TYPE STANDARD TABLE OF ty_vbbe,
+      gi_vbbe_ds TYPE ty_vbbe,
+      gi_vbbe_copy_ds TYPE ty_vbbe,
+      gw_omeng TYPE omeng,
+      gi_mt61d_ds TYPE mt61d,
+      gw_plant TYPE werks_d,
+      gt_mdezx TYPE STANDARD TABLE OF mdez,
+      gi_mdezx_ds TYPE mdez,
+      gi_final_ds TYPE ty_final,
+      gt_ztuhcd1 TYPE STANDARD TABLE OF ztuhcd1,
+      gi_ztuhcd1_ds TYPE ztuhcd1,
+      gt_final TYPE STANDARD TABLE OF ty_final,
+      gi_fcat_ds TYPE slis_fieldcat_alv,
+      gt_fcat TYPE slis_t_fieldcat_alv,
+      gi_layout_ds TYPE slis_layout_alv,
+      gi_autofg_plsl_ds TYPE ty_autofg_plsl,
+      gt_autofg_plsl TYPE STANDARD TABLE OF ty_autofg_plsl,
+      gt_plant_mntn TYPE STANDARD TABLE OF werks_d,
+      gt_plant TYPE STANDARD TABLE OF werks_d,
+      gw_tabix TYPE sytabix,
+      gt_msg TYPE STANDARD TABLE OF ty_msg,
+      gi_msg_ds TYPE ty_msg,
+      gt_excluding TYPE STANDARD TABLE OF slis_extab,
+      gi_excluding_ds TYPE slis_extab,
+      gt_fcatmsg TYPE STANDARD TABLE OF slis_fieldcat_alv,
+      gi_fcatmsg_ds TYPE slis_fieldcat_alv.
+
+*----------------------------------------------------------------------*
+* CONSTANT Declarations
+*----------------------------------------------------------------------*
+CONSTANTS: gc_e TYPE c VALUE 'E',
+           gc_x TYPE c VALUE 'X',
+           gc_j TYPE vbtyp VALUE 'J',
+           gc_mts TYPE char3 VALUE 'MTS',
+           gc_mto TYPE char3 VALUE 'MTO',
+           gc_zmm987 TYPE tcode VALUE 'ZMM987',
+           gc_eta TYPE gui_code VALUE '&ETA',
+           gc_oup TYPE gui_code VALUE '&OUP',
+           gc_odn TYPE gui_code VALUE '&ODN',
+           gc_ol0 TYPE gui_code VALUE '&OL0',
+           gc_ac1 TYPE gui_code VALUE '&AC1',
+           gc_ilt TYPE gui_code VALUE '&ILT',
+           gc_sc  TYPE gui_code VALUE '%SC',
+           gc_scp TYPE gui_code VALUE '%SC+'.
+
+*----------------------------------------------------------------------*
+* MACRO Declarations
+*----------------------------------------------------------------------*
+DEFINE m_fieldcat.
+  gi_fcat_ds-fieldname = &1.
+  gi_fcat_ds-seltext_l = &2.
+  append gi_fcat_ds to gt_fcat.
+  clear gi_fcat_ds.
+END-OF-DEFINITION.
+
+DEFINE fcode.
+  clear gi_excluding_ds.
+  gi_excluding_ds-fcode = &1.
+  append gi_excluding_ds to gt_excluding.
+END-OF-DEFINITION.
+
+*&---------------------------------------------------------------------*
+*&  SELECTION SCREEN
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b01 WITH FRAME TITLE text-001.
+SELECT-OPTIONS :  gs_matnr FOR gw_matnr OBLIGATORY,
+                  gs_werks FOR gw_werks OBLIGATORY,
+                  gs_date  FOR sy-datum OBLIGATORY NO-EXTENSION.
+SELECTION-SCREEN END OF BLOCK b01.
+
+AT SELECTION-SCREEN.
+  PERFORM validate_plant.
+  PERFORM validate_planned_date.
+  PERFORM fetch_hardcode_entries.
+
+START-OF-SELECTION.
+  PERFORM display_message.
+  PERFORM fetch_data.
+  PERFORM display_output.
+
+
+*&---------------------------------------------------------------------*
+*&      Form  FETCH_HARDCODE_ENTRIES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fetch_hardcode_entries .
+  CONSTANTS: lc_reqname TYPE zobject VALUE 'ZRMM_AUTOREDEP'.
+
+  REFRESH gt_ztuhcd1[].
+  MOVE lc_reqname TO gi_ztuhcd1_ds-name.
+  APPEND gi_ztuhcd1_ds TO gt_ztuhcd1.
+  CLEAR gi_ztuhcd1_ds.
+
+* Call function Z_UHARD_CODE_VALUE to retrive all the hard coded values
+* for objects
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE e070 WITH text-002.
+  ENDIF.
+ENDFORM.                    " FETCH_HARDCODE_ENTRIES
+
+*&---------------------------------------------------------------------*
+*&      Form  FETCH_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fetch_data .
+
+***Fetch plant material data
+  REFRESH gt_marc[].
+  SELECT matnr
+         werks
+         eisbe
+         FROM marc
+         INTO TABLE gt_marc
+         WHERE matnr IN gs_matnr AND
+               werks IN gs_werks.
+  IF gt_marc[] IS NOT INITIAL.
+    SORT gt_marc[] BY matnr werks.
+
+    REFRESH gt_autofg_plsl[].
+    SELECT werks
+           lgort
+           FROM ztpp_autofg_plsl
+           INTO TABLE gt_autofg_plsl
+           FOR ALL ENTRIES IN gt_marc
+           WHERE werks = gt_marc-werks.
+    IF sy-subrc IS INITIAL.
+      SORT gt_autofg_plsl[] BY werks.
+    ENDIF.
+***Fetch MARD data for unrestricted stock
+    REFRESH gt_mard[].
+    SELECT matnr
+           werks
+           lgort
+           labst
+           FROM mard
+           INTO TABLE gt_mard
+           FOR ALL ENTRIES IN gt_marc
+           WHERE matnr = gt_marc-matnr AND
+                 werks = gt_marc-werks.
+    IF sy-subrc IS INITIAL.
+      SORT gt_mard[] BY matnr werks lgort.
+    ENDIF.
+
+***Fetch data from VBBE for open quantity
+    REFRESH gt_vbbe[].
+    SELECT vbeln
+           posnr
+           etenr
+           matnr
+           werks
+           omeng
+           FROM vbbe
+           INTO TABLE gt_vbbe
+           FOR ALL ENTRIES IN gt_marc
+           WHERE matnr = gt_marc-matnr AND
+                 werks = gt_marc-werks AND
+                 vbtyp = gc_j.
+    IF gt_vbbe[] IS NOT INITIAL.
+      gi_vbbe_ds-vbeln = gc_x.
+      gi_vbbe_ds-posnr = '000000'.
+      gi_vbbe_ds-etenr = '0000'.
+      MODIFY gt_vbbe FROM gi_vbbe_ds TRANSPORTING vbeln posnr etenr
+                                   WHERE matnr IS NOT INITIAL.
+      SORT gt_vbbe BY matnr werks.
+
+      LOOP AT gt_vbbe INTO gi_vbbe_copy_ds.
+        gi_vbbe_ds = gi_vbbe_copy_ds.
+        AT NEW werks.
+          CLEAR gw_omeng.
+        ENDAT.
+
+        gw_omeng = gi_vbbe_ds-omeng + gw_omeng.
+
+        AT END OF werks.
+          gi_vbbe_ds-vbeln = space.
+          gi_vbbe_ds-omeng = gw_omeng.
+          MODIFY gt_vbbe FROM gi_vbbe_ds TRANSPORTING vbeln omeng.
+        ENDAT.
+        CLEAR: gi_vbbe_copy_ds,
+               gi_vbbe_ds.
+      ENDLOOP.
+      DELETE gt_vbbe WHERE vbeln IS NOT INITIAL.
+    ENDIF.
+
+    LOOP AT gt_marc INTO gi_marc_ds.
+      gi_final_ds-werks = gi_marc_ds-werks.
+
+      IF gi_final_ds-eisbe GT 0.
+        gi_final_ds-mtsmto = gc_mts.
+      ELSE.
+        gi_final_ds-mtsmto = gc_mto.
+      ENDIF.
+
+      gi_final_ds-matnr = gi_marc_ds-matnr.
+
+*      CLEAR gi_ztuhcd1_ds.
+*      READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1_ds WITH KEY zkey = gi_marc_ds-werks
+*                                                        field = 'PLANT_SLOC'.
+      CLEAR gi_autofg_plsl_ds.
+      READ TABLE gt_autofg_plsl INTO gi_autofg_plsl_ds WITH KEY
+                             werks = gi_marc_ds-werks BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        CLEAR gi_mard_ds.
+        READ TABLE gt_mard INTO gi_mard_ds WITH KEY matnr = gi_marc_ds-matnr
+                                                    werks = gi_marc_ds-werks
+*                                                    lgort = gi_ztuhcd1_ds-low
+                                                    lgort = gi_autofg_plsl_ds-lgort
+                                                    BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          gi_final_ds-labst = gi_mard_ds-labst.
+          gi_final_ds-lgort = gi_mard_ds-lgort.
+        ENDIF.
+      ELSE.
+        MESSAGE i083 WITH text-003 gi_marc_ds-werks DISPLAY LIKE gc_e.
+        LEAVE TO TRANSACTION gc_zmm987.
+      ENDIF.
+
+      CLEAR gi_vbbe_ds.
+      READ TABLE gt_vbbe INTO gi_vbbe_ds WITH KEY matnr = gi_marc_ds-matnr
+                                                  werks = gi_marc_ds-werks
+                                                  BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_final_ds-omeng = gi_vbbe_ds-omeng.
+      ENDIF.
+
+      gi_final_ds-eisbe = gi_marc_ds-eisbe.
+
+***Fetch MRP related data
+      CALL FUNCTION 'MD_STOCK_REQUIREMENTS_LIST_API'
+        EXPORTING
+          matnr                    = gi_marc_ds-matnr
+          werks                    = gi_marc_ds-werks
+        IMPORTING
+          e_mt61d                  = gi_mt61d_ds
+        TABLES
+          mdezx                    = gt_mdezx
+        EXCEPTIONS
+          material_plant_not_found = 1
+          plant_not_found          = 2
+          OTHERS                   = 3.
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ELSE.
+        CLEAR: gw_mng01_odsopo,
+               gw_mng01_opq.
+        LOOP AT gt_mdezx INTO gi_mdezx_ds.
+          IF gi_mdezx_ds-dat00 IN gs_date[].
+            CLEAR gi_ztuhcd1_ds.
+            READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1_ds WITH KEY  zkey = 'ODSP'
+                                                               field = 'MRP_ELEMENT'
+                                                               low = gi_mdezx_ds-delb0.
+            IF sy-subrc IS INITIAL.
+              gw_mng01_odsopo = gi_mdezx_ds-mng01 + gw_mng01_odsopo.
+            ENDIF.
+
+            CLEAR gi_ztuhcd1_ds.
+            READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1_ds WITH KEY  zkey = 'OPPR'
+                                                               field = 'MRP_ELEMENT'
+                                                               low = gi_mdezx_ds-delb0.
+            IF sy-subrc IS INITIAL.
+              gw_mng01_opq = gi_mdezx_ds-mng01 + gw_mng01_opq.
+            ENDIF.
+
+            CLEAR gi_ztuhcd1_ds.
+            READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1_ds WITH KEY  zkey = 'OTHR'
+                                                               field = 'MRP_ELEMENT'
+                                                               low = gi_mdezx_ds-delb0.
+            IF sy-subrc IS INITIAL.
+              gw_mng01_othr = gi_mdezx_ds-mng01 + gw_mng01_othr.
+            ENDIF.
+          ENDIF.
+          CLEAR gi_mdezx_ds.
+        ENDLOOP.
+        IF gw_mng01_odsopo LT 0.
+          gw_mng01_odsopo = -1 * gw_mng01_odsopo.
+        ENDIF.
+        gw_mng01_othr = -1 * gw_mng01_othr.
+        gw_mng01_opq = -1 * gw_mng01_opq.
+        gi_final_ds-mng01_odsopo = gw_mng01_odsopo.
+        gi_final_ds-mng01_othr = gw_mng01_othr.
+        gi_final_ds-mng01_opq = gw_mng01_opq.
+        gi_final_ds-remstk = gi_final_ds-labst - gi_final_ds-eisbe.
+        gi_final_ds-excstk = gi_final_ds-remstk - ( gi_final_ds-omeng +
+                                                    gw_mng01_odsopo +
+                                                    gw_mng01_opq +
+                                                    gw_mng01_othr ).
+        gi_final_ds-rdpstk = gi_final_ds-excstk - gi_final_ds-mng01_opq.
+      ENDIF.
+      APPEND gi_final_ds TO gt_final.
+      CLEAR gi_final_ds.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.                    " FETCH_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output .
+  m_fieldcat 'WERKS' text-005.
+  m_fieldcat 'LGORT' text-006.
+  m_fieldcat 'MTSMTO' text-007.
+  m_fieldcat 'MATNR' text-008.
+  m_fieldcat 'LABST' text-009.
+  m_fieldcat 'OMENG' text-010.
+  m_fieldcat 'MNG01_ODSOPO' text-011.
+  m_fieldcat 'EISBE' text-012.
+  m_fieldcat 'MNG01_OTHR' text-018.
+  m_fieldcat 'MNG01_OPQ' text-013.
+  m_fieldcat 'REMSTK' text-014.
+  m_fieldcat 'EXCSTK' text-015.
+  m_fieldcat 'RDPSTK' text-016.
+
+  gi_layout_ds-colwidth_optimize = gc_x.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      is_layout     = gi_layout_ds
+      it_fieldcat   = gt_fcat
+    TABLES
+      t_outtab      = gt_final
+    EXCEPTIONS
+      program_error = 1
+      OTHERS        = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+ENDFORM.                    " DISPLAY_OUTPUT
+
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_PLANNED_DATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_planned_date .
+  DATA: lw_date TYPE sydatum.
+
+  lw_date = sy-datum + 90.
+  IF gs_date-high IS NOT INITIAL.
+    IF gs_date-high > lw_date.
+      MESSAGE e070 WITH text-004.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " VALIDATE_PLANNED_DATE
+
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_PLANT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_plant .
+  CLEAR gw_plant.
+  SELECT SINGLE werks
+              FROM t001w
+              INTO gw_plant
+              WHERE werks IN gs_werks.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE e070 WITH text-017.
+  ENDIF.
+ENDFORM.                    " VALIDATE_PLANT
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_MESSAGE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_message .
+
+  REFRESH gt_plant_mntn[].
+  SELECT werks
+         FROM ztpp_autofg_plsl
+         INTO TABLE gt_plant_mntn
+         WHERE werks IN gs_werks.
+
+  REFRESH gt_plant[].
+  SELECT werks
+         FROM t001w
+         INTO TABLE gt_plant
+         WHERE werks IN gs_werks.
+
+  LOOP AT gt_plant INTO gw_werks.
+    gw_tabix = sy-tabix.
+    READ TABLE gt_plant_mntn WITH KEY table_line = gw_werks
+                             TRANSPORTING NO FIELDS.
+    IF sy-subrc IS INITIAL.
+      DELETE gt_plant INDEX gw_tabix.
+    ENDIF.
+  ENDLOOP.
+
+  IF gt_plant[] IS NOT INITIAL.
+    gi_msg_ds = text-019.
+    APPEND gi_msg_ds TO gt_msg.
+    CLEAR gi_msg_ds.
+    APPEND INITIAL LINE TO gt_msg.
+    APPEND INITIAL LINE TO gt_msg.
+    LOOP AT gt_plant INTO gw_werks.
+      CONCATENATE text-021 gw_werks INTO gi_msg_ds
+                                 SEPARATED BY space.
+      APPEND gi_msg_ds TO gt_msg.
+      CLEAR: gi_msg_ds,
+             gw_werks.
+    ENDLOOP.
+
+
+***Excluding function codes
+    fcode: gc_eta,
+           gc_oup,
+           gc_odn,
+           gc_ol0,
+           gc_ilt,
+           gc_ac1,
+           gc_sc,
+           gc_scp.
+
+***Building field catalog
+    CLEAR gi_fcatmsg_ds.
+    gi_fcatmsg_ds-fieldname   = 'MSG'.
+    gi_fcatmsg_ds-seltext_l   = 'MESSAGE'.
+    gi_fcatmsg_ds-outputlen   = 50.
+    gi_fcatmsg_ds-tabname     = 'GT_MSG'.
+    gi_fcatmsg_ds-col_pos     = 1.
+    APPEND gi_fcatmsg_ds TO gt_fcatmsg.
+
+
+    CALL FUNCTION 'REUSE_ALV_POPUP_TO_SELECT'
+      EXPORTING
+        i_title               = text-020
+        i_selection           = ' '
+        i_allow_no_selection  = gc_x
+        i_screen_start_column = 1
+        i_screen_start_line   = 1
+        i_screen_end_column   = 60
+        i_screen_end_line     = 20
+        i_tabname             = 'GT_MSG'
+        it_fieldcat           = gt_fcatmsg
+        it_excluding          = gt_excluding
+      TABLES
+        t_outtab              = gt_msg
+      EXCEPTIONS
+        program_error         = 1
+        OTHERS                = 2.
+    IF sy-subrc <> 0.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " DISPLAY_MESSAGE
+

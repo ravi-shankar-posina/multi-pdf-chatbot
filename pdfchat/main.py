@@ -18,7 +18,9 @@ from flask_cors import CORS
 from pandasai import SmartDataframe
 import pandas as pd
 from pandasai.llm.openai import OpenAI
+from abap import modify_abap_code
 from testscripts import script
+import json
 
 
 # Load environment variables
@@ -370,6 +372,14 @@ def query():
 
     response = openai_model.invoke(query)
     return jsonify({"answer": response.content})
+
+@app.route('/modify-abap', methods=['POST'])
+def modify_abap():
+    query = request.json.get("query", "").strip()
+    file_query, modification_request = query.split(',', 1)
+    
+    result = modify_abap_code(file_query.strip(), modification_request.strip())
+    return jsonify({"answer": str(result)})
 
 @app.route('/upload-file', methods=['POST'])
 def upload_file():

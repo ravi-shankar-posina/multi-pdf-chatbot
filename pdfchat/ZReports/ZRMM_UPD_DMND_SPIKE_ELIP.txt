@@ -1,0 +1,160 @@
+*&---------------------------------------------------------------------*
+*& Report ZRSD_UPDATE_DEMAND_SPIKE_ELIP
+*&***------------------------------------------------------------------***
+*** Created by            : Manas MIsra
+*** Creation Date         : 27/02/2023
+*** Transport Request #   : DE3K9A0J08
+*** RICEF Object No #     : 2635
+*** TC ode                : ZMM2635
+*** Description           : Conversion & maintaince program to upload
+***                         Demand Spike ELIP  table
+***                         Data would be uploaded via  a file from PC
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+
+REPORT zrmm_upd_dmnd_spike_elip NO STANDARD PAGE HEADING LINE-SIZE 1023 MESSAGE-ID zcc.
+
+INCLUDE znmm_upd_dmnd_spike_top.
+INCLUDE znmm_upd_dmnd_spike_email_top.
+INCLUDE znmm_upd_dmnd_spike_sel.
+INCLUDE znmm_upd_dmnd_spike_f01.
+INCLUDE znmm_upd_dmnd_spike_email.
+
+INITIALIZATION.
+
+AT SELECTION-SCREEN OUTPUT.
+  PERFORM screen_changes USING p_r1 p_r2 p_r3 p_r4 p_purge.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_infile.
+  PERFORM get_filenam CHANGING p_infile.
+
+START-OF-SELECTION.
+  IF p_r1 = abap_true.
+    IF p_is1 IS NOT INITIAL.
+      PERFORM table_auth_check USING p_is1 CHANGING subrc.
+      IF subrc = 0.
+        IF p_infile IS NOT INITIAL AND ( p_infile CS c_xlsx OR p_infile CS c_xls ).
+          gt_parameters = VALUE #( ( p_test = p_test p_purge = p_purge p_is1 = p_is1 ) ).
+          PERFORM read_xlsdata.
+          IF gv_error_message IS INITIAL.
+            IF p_bgexc IS INITIAL.
+              PERFORM get_tabledata TABLES gt_upload
+                                           gt_zds911e
+                                           gt_upload_s
+                                           gt_upload_e
+                                           gt_parameters
+                                    CHANGING subrc.
+              IF gt_zds911e IS NOT INITIAL AND p_test IS INITIAL.
+                PERFORM update_data TABLES gt_zds911e
+                                           gt_parameters
+                                    CHANGING rs_selfield.
+              ENDIF.
+              PERFORM display_upload_report.
+            ELSEIF ( ( gt_upload IS NOT INITIAL ) AND ( p_bgexc = abap_true ) ).
+              TRY.
+                  PERFORM schedule_bj CHANGING subrc.
+                CATCH cx_root INTO DATA(job_error).
+                  MESSAGE s004(zcc) WITH job_error->get_text( ) TEXT-080 gv_jobname.
+                  EXIT.
+              ENDTRY.
+              CASE subrc.
+                WHEN 0.
+                  MESSAGE s004(zcc) WITH TEXT-075 sy-cprog.
+                WHEN 1.
+                  MESSAGE s004(zcc) WITH TEXT-080 gv_jobname.
+                WHEN 2.
+                  MESSAGE s004(zcc) WITH TEXT-081 c_bg_prog.
+                WHEN 3.
+                  MESSAGE s004(zcc) WITH TEXT-082 gv_jobname.
+              ENDCASE.
+              EXIT.
+            ENDIF.
+          ELSE.
+            MESSAGE TEXT-m01 TYPE 'S' DISPLAY LIKE 'E'.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+        ELSE.
+          MESSAGE TEXT-301 TYPE 'S' DISPLAY LIKE 'E'.
+          LEAVE LIST-PROCESSING.
+        ENDIF.
+      ENDIF.
+    ELSE.
+      MESSAGE TEXT-302 TYPE 'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ELSEIF p_r2 = abap_true.
+    IF p_is2 IS NOT INITIAL.
+      PERFORM table_auth_check USING p_is2 CHANGING subrc.
+      IF subrc = 0.
+        PERFORM check_inputs CHANGING subrc.
+        IF subrc <> 0.
+          MESSAGE i004(zcc) WITH TEXT-029.
+          EXIT.
+        ENDIF.
+      ENDIF.
+    ELSE.
+      MESSAGE TEXT-302 TYPE 'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ELSEIF p_r4 = abap_true.
+    IF p_is2 IS NOT INITIAL.
+      PERFORM table_auth_check USING p_is2 CHANGING subrc.
+      IF subrc = 0.
+        PERFORM check_inputs CHANGING subrc.
+        IF subrc <> 0.
+          MESSAGE i004(zcc) WITH TEXT-029.
+          EXIT.
+        ENDIF.
+      ENDIF.
+    ELSE.
+      MESSAGE TEXT-302 TYPE 'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ELSEIF p_r3 = abap_true.
+    IF ( ( p_infile IS INITIAL ) AND  ( p_r3 IS NOT INITIAL ) ).
+      MESSAGE i004(zcc) WITH TEXT-062.
+      EXIT.
+    ENDIF.
+  ENDIF.
+
+  IF ( ( gt_upload IS INITIAL ) AND ( subrc IS NOT INITIAL ) ).
+    MESSAGE i004(zcc) WITH TEXT-008.
+    LEAVE TO LIST-PROCESSING.
+  ENDIF.
+
+END-OF-SELECTION.
+  IF p_r2 = 'X'.
+    PERFORM edit_tabledata TABLES gt_zds911e.
+  ELSEIF p_r4 = 'X'.
+    PERFORM popup_purge.
+  ELSEIF p_r1 = 'X'.
+    IF ( ( gt_upload_s IS NOT INITIAL ) AND ( sy-batch NE 'X' ) AND ( p_sucess IS NOT INITIAL ) ).
+      PERFORM fill_header_for_log_download.
+      PERFORM file_download TABLES  gt_upload_s gt_header   "Download success data in XLS
+                                  USING  p_infile
+                                         TEXT-045.
+    ENDIF.
+
+    IF ( ( gt_upload_e IS NOT INITIAL ) AND ( sy-batch NE 'X' ) AND ( p_error IS NOT INITIAL ) ).
+      PERFORM fill_header_for_log_download.
+      PERFORM  file_download TABLES  gt_upload_e gt_header   "Download failed data in XLS
+                                  USING  p_infile
+                                         TEXT-046.
+    ENDIF.
+
+    IF ( ( s_email IS NOT INITIAL ) AND ( gt_upload_e IS NOT INITIAL ) AND ( sy-batch NE 'X' )  ).
+
+      PERFORM update_attach_fail TABLES it_attach. " Update Data to mail format
+      IF it_attach IS NOT INITIAL.
+        PERFORM f4000_send_mail TABLES it_attach " Send Mail with error attachment
+                         USING TEXT-027.
+
+      ENDIF.
+    ENDIF.
+  ELSEIF p_r3 = 'X'.
+    IF sy-batch <> 'X'.
+      PERFORM  downlaod_template . "Download Empty XLS template
+    ENDIF.
+  ENDIF.
+

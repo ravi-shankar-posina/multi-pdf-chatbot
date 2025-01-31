@@ -1,0 +1,691 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_GETDATA
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+* Modified by         : Arti Kothule                                   *
+* Modification Date   : 18/07/2022                                     *
+* RITM / APT Number   : RITM5237188                                    *
+* CR Number           : CHG0214269                                     *
+* Transport Request   : DE3K9A0ELW                                     *
+* Transaction Code    : ZMM_ME2N                                       *
+* Purpose             : Include Info record PO text and buyer          *
+*                       description                                    *
+*&---------------------------------------------------------------------*
+
+SELECT  ebeln
+        bsart
+        bsakz
+        loekz
+        lifnr
+        ekorg
+        ekgrp
+        waers
+        bedat
+        reswk
+        ktwrt
+        submi
+        frggr
+        frgsx
+        frgke
+        memory
+       FROM ekko INTO TABLE gt_ekko
+       WHERE ebeln IN s_ebeln
+         AND bsart IN s_bsart
+         AND ekgrp IN s_ekgrp
+         AND lifnr IN s_lifnr
+         AND bedat IN s_bedat
+         AND reswk IN s_reswk.
+
+IF gt_ekko IS NOT INITIAL.
+  SORT gt_ekko BY ebeln.
+*Begin of change CHG0214269 USARKOT
+  SELECT ekgrp
+         eknam
+         FROM t024
+         INTO TABLE gt_t024
+         FOR ALL ENTRIES IN gt_ekko
+        WHERE ekgrp = gt_ekko-ekgrp.
+  IF sy-subrc = 0.
+    SORT gt_t024 BY ekgrp.
+  ENDIF.
+*End Of Changes CHG0214269 USARKOT
+
+*Begin of changes done by Vijay Kumar N CHG2017708 DE3K971407 03/05/2016
+  IF s_selpa-low IS NOT INITIAL AND s_loekz-low IS INITIAL AND s_elikz-low IS INITIAL.
+    SELECT ebeln
+          ebelp
+          loekz
+          statu
+          txz01
+          ematn
+          werks
+          lgort
+          bednr
+          matkl
+          infnr
+          menge
+          meins
+          bprme
+          netpr
+          peinh
+          agdat
+          mwskz
+          knttp
+          elikz
+          pstyp
+          wepos
+          repos
+          konnr
+          ktpnr
+          bstyp
+          txjcd
+          bstae
+          emlif
+          banfn
+          bnfpo
+          reslo
+          prio_urg
+          prio_req
+          exlin
+          exsnr
+          ehtyp
+      FROM ekpo INTO TABLE gt_ekpo
+      FOR ALL ENTRIES IN gt_ekko
+      WHERE ebeln = gt_ekko-ebeln
+        AND ebelp IN s_ebelp
+        AND werks IN s_werks
+        AND pstyp IN s_pstyp
+        AND knttp IN s_knttp
+        AND matkl IN s_matkl
+        AND ematn IN s_matnr
+        AND loekz NE 'L'
+        AND loekz NE 'S'
+        AND elikz NE 'X'.
+  ELSE.
+*End of changes done by Vijay Kumar N CHG2017708 DE3K971407 03/05/2016
+    SELECT ebeln
+          ebelp
+          loekz
+          statu
+          txz01
+          ematn
+          werks
+          lgort
+          bednr
+          matkl
+          infnr
+          menge
+          meins
+          bprme
+          netpr
+          peinh
+          agdat
+          mwskz
+          knttp
+          elikz
+          pstyp
+          wepos
+          repos
+          konnr
+          ktpnr
+          bstyp
+          txjcd
+          bstae
+          emlif
+          banfn
+          bnfpo
+          reslo
+          prio_urg
+          prio_req
+          exlin
+          exsnr
+          ehtyp
+      FROM ekpo INTO TABLE gt_ekpo
+      FOR ALL ENTRIES IN gt_ekko
+      WHERE ebeln = gt_ekko-ebeln
+        AND ebelp IN s_ebelp
+        AND werks IN s_werks
+        AND pstyp IN s_pstyp
+        AND knttp IN s_knttp
+        AND matkl IN s_matkl
+        AND ematn IN s_matnr
+        AND loekz IN s_loekz
+        AND elikz IN s_elikz.
+  ENDIF.               "Added by Vijay Kumar N CHG2017708 DE3K971407 03/05/2016
+  SELECT lifnr
+         name1
+    FROM lfa1 INTO TABLE gt_lfa1
+    FOR ALL ENTRIES IN gt_ekko
+    WHERE lifnr = gt_ekko-lifnr.
+  IF sy-subrc IS INITIAL.
+    SORT gt_lfa1 BY lifnr.
+  ENDIF.
+  IF gt_ekpo IS NOT INITIAL.
+    SORT gt_ekpo BY ebeln ebelp.
+    SELECT
+      ebeln
+      ebelp
+      etenr
+      eindt
+      slfdt
+      menge
+      ameng
+      wemng
+      wamng
+      uzeit
+      estkz
+      glmng
+      FROM eket INTO TABLE gt_eket
+      FOR ALL ENTRIES IN gt_ekpo
+      WHERE ebeln = gt_ekpo-ebeln
+        AND ebelp = gt_ekpo-ebelp
+        AND eindt IN s_eindt
+        AND etenr IN s_etenr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_eket BY ebeln.
+    ENDIF.
+    SELECT
+        belnr
+        gjahr
+        buzei
+        ebeln
+        ebelp
+        menge
+      FROM rseg INTO TABLE gt_rseg
+      FOR ALL ENTRIES IN gt_ekpo
+      WHERE ebeln = gt_ekpo-ebeln
+        AND ebelp = gt_ekpo-ebelp.
+    IF sy-subrc IS INITIAL.
+      SORT gt_rseg BY ebeln ebelp.
+    ENDIF.
+
+    SELECT
+        ebeln
+        ebelp
+        bpwes
+      FROM ekbe INTO TABLE gt_ekbe
+      FOR ALL ENTRIES IN gt_ekpo
+      WHERE ebeln = gt_ekpo-ebeln
+        AND ebelp = gt_ekpo-ebelp.
+    IF sy-subrc IS INITIAL.
+      SORT gt_ekbe BY ebeln.
+    ENDIF.
+    SELECT
+        ebeln
+        ebelp
+        sakto
+        kostl
+        vbeln
+        vbelp
+        aufnr
+        ps_psp_pnr
+        nplnr
+      FROM ekkn INTO TABLE gt_ekkn
+      FOR ALL ENTRIES IN gt_ekpo
+        WHERE ebeln = gt_ekpo-ebeln
+          AND ebelp = gt_ekpo-ebelp
+          AND ps_psp_pnr IN s_ps_psp
+          AND nplnr IN s_nplnr
+          AND aufnr IN s_aufnr
+          AND vbeln IN s_vbeln.
+    IF sy-subrc IS INITIAL.
+      SORT gt_ekkn BY ebeln ebelp.
+    ENDIF.
+    SELECT
+        banfn
+        bnfpo
+        estkz
+      FROM eban INTO TABLE gt_eban
+      FOR ALL ENTRIES IN gt_ekpo
+      WHERE banfn = gt_ekpo-banfn
+        AND bnfpo = gt_ekpo-bnfpo.
+    IF sy-subrc IS INITIAL.
+      SORT gt_eban BY banfn bnfpo.
+    ENDIF.
+    SELECT
+      infnr
+      urzzt
+      FROM eina INTO TABLE gt_eina
+      FOR ALL ENTRIES IN gt_ekpo
+      WHERE infnr = gt_ekpo-infnr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_eina BY infnr.
+    ENDIF.
+  ENDIF.
+ENDIF.
+
+LOOP AT gt_eket INTO gw_eket.
+
+  gw_final-etenr = gw_eket-etenr.
+  gw_final-eindt = gw_eket-eindt.
+  gw_final-slfdt = gw_eket-slfdt.
+  gw_final-eket_menge = gw_eket-menge.
+  gw_final-ameng = gw_eket-ameng.
+  gw_final-wemng = gw_eket-wemng.
+  gw_final-wamng = gw_eket-wamng.
+  gw_final-uzeit = gw_eket-uzeit.
+  gw_final-glmng = gw_eket-glmng.
+
+
+  READ TABLE gt_ekpo INTO gw_ekpo WITH KEY ebeln = gw_eket-ebeln
+                                           ebelp = gw_eket-ebelp BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    gw_final-ebeln = gw_ekpo-ebeln.
+    gw_final-ebelp = gw_ekpo-ebelp.
+    gw_final-loekz = gw_ekpo-loekz.
+    gw_final-statu = gw_ekpo-statu.
+    gw_final-txz01 = gw_ekpo-txz01.
+    CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+      EXPORTING
+        input  = gw_ekpo-ematn
+      IMPORTING
+        output = gw_ekpo-ematn.
+    gw_final-ematn = gw_ekpo-ematn.
+    gw_final-werks = gw_ekpo-werks.
+    gw_final-lgort = gw_ekpo-lgort.
+    gw_final-bednr = gw_ekpo-bednr.
+    gw_final-matkl = gw_ekpo-matkl.
+    gw_final-infnr = gw_ekpo-infnr.
+    gw_final-ekpo_menge = gw_ekpo-menge.
+    gw_final-meins = gw_ekpo-meins.
+    gw_final-bprme = gw_ekpo-bprme.
+    gw_final-netpr = gw_ekpo-netpr.
+    gw_final-peinh = gw_ekpo-peinh.
+    gw_final-agdat = gw_ekpo-agdat.
+    gw_final-mwskz = gw_ekpo-mwskz.
+    gw_final-konnr = gw_ekpo-konnr.
+    gw_final-wepos = gw_ekpo-wepos.
+    gw_final-repos = gw_ekpo-repos.
+    gw_final-ktpnr = gw_ekpo-ktpnr.
+    gw_final-bstyp = gw_ekpo-bstyp.
+    gw_final-txjcd = gw_ekpo-txjcd.
+    gw_final-bstae = gw_ekpo-bstae.
+    gw_final-pstyp = gw_ekpo-pstyp.
+    gw_final-knttp = gw_ekpo-knttp.
+    gw_final-elikz = gw_ekpo-elikz.
+    gw_final-banfn = gw_ekpo-banfn.
+    gw_final-bnfpo = gw_ekpo-bnfpo.
+    gw_final-reslo = gw_ekpo-reslo.
+    gw_final-prio_urg = gw_ekpo-prio_urg.
+    gw_final-prio_req = gw_ekpo-prio_req.
+    gw_final-exlin = gw_ekpo-exlin.
+    gw_final-exsnr = gw_ekpo-exsnr.
+    gw_final-ehtyp = gw_ekpo-ehtyp.
+*  Begin of change-CHG0214269 (USARKOT)
+    CLEAR: lv_name,lv_text.
+
+    REFRESH lt_lines.
+    CONCATENATE gw_ekpo-ebeln gw_ekpo-ebelp INTO lv_name.
+
+    CALL FUNCTION 'READ_TEXT'
+      EXPORTING
+        id                      = lc_id
+        language                = lc_lang
+        name                    = lv_name
+        object                  = lc_obj
+      TABLES
+        lines                   = lt_lines
+      EXCEPTIONS
+        id                      = 1
+        language                = 2
+        name                    = 3
+        not_found               = 4
+        object                  = 5
+        reference_check         = 6
+        wrong_access_to_archive = 7
+        OTHERS                  = 8.
+    IF sy-subrc = 0.
+      LOOP AT lt_lines INTO wa_lines.
+        CONCATENATE lv_text wa_lines-tdline INTO lv_text.
+      ENDLOOP.
+      gw_final-poinfotext = lv_text.
+    ENDIF.
+*  End of change-CHG0214269 (USARKOT)
+  ENDIF.
+
+  gw_final-mglief = gw_eket-menge - gw_eket-wemng.
+  IF gw_final-mglief < 0.
+    gw_final-mglief = 0.
+  ENDIF.
+  IF gw_ekpo-peinh NE 0.  "Added by Vijay Kumar N DE3K971319  CHG2017708  27.04.2016
+    gw_final-wtlief = ( gw_final-mglief * gw_ekpo-netpr ) / gw_ekpo-peinh.
+  ENDIF.                  "Added by Vijay Kumar N DE3K971319  CHG2017708  27.04.2016
+  CLEAR gv_total.
+  LOOP AT gt_eket INTO gw_eket WHERE ebeln = gw_ekpo-ebeln
+                                 AND ebelp = gw_ekpo-ebelp.    "Added by Vijay Kumar N CHG2017708 DE3K971665 13.05.2016
+    gv_total = gv_total + gw_eket-wemng.
+  ENDLOOP.
+  gw_final-wemng_head = gv_total.     "Added by Vijay Kumar N  CHG2017708 DE3K971665 13.05.2016
+  gw_final-mgliefh = gw_ekpo-menge - gv_total.
+  IF gw_ekpo-peinh NE 0.  "Added by Vijay Kumar N DE3K971319  CHG2017708  27.04.2016
+    gw_final-wtliefh = ( gw_final-mgliefh * gw_ekpo-netpr ) / gw_ekpo-peinh.
+  ENDIF.                  "Added by Vijay Kumar N DE3K971319  CHG2017708  27.04.2016
+  READ TABLE gt_rseg INTO gw_rseg WITH KEY ebeln = gw_ekpo-ebeln
+                                           ebelp = gw_ekpo-ebelp BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    gw_final-rseg_menge = gw_rseg-menge.
+  ENDIF.
+
+  READ TABLE gt_ekbe INTO gw_ekbe WITH KEY ebeln = gw_ekpo-ebeln BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    gw_final-bpwes = gw_ekbe-bpwes.
+  ENDIF.
+
+  READ TABLE gt_ekko INTO gw_ekko WITH KEY ebeln = gw_ekpo-ebeln BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    gw_final-bsart = gw_ekko-bsart.
+    gw_final-bsakz = gw_ekko-bsakz.
+    gw_final-ekorg = gw_ekko-ekorg.
+    gw_final-ekgrp = gw_ekko-ekgrp.
+    gw_final-waers = gw_ekko-waers.
+    gw_final-bedat = gw_ekko-bedat.
+    gw_final-reswk = gw_ekko-reswk.
+    gw_final-ktwrt = gw_ekko-ktwrt.
+    gw_final-submi = gw_ekko-submi.
+    gw_final-frggr = gw_ekko-frggr.
+    gw_final-frgsx = gw_ekko-frgsx.
+    gw_final-frgke = gw_ekko-frgke.
+    gw_final-memory = gw_ekko-memory.
+*  Begin of change-CHG0214269 USARKOT
+    CLEAR:gw_t024.
+    READ TABLE gt_t024 INTO gw_t024 WITH KEY ekgrp = gw_ekko-ekgrp BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gw_final-eknam = gw_t024-eknam.
+    ENDIF.
+*  End of change-CHG0214269 USARKOT
+  ENDIF.
+
+  READ TABLE gt_lfa1 INTO gw_lfa1 WITH KEY lifnr = gw_ekko-lifnr BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    gw_final-name1 = gw_lfa1-name1.
+  ENDIF.
+
+  CONCATENATE gw_ekko-lifnr gw_lfa1-name1 INTO gw_final-emlif SEPARATED BY ' '.
+
+  READ TABLE gt_ekkn INTO gw_ekkn WITH KEY ebeln = gw_ekpo-ebeln
+                                           ebelp = gw_ekpo-ebelp BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    gw_final-sakto = gw_ekkn-sakto.
+    gw_final-kostl = gw_ekkn-kostl.
+    gw_final-vbeln = gw_ekkn-vbeln.
+    gw_final-vbelp = gw_ekkn-vbelp.
+    gw_final-aufnr = gw_ekkn-aufnr.
+    CALL FUNCTION 'CONVERSION_EXIT_ABPSP_OUTPUT'
+      EXPORTING
+        input  = gw_ekkn-ps_psp_pnr
+      IMPORTING
+        output = gw_final-ps_psp_pnr.
+    gw_final-nplnr = gw_ekkn-nplnr.
+  ENDIF.
+  IF gw_final-ps_psp_pnr IS INITIAL AND s_ps_psp IS NOT INITIAL.
+    CONTINUE.
+  ENDIF.
+
+  READ TABLE gt_eban INTO gw_eban WITH KEY banfn = gw_ekpo-banfn
+                                           bnfpo = gw_ekpo-bnfpo BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    gw_final-estkz = gw_eban-estkz.
+  ENDIF.
+
+  READ TABLE gt_eina INTO gw_eina WITH KEY infnr = gw_ekpo-infnr BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    gw_final-urzzt = gw_eina-urzzt .
+  ENDIF.
+
+  APPEND gw_final TO gt_final.
+  CLEAR: gw_final, gw_ekko, gw_ekpo, gw_eket, gw_ekkn, gv_total.
+ENDLOOP.
+
+IF s_ps_psp IS NOT INITIAL.
+  DELETE gt_final WHERE ps_psp_pnr IS INITIAL.
+ENDIF.
+IF  s_nplnr IS NOT INITIAL.
+  DELETE gt_final WHERE nplnr IS INITIAL.
+ENDIF.
+IF s_aufnr IS NOT INITIAL.
+  DELETE gt_final WHERE aufnr IS INITIAL.
+ENDIF.
+IF s_vbeln IS NOT INITIAL .
+  DELETE gt_final WHERE vbeln IS INITIAL.
+ENDIF.
+
+CASE s_selpa-low.
+  WHEN 'OPEN'.
+    LOOP AT gt_final INTO gw_final.
+*Begin of changes done by Vijay Kumar N CHG2017708 DE3K971407 12/05/2016
+*      IF gw_final-elikz NE 'X'.
+*        IF gw_final-loekz NE 'L' AND gw_final-loekz NE 'S'.
+*End of changes done by Vijay Kumar N CHG2017708 DE3K971407 12/05/2016
+      IF gw_final-eket_menge - gw_final-wemng NE 0.
+        APPEND gw_final TO gt_final1.
+      ENDIF.
+*Begin of changes done by Vijay Kumar N CHG2017708 DE3K971407 12/05/2016
+*        ENDIF.
+*      ENDIF.
+*End of changes done by Vijay Kumar N CHG2017708 DE3K971407 12/05/2016
+    ENDLOOP.
+
+  WHEN ' '.
+    MOVE gt_final TO gt_final1.
+  WHEN OTHERS.
+
+ENDCASE.
+
+PERFORM field_cat USING :
+        c_ebeln(5) 'Purchase Order Number'(017) TEXT-017,
+        c_ebelp(5) 'Purchase Order Item Number'(018) TEXT-018,
+        c_etenr(5) 'Delivery Schedule Line Counter'(019) TEXT-019,
+        c_bsart(5) 'Purchase Order Document Type'(020) TEXT-020,
+        c_bstyp(5) 'Purchasing Document Category'(021) TEXT-021,
+        c_ekgrp(5) 'Purchasing Group'(022) TEXT-022,
+        c_emlif(5) 'Vendor to be supplied/who is to receive delivery'(023) TEXT-023,
+        c_ematn(5) 'Material Number Corresponding to Manufacturer Part Number'(024) TEXT-024,
+        c_txz01(5) 'Short Text'(025) TEXT-025,
+        c_matkl(5) 'Material Group'(026) TEXT-026,
+        c_loekz(5) 'Deletion Indicator in Purchasing Document'(027) TEXT-027,
+        c_memory(6) 'Purchase Requisition not yet complete'(028) TEXT-028,
+        c_knttp(5) 'Account Assignment Category'(029) TEXT-029,
+        c_werks(5) 'Plant'(030) TEXT-030,
+        c_lgort(5) 'Storage Location'(031) TEXT-031,
+        c_uzeit(5) 'Delivery Date Time-Spot'(032) TEXT-032,
+        c_banfn(5) 'Purchase Requisition Number'(033) TEXT-033,
+        c_bnfpo(5) 'Item Number of Purchase Requisition'(034) TEXT-034,
+        c_estkz(5) 'Creation Indicator (Purchase Requisition/Schedule Lines)'(035) TEXT-035,
+        c_ekorg(5) 'Purchasing Organization'(036) TEXT-036,
+        c_pstyp(5) 'Item Category in Purchasing Document'(037) TEXT-037,
+        c_bednr(5) 'Requirement Tracking Number'(038) TEXT-038,
+        c_wepos(5) 'Goods Receipt Indicator'(087) TEXT-087,
+        c_repos(5) 'Invoice Receipt Indicator'(088) TEXT-088,
+        c_konnr(5) 'Number of Principal Purchase Agreement'(039) TEXT-039,
+        c_ktpnr(5) 'Item Number of Principal Purchase Agreement'(040) TEXT-040,
+        c_agdat(5) 'Deadline for Submission of Bid/Quotation'(041) TEXT-041,
+        c_statu(5) 'RFQ status'(042) TEXT-042,
+        c_submi(5) 'Collective Number'(043) TEXT-043,
+        c_bsakz(5) 'Control indicator for purchasing document type'(044) TEXT-044,
+        c_infnr(5) 'Number of Purchasing Info Record'(045) TEXT-045,
+        c_urzzt(5) 'Number'(046) TEXT-046,
+        c_frggr(5) 'Release group'(047) TEXT-047,
+        c_frgsx(5) 'Release Strategy'(048) TEXT-048,
+        c_frgke(5) 'Release Indicator: Purchasing Document'(049) TEXT-049,
+        c_elikz(5) '"Delivery Completed" Indicator'(089) TEXT-089,
+        c_reslo(5) 'Issuing Storage Location for Stock Transport Order'(050) TEXT-050,
+        c_name1(5) 'Vendor Name'(079) TEXT-079,
+        c_bprme(5) 'Order Price Unit (Purchasing)'(051) TEXT-051,
+        c_mwskz(5) 'Tax on sales/purchases code'(052) TEXT-052,
+        c_txjcd(5) 'Tax Jurisdiction'(053) TEXT-053,
+        c_bstae(5) 'Confirmation Control Key'(090) TEXT-090,
+        c_exlin(5) 'Configurable Item Number'(054) TEXT-054,
+        c_exsnr(5) 'External Sorting'(055) TEXT-055,
+        c_ehtyp(5) 'External Hierarchy Category'(056) TEXT-056,
+        c_prio_urg(8) 'Requirement Urgency'(057) TEXT-057,
+        c_prio_req(8) 'Requirement Priority'(058) TEXT-058,
+        c_bedat(5) 'Purchasing Order Date'(059) TEXT-059,
+        c_ekpo_menge(10) 'Purchase Order Quantity'(060) TEXT-060,
+        c_meins(5) 'Purchase Order Unit of Measure'(061) TEXT-061,
+        c_netpr(5) 'Net Price in Purchasing Info Record'(062) TEXT-062,
+        c_bpwes(5) 'Quantity in GR blocked stock in order price unit'(091) TEXT-091,
+        c_waers(5) 'Currency Key'(063) TEXT-063,
+        c_peinh(5) 'Price Unit'(064) TEXT-064,
+        c_eket_menge(10) 'Scheduled Quantity'(065) TEXT-065,
+        c_rseg_menge(10) 'Quantity'(092) TEXT-092,
+        c_eindt(5) 'Item Delivery Date'(066) TEXT-066,
+        c_slfdt(5) 'Statistics-Relevant Delivery Date'(067) TEXT-067,
+        c_ameng(5) 'Previous Quantity (Delivery Schedule Lines)'(068) TEXT-068,
+        c_wemng(5) 'Qty of goods receipt (Schedule)'(069) TEXT-069,
+        c_wemng_head(10) 'Qty of goods receipt (Header)'(093) TEXT-093,  "Added by Vijay Kumar N CHG2017708 DE3K971665 13.05.2016
+        c_wamng(5) 'Issued Quantity'(070) TEXT-070,
+        c_glmng(5) 'Quantity Delivered (Stock Transfer)'(071) TEXT-071,
+        c_mglief(6) 'Still to deliver schedule Line QTY'(080) TEXT-080,
+        c_wtlief(6) 'Still to be Delivered (Value) Schedule'(081) TEXT-081,
+        c_ktwrt(5) 'Target Value for Header Area per Distribution'(072) TEXT-072,
+        c_ps_psp_pnr(10) 'Work Breakdown Structure Element (WBS Element)'(073) TEXT-073,
+        c_sakto(5) 'G/L Account Number'(074) TEXT-074,
+        c_vbeln(5) 'Sales and Distribution Document Number'(075) TEXT-075,
+        c_vbelp(5) 'Sales Document Item'(076) TEXT-076,
+        c_nplnr(5) 'Network Number for Account Assignment'(077) TEXT-077,
+        c_aufnr(5) 'Order Number'(078) TEXT-078,
+        c_kostl(5) 'Cost Center'(083) TEXT-083,
+        c_mgliefh(7) 'Still to be delivered (Quantity) Header'(084) TEXT-084,
+        c_wtliefh(7) 'Still to be delivered (Value) Header'(085) TEXT-085,
+        c_reswk(5) 'Supplying (Issuing) Plant in Stock Transport Order'(086) TEXT-086,
+        c_poinfotext(128) 'Info Record PO text'(094) TEXT-094,                   "++CHG0214269  (USARKOT)
+        c_eknam(18)  'Description of purchasing group'(095) TEXT-095.            "++CHG0214269 (USARKOT)
+*&---------------------------------------------------------------------*
+*&      Form  FIELD_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_C_EBELN(5)  text
+*      -->P_0244   text
+*----------------------------------------------------------------------*
+FORM field_cat  USING p_fname p_stext p_title.
+  CLEAR gw_fcat.
+  gw_fcat-tabname   = 'GT_FINAL'.
+  gw_fcat-fieldname = p_fname.                          "#EC PF_NO_TYPE
+  gw_fcat-seltext_l = p_stext.                          "#EC PF_NO_TYPE
+  gw_title-title    = p_title.                          "#EC PF_NO_TYPE
+  APPEND gw_title TO gt_title.
+  APPEND gw_fcat TO gt_fcat.
+  CLEAR gw_fcat.
+
+ENDFORM.                    " FIELD_CAT
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  GUI_DOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM gui_download.
+  CONCATENATE p_path sy-datum sy-uzeit INTO gv_filename SEPARATED BY '_'.
+  CONCATENATE gv_filename 'xls' INTO gv_filename SEPARATED BY '.'.
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename                = gv_filename
+      filetype                = 'ASC'
+      write_field_separator   = 'X'
+    TABLES
+      data_tab                = gt_final1
+      fieldnames              = gt_title
+    EXCEPTIONS
+      file_write_error        = 1
+      no_batch                = 2
+      gui_refuse_filetransfer = 3
+      invalid_type            = 4
+      no_authority            = 5
+      unknown_error           = 6
+      header_not_allowed      = 7
+      separator_not_allowed   = 8
+      filesize_not_allowed    = 9
+      header_too_long         = 10
+      dp_error_create         = 11
+      dp_error_send           = 12
+      dp_error_write          = 13
+      unknown_dp_error        = 14
+      access_denied           = 15
+      dp_out_of_memory        = 16
+      disk_full               = 17
+      dp_timeout              = 18
+      file_not_found          = 19
+      dataprovider_exception  = 20
+      control_flush_error     = 21
+      OTHERS                  = 22.
+ENDFORM.                    " GUI_DOWNLOAD
+*&---------------------------------------------------------------------*
+*&      Form  GET_DISPLAY_VARIANT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_G_DISPLAY_VARIANT  text
+*----------------------------------------------------------------------*
+FORM get_display_variant  CHANGING display_variant LIKE disvariant.
+  DATA: variant_memory_id1(24).                             "#EC NEEDED
+  DATA variant TYPE slis_vari.                              "#EC NEEDED
+  DATA repid TYPE sy-repid.                                 "#EC NEEDED
+  repid = sy-repid.
+  IF NOT display_variant-variant IS INITIAL.
+    CALL FUNCTION 'REUSE_ALV_VARIANT_EXISTENCE'
+      EXPORTING
+        i_save     = 'A'
+      CHANGING
+        cs_variant = display_variant
+      EXCEPTIONS
+        OTHERS     = 1.
+
+    IF sy-subrc NE 0.
+      CLEAR display_variant.
+      MESSAGE e204(0k).
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " GET_DISPLAY_VARIANT
+*&---------------------------------------------------------------------*
+*&      Form  F4_DISPLAY_VAR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_G_DISPLAY_VARIANT  text
+*----------------------------------------------------------------------*
+FORM f4_display_var  CHANGING p_display_variant LIKE disvariant.
+  DATA: l_display_variant LIKE disvariant.
+  DATA: l_d020s LIKE d020s.
+  DATA: l_dynpread1 TYPE TABLE OF dynpread.
+  DATA: l_dynpread TYPE dynpread.
+
+  IF p_display_variant IS INITIAL.
+    p_display_variant-report = sy-repid.
+  ENDIF.
+
+  CALL FUNCTION 'REUSE_ALV_VARIANT_F4'
+    EXPORTING
+      is_variant    = p_display_variant
+      i_save        = 'A'
+    IMPORTING
+      es_variant    = l_display_variant
+    EXCEPTIONS
+      not_found     = 1
+      program_error = 2
+      OTHERS        = 3.
+  IF sy-subrc = 0 AND NOT l_display_variant IS INITIAL.
+    p_display_variant = l_display_variant.
+    l_d020s-prog = sy-repid.
+    l_d020s-dnum = sy-dynnr.
+
+    l_dynpread-fieldname  = 'VARNAME'.
+    l_dynpread-fieldvalue = l_display_variant-text.
+    APPEND l_dynpread TO l_dynpread1.
+    CALL FUNCTION 'DYNP_VALUES_UPDATE'
+      EXPORTING
+        dyname     = l_d020s-prog
+        dynumb     = l_d020s-dnum
+      TABLES
+        dynpfields = l_dynpread1.
+  ELSE.                                                     "#EC NEEDED
+  ENDIF.
+
+ENDFORM.                    " F4_DISPLAY_VAR
+

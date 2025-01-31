@@ -1,0 +1,34 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_BILLING_BLOCK_REMOVAL_TOP                   *
+*&---------------------------------------------------------------------*
+DATA: gv_comp_code TYPE zcomp_code,
+      gv_rec_date  TYPE sydatum,
+      gv_del_no    TYPE vbeln_vl,
+      gv_transeq   TYPE ztran_seq_no.
+
+TYPES: BEGIN OF gty_marc_asn_fl,
+       file_name            TYPE localfile,
+       tran_seq_no          TYPE ztran_seq_no,
+       seq_no               TYPE ztseq_no,
+       data_type            TYPE zdata_type,
+       comp_code            TYPE zcomp_code,
+       del_no               TYPE vbeln_vl,
+       split_del_no         TYPE vbeln_vl,
+       collective_shipment  TYPE tknum,
+       direct_leg_shipment  TYPE tknum,
+       record_date          TYPE sydatum,
+       vbeln                TYPE vbeln,
+       faksk                TYPE faksk,
+     END OF gty_marc_asn_fl,
+
+     BEGIN OF gty_lips,
+      vbeln TYPE vbeln_vl,
+      posnr TYPE posnr_vl,
+      vgbel TYPE vgbel,
+     END OF gty_lips.
+
+DATA: gt_marc_asn_fl TYPE STANDARD TABLE OF gty_marc_asn_fl,
+      gt_lips        TYPE STANDARD TABLE OF gty_lips,
+      gt_final       TYPE STANDARD
+                     TABLE OF zsmm_billing_block_removal_alv.
+

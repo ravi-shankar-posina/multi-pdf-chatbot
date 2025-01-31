@@ -1,0 +1,65 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNPP_BOM_LOG_HISTORICAL_TOP
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&  Include           ZRPP_BOM_LOG_HISTORICAL_TOP
+*&---------------------------------------------------------------------*
+DATA : gt_bomlog TYPE TABLE OF ztpp_prodbom_log,
+       gt_bomlog1 TYPE TABLE OF ztpp_prodbom_log,
+       gt_sales TYPE TABLE OF ztpp_prodbom_log,
+       gi_bomlog TYPE ztpp_prodbom_log,
+       gi_sales TYPE ztpp_prodbom_log,
+       gt_bomhist TYPE TABLE OF ztpp_bomlog_hist,
+       gi_bomhist TYPE ztpp_bomlog_hist.
+TYPES : BEGIN OF ty_prod,
+        sno   TYPE zssno,
+        aufnr TYPE aufnr,
+        posnr TYPE aposn,
+        vbeln TYPE vbeln_va,
+        posnr1 TYPE posnr_va,
+        pspel  TYPE zpspel,
+        END OF ty_prod,
+        BEGIN OF ty_aufk,
+        aufnr TYPE aufnr,
+        loekz TYPE aufloekz,
+        objnr TYPE j_objnr,
+        END OF ty_aufk,
+        BEGIN OF ty_jest,
+        objnr TYPE j_objnr,
+        stat  TYPE j_status,
+         END OF ty_jest,
+        BEGIN OF ty_jcds,
+         objnr TYPE j_objnr,
+         stat TYPE j_status,
+         udate TYPE cddatum,
+        END OF ty_jcds,
+        BEGIN OF ty_vbup,
+         vbeln TYPE vbeln,
+         posnr TYPE posnr,
+         gbsta TYPE gbsta,
+        END OF ty_vbup.
+
+DATA :  gt_aufk TYPE TABLE OF ty_aufk,
+        gi_aufk TYPE ty_aufk,
+        gt_jest TYPE TABLE OF ty_jest,
+        gi_jest TYPE ty_jest,
+        gt_jcds TYPE TABLE OF ty_jcds,
+        gi_jcds TYPE ty_jcds,
+        gt_vbup TYPE TABLE OF ty_vbup,
+        gi_vbup TYPE ty_vbup.
+DATA : gw_werks TYPE werks_d.
+DATA: gt_alv TYPE REF TO cl_salv_table .
+DATA :  gc_msg TYPE REF TO cx_salv_msg.
+DATA: go_cols TYPE REF TO cl_salv_columns,
+      gi_key TYPE salv_s_layout_key ,
+      go_layout TYPE REF TO cl_salv_layout,
+     go_column TYPE REF TO cl_salv_column_table,
+     go_function TYPE REF TO cl_salv_functions_list,
+     gi_ztuhcd1_ds TYPE ztuhcd1,
+         gt_ztuhcd1 TYPE STANDARD TABLE OF ztuhcd1.
+CONSTANTS:   gc_i0045 TYPE char5 VALUE 'I0045',
+             gc_i0046 TYPE char5 VALUE 'I0046',
+             gc_i0009 TYPE char5 VALUE 'I0009',
+             gc_i0076 TYPE char5 VALUE 'I0076',
+             gc_i0012 TYPE char5 VALUE 'I0012'.
+

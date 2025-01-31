@@ -1,0 +1,153 @@
+*&---------------------------------------------------------------------*
+*&  Include           ARBCIG_MASS_UPLOAD_F00
+*&---------------------------------------------------------------------*
+TABLES sscrfields.
+* Parameters for selecting the table to upload the data from incoming files
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+************** Table Name **************
+PARAMETERS: p_tabnam(30) AS LISTBOX VISIBLE LENGTH 20.
+
+************** File Action **************
+
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS p_rad1 RADIOBUTTON GROUP cus  DEFAULT 'X'.       "#EC *
+SELECTION-SCREEN COMMENT 3(40) TEXT-014 FOR FIELD p_rad1.   "#EC *
+PARAMETERS p_rad2 RADIOBUTTON GROUP cus.                    "#EC *
+SELECTION-SCREEN COMMENT 47(28) TEXT-013 FOR FIELD p_rad2.  "#EC *
+SELECTION-SCREEN END OF LINE.
+
+*****************************************
+************** File Name **************
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE TEXT-003.
+PARAMETERS: p_fname TYPE rlgrap-filename.
+" Disclaimer texts
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN POSITION 30.
+SELECTION-SCREEN COMMENT 1(50) TEXT-002.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN POSITION 1.
+SELECTION-SCREEN COMMENT 1(75) TEXT-008.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN POSITION 1.
+SELECTION-SCREEN COMMENT 1(75) TEXT-009.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN POSITION 1.
+SELECTION-SCREEN COMMENT 1(75) TEXT-016.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN END OF  BLOCK b3.
+**************************************
+SELECTION-SCREEN END OF  BLOCK b1.
+
+INITIALIZATION.
+* IG-25844: Crown Jewels-ABAP Security -SEC 11A1 {
+*Authorization Check. Only user who is having authorization to the
+*authorization object can execute the program
+  TRY.
+      CALL METHOD cl_arbcig_common_util=>authorization_check_prg
+        EXPORTING
+          i_prg_name = sy-repid.
+    CATCH cx_arbcig_arbci_appl INTO lo_auth_exception.
+      lv_return = lo_auth_exception->get_message( ).
+      MESSAGE ID lv_return-id TYPE lv_return-type
+            NUMBER lv_return-number WITH lv_return-message.
+  ENDTRY.
+*  }
+
+  REFRESH: it_tabnam[].
+  CLEAR: wa_tabnam,wa_tabname,lv_allvalues.
+*  SELECT tabname ddtext FROM arbcig_tabname INTO TABLE it_tabnam. "#EC CI_NOWHERE
+*IG-18019{
+*  LOOP AT it_tabnam INTO wa_tabnam.
+*    CONCATENATE wa_tabnam-tabname '-' INTO wa_allvalues-key.
+*    wa_allvalues-text = wa_tabnam-ddtext.
+*    APPEND wa_allvalues TO lv_allvalues.
+*    CLEAR: wa_tabnam,wa_tabname,wa_allvalues.
+*  ENDLOOP.
+
+  wa_allvalues-key = '1'.
+  wa_allvalues-text = 'ARBCIG_SYSTIDMAP- System ID For Customers'.
+  APPEND wa_allvalues TO lv_allvalues.
+  CLEAR: wa_allvalues.
+
+*}IG-18019
+* Selection screen for the table to upload the data from incoming files.
+AT SELECTION-SCREEN OUTPUT.
+  CLEAR p_tabnam.
+  p_tabnam = '1'.
+  CALL FUNCTION 'VRM_SET_VALUES'
+    EXPORTING
+      id     = 'p_tabnam'
+      values = lv_allvalues.
+
+* Select the the incoming files.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_fname.
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      field_name = 'p_fname'
+    IMPORTING
+      file_name  = p_fname.
+
+* Select the table to upload the data from incoming files.
+START-OF-SELECTION.
+  IF p_tabnam IS INITIAL.
+    MESSAGE e862(arbcig_message)."." no table selected
+  ELSE.
+    IF p_fname IS INITIAL.
+      MESSAGE e861(arbcig_message). " Error while opening the file
+      EXIT.
+    ELSE.
+      CLEAR: lv_key_selected.
+      lv_key_selected = p_tabnam.
+      READ TABLE lv_allvalues INTO wa_allvalues WITH KEY key = lv_key_selected.
+      IF sy-subrc IS INITIAL.
+        p_tabnam = wa_allvalues-text.
+        CLEAR: wa_allvalues.
+      ENDIF.
+      SEARCH p_tabnam FOR '-'.
+      lv_tablename = p_tabnam+0(sy-fdpos).
+*{IG-25836
+*SCC_CHECK_1120
+      CLEAR: ls_package, lt_package[], lv_devclass.
+      SELECT SINGLE devclass
+                    FROM tadir
+                    INTO lv_devclass
+                    WHERE pgmid = lc_pgmid
+                      AND object = lc_object
+                      AND obj_name = lv_tablename.
+      IF sy-subrc EQ 0.
+        ls_package = lv_devclass.
+        INSERT ls_package INTO TABLE lt_package.
+        CLEAR ls_package.
+      ENDIF.
+      TRY.
+          CALL METHOD cl_abap_dyn_prg=>check_table_name_tab
+            EXPORTING
+              val      = lv_tablename
+              packages = lt_package
+            RECEIVING
+              val_str  = lv_tablename.
+        CATCH cx_abap_not_a_table INTO lo_oref.
+          CREATE OBJECT lo_table_exception.
+          lo_table_exception ?= lo_oref.
+          MESSAGE w033(arbcig_message) WITH lo_table_exception->value DISPLAY LIKE 'E'.
+        CATCH cx_abap_not_in_package INTO lo_oref.
+          CREATE OBJECT lo_package_exception.
+          lo_package_exception ?= lo_oref.
+          MESSAGE w034(arbcig_message) WITH lo_package_exception->table DISPLAY LIKE 'E'.
+      ENDTRY.
+*SCC_CHECK_1120
+*}IG-25836
+      CLEAR p_tabnam.
+      IF p_rad1 EQ 'X'.
+        PERFORM load_into_table USING lv_tablename.
+      ENDIF.
+
+      IF p_rad2 EQ 'X'.
+        PERFORM load_from_table USING lv_tablename.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+

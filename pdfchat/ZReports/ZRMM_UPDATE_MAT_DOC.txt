@@ -1,0 +1,228 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_UPDATE_MAT_DOC
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+*** Created by            : Mallikarjun Vaja
+*** Creation Date         : 26 May 2015
+*** Transport Request #   : DE3K962085
+*** RICEF Object No #     : 1535
+*** CR#                   : CHG1233809
+*** Description           : This Report is used to update Mat Doc Header Text field by calling MB02 Tcode
+*** Tcode                 :ZMM985
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***************************************************************************************
+* DATE               | CR No.          |CHANGED BY   |DESCRIPTION OF CHANG
+**************************************************************************************
+*26-May-2015         | CHG1233809      |502055609    |This Report is used to update Mat Doc Header Text field by calling MB02 Tcode
+*18-Jan-2016         | CHG1233809      |502055609    |Bug fix update Mat Doc Header Text with first 25 chars of IBD Ext.ID field
+
+REPORT  zrmm_update_mat_doc.
+TYPE-POOLS slis.
+TYPES : BEGIN OF ty_likp,
+        vbeln TYPE vbeln_vl,
+        lifnr TYPE lifnr,
+        lifex TYPE lifex,
+        werks TYPE werks_d,
+        mblnr TYPE mblnr,
+        bktxt TYPE bktxt,
+        status TYPE char45,
+        END OF ty_likp.
+
+DATA gt_likp TYPE TABLE OF ty_likp.
+DATA gw_likp TYPE ty_likp.
+DATA gt_bdcdata TYPE TABLE OF bdcdata.
+DATA gw_bdcdata TYPE bdcdata.
+DATA gt_messtab TYPE TABLE OF bdcmsgcoll .
+DATA gw_messtab TYPE bdcmsgcoll .
+DATA gv_mode TYPE char1 VALUE 'N'.
+DATA gv_tabix TYPE sy-tabix .
+DATA gt_fcat TYPE slis_t_fieldcat_alv .
+DATA gw_fcat TYPE slis_fieldcat_alv .
+DATA gv_pos TYPE i .
+
+TABLES likp.
+SELECT-OPTIONS : so_lifnr FOR likp-lifnr NO INTERVALS.
+SELECT-OPTIONS : so_werks FOR likp-werks.
+SELECT-OPTIONS : so_wadat FOR likp-wadat.
+
+*Select the Data
+SELECT likp~vbeln likp~lifnr likp~lifex
+       lips~werks
+       mkpf~mblnr mkpf~bktxt
+       INTO CORRESPONDING FIELDS OF TABLE gt_likp
+       FROM likp
+       INNER JOIN lips ON likp~vbeln = lips~vbeln
+       INNER JOIN mkpf ON mkpf~xblnr = lips~vbeln
+       WHERE likp~lifnr IN so_lifnr
+       AND   likp~wadat_ist IN so_wadat
+       AND   lips~werks IN so_werks .
+
+SKIP .
+
+*****************  START BDC TO UPDATE MAT DOC HEADER TEXT
+LOOP AT gt_likp INTO gw_likp.
+  gv_tabix = sy-tabix .
+  IF gw_likp-bktxt IS INITIAL .
+    PERFORM bdc_dynpro      USING 'SAPMM07M' '0460'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'                 'RM07M-MBLNR'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'                 '=KK'.
+    PERFORM bdc_field       USING 'RM07M-MBLNR'                gw_likp-mblnr.
+    PERFORM bdc_field       USING 'XFULL'                      'X'.
+
+
+    PERFORM bdc_dynpro      USING 'SAPMM07M' '0290'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'                 'MKPF-BKTXT'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'                 '=BU'.
+    PERFORM bdc_field       USING 'MKPF-BKTXT'                 gw_likp-lifex+0(25). "CR#CHG1233809   by Mallikarjun  on 18/Jan/2016 TR#DE3K969010
+
+    CALL TRANSACTION 'MB02' USING gt_bdcdata
+                                  MODE gv_mode
+                                  MESSAGES INTO gt_messtab.
+    IF sy-subrc = 0 .
+      gw_likp-bktxt = gw_likp-lifex.
+      gw_likp-status = text-001 .
+      MODIFY gt_likp FROM gw_likp INDEX gv_tabix TRANSPORTING bktxt status .
+    ELSE.
+    ENDIF .
+  ELSE.
+    gw_likp-status = text-002 .
+    MODIFY gt_likp FROM gw_likp INDEX gv_tabix TRANSPORTING  status .
+  ENDIF .
+  REFRESH : gt_bdcdata , gt_messtab .
+  CLEAR   : gw_bdcdata , gw_messtab .
+ENDLOOP.
+
+
+PERFORM create_fcat.
+PERFORM disp_alv.
+
+
+*----------------------------------------------------------------------*
+*        Start new screen                                              *
+*----------------------------------------------------------------------*
+FORM bdc_dynpro USING program dynpro.
+  CLEAR gw_bdcdata.
+  gw_bdcdata-program  = program.
+  gw_bdcdata-dynpro   = dynpro.
+  gw_bdcdata-dynbegin = 'X'.
+  APPEND gw_bdcdata TO gt_bdcdata.
+ENDFORM.                    "BDC_DYNPRO
+
+*----------------------------------------------------------------------*
+*        Insert field                                                  *
+*----------------------------------------------------------------------*
+FORM bdc_field USING fnam fval.
+  CLEAR gw_bdcdata.
+  gw_bdcdata-fnam = fnam.
+  gw_bdcdata-fval = fval.
+  APPEND gw_bdcdata TO gt_bdcdata.
+ENDFORM.                    "BDC_FIELD
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_fcat .
+  PERFORM create_fcat2 USING  :   '1' 'VBELN' 'GT_LIKP' Text-003 , "'Inb Delv No' ,
+                                  '2' 'LIFNR' 'GT_LIKP' Text-004 , "'Vendor No' ,
+                                  '3' 'LIFEX' 'GT_LIKP' Text-005 , "'Exteral ID' ,
+                                  '4' 'WERKS' 'GT_LIKP' Text-006 , "'Recv Plant' ,
+                                  '5' 'MBLNR' 'GT_LIKP' Text-007 , "'Mat Doc No' ,
+                                  '6' 'BKTXT' 'GT_LIKP' Text-008 , "'Header Text' ,
+                                  '7' 'STATUS' 'GT_LIKP' Text-009. " 'Status' .
+
+ENDFORM.                    " CREATE_FCAT
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FCAT2
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0297   text
+*      -->P_0298   text
+*      -->P_0299   text
+*      -->P_0300   text
+*----------------------------------------------------------------------*
+FORM create_fcat2  USING    f_pos
+                            f_fname
+                            f_tabname
+                            f_text.
+
+  CLEAR gw_fcat .
+  gw_fcat-col_pos = f_pos .
+  gw_fcat-fieldname = f_fname .
+  gw_fcat-tabname = f_tabname .
+  gw_fcat-seltext_m = f_text .
+  APPEND gw_fcat TO gt_fcat .
+ENDFORM.                    " CREATE_FCAT2
+*&---------------------------------------------------------------------*
+*&      Form  DISP_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM disp_alv .
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+   EXPORTING
+*   I_INTERFACE_CHECK                 = ' '
+*   I_BYPASSING_BUFFER                = ' '
+*   I_BUFFER_ACTIVE                   = ' '
+*   I_CALLBACK_PROGRAM                = ' '
+*   I_CALLBACK_PF_STATUS_SET          = ' '
+*   I_CALLBACK_USER_COMMAND           = ' '
+*   I_CALLBACK_TOP_OF_PAGE            = ' '
+*   I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*   I_CALLBACK_HTML_END_OF_LIST       = ' '
+*   I_STRUCTURE_NAME                  =
+*   I_BACKGROUND_ID                   = ' '
+*   I_GRID_TITLE                      =
+*   I_GRID_SETTINGS                   =
+*   IS_LAYOUT                         =
+     it_fieldcat                       = gt_fcat
+*   IT_EXCLUDING                      =
+*   IT_SPECIAL_GROUPS                 =
+*   IT_SORT                           =
+*   IT_FILTER                         =
+*   IS_SEL_HIDE                       =
+*   I_DEFAULT                         = 'X'
+*   I_SAVE                            = ' '
+*   IS_VARIANT                        =
+*   IT_EVENTS                         =
+*   IT_EVENT_EXIT                     =
+*   IS_PRINT                          =
+*   IS_REPREP_ID                      =
+*   I_SCREEN_START_COLUMN             = 0
+*   I_SCREEN_START_LINE               = 0
+*   I_SCREEN_END_COLUMN               = 0
+*   I_SCREEN_END_LINE                 = 0
+*   I_HTML_HEIGHT_TOP                 = 0
+*   I_HTML_HEIGHT_END                 = 0
+*   IT_ALV_GRAPHICS                   =
+*   IT_HYPERLINK                      =
+*   IT_ADD_FIELDCAT                   =
+*   IT_EXCEPT_QINFO                   =
+*   IR_SALV_FULLSCREEN_ADAPTER        =
+* IMPORTING
+*   E_EXIT_CAUSED_BY_CALLER           =
+*   ES_EXIT_CAUSED_BY_USER            =
+    TABLES
+      t_outtab                          = gt_likp
+* EXCEPTIONS
+*   PROGRAM_ERROR                     = 1
+*   OTHERS                            = 2
+            .
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+ENDFORM.                    " DISP_ALV
+

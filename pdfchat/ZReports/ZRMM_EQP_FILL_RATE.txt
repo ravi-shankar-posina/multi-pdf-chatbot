@@ -1,0 +1,624 @@
+*=======================================================================
+*= Copyright ©  2000 GE ENERGY  =
+*= ALL RIGHTS RESERVED =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRMM_EQP_FILL_RATE
+* Title             : GEED EQP fillrate
+*
+* Program function  : This program is designed to show GEED EQP fillrate
+*
+* Transaction code  : ZMM930
+*
+* Limitations       : NA
+*
+* Table updates     : NA
+*
+* Authorizations    : NA
+*
+* Selection screen  : NA
+*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+************************************************************************
+* DATE         | CR No.        | CHANGED BY   | DESCRIPTION OF CHANG
+************************************************************************
+* 20-Feb-13    | CHG0164872    | 502152413    | Initial Program
+************************************************************************
+
+REPORT ZRMM_EQP_FILL_RATE.
+
+TABLES:
+  EKKO,
+  EKPO,
+  EKES,
+  EKET,
+  EKBE,
+  AFVC,
+  PROJ,
+  PRPS,
+  PRHI.
+
+TYPES:
+  BEGIN OF TYP_ACTD,
+    PROJN TYPE AFVC-PROJN,             "WBS Code
+    IEDD  TYPE AFVV-IEDD,              "Activity Technical Confirmed Date
+  END OF TYP_ACTD,
+  BEGIN OF TYP_RESULT,
+    EBELN TYPE EKPO-EBELN,             "PO Number
+    EBELP TYPE EKPO-EBELP,             "PO Item
+    PSPNR TYPE PROJ-PSPNR,             "Project Code
+    POST1 TYPE PROJ-POST1,             "Project Define
+    PROJN TYPE AFVC-PROJN,             "WBS Code
+    IEDD  TYPE AFVV-IEDD,              "Activity Technical Confirmed Date
+    MATNR TYPE EKPO-MATNR,             "Material
+    MAKTX TYPE MAKT-MAKTX,             "Material Description
+    BEDAT TYPE EKKO-BEDAT,             "Document Date
+    EINDS TYPE EKES-EINDT,             "Confirmations-->Delivery Date
+    EINDT TYPE EKES-EINDT,             "Schedule-->Delivery Date
+    BLDAT TYPE MKPF-BLDAT,             "Actual Pick Up Date
+    BUDAT TYPE MKPF-BUDAT,             "Posting Date
+    LIFNR TYPE EKKO-LIFNR,             "Vendor code
+    VNAME TYPE NAME80,                 "Vendor description
+    MENGE TYPE EKPO-MENGE,             "PO QTY
+    NETPR TYPE EKPO-NETPR,             "Purchase Unit Price
+    WAERS TYPE EKKO-WAERS,             "Transaction Currency
+    REVNO TYPE EREV-REVNO,             "Reason Version
+    RSCOD TYPE EREV-RSCOD,             "Reasion Code
+    TXZ01 TYPE EREV-TXZ01,             "Reason Text
+    ERDAT TYPE EREV-ERDAT,             "Reason change Date
+  END OF TYP_RESULT.
+
+DATA:
+  GS_EKKO TYPE EKKO,
+  GT_EKKO TYPE TABLE OF EKKO,
+  GS_EKPO TYPE EKPO,
+  GT_EKPO TYPE TABLE OF EKPO,
+  GS_EKES TYPE EKES,
+  GS_EKET TYPE EKET,
+  GT_EKES TYPE TABLE OF EKES,
+  GT_EKET TYPE TABLE OF EKET,
+  GS_EKKN TYPE EKKN,
+  GT_EKKN TYPE TABLE OF EKKN,
+  GS_EREV TYPE EREV,
+  GT_EREV TYPE TABLE OF EREV,
+  GS_AFKO TYPE AFKO,
+  GT_AFKO TYPE TABLE OF AFKO,
+  GS_EKBE TYPE EKBE,
+  GT_EKBE TYPE TABLE OF EKBE,
+  GT_EKBE_102 TYPE TABLE OF EKBE,
+  GS_AFVC TYPE AFVC,
+  GT_AFVC TYPE TABLE OF AFVC,
+  GS_PROJ TYPE PROJ,
+  GT_PROJ TYPE TABLE OF PROJ,
+  GS_MSEG TYPE MSEG,
+  GT_MSEG TYPE TABLE OF MSEG,
+  GS_MAKT TYPE MAKT,
+  GT_MAKT TYPE TABLE OF MAKT,
+  GS_LFA1 TYPE LFA1,
+  GT_LFA1 TYPE TABLE OF LFA1,
+  GS_T16CT TYPE T16CT,
+  GT_T16CT TYPE TABLE OF T16CT,
+  GS_ACTD TYPE TYP_ACTD,
+  GT_ACTD TYPE TABLE OF TYP_ACTD.
+
+DATA:
+  GS_RESULT TYPE TYP_RESULT,
+  GT_RESULT TYPE TABLE OF TYP_RESULT.
+
+DATA:
+  GS_FIELDCAT TYPE SLIS_FIELDCAT_ALV,
+  GT_FIELDCAT TYPE SLIS_T_FIELDCAT_ALV,
+  GS_LAYOUT   TYPE SLIS_LAYOUT_ALV.
+
+DATA:
+  GO_STRCT_DESCR TYPE REF TO CL_ABAP_STRUCTDESCR.
+
+CONSTANTS:
+  XFLAG(1) TYPE C VALUE 'X'.
+
+SELECTION-SCREEN BEGIN OF BLOCK B01 WITH FRAME TITLE TEXT-B01.
+SELECT-OPTIONS: S_PSPID FOR PROJ-PSPID,
+                S_PROJN FOR AFVC-PROJN,
+                S_EBELN FOR EKKO-EBELN,
+                S_BEDAT FOR EKKO-BEDAT,
+                S_LIFNR FOR EKKO-LIFNR,
+                S_MATNR FOR EKPO-MATNR,
+                S_BUDAT FOR EKBE-BUDAT.
+SELECTION-SCREEN END OF BLOCK B01.
+
+INITIALIZATION.
+
+AT SELECTION-SCREEN OUTPUT.
+
+START-OF-SELECTION.
+  PERFORM FRM_GET_DATA.
+  PERFORM FRM_CALCULATE.
+  PERFORM FRM_OUTPUT_RESULT.
+
+END-OF-SELECTION.
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_GET_DATA.
+* Purchasing Document Header
+  SELECT * FROM EKKO INTO TABLE GT_EKKO
+   WHERE EBELN IN S_EBELN
+     AND BEDAT IN S_BEDAT
+     AND LIFNR IN S_LIFNR.
+
+  IF GT_EKKO IS NOT INITIAL.
+* Purchasing Document Item
+    SELECT * FROM EKPO INTO TABLE GT_EKPO
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN
+       AND MATNR IN S_MATNR.
+* Vendor Confirmations
+    SELECT * FROM EKES INTO TABLE GT_EKES
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN.
+* Scheduling Agreement Schedule Lines
+    SELECT * FROM EKET INTO TABLE GT_EKET
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN.
+* Account Assignment in Purchasing Document
+    SELECT * FROM EKKN INTO TABLE GT_EKKN
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN.
+* Version in Purchasing
+    SELECT * FROM EREV INTO TABLE GT_EREV
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EDOKN EQ GT_EKKO-EBELN.
+* Vendor Master (General Section)
+    SELECT * FROM LFA1 INTO TABLE GT_LFA1
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE LIFNR EQ GT_EKKO-LIFNR.
+* History per Purchasing Document
+    SELECT * FROM EKBE INTO TABLE GT_EKBE
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN
+       AND VGABE EQ '1'                        "Goods Receipt
+       AND BEWTP EQ 'E'                        "Goods Receipt
+       AND BWART EQ '101'.                     "GR
+* History per Purchasing Document - REV
+    SELECT * FROM EKBE INTO TABLE GT_EKBE_102
+       FOR ALL ENTRIES IN GT_EKKO
+     WHERE EBELN EQ GT_EKKO-EBELN
+       AND VGABE EQ '1'                        "Goods Receipt
+       AND BEWTP EQ 'E'                        "Goods Receipt
+       AND BWART EQ '102'.                     "GR Rev
+  ENDIF.
+
+  IF GT_EKPO IS NOT INITIAL.
+* Material Descriptions
+    SELECT * FROM MAKT INTO TABLE GT_MAKT
+       FOR ALL ENTRIES IN GT_EKPO
+     WHERE MATNR = GT_EKPO-MATNR.
+  ENDIF.
+
+  IF GT_EKKN IS NOT INITIAL.
+* Order header data PP orders
+    SELECT * FROM AFKO INTO TABLE GT_AFKO
+       FOR ALL ENTRIES IN GT_EKKN
+     WHERE AUFPL = GT_EKKN-AUFPL.
+* Operation within an order
+    SELECT * FROM AFVC INTO TABLE GT_AFVC
+       FOR ALL ENTRIES IN GT_EKKN
+     WHERE AUFPL EQ GT_EKKN-AUFPL
+       AND APLZL EQ GT_EKKN-APLZL
+       AND PROJN IN S_PROJN.
+  ENDIF.
+
+  IF GT_AFKO IS NOT INITIAL.
+* Project definition
+    SELECT * FROM PROJ INTO TABLE GT_PROJ
+       FOR ALL ENTRIES IN GT_AFKO
+     WHERE PSPNR EQ GT_AFKO-PRONR
+       AND PSPID IN S_PSPID.
+  ENDIF.
+
+* GR REV
+  IF GT_EKBE_102 IS NOT INITIAL.
+    SELECT * FROM MSEG INTO TABLE GT_MSEG
+       FOR ALL ENTRIES IN GT_EKBE_102
+     WHERE MBLNR = GT_EKBE_102-BELNR
+       AND MJAHR = GT_EKBE_102-GJAHR
+       AND ZEILE = GT_EKBE_102-BUZEI.
+  ENDIF.
+
+  SORT GT_MSEG BY SJAHR SMBLN BUZEI.
+  LOOP AT GT_EKBE INTO GS_EKBE.
+    READ TABLE GT_MSEG INTO GS_MSEG
+      WITH KEY SJAHR = GS_EKBE-GJAHR
+               SMBLN = GS_EKBE-BELNR
+               SMBLP = GS_EKBE-BUZEI BINARY SEARCH.
+    IF SY-SUBRC = 0.
+      DELETE GT_EKBE.           "Delete GR Reversed
+    ENDIF.
+  ENDLOOP.
+* DCM Text for Reason for Change
+  SELECT * FROM T16CT INTO TABLE GT_T16CT
+   WHERE SPRAS EQ 'E'.
+ENDFORM.                    "FRM_GET_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_CALCULATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_CALCULATE.
+
+  DATA:
+    LV_LEFT_QTY TYPE EKPO-MENGE.
+
+  SORT GT_EKKO BY EBELN.
+  SORT GT_EKPO BY EBELN EBELP.
+  SORT GT_EKES BY EBELN EBELP ETENS.
+  SORT GT_EKKN BY EBELN EBELP ZEKKN.
+  SORT GT_AFKO BY AUFPL.
+  SORT GT_AFVC BY AUFPL APLZL.
+  SORT GT_PROJ BY PSPNR.
+  SORT GT_MSEG BY EBELN EBELP.
+  SORT GT_MAKT BY MATNR SPRAS.
+  SORT GT_LFA1 BY LIFNR.
+  SORT GT_EKBE BY CPUDT CPUTM.
+  SORT GT_T16CT BY SPRAS RSCOD.
+
+* only need the line of MAX(ETENR)
+  SORT GT_EKET BY EBELN EBELP ETENR DESCENDING.
+  DELETE ADJACENT DUPLICATES FROM GT_EKET COMPARING EBELN EBELP.
+* only display the last change record
+  SORT GT_EREV BY BSTYP EDOKN EDOKP REVNO DESCENDING.
+  DELETE ADJACENT DUPLICATES FROM GT_EREV COMPARING BSTYP EDOKN EDOKP.
+
+  LOOP AT GT_EKPO INTO GS_EKPO.
+    CLEAR GS_EKKO.
+    READ TABLE GT_EKKO INTO GS_EKKO
+      WITH KEY EBELN = GS_EKPO-EBELN BINARY SEARCH.
+    CLEAR GS_EKET.
+    READ TABLE GT_EKET INTO GS_EKET
+      WITH KEY EBELN = GS_EKPO-EBELN
+               EBELP = GS_EKPO-EBELP BINARY SEARCH.
+    CLEAR GS_EKKN.
+    READ TABLE GT_EKKN INTO GS_EKKN
+      WITH KEY EBELN = GS_EKPO-EBELN
+               EBELP = GS_EKPO-EBELP BINARY SEARCH.
+    CLEAR GS_AFKO.
+    READ TABLE GT_AFKO INTO GS_AFKO
+      WITH KEY AUFPL = GS_EKKN-AUFPL BINARY SEARCH.
+    CLEAR GS_PROJ.
+    READ TABLE GT_PROJ INTO GS_PROJ
+      WITH KEY PSPNR = GS_AFKO-PRONR BINARY SEARCH.
+    IF S_PSPID IS NOT INITIAL AND SY-SUBRC NE 0.
+      CONTINUE.
+    ENDIF.
+    CLEAR GS_AFVC.
+    READ TABLE GT_AFVC INTO GS_AFVC
+      WITH KEY AUFPL = GS_EKKN-AUFPL
+               APLZL = GS_EKKN-APLZL BINARY SEARCH.
+    IF S_PROJN IS NOT INITIAL AND SY-SUBRC NE 0.
+      CONTINUE.
+    ENDIF.
+    CLEAR GS_MAKT.
+    READ TABLE GT_MAKT INTO GS_MAKT
+      WITH KEY MATNR = GS_EKPO-MATNR
+               SPRAS = 'E' BINARY SEARCH.
+    IF SY-SUBRC <> 0.
+      READ TABLE GT_MAKT INTO GS_MAKT
+        WITH KEY MATNR = GS_EKPO-MATNR
+                 SPRAS = '1' BINARY SEARCH.
+    ENDIF.
+    CLEAR GS_LFA1.
+    READ TABLE GT_LFA1 INTO GS_LFA1
+      WITH KEY LIFNR = GS_EKKO-LIFNR BINARY SEARCH.
+    CLEAR GS_EREV.
+    READ TABLE GT_EREV INTO GS_EREV
+      WITH KEY EDOKN = GS_EKPO-EBELN BINARY SEARCH.
+
+    GS_RESULT-EBELN = GS_EKPO-EBELN.
+    GS_RESULT-EBELP = GS_EKPO-EBELP.
+    GS_RESULT-PSPNR = GS_PROJ-PSPNR.
+    GS_RESULT-POST1 = GS_PROJ-POST1.
+    GS_RESULT-PROJN = GS_AFVC-PROJN.
+    GS_RESULT-MATNR = GS_EKPO-MATNR.
+    GS_RESULT-MAKTX = GS_EKPO-TXZ01.
+    GS_RESULT-BEDAT = GS_EKKO-BEDAT.
+    GS_RESULT-EINDS = GS_EKET-EINDT.
+    GS_RESULT-LIFNR = GS_EKKO-LIFNR.
+    GS_RESULT-NETPR = GS_EKPO-NETPR.
+    GS_RESULT-WAERS = GS_EKKO-WAERS.
+    GS_RESULT-REVNO = GS_EREV-REVNO.
+    GS_RESULT-RSCOD = GS_EREV-RSCOD.
+    GS_RESULT-ERDAT = GS_EREV-ERDAT.
+
+    IF GS_RESULT-PROJN IS NOT INITIAL.
+      PERFORM FRM_GET_ACT_DATE USING GS_RESULT-PROJN
+                            CHANGING GS_RESULT-IEDD.
+    ENDIF.
+
+    IF GS_EREV-TXZ01 IS INITIAL.
+      CLEAR GS_T16CT.
+      READ TABLE GT_T16CT INTO GS_T16CT
+        WITH KEY RSCOD = GS_RESULT-RSCOD BINARY SEARCH.
+      GS_RESULT-TXZ01 = GS_T16CT-RSTXT.
+    ELSE.
+      GS_RESULT-TXZ01 = GS_EREV-TXZ01.
+    ENDIF.
+    CONCATENATE GS_LFA1-NAME1 GS_LFA1-NAME2
+                GS_LFA1-NAME3 GS_LFA1-NAME4
+      INTO GS_RESULT-VNAME SEPARATED BY SPACE.
+* Display all confirmation lines
+    CLEAR GS_EKES.
+    READ TABLE GT_EKES INTO GS_EKES
+      WITH KEY EBELN = GS_EKPO-EBELN
+               EBELP = GS_EKPO-EBELP BINARY SEARCH.
+    IF SY-SUBRC = 0.
+      LV_LEFT_QTY = GS_EKPO-MENGE.
+      LOOP AT GT_EKES INTO GS_EKES
+        WHERE EBELN = GS_EKPO-EBELN
+          AND EBELP = GS_EKPO-EBELP.
+        CLEAR: GS_RESULT-EINDT,
+               GS_RESULT-BLDAT,
+               GS_RESULT-BUDAT.
+        GS_RESULT-MENGE = GS_EKES-MENGE.
+        GS_RESULT-EINDT = GS_EKES-EINDT.
+        CLEAR GS_EKBE.
+        LOOP AT GT_EKBE INTO GS_EKBE
+          WHERE EBELN = GS_EKPO-EBELN
+            AND EBELP = GS_EKPO-EBELP.
+          IF GS_EKBE-MENGE = GS_EKES-MENGE.
+            GS_RESULT-BLDAT = GS_EKBE-BLDAT.
+            GS_RESULT-BUDAT = GS_EKBE-BUDAT.
+            DELETE GT_EKBE.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+        APPEND GS_RESULT TO GT_RESULT.
+        LV_LEFT_QTY = LV_LEFT_QTY - GS_EKES-MENGE.
+      ENDLOOP.
+      IF LV_LEFT_QTY NE 0.
+        GS_RESULT-MENGE = LV_LEFT_QTY.
+        CLEAR: GS_RESULT-EINDT,
+               GS_RESULT-BLDAT,
+               GS_RESULT-BUDAT.
+        APPEND GS_RESULT TO GT_RESULT.
+      ENDIF.
+      CLEAR GS_RESULT.
+    ELSE.
+      GS_RESULT-MENGE = GS_EKPO-MENGE.
+      CLEAR: GS_RESULT-EINDT,
+             GS_RESULT-BLDAT,
+             GS_RESULT-BUDAT.
+      LOOP AT GT_EKBE INTO GS_EKBE
+        WHERE EBELN = GS_EKPO-EBELN
+          AND EBELP = GS_EKPO-EBELP.
+        GS_RESULT-BLDAT = GS_EKBE-BLDAT.
+        GS_RESULT-BUDAT = GS_EKBE-BUDAT.
+      ENDLOOP.
+      APPEND GS_RESULT TO GT_RESULT.
+      CLEAR GS_RESULT.
+    ENDIF.
+  ENDLOOP.
+
+  IF S_BUDAT IS NOT INITIAL.
+    DELETE GT_RESULT WHERE BUDAT NOT IN S_BUDAT.
+  ENDIF.
+ENDFORM.                    "FRM_CALCULATE
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_OUTPUT_RESULT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_OUTPUT_RESULT.
+  PERFORM FRM_BUILT_CAT.
+  PERFORM FRM_DISPLAY_ALV.
+ENDFORM.                    "FRM_OUTPUT_RESULT
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_BUILT_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_BUILT_CAT.
+  PERFORM FIELDCAT USING:
+    'EBELN' 'PO Number',
+    'EBELP' 'PO Line',
+    'PSPNR' 'Project Code',
+    'POST1' 'Project Description',
+    'PROJN' 'WBS Code',
+    'IEDD'  'Activity Technical Confirmed Date',
+    'MATNR' 'Material',
+    'MAKTX' 'Material Description',
+    'BEDAT' 'Document Date',
+    'EINDS' 'Customer Request Date',
+    'EINDT' 'PRD(Vendor)',
+    'BLDAT' 'Actual Pick Up Date',
+    'BUDAT' 'Posting Date',
+    'LIFNR' 'Vendor code',
+    'VNAME' 'Vendor description',
+    'MENGE' 'PO QTY',
+    'NETPR' 'Purchase Unit Price',
+    'WAERS' 'Transaction Currency',
+    'REVNO' 'Reason Version',
+    'RSCOD' 'Reason Code',
+    'TXZ01' 'Reason Text',
+    'ERDAT' 'Reason change Date'.
+ENDFORM.                    "FRM_BUILT_CAT
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM FRM_DISPLAY_ALV.
+
+  GS_LAYOUT-COLWIDTH_OPTIMIZE = XFLAG.
+  GS_LAYOUT-ZEBRA             = XFLAG.
+  GS_LAYOUT-DETAIL_POPUP      = XFLAG.
+
+*  SORT GT_RESULT BY AMPEL DESCENDING MATNR WERKS.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      I_BYPASSING_BUFFER = XFLAG
+      I_BUFFER_ACTIVE    = SPACE
+      I_CALLBACK_PROGRAM = SY-REPID
+      IS_LAYOUT          = GS_LAYOUT
+      IT_FIELDCAT        = GT_FIELDCAT
+    TABLES
+      T_OUTTAB           = GT_RESULT.
+
+ENDFORM.                    "FRM_DISPLAY_ALV
+
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_FNAME    text
+*      -->P_STEXT    text
+*----------------------------------------------------------------------*
+FORM FIELDCAT USING P_FNAME P_STEXT.
+  CLEAR GS_FIELDCAT.
+  GS_FIELDCAT-FIELDNAME = P_FNAME.
+  GS_FIELDCAT-SELTEXT_L = P_STEXT.
+  GS_FIELDCAT-DDICTXT   = 'L'.
+  IF P_FNAME = 'EBELN' OR P_FNAME = 'EBELP'.
+    GS_FIELDCAT-KEY = 'X'.
+  ENDIF.
+  APPEND GS_FIELDCAT TO GT_FIELDCAT.
+  CLEAR GS_FIELDCAT.
+ENDFORM.                    "FIELDCAT
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_GET_ACT_DATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->GS_RESULT-PROJN  text
+*      -->GS_RESULT-IEDD   text
+*----------------------------------------------------------------------*
+FORM FRM_GET_ACT_DATE USING PV_PROJN TYPE AFVC-PROJN
+                   CHANGING PV_IEDD  TYPE AFVV-IEDD.
+
+  DATA:
+    LS_PRPS  TYPE PRPS,
+    LT_PRPS  TYPE TABLE OF PRPS,
+    LS_AFVC  TYPE AFVC,
+    LS_AFVV  TYPE AFVV,
+    LV_PSPNR TYPE PRPS-PSPNR,
+    LV_NUMB  TYPE I.             "the number of IEDD with AFVC-KTSCH="CN10030"
+
+  CLEAR PV_IEDD.
+  CLEAR GS_ACTD.
+  READ TABLE GT_ACTD INTO GS_ACTD WITH KEY PROJN = PV_PROJN.
+  IF SY-SUBRC = 0.
+    PV_IEDD = GS_ACTD-IEDD.
+  ELSE.
+* A> from the 1st level WBS
+    LV_PSPNR = PV_PROJN.
+* Get the first level WBS.
+    DO 10 TIMES.
+      SELECT SINGLE * FROM PRPS WHERE PSPNR = LV_PSPNR.
+      IF PRPS-STUFE = 1.
+        EXIT.
+      ENDIF.
+      SELECT SINGLE * FROM PRHI WHERE POSNR = LV_PSPNR.
+      LV_PSPNR = PRHI-UP.
+    ENDDO.
+* Get the lower level WBS
+    PERFORM FRM_GET_LOWER_WBS USING LV_PSPNR
+                           CHANGING PV_IEDD LV_NUMB.
+    IF LV_NUMB = 1.
+      GS_ACTD-PROJN = PV_PROJN.
+      GS_ACTD-IEDD  = PV_IEDD.
+      APPEND GS_ACTD TO GT_ACTD.
+      CLEAR GS_ACTD.
+      EXIT.
+    ELSE.
+      CLEAR PV_IEDD.
+    ENDIF.
+* B> from the Project.
+    SELECT SINGLE PSPHI FROM PRPS INTO LV_PSPNR
+     WHERE PSPNR = PV_PROJN.
+    SELECT * FROM PRPS INTO TABLE LT_PRPS
+     WHERE PSPHI = LV_PSPNR
+       AND LOEVM = ''.
+    LOOP AT LT_PRPS INTO LS_PRPS.
+      SELECT SINGLE * FROM AFVC INTO LS_AFVC
+       WHERE KTSCH = 'CN10030'
+         AND PROJN = LS_PRPS-PSPNR.
+      IF SY-SUBRC = 0.
+        SELECT SINGLE * FROM AFVV INTO LS_AFVV
+         WHERE AUFPL = LS_AFVC-AUFPL
+           AND APLZL = LS_AFVC-APLZL.
+        PV_IEDD = LS_AFVV-IEDD.
+        LV_NUMB = LV_NUMB + 1.
+      ENDIF.
+    ENDLOOP.
+    IF LV_NUMB = 1.
+
+    ELSE.
+      CLEAR PV_IEDD.
+    ENDIF.
+    GS_ACTD-PROJN = PV_PROJN.
+    GS_ACTD-IEDD  = PV_IEDD.
+    APPEND GS_ACTD TO GT_ACTD.
+    CLEAR GS_ACTD.
+  ENDIF.
+ENDFORM.                    "
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_GET_LOWER_WBS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->LV_PSPNR   text
+*      -->PV_IEDD    text
+*      -->LV_NUMB    text
+*----------------------------------------------------------------------*
+FORM FRM_GET_LOWER_WBS USING PV_PSPNR TYPE PRPS-PSPNR
+                    CHANGING PV_IEDD  TYPE AFVV-IEDD
+                             PV_NUMB  TYPE I.
+
+  DATA:
+    LS_PRHI TYPE PRHI,
+    LT_PRHI TYPE TABLE OF PRHI,
+    LS_AFVC TYPE AFVC,
+    LS_AFVV TYPE AFVV,
+    LV_IEDD TYPE AFVV-IEDD,
+    LV_NUMB TYPE I.
+
+  CLEAR: PV_IEDD, PV_NUMB.
+  REFRESH LT_PRHI.
+  SELECT * FROM PRHI INTO TABLE LT_PRHI
+   WHERE UP = PV_PSPNR.
+  LOOP AT LT_PRHI INTO LS_PRHI.
+* Get the lower level WBS
+    CLEAR: LV_IEDD, LV_NUMB.
+    PERFORM FRM_GET_LOWER_WBS USING LS_PRHI-POSNR
+                           CHANGING LV_IEDD LV_NUMB.
+    PV_NUMB = PV_NUMB + LV_NUMB.
+    IF LV_IEDD IS NOT INITIAL.
+      PV_IEDD = LV_IEDD.
+    ENDIF.
+  ENDLOOP.
+* Currenct status
+  SELECT SINGLE * FROM AFVC INTO LS_AFVC
+   WHERE KTSCH = 'CN10030'
+     AND PROJN = PV_PSPNR.
+  IF SY-SUBRC = 0.
+    SELECT SINGLE * FROM AFVV INTO LS_AFVV
+     WHERE AUFPL = LS_AFVC-AUFPL
+       AND APLZL = LS_AFVC-APLZL.
+    PV_IEDD = LS_AFVV-IEDD.
+    PV_NUMB = PV_NUMB + 1.
+  ENDIF.
+ENDFORM.                    "FRM_GET_LOWER_WBS
+

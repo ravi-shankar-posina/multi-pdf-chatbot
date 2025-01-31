@@ -1,0 +1,299 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_TNT_TRANSPORT_TOP
+*&---------------------------------------------------------------------*
+
+DATA:  gi_trukid_ds  TYPE ztmm_trkid-ztrukid,
+       gi_type_ds    TYPE ztmm_trtype-ztrantype,
+       gi_crdate_ds  TYPE zcrdate,
+       gi_user_ds    TYPE zuser,
+       gi_reftrk_ds  TYPE zreftrk,
+       gi_reftrid_ds TYPE zreftrid,
+       gi_hubid_ds   TYPE ztmm_hub-zhubid,
+       gi_rehub_ds   TYPE ztmm_hub-zhubid,
+       gi_fwder_ds   TYPE LFA1-LIFNR.
+*-----------------------------------------------------------------------
+* Selection-Screen
+*-----------------------------------------------------------------------
+
+SELECTION-SCREEN BEGIN OF BLOCK t1 WITH FRAME TITLE text-006.
+SELECT-OPTIONS:
+       gs_trkid FOR gi_trukid_ds,
+       gs_type  FOR gi_type_ds,
+       gs_hubid FOR gi_hubid_ds,
+       gs_rehub FOR gi_rehub_ds,
+       gs_crdat FOR gi_crdate_ds,
+       gs_user  FOR gi_user_ds,
+       gs_retrk FOR gi_reftrk_ds,
+       gs_rtrid FOR gi_reftrid_ds,
+       gs_fwder FOR gi_fwder_ds .
+
+SELECTION-SCREEN END OF BLOCK t1.
+SELECTION-SCREEN SKIP.
+SELECTION-SCREEN BEGIN OF BLOCK s1 WITH FRAME TITLE text-001.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS gp_rec AS CHECKBOX.
+SELECTION-SCREEN COMMENT 4(18) text-002 FOR FIELD gp_rec.
+PARAMETERS gp_inr AS CHECKBOX.
+SELECTION-SCREEN COMMENT 26(15) text-003 FOR FIELD gp_rec.
+PARAMETERS gp_int AS CHECKBOX.
+SELECTION-SCREEN COMMENT 45(15) text-004 FOR FIELD gp_rec.
+PARAMETERS gp_cr AS CHECKBOX.
+SELECTION-SCREEN COMMENT 64(15) text-005 FOR FIELD gp_rec.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN END OF BLOCK s1.
+
+
+*-----------------------------------------------------------------------
+* Types declaration
+*-----------------------------------------------------------------------
+TYPES: BEGIN OF ty_ztrkid_ds,
+        truckid     TYPE ztrukid,
+        trantype    TYPE ztrantype,
+        hubid       TYPE zhubid,
+        rechub      TYPE zrechub,
+        crdate      TYPE zcrdate,
+        user        TYPE zuser,
+        reftrk      TYPE zreftrk,
+        reftrid     TYPE zreftrid,
+        frwrder     TYPE zfrwrder,
+        status      TYPE zstatusid,
+        zfullyrec   TYPE zfullyrec,
+      END OF ty_ztrkid_ds,
+
+      BEGIN OF ty_truck_ds,
+        truckid    TYPE ztrukid,
+        hubid      TYPE zhubid,
+        rechub     TYPE zrechub,
+        crdate     TYPE zcrdate,
+        reftrk     TYPE zreftrk,
+        reftrid    TYPE zreftrid,
+        frwrder    TYPE zfrwrder,
+        statusid   TYPE zstatusid,
+        status(10) TYPE c,
+        trantype   TYPE ztrantype,
+        user    TYPE zuser,
+      END OF ty_truck_ds,
+
+      BEGIN OF ty_truck2_ds,
+        truckid    TYPE ztrukid,
+        trantype   TYPE ztrantype,
+        hubid      TYPE zhubid,
+        rechub     TYPE zrechub,
+        reftrk     TYPE zreftrk,
+        reftrid    TYPE zreftrid,
+        frwrder    TYPE zfrwrder,
+        status     TYPE zstatusid,
+        zfullyrec  TYPE zfullyrec,
+        dispdt     TYPE zdispdt,
+        disptm     TYPE zdisptm,
+        nxthbdt    TYPE znxthbdt,
+        sealnr     TYPE zsealnr,
+        ldm        TYPE zldm,
+        rechbdt    TYPE zrechbdt,
+        rechbtm    TYPE zrechbtm,
+        fullgr     TYPE zfullgr,
+        comment    TYPE zcomment,
+        END OF ty_truck2_ds,
+
+        BEGIN OF ty_colli_ds,
+         colliid    TYPE    zcolliid,
+         exidv2     TYPE    zexidv2,
+         hubid      TYPE    zhubid,
+         collint    TYPE    venum,
+         fnldsthub  TYPE    zfnldsthub,
+         curtruck   TYPE    zcurtruck,
+         status     TYPE    zstatusid,
+          END OF ty_colli_ds,
+
+         BEGIN OF ty_vekp_ds,
+          venum	    TYPE venum  ,
+          vpobj	    TYPE vpobj,
+          vpobjkey  TYPE vpobjkey,
+          vhilm_ku  TYPE vhilm_ku,
+          vbeln_gen TYPE vbeln_gen,
+         END OF ty_vekp_ds,
+
+         BEGIN OF ty_likp_ds,
+           vbeln   	TYPE vbeln_vl,
+           lifex    TYPE lifex,
+         END OF ty_likp_ds,
+
+         BEGIN OF ty_trkcoli_ds,
+           trukid   TYPE ztrukid,
+           colliid  TYPE zcolliid,
+           exidv2   TYPE  zexidv2,
+           cmntrec  TYPE zcmntrec,
+           cmntdsp  TYPE  zcmntdsp,
+           status   TYPE  zstatusid,
+           relgr    TYPE  zrelgr,
+         END OF ty_trkcoli_ds,
+
+        BEGIN OF ty_vttk_ds,
+           tknum    TYPE tknum,
+         END OF ty_vttk_ds,
+
+        BEGIN OF ty_xcolli_ds,
+          colliid   TYPE zcolliid,
+          exidv2    TYPE zexidv2,
+          hubid     TYPE zhubid,
+          collint   TYPE venum,
+          fnldsthub TYPE zfnldsthub,
+          curtruck  TYPE zcurtruck,
+          status(15) TYPE c,
+          venum	    TYPE venum  ,
+          vpobj	    TYPE vpobj,
+          vpobjkey  TYPE vpobjkey,
+          vhilm_ku  TYPE vhilm_ku,
+          cmntrec   TYPE zcmntrec,
+          cmntdsp   TYPE zcmntdsp,
+          vbeln     TYPE vbeln_vl,
+          lifex     TYPE lifex,
+          tknum     TYPE tknum,
+        END OF ty_xcolli_ds,
+
+        BEGIN OF ty_vbfa_ds,
+          vbeln     TYPE vbeln_nach,
+          erdat     TYPE erdat,
+          vbelv     TYPE vbeln_von,
+          vbtyp_n   TYPE vbtyp_n,
+          bwart     TYPE bwart,
+        END OF ty_vbfa_ds,
+
+        BEGIN OF ty_mkpf_ds,
+          mblnr     TYPE mblnr,
+          mjahr     TYPE mjahr,
+          usnam     TYPE usnam,
+        END OF ty_mkpf_ds,
+
+        BEGIN OF ty_vepo_ds,
+           venum    TYPE venum,
+           matnr    TYPE matnr,
+           vemng    TYPE vemng,
+           vemeh    TYPE vemeh,
+           vbeln    TYPE vbeln,
+           posnr    TYPE posnr,
+         END OF ty_vepo_ds,
+
+         BEGIN OF ty_likp1_ds,
+           vbeln    TYPE vbeln_vl,
+           vstel    TYPE vstel,
+           route    TYPE route,
+           werks    TYPE empfw,
+         END OF ty_likp1_ds,
+
+         BEGIN OF ty_lips_ds,
+            vbeln   TYPE vbeln_vl,
+            posnr   TYPE posnr_vl,
+            vgbel   TYPE vgbel,
+            vgpos   TYPE vgpos,
+         END OF ty_lips_ds,
+
+         BEGIN OF ty_vbuk_ds,
+           vbeln    TYPE vbeln,
+           wbstk    TYPE wbstk,
+         END OF ty_vbuk_ds,
+
+         BEGIN OF ty_lips1_ds,
+          vbeln     TYPE vbeln_vl,
+          posnr     TYPE posnr_vl,
+          matnr     TYPE matnr,
+          lfimg     TYPE lfimg,
+          meins     TYPE meins,
+          vgbel     TYPE vgbel,
+          vgpos     TYPE vgpos,
+        END OF ty_lips1_ds,
+
+        BEGIN OF ty_final_ds,
+          mat_no    TYPE matnr,
+          quant     TYPE vemng,
+          uom       TYPE vemeh,
+          vgbel     TYPE vgbel,
+          vgpos     TYPE vgpos,
+          vbeln     TYPE vbeln,
+          posnr     TYPE posnr,
+          wbstk     TYPE wbstk,
+          vstel     TYPE vstel,
+          route     TYPE route,
+          werks     TYPE werks,
+      gi_created_by TYPE usnam,
+          vhilm_ku  TYPE vhilm_ku,
+         ext_del_no TYPE lifex,
+      gr_mat_doc_no TYPE vbeln_nach,
+      gr_created_by TYPE usnam,
+          END OF ty_final_ds.
+
+*-----------------------------------------------------------------------
+* Work area declaration
+*-----------------------------------------------------------------------
+DATA: gi_truck_ds      TYPE ty_truck_ds,
+      gi_lips_ds       TYPE ty_lips_ds,
+      gi_lips1_ds      TYPE ty_lips1_ds,
+      gi_trkid_ds      TYPE ty_ztrkid_ds,
+      gi_truck2_ds     TYPE ty_truck2_ds,
+      gi_xcolli_ds     TYPE ty_xcolli_ds,
+      gi_colli_ds      TYPE ty_colli_ds,
+      gi_vekp_ds       TYPE ty_vekp_ds,
+      gi_trkcoli_ds    TYPE ty_trkcoli_ds,
+      gi_vttk_ds       TYPE ty_vttk_ds,
+      gi_likp_ds       TYPE ty_likp_ds,
+      gi_likp1_ds      TYPE ty_likp1_ds,
+      gi_vepo_ds       TYPE ty_vepo_ds,
+      gi_vbfa_ds       TYPE ty_vbfa_ds,
+      gi_vbfa1_ds      TYPE ty_vbfa_ds,
+      gi_mkpf_ds       TYPE ty_mkpf_ds,
+      gi_mkpf1_ds      TYPE ty_mkpf_ds,
+      gi_vbuk_ds       TYPE ty_vbuk_ds,
+      gi_final_ds      TYPE ty_final_ds.
+*-----------------------------------------------------------------------
+* Internal table declaration
+*-----------------------------------------------------------------------
+DATA: gt_output_trk_ds  TYPE TABLE OF ty_truck_ds,
+      gt_ztrkid_ds      TYPE STANDARD TABLE OF ty_ztrkid_ds,
+      gt_lips_ds        TYPE TABLE OF ty_lips_ds,
+      gt_likp_ds        TYPE TABLE OF ty_likp_ds,
+      gt_vepo_ds        TYPE TABLE OF ty_vepo_ds,
+      gt_fldcat_ds      TYPE TABLE OF slis_fieldcat_alv,
+      gt_fldcat2_ds     TYPE TABLE OF slis_fieldcat_alv,
+      gt_fldcat3_ds     TYPE TABLE OF slis_fieldcat_alv,
+      gt_truck2_ds      TYPE TABLE OF ty_truck2_ds,
+      gt_xcolli_ds      TYPE TABLE OF ty_xcolli_ds,
+      gt_colli_ds       TYPE TABLE OF ty_colli_ds,
+      gt_vekp_ds        TYPE TABLE OF ty_vekp_ds,
+      gt_vekp2_ds       TYPE TABLE OF ty_vekp_ds,
+      gt_trkcoli_ds     TYPE TABLE OF ty_trkcoli_ds,
+      gt_likp1_ds       TYPE TABLE OF ty_likp1_ds,
+      gt_lips1_ds       TYPE TABLE OF  ty_lips1_ds,
+      gt_vttk_ds        TYPE TABLE OF ty_vttk_ds,
+      gt_vbfa_ds        TYPE TABLE OF ty_vbfa_ds,
+      gt_vbfa1_ds       TYPE TABLE OF ty_vbfa_ds,
+      gt_mkpf_ds        TYPE TABLE OF ty_mkpf_ds,
+      gt_mkpf1_ds       TYPE TABLE OF ty_mkpf_ds,
+      gt_vbuk_ds        TYPE TABLE OF ty_vbuk_ds,
+      gt_final_ds       TYPE TABLE OF ty_final_ds.
+
+DATA : gw_fullygr_tx(10)    TYPE c ,
+       gw_fullyunloaded_tx  TYPE c,
+       gi_events_ds TYPE slis_alv_event,
+       gt_events_ds TYPE slis_t_event.
+*-----------------------------------------------------------------------
+* Constants declaration
+*-----------------------------------------------------------------------
+
+CONSTANTS : gc_status1    TYPE string VALUE 'TO STAY',
+            gc_status2    TYPE string VALUE 'TO TRANSHIP',
+            gc_status3    TYPE string VALUE 'TO CROSSDOCK',
+            gc_status4    TYPE string VALUE 'FOUND',
+            gc_status5    TYPE string VALUE 'MISSING',
+            gc_status6    TYPE string VALUE 'TRANSHIPPED',
+            gc_status7    TYPE string VALUE 'CROSSDOCKED',
+            gc_status8    TYPE string VALUE 'CREATED',
+            gc_status9    TYPE string VALUE 'INTRANSIT',
+            gc_status10   TYPE string VALUE 'ASSIGNED',
+            gc_status11   TYPE string VALUE 'RECEIVED',
+            gc_tran_type1 TYPE string VALUE 'TRUCK',
+            gc_tran_type2 TYPE string VALUE 'TRAIN',
+            gc_tran_type3 TYPE string VALUE 'CONTAINER',
+            gc_tran_type4 TYPE string VALUE 'PARCEL',
+            gc_tran_type5 TYPE string VALUE 'AIR',
+            gc_tran_type6 TYPE string VALUE 'EXT VENDOR'.
+

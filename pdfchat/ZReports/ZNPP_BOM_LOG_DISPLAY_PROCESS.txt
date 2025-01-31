@@ -1,0 +1,141 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZNPP_BOM_LOG_DISPLAY_PROCESS .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+***** retriving the values from ztpp_prodbom_log
+  SELECT * FROM ztpp_prodbom_log
+           INTO TABLE gt_log
+           WHERE werks  IN s_werks " added on 25.08.2016 for CHG2245818 by 502277866
+             AND aufnr  IN s_aufnr " added on 25.08.2016 for CHG2245818 by 502277866
+             AND vbeln  IN s_vbeln
+             AND posnr1 IN s_posnr
+             AND pspel  IN s_projn
+*             AND aufnr  IN s_aufnr" commented  on 25.08.2016 for CHG2245818 by 502277866
+*             AND aufnr  IN s_aufnr" commented  on 25.08.2016 for CHG2245818 by 502277866
+             AND matnr_main  IN s_mainm
+             AND matnr  IN s_matnr
+             AND dispo  IN s_dispo
+             AND vbkz   IN s_vbkz
+*             AND werks  IN s_werks" commented  on 25.08.2016 for CHG2245818 by 502277866
+             AND beskz  IN s_beskz
+             AND lgort  IN s_lgort
+             AND ekgrp  IN s_ekgrp
+             AND lifnr  IN s_lifnr
+             AND date1  IN s_date.
+  IF sy-subrc NE 0.
+    MESSAGE ' No Data Found'(014) TYPE 'I'.
+  ENDIF.
+
+  LOOP AT gt_log INTO gi_log.
+    IF  gi_log-matnr_main IS NOT INITIAL.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+        EXPORTING
+          input  = gi_log-matnr_main
+        IMPORTING
+          output = gi_log-matnr_main.
+    ENDIF.
+
+    IF  gi_log-matnr IS NOT INITIAL.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+        EXPORTING
+          input  = gi_log-matnr
+        IMPORTING
+          output = gi_log-matnr.
+    ENDIF.
+    MODIFY gt_log FROM gi_log.
+  ENDLOOP.
+
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_data .
+  IF NOT gt_log IS INITIAL.
+    TRY.
+**** prpearing alv for the final table
+        cl_salv_table=>factory( IMPORTING r_salv_table = gt_alv
+                           CHANGING  t_table   = gt_log ).
+      CATCH cx_salv_msg INTO gc_msg .
+    ENDTRY.
+
+    go_layout = gt_alv->get_layout( ).
+    gi_key-report = sy-repid.
+    go_layout->set_key( gi_key ).
+    go_layout->set_default( abap_true ).
+    go_layout->set_initial_layout( p_layout ).
+    go_layout->set_save_restriction( if_salv_c_layout=>restrict_none ).
+    go_function =    gt_alv->get_functions( ).
+    go_function->set_all( abap_true ).
+
+    go_function->set_layout_save( abap_true ).
+    go_cols = gt_alv->get_columns( ).
+    go_column ?= go_cols->get_column( 'PSPEL' ).
+    go_column->set_long_text( 'WBS ELEMENT'(001) ).
+    go_column->set_medium_text( 'WBS ELEMENT'(001) ).
+    go_column->set_output_length( 24 ).
+    go_column ?= go_cols->get_column( 'FDATE' ).
+    go_column->set_long_text( 'Forecast Delivery Date'(002) ).
+    go_column->set_medium_text( 'Forecast Date'(003) ).
+    go_column->set_output_length( 24 ).
+    go_column ?= go_cols->get_column( 'DDAY' ).
+    go_column->set_long_text( 'Delta From Planned Date'(004) ).
+    go_column->set_medium_text( 'Delta  Date'(005) ).
+    go_column->set_output_length( 24 ).
+    go_column ?= go_cols->get_column( 'LOG' ).
+    go_column->set_long_text( 'Log Update'(006) ).
+    go_column->set_medium_text( 'Log Update'(006) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'BDMNG' ).
+    go_column->set_long_text( 'New Requirement Quantity'(007) ).
+    go_column->set_medium_text( 'New Quantity'(008) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'BDMNG1' ).
+    go_column->set_long_text( 'Old Requirement Quantity'(009) ).
+    go_column->set_medium_text( 'Old  Quantity'(010) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'MATNR' ).
+    go_column->set_long_text( 'Component'(011) ).
+    go_column->set_medium_text( 'Component'(011) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'ERDAT' ).
+    go_column->set_long_text( 'Prod Ord Create Date'(012) ).
+    go_column->set_medium_text( 'PO Create Date'(013) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'ZZALTMN' ).
+    go_column->set_long_text( 'Alternative Material Num'(016) ).
+    go_column->set_medium_text( 'Alternative Mat' ).
+    go_column->set_optimized( if_salv_c_bool_sap=>true ).
+    go_column->set_output_length( 25 ).
+    go_column ?= go_cols->get_column( 'SNO' ).
+    go_column->set_long_text( 'Serial NO'(015) ).
+    go_column->set_medium_text( 'Serial NO'(015) ).
+    go_column->set_output_length( 10 ).
+*** Start of changes on 26.02.2016 for  CHG1858725 by 502277866
+    go_column ?= go_cols->get_column( 'STPRS1' ).
+    go_column->set_long_text( 'Unit Price'(017) ).
+    go_column->set_medium_text( 'Unit Price'(017) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'DCOST' ).
+    go_column->set_long_text( 'Demand Cost'(018) ).
+    go_column->set_medium_text( 'Demand Cost'(018) ).
+    go_column->set_output_length( 10 ).
+****** End of changes on 26.02.2016 for  CHG1858725 by 502277866
+    go_column ?= go_cols->get_column( 'MANDT' ).
+    go_column->set_visible( abap_false ).
+    gt_alv->display( ).  " calling alv to dispaly
+  ENDIF.
+ENDFORM.                    " DISPLAY_DATA
+

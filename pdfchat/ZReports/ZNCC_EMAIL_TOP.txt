@@ -1,0 +1,56 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNCC_EMAIL_TOP
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* C O N S T A N T S
+*----------------------------------------------------------------------*
+CONSTANTS:
+  c_x VALUE 'X',                         "Constant value for X
+  c_rec_type TYPE so_escape VALUE 'U',   "Record Type for Email
+  c_com_type TYPE so_snd_art VALUE 'INT', "Communication Type of Email
+  c_doc_type TYPE so_obj_tp VALUE 'RAW', "Document Type of Email
+  c_obj_name TYPE so_obj_nam VALUE 'SAPRPT',"Object Name for Email Purpose
+  c_sensitivty TYPE so_obj_sns VALUE 'F',
+  gc_e(2) TYPE c VALUE '_E'.
+
+"Object Sensitivity for Email Purpose
+*----------------------------------------------------------------------*
+* W O R K A R E A       D E C L A R A T I O N S
+*----------------------------------------------------------------------*
+DATA: wa_message TYPE solisti1,        "Workarea for Mail Message
+      wa_attach TYPE solisti1,         "Workarea for Mail Attach
+      wa_packing_list TYPE sopcklsti1, "Workarea for Mail packing
+      wa_contents TYPE solisti1,       "Workarea for Mail Contents
+      wa_receivers TYPE somlreci1,     "Workarea for Mail Receivers
+      wa_attachment TYPE solisti1,     "Workarea for Mail Attachment
+      wa_object_header TYPE solisti1.  "Workarea for Mail Header
+*----------------------------------------------------------------------*
+* I N T E R N A L    T A B L E S    D E C L A R A T I O N S
+*----------------------------------------------------------------------*
+DATA:
+  it_message TYPE STANDARD TABLE OF solisti1,
+                                         "Int Table for Mail Message
+  it_attach TYPE STANDARD TABLE OF solisti1,
+                                         "Int Table for Mail Attach
+  it_packing_list TYPE STANDARD TABLE OF sopcklsti1,
+                                         "Int Table for Mail Packing
+  it_contents TYPE STANDARD TABLE OF solisti1,
+                                         "Int Table for Mail Contents
+  it_receivers TYPE STANDARD TABLE OF somlreci1,
+                                         "Int Table for Mail Receiver
+  it_attachment TYPE STANDARD TABLE OF solisti1,
+                                         "Int Table for Attachment
+  it_object_header TYPE STANDARD TABLE OF solisti1,
+  lt_att_err TYPE STANDARD TABLE OF solisti1.
+"Int Table for Mail Header
+*----------------------------------------------------------------------*
+* G L O B A L       D E C L A R A T I O N S
+*----------------------------------------------------------------------*
+DATA: g_cnt      TYPE i,              "Record Count
+      g_sent_all TYPE c,              "Flag for Mail sending
+      g_doc_data LIKE sodocchgi1,     "Mail Document Data
+      g_error    TYPE sy-subrc,       "Mail Errors
+      g_reciever TYPE sy-subrc,       "Mail Receiver
+      gr_dctyp   TYPE RANGE OF bkpf-blart,
+      gi_dctyp   LIKE LINE OF gr_dctyp.
+

@@ -1,0 +1,822 @@
+*=======================================================================
+*= Copyright ©  2000 GE ENERGY  =
+*= ALL RIGHTS RESERVED =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRMM_INVENTORY
+* Title             : Inventory Report
+*
+* Program function  : This program is designed to inventory report
+*
+*
+* Transaction code  : ZMM924
+*
+* Limitations       : NA
+*
+* Table updates     : NA
+*
+* Authorizations    : NA
+*
+* Selection screen  : NA
+*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+************************************************************************
+* DATE         | CR No.       | CHANGED BY   | DESCRIPTION OF CHANG
+************************************************************************
+* 06-FEB-13    | CHG0164872   | 502152413    | Initial Program
+* 09-APR-13    | CHG0164872   | 502152413    | Update MTO/MTS Logic
+* 15-APR-14    | CHG0164872   | 502286348    | additional column (EN Descriprtion)
+*                                              add to this program
+************************************************************************
+
+REPORT zrmm_inventory.
+
+*----------------------------------------------------------------------*
+*----------------------------globe datas&types-------------------------*
+*----------------------------------------------------------------------*
+TABLES:
+  t001w,
+  marc,
+  mard.
+
+TYPES:
+  BEGIN OF typ_avai,
+    matnr TYPE mard-matnr,                "Material
+    werks TYPE mard-werks,                "Plant
+    avqty TYPE mard-labst,                "Plant Free available QTY
+    stprs TYPE mt61d-stprs,               "Standard price
+    peinh TYPE mt61d-peinh,               "Price Unit
+    waers TYPE t001-waers,                "Currency
+    stpru TYPE mbew-stprs,                "Unit Price(USD)
+  END OF typ_avai.
+
+TYPES:
+  BEGIN OF typ_class,
+    matnr        TYPE mara-matnr,
+    ccc_certific TYPE cawnt-atwtb,
+    ccc_cert_frm TYPE i,
+    ccc_cert_to  TYPE i,
+  END OF typ_class.
+
+TYPES:
+  BEGIN OF typ_result,
+    matnr TYPE mard-matnr,                "Material
+    werks TYPE mard-werks,                "Plant
+    lgort TYPE mard-lgort,                "Storage Location
+    sobkz TYPE mska-sobkz,                "Special Stock ind
+    ssnum TYPE char20,                    "Special stock number
+    meins TYPE mara-meins,                "Base Unit of Measure
+    labst TYPE mard-labst,                "Unrestricted QTY
+    insme TYPE mard-insme,                "in QualInsp QTY
+    speme TYPE mard-speme,                "Blocked Stock
+    avqty TYPE mard-labst,                "Plant Free available QTY
+    waers TYPE t001-waers,                "Currency
+    stprs TYPE mbew-stprs,                "Unit Price
+    stpru TYPE mbew-stprs,                "Unit Price(USD)
+    peinh TYPE mbew-peinh,                "Price unit
+    beskz TYPE marc-beskz,                "P/M
+    eisbe TYPE marc-eisbe,                "Safety Stock
+    mtors TYPE char3,                     "MTS/MTO Standard
+    mtoos TYPE char3,                     "MTS/MTO Internal
+    maktx TYPE makt-maktx,                "CN Description
+    maktx_e TYPE maktx,                   " EN Description
+    stawn TYPE marc-stawn,                "HS Code
+    vstel TYPE tvstz-vstel,               "Shipping Point
+    letzt TYPE s032-letztzug,             "Last Receiving Date
+    atwrt TYPE ausp-atwrt,                "CCC status
+  END OF typ_result.
+
+CONSTANTS:
+  xflag(1) TYPE c VALUE 'X'.
+
+DATA:
+  gs_mara TYPE mara,
+  gt_mara TYPE TABLE OF mara,
+  gs_mard TYPE mard,
+  gt_mard TYPE TABLE OF mard,
+  gt_mard_tmp TYPE TABLE OF mard,
+  gs_marc TYPE marc,
+  gt_marc TYPE TABLE OF marc,
+  gs_mchb TYPE mchb,
+  gt_mchb TYPE TABLE OF mchb,
+  gs_mkol TYPE mkol,
+  gt_mkol TYPE TABLE OF mkol,
+  gs_msku TYPE msku,
+  gt_msku TYPE TABLE OF msku,
+  gs_mska TYPE mska,
+  gt_mska TYPE TABLE OF mska,
+  gs_mslb TYPE mslb,
+  gt_mslb TYPE TABLE OF mslb,
+  gs_mspr TYPE mspr,
+  gt_mspr TYPE TABLE OF mspr,
+  gs_ebew TYPE ebew,
+  gt_ebew TYPE TABLE OF ebew,
+  gs_qbew TYPE qbew,
+  gt_qbew TYPE TABLE OF qbew,
+  gs_makt TYPE makt,
+  gt_makt TYPE TABLE OF makt,
+  gs_avai TYPE typ_avai,
+  gt_avai TYPE TABLE OF typ_avai,
+  gs_s032 TYPE s032,
+  gt_s032 TYPE TABLE OF s032,
+  gs_t001 TYPE t001,
+  gt_t001 TYPE TABLE OF t001,
+  gs_t001k TYPE t001k,
+  gt_t001k TYPE TABLE OF t001k,
+  gs_t001w TYPE t001w,
+  gt_t001w TYPE TABLE OF t001w,
+  gs_tvstz TYPE tvstz,
+  gt_tvstz TYPE TABLE OF tvstz.
+
+DATA:
+  gs_ausp   TYPE ausp,
+  gt_ausp   TYPE TABLE OF ausp,
+  gs_cawn   TYPE cawn,
+  gt_cawn   TYPE TABLE OF cawn,
+  gs_cawnt  TYPE cawnt,
+  gt_cawnt  TYPE TABLE OF cawnt,
+  gs_class  TYPE typ_class,
+  gt_class  TYPE TABLE OF typ_class.
+
+DATA:
+  gs_result TYPE typ_result,
+  gt_result TYPE TABLE OF typ_result.
+
+DATA:
+  gs_fieldcat TYPE slis_fieldcat_alv,
+  gt_fieldcat TYPE slis_t_fieldcat_alv,
+  gs_layout   TYPE slis_layout_alv.
+
+DATA:
+  go_strct_descr TYPE REF TO cl_abap_structdescr.
+
+DATA :gv_maktx_e TYPE maktx.
+*----------------------------------------------------------------------*
+*----------------------------selection-screen--------------------------*
+*----------------------------------------------------------------------*
+SELECT-OPTIONS:
+  s_matnr FOR mard-matnr,
+  s_werks FOR mard-werks,
+  s_lgort FOR mard-lgort,
+  s_stawn FOR marc-stawn.
+SELECTION-SCREEN SKIP.
+PARAMETER:
+  p_zero AS CHECKBOX DEFAULT ''.
+
+*----------------------------------------------------------------------*
+*----------------------------load-of-program---------------------------*
+*----------------------------------------------------------------------*
+LOAD-OF-PROGRAM.
+
+*----------------------------------------------------------------------*
+*----------------------------initialization----------------------------*
+*----------------------------------------------------------------------*
+INITIALIZATION.
+
+*----------------------------------------------------------------------*
+*----------------------------at selection-screen output----------------*
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN OUTPUT.
+
+*----------------------------------------------------------------------*
+*----------------------------at selection-screen-----------------------*
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN.
+
+*----------------------------------------------------------------------*
+*----------------------------start-of-selection------------------------*
+*----------------------------------------------------------------------*
+START-OF-SELECTION.
+  PERFORM frm_get_inventory.
+  PERFORM frm_get_others.
+  PERFORM frm_process_data.
+  PERFORM frm_output_result.
+
+*----------------------------------------------------------------------*
+*----------------------------end-of-selection--------------------------*
+*----------------------------------------------------------------------*
+END-OF-SELECTION.
+
+*----------------------------------------------------------------------*
+*----------------------------sub-routine-------------------------------*
+*----------------------------------------------------------------------*
+FORM frm_get_inventory.
+* MARD - Normal Stocks
+  SELECT * FROM mard INTO TABLE gt_mard
+   WHERE matnr IN s_matnr
+     AND werks IN s_werks
+     AND lgort IN s_lgort.
+
+* MCHB - Batch Stocks
+  SELECT * FROM mchb INTO TABLE gt_mchb
+   WHERE matnr IN s_matnr
+     AND werks IN s_werks
+     AND lgort IN s_lgort.
+
+* MKOL - Special Stocks from Vendor
+  SELECT * FROM mkol INTO TABLE gt_mkol
+   WHERE matnr IN s_matnr
+     AND werks IN s_werks
+     AND lgort IN s_lgort.
+
+* MSKU - Special Stocks with Customer
+  SELECT * FROM msku INTO TABLE gt_msku
+   WHERE matnr IN s_matnr
+     AND werks IN s_werks.
+
+* MSLB - Special Stocks with Vendor
+  SELECT * FROM mslb INTO TABLE gt_mslb
+   WHERE matnr IN s_matnr
+     AND werks IN s_werks.
+
+* MSKA - Sales Order Stock
+  SELECT * FROM mska INTO TABLE gt_mska
+   WHERE matnr IN s_matnr
+     AND werks IN s_werks
+     AND lgort IN s_lgort.
+
+* MSPR - Project Stock
+  SELECT * FROM mspr INTO TABLE gt_mspr
+   WHERE matnr IN s_matnr
+     AND werks IN s_werks
+     AND lgort IN s_lgort.
+
+* EBEW - Sales Order Stock Valuation
+  SELECT * FROM ebew INTO TABLE gt_ebew
+   WHERE matnr IN s_matnr
+     AND bwkey IN s_werks.
+
+* QBEW - Project Stock Valuation
+  SELECT * FROM qbew INTO TABLE gt_qbew
+   WHERE matnr IN s_matnr
+     AND bwkey IN s_werks.
+
+ENDFORM.                    "FRM_GET_INVENTORY
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_GET_OTHERS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM frm_get_others.
+
+  DATA:
+    lv_atnam TYPE cabn-atnam.
+
+  DATA:
+    ls_mt61d TYPE mt61d,
+    ls_mdkp  TYPE mdkp.
+
+  DATA:
+    ls_mdps  TYPE mdps,
+    ls_mdez  TYPE mdez,
+    ls_mdsu  TYPE mdsu,
+    ls_mdkex TYPE mdke,
+    lt_mdpsx TYPE TABLE OF mdps,
+    lt_mdezx TYPE TABLE OF mdez,
+    lt_mdsux TYPE TABLE OF mdsu.
+
+* General Data
+  SELECT * FROM mara INTO TABLE gt_mara
+   WHERE matnr IN s_matnr.
+
+* Plant Data for Material
+  SELECT * FROM marc INTO TABLE gt_marc
+   WHERE matnr IN s_matnr
+     AND werks IN s_werks
+     AND stawn IN s_stawn
+     AND lvorm EQ ''.        "Flag Material for Deletion at Plant Level
+
+* Plants/Branches
+  SELECT * FROM t001w INTO TABLE gt_t001w
+   WHERE werks IN s_werks.
+
+* Company Codes
+  SELECT * FROM t001 INTO TABLE gt_t001.
+
+* Valuation area
+  SELECT * FROM t001k INTO TABLE gt_t001k.
+
+* Material Description
+  SELECT * FROM makt INTO TABLE gt_makt
+   WHERE matnr IN s_matnr.
+
+* Organizational Unit: Shipping Points per Plant
+  SELECT * FROM tvstz INTO TABLE gt_tvstz
+   WHERE werks IN s_werks.
+
+* Statistics: Current Stock and Grouping Terms
+  SELECT * FROM s032 INTO TABLE gt_s032
+   WHERE werks IN s_werks
+     AND lgort IN s_lgort
+     AND matnr IN s_matnr.
+
+  SELECT * FROM ausp INTO TABLE gt_ausp
+   WHERE klart = '001'.                          "Material Class
+  LOOP AT gt_ausp INTO gs_ausp.
+    gs_class-matnr = gs_ausp-objek.
+    APPEND gs_class TO gt_class.
+    CLEAR gs_class.
+  ENDLOOP.
+  SORT gt_class BY matnr.
+  DELETE ADJACENT DUPLICATES FROM gt_class.
+  DELETE gt_class WHERE matnr NOT IN s_matnr.
+
+  LOOP AT gt_class INTO gs_class.
+    LOOP AT gt_ausp INTO gs_ausp
+      WHERE objek = gs_class-matnr.
+      CLEAR lv_atnam.
+      CALL FUNCTION 'CONVERSION_EXIT_ATINN_OUTPUT'
+        EXPORTING
+          input  = gs_ausp-atinn
+        IMPORTING
+          output = lv_atnam.
+      CASE lv_atnam.
+        WHEN 'CCC-CERT-STATUS'.
+          PERFORM get_text_characteristic
+            USING gs_ausp-atinn
+                  gs_ausp-atwrt
+            CHANGING gs_class-ccc_certific.
+        WHEN 'CCC-CERT-VALID-FROM'.
+          gs_class-ccc_cert_frm = gs_ausp-atflv.
+        WHEN 'CCC-CERT-VALID-TO'.
+          gs_class-ccc_cert_to  = gs_ausp-atflv.
+        WHEN OTHERS.
+          ...
+      ENDCASE.
+    ENDLOOP.
+    MODIFY gt_class FROM gs_class.
+  ENDLOOP.
+
+  SORT gt_t001 BY bukrs.
+  SORT gt_t001k BY bwkey.
+
+  LOOP AT gt_marc INTO gs_marc.
+    gs_avai-matnr = gs_marc-matnr.
+    gs_avai-werks = gs_marc-werks.
+    CLEAR gs_t001k.
+    READ TABLE gt_t001k INTO gs_t001k
+      WITH KEY bwkey = gs_marc-werks BINARY SEARCH.
+    CLEAR gs_t001.
+    READ TABLE gt_t001 INTO gs_t001
+      WITH KEY bukrs = gs_t001k-bukrs BINARY SEARCH.
+
+    CLEAR:
+      ls_mt61d,
+      ls_mdkp,
+      lt_mdpsx,
+      lt_mdezx,
+      lt_mdsux.
+
+    CALL FUNCTION 'MD_STOCK_REQUIREMENTS_LIST_API'
+      EXPORTING
+        matnr         = gs_marc-matnr
+        werks         = gs_marc-werks
+        ergbz         = 'SAP00002'
+      IMPORTING
+        e_mt61d       = ls_mt61d
+        e_mdkp        = ls_mdkp
+      TABLES
+        mdpsx         = lt_mdpsx
+        mdezx         = lt_mdezx
+        mdsux         = lt_mdsux
+      EXCEPTIONS
+        error_message = 1.
+
+    LOOP AT lt_mdezx INTO ls_mdez WHERE planr IS INITIAL.
+      gs_avai-avqty = gs_avai-avqty + ls_mdez-mng01.
+    ENDLOOP.
+    gs_avai-stprs = ls_mt61d-stprs.
+    gs_avai-peinh = ls_mt61d-peinh.
+    gs_avai-waers = gs_t001-waers.
+    PERFORM exchange_rate_convert USING gs_avai-stprs
+                                        gs_avai-waers 'USD'
+                                        sy-datum
+                               CHANGING gs_avai-stpru.
+    APPEND gs_avai TO gt_avai.
+    CLEAR gs_avai.
+  ENDLOOP.
+
+ENDFORM.                    "FRM_GET_OTHERS
+
+*&---------------------------------------------------------------------*
+*&      Form  frm_process_data
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM frm_process_data.
+
+  SORT gt_mara BY matnr.
+  SORT gt_mard BY matnr werks lgort.
+  SORT gt_mchb BY matnr werks lgort.
+  SORT gt_marc BY matnr werks.
+  SORT gt_t001w BY werks.
+  SORT gt_makt BY matnr spras.
+  SORT gt_avai BY matnr werks.
+  SORT gt_tvstz BY ladgr werks.
+  SORT gt_s032 BY werks lgort matnr.
+  SORT gt_class BY matnr.
+  SORT gt_ebew BY matnr vbeln.
+  SORT gt_qbew BY matnr pspnr.
+
+* Data source1(normal stock)
+  LOOP AT gt_mard INTO gs_mard.
+    CLEAR gs_avai.
+    READ TABLE gt_avai INTO gs_avai
+      WITH KEY matnr = gs_mard-matnr
+               werks = gs_mard-werks BINARY SEARCH.
+    gs_result-matnr = gs_mard-matnr.
+    gs_result-werks = gs_mard-werks.
+    gs_result-lgort = gs_mard-lgort.
+    gs_result-labst = gs_mard-labst.
+    gs_result-insme = gs_mard-insme.
+    gs_result-speme = gs_mard-speme.
+    gs_result-avqty = gs_avai-avqty.
+    gs_result-waers = gs_avai-waers.
+    gs_result-stprs = gs_avai-stprs.
+    gs_result-stpru = gs_avai-stpru.
+    gs_result-peinh = gs_avai-peinh.
+    APPEND gs_result TO gt_result.
+    CLEAR gs_result.
+  ENDLOOP.
+
+* Data source2(sales order stock)
+  LOOP AT gt_mska INTO gs_mska.
+    CLEAR gs_ebew.
+    READ TABLE gt_ebew INTO gs_ebew
+      WITH KEY matnr = gs_mska-matnr
+               vbeln = gs_mska-vbeln BINARY SEARCH.
+    CLEAR gs_avai.
+    READ TABLE gt_avai INTO gs_avai
+      WITH KEY matnr = gs_mska-matnr
+               werks = gs_mska-werks BINARY SEARCH.
+    gs_result-matnr = gs_mska-matnr.
+    gs_result-werks = gs_mska-werks.
+    gs_result-lgort = gs_mska-lgort.
+    gs_result-sobkz = gs_mska-sobkz.
+    gs_result-labst = gs_mska-kalab.
+    gs_result-insme = gs_mska-kains.
+    gs_result-speme = gs_mska-kaspe.
+    gs_result-avqty = gs_avai-avqty.
+    gs_result-waers = gs_avai-waers.
+    gs_result-peinh = gs_avai-peinh.
+    IF gs_ebew-lbkum NE 0.
+      gs_result-stprs = gs_ebew-salk3 / gs_ebew-lbkum * gs_avai-peinh.
+    ENDIF.
+    PERFORM exchange_rate_convert USING gs_result-stprs
+                                        gs_result-waers 'USD'
+                                        sy-datum
+                               CHANGING gs_result-stpru.
+    CONCATENATE gs_mska-vbeln gs_mska-posnr
+      INTO gs_result-ssnum.
+    APPEND gs_result TO gt_result.
+    CLEAR gs_result.
+  ENDLOOP.
+
+* Data source3(Project stock)
+  LOOP AT gt_mspr INTO gs_mspr.
+    CLEAR gs_qbew.
+    READ TABLE gt_qbew INTO gs_qbew
+      WITH KEY matnr = gs_mspr-matnr
+               pspnr = gs_mspr-pspnr BINARY SEARCH.
+    CLEAR gs_avai.
+    READ TABLE gt_avai INTO gs_avai
+      WITH KEY matnr = gs_mspr-matnr
+               werks = gs_mspr-werks BINARY SEARCH.
+    gs_result-matnr = gs_mspr-matnr.
+    gs_result-werks = gs_mspr-werks.
+    gs_result-lgort = gs_mspr-lgort.
+    gs_result-sobkz = gs_mspr-sobkz.
+    gs_result-labst = gs_mspr-prlab.
+    gs_result-insme = gs_mspr-prins.
+    gs_result-speme = gs_mspr-prspe.
+    gs_result-ssnum = gs_mspr-pspnr.
+    gs_result-avqty = gs_avai-avqty.
+    gs_result-waers = gs_avai-waers.
+    gs_result-peinh = gs_avai-peinh.
+    IF gs_qbew-lbkum NE 0.
+      gs_result-stprs = gs_qbew-salk3 / gs_qbew-lbkum * gs_avai-peinh.
+    ENDIF.
+    PERFORM exchange_rate_convert USING gs_result-stprs
+                                        gs_result-waers 'USD'
+                                        sy-datum
+                               CHANGING gs_result-stpru.
+    APPEND gs_result TO gt_result.
+    CLEAR gs_result.
+  ENDLOOP.
+
+* Data source4(subcon stock)
+  LOOP AT gt_mslb INTO gs_mslb.
+    CLEAR gs_avai.
+    READ TABLE gt_avai INTO gs_avai
+      WITH KEY matnr = gs_mslb-matnr
+               werks = gs_mslb-werks BINARY SEARCH.
+    gs_result-matnr = gs_mslb-matnr.
+    gs_result-werks = gs_mslb-werks.
+    gs_result-sobkz = gs_mslb-sobkz.
+    gs_result-labst = gs_mslb-lblab.
+    gs_result-insme = gs_mslb-lbins.
+    gs_result-ssnum = gs_mslb-lifnr.
+    gs_result-avqty = gs_avai-avqty.
+    gs_result-waers = gs_avai-waers.
+    gs_result-stprs = gs_avai-stprs.
+    gs_result-stpru = gs_avai-stpru.
+    gs_result-peinh = gs_avai-peinh.
+    APPEND gs_result TO gt_result.
+    CLEAR gs_result.
+  ENDLOOP.
+
+* Data source5(customer consignment stock)
+  LOOP AT gt_msku INTO gs_msku.
+    CLEAR gs_avai.
+    READ TABLE gt_avai INTO gs_avai
+      WITH KEY matnr = gs_msku-matnr
+               werks = gs_msku-werks BINARY SEARCH.
+    gs_result-matnr = gs_msku-matnr.
+    gs_result-werks = gs_msku-werks.
+    gs_result-sobkz = gs_msku-sobkz.
+    gs_result-labst = gs_msku-kulab.
+    gs_result-insme = gs_msku-kuins.
+    gs_result-ssnum = gs_msku-kunnr.
+    gs_result-avqty = gs_avai-avqty.
+    gs_result-waers = gs_avai-waers.
+    gs_result-stprs = gs_avai-stprs.
+    gs_result-stpru = gs_avai-stpru.
+    gs_result-peinh = gs_avai-peinh.
+    APPEND gs_result TO gt_result.
+    CLEAR gs_result.
+  ENDLOOP.
+
+  LOOP AT gt_result INTO gs_result.
+    CLEAR gs_mara.
+    READ TABLE gt_mara INTO gs_mara
+      WITH KEY matnr = gs_result-matnr BINARY SEARCH.
+    CLEAR gs_marc.
+    READ TABLE gt_marc INTO gs_marc
+      WITH KEY matnr = gs_result-matnr
+               werks = gs_result-werks BINARY SEARCH.
+
+    CLEAR gs_makt.
+    READ TABLE gt_makt INTO gs_makt
+      WITH KEY matnr = gs_result-matnr
+               spras = '1' BINARY SEARCH.
+* "*CHG0593125 JE3K901227 modification done by 502286348 start on 15.04.2014
+*    IF sy-subrc NE 0.
+*      READ TABLE gt_makt INTO gs_makt
+*        WITH KEY matnr = gs_result-matnr
+*                 spras = 'E' BINARY SEARCH.
+*    ENDIF.
+* "*CHG0593125 JE3K901227 modification done by 502286348 end on 15.04.2014
+    CLEAR gs_tvstz.
+    READ TABLE gt_tvstz INTO gs_tvstz
+      WITH KEY ladgr = gs_marc-ladgr
+               werks = gs_result-werks BINARY SEARCH.
+    CLEAR gs_s032.
+    READ TABLE gt_s032 INTO gs_s032
+      WITH KEY werks = gs_result-werks
+               lgort = gs_result-lgort
+               matnr = gs_result-matnr BINARY SEARCH.
+    CLEAR gs_class.
+    READ TABLE gt_class INTO gs_class
+      WITH KEY matnr = gs_result-matnr BINARY SEARCH.
+
+    gs_result-meins = gs_mara-meins.
+    gs_result-beskz = gs_marc-beskz.
+    gs_result-eisbe = gs_marc-eisbe.
+    gs_result-maktx = gs_makt-maktx.
+** "*CHG0593125 JE3K901227 modification done by 502286348 start on 15.04.2014cc
+    READ TABLE gt_makt INTO gs_makt
+            WITH KEY matnr = gs_result-matnr
+                     spras = 'E' BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gv_maktx_e  = gs_makt-maktx.
+    ENDIF.
+    gs_result-maktx_e = gv_maktx_e.
+* * "*CHG0593125 JE3K901227 modification done by 502286348 end on 15.04.2014
+    gs_result-stawn = gs_marc-stawn.
+    gs_result-vstel = gs_tvstz-vstel.
+    gs_result-letzt = gs_s032-letztzug.
+    gs_result-atwrt = gs_class-ccc_certific.
+
+    IF gs_marc-strgr = 'Z2'.
+      gs_result-mtors = 'MTO'.
+    ELSE.
+      gs_result-mtors = 'MTS'.
+    ENDIF.
+
+* CHG0164872 Modification Start
+*   IF MARC-EISBE IS INITIAL.
+    IF gs_marc-eisbe IS INITIAL.
+* CHG0164872 Modification End
+      gs_result-mtoos = 'MTO'.
+    ELSE.
+      gs_result-mtoos = 'MTS'.
+    ENDIF.
+
+    IF gs_result-ssnum IS NOT INITIAL.
+      gs_result-avqty = gs_result-labst.
+    ENDIF.
+    MODIFY gt_result FROM gs_result.
+    CLEAR gs_result.
+  ENDLOOP.
+
+  IF s_stawn IS NOT INITIAL.
+    DELETE gt_result WHERE stawn NOT IN s_stawn.
+  ENDIF.
+
+* Delete Zero Stock
+  IF p_zero IS INITIAL.
+    DELETE gt_result WHERE labst = 0
+                       AND insme = 0
+                       AND speme = 0.
+  ENDIF.
+ENDFORM.                    "frm_process_data
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_OUTPUT_RESULT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM frm_output_result.
+  PERFORM frm_built_cat.
+  PERFORM frm_display_alv.
+ENDFORM.                    "FRM_OUTPUT_RESULT
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_BUILT_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM frm_built_cat.
+  PERFORM fieldcat USING:
+    'MATNR' 'Material',
+    'WERKS' 'Plant',
+    'LGORT' 'Storage Location',
+    'SOBKZ' 'Special Stock ind',
+    'SSNUM' 'Special stock number',
+    'MEINS' 'Base Unit of Measure',
+    'LABST' 'Unrestricted QTY',
+    'INSME' 'in QualInsp QTY',
+    'SPEME' 'Blocked Stock',
+    'AVQTY' 'Plant Free available QTY',
+    'WAERS' 'Currency',
+    'STPRS' 'Unit Price',
+    'STPRU' 'Unit Price(USD)',
+    'PEINH' 'Price unit',
+    'BESKZ' 'P/M',
+    'EISBE' 'Safety Stock',
+    'MTORS' 'MTS/MTO Standard',
+    'MTOOS' 'MTS/MTO Internal',
+    'MAKTX' 'CN Description',
+    'MAKTX_E' 'EN Description',
+    'STAWN' 'HS Code',
+    'VSTEL' 'Shipping Point',
+    'LETZT' 'Last Receiving Date',
+    'ATWRT' 'CCC status'.
+ENDFORM.                    "FRM_BUILT_CAT
+
+*&---------------------------------------------------------------------*
+*&      Form  FRM_DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM frm_display_alv.
+
+  gs_layout-colwidth_optimize = xflag.
+  gs_layout-zebra             = xflag.
+  gs_layout-detail_popup      = xflag.
+
+*  SORT GT_RESULT BY AMPEL DESCENDING MATNR WERKS.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_bypassing_buffer = xflag
+      i_buffer_active    = space
+      i_callback_program = sy-repid
+      is_layout          = gs_layout
+      it_fieldcat        = gt_fieldcat
+    TABLES
+      t_outtab           = gt_result.
+
+ENDFORM.                    "FRM_DISPLAY_ALV
+
+*&---------------------------------------------------------------------*
+*&      Form  FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_FNAME    text
+*      -->P_STEXT    text
+*----------------------------------------------------------------------*
+FORM fieldcat USING p_fname p_stext.
+  CLEAR gs_fieldcat.
+  gs_fieldcat-fieldname = p_fname.
+  gs_fieldcat-seltext_l = p_stext.
+  gs_fieldcat-ddictxt   = 'L'.
+  IF p_fname = 'MATNR' OR p_fname = 'WERKS' OR p_fname = 'LGORT'.
+    gs_fieldcat-key = 'X'.
+  ENDIF.
+  APPEND gs_fieldcat TO gt_fieldcat.
+  CLEAR gs_fieldcat.
+ENDFORM.                    "FIELDCAT
+
+*&---------------------------------------------------------------------*
+*&      Form  EXCHANGE_RATE_CONVERT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->VALUE          text
+*      -->(F_CUR_IN)     text
+*      -->VALUE          text
+*      -->(F_WAERK_IN)   text
+*      -->VALUE          text
+*      -->(F_WAERK_OUT)  text
+*      -->VALUE          text
+*      -->(F_PRSDT_IN)   text
+*      -->VALUE          text
+*      -->(F_CUR_OUT)    text
+*----------------------------------------------------------------------*
+FORM exchange_rate_convert USING value(f_cur_in)
+                                 value(f_waerk_in)  LIKE tcurr-tcurr
+                                 value(f_waerk_out) LIKE tcurr-fcurr
+                                 value(f_prsdt_in)  LIKE sy-datum
+                        CHANGING value(f_cur_out).
+
+  DATA:
+    l_exchange_rate(13) TYPE p DECIMALS 7,
+    l_foreign_factor TYPE string,
+    l_local_factor TYPE string.
+
+  DATA:
+    lv_rate_type  LIKE bapi1093_1-rate_type,
+    lv_from_curr  LIKE bapi1093_1-from_curr,
+    lv_to_currncy LIKE bapi1093_1-to_currncy,
+    lv_date       LIKE bapi1093_2-trans_date,
+    ls_exch_rate  LIKE bapi1093_0,
+    ls_return     LIKE bapiret1.
+
+  lv_rate_type  = 'M'.
+  lv_date       = f_prsdt_in.
+  lv_from_curr  = f_waerk_in.
+  lv_to_currncy = f_waerk_out.
+
+  CALL FUNCTION 'BAPI_EXCHANGERATE_GETDETAIL'
+    EXPORTING
+      rate_type  = lv_rate_type
+      from_curr  = lv_from_curr
+      to_currncy = lv_to_currncy
+      date       = lv_date
+    IMPORTING
+      exch_rate  = ls_exch_rate
+      return     = ls_return.
+  IF ls_exch_rate-from_factor IS INITIAL.
+    f_cur_out = f_cur_in.
+  ELSE.
+    f_cur_out = f_cur_in * ls_exch_rate-exch_rate /
+                           ls_exch_rate-from_factor *
+                           ls_exch_rate-to_factor.
+  ENDIF.
+
+ENDFORM.                    "EXCHANGE_RATE_convert
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_TEXT_Characteristic
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_ATINN    text
+*      -->P_ATWRT    text
+*      -->P_ATNAM    text
+*----------------------------------------------------------------------*
+FORM get_text_characteristic  USING p_atinn TYPE atinn
+                                    p_atwrt TYPE atwrt
+                              CHANGING p_atwtb TYPE atwtb.
+  CLEAR p_atwtb.
+
+  READ TABLE gt_cawn INTO gs_cawn
+    WITH KEY atinn = p_atinn.
+  IF sy-subrc NE 0.
+    SELECT * FROM cawn APPENDING TABLE gt_cawn
+     WHERE atinn = p_atinn.
+    SELECT * FROM cawnt APPENDING TABLE gt_cawnt
+     WHERE atinn = p_atinn
+       AND spras = 'E'.
+  ENDIF.
+
+  READ TABLE gt_cawn INTO gs_cawn
+    WITH KEY atinn = p_atinn
+             atwrt = p_atwrt.
+  IF sy-subrc = 0.
+    READ TABLE gt_cawnt INTO gs_cawnt
+      WITH KEY atinn = gs_cawn-atinn
+               atzhl = gs_cawn-atzhl
+               adzhl = gs_cawn-adzhl.
+    IF sy-subrc = 0.
+      p_atwtb = gs_cawnt-atwtb.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    "GET_TEXT_Characteristic
+

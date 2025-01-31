@@ -1,0 +1,17 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_OUTBOUND_PROCESSING_SSR
+*&---------------------------------------------------------------------*
+
+  SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+  SELECT-OPTIONS:s_vnum         FOR           gv_vnum  ,
+                 s_mat          FOR           gv_mat ,
+                 s_purnum       FOR           gv_purnum,
+                 s_poline       FOR           gv_poline ,
+*Start of change by Santosh  DE3K977394 06/03/2017
+                 s_plant        FOR           gv_plant,
+                 s_aedat        for           gv_aedat.
+*End of change by Santosh  DE3K977394 06/03/2017
+  PARAMETERS   p_c1 AS CHECKBOX.
+
+  SELECTION-SCREEN END OF BLOCK b1.
+

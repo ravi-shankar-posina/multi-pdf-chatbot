@@ -1,0 +1,668 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_SASL_CREATION_MAINTENANCE
+*&
+*&---------------------------------------------------------------------*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation.
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name             : ZRMM_SASL_CREATION_MAINTENANCE                    *
+* Created by       : Laxma Reddy K/503187592                           *
+* Transport Request: DE3K9A04CS                                        *
+* RICEF Object No  : RICEF2365                                         *
+* Transaction code : ZMM991                                            *
+* Change Request No: CHG0158498                                        *
+* Description      : Report designed to create, maintain, display      *
+*                    scheduling agreements and source list for plant   *
+*                    and other inputs provided on selection screen.    *
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+************************************************************************
+*TR #      |DATE       |CHANGED BY   |CR #        |DESCRIPTION OF CHANGE
+************************************************************************
+*DE3K9A04CS|11-Feb-2021|Laxma Reddy K|CHG0158498  |Object created
+*                       (503187592)
+************************************************************************
+************************************************************************
+*DE3K9A07SQ|08-Jun-2021|Jatin Aggarwal|CHG0158498|Changes for search hlp
+*                       (USJAAGG)
+************************************************************************
+************************************************************************
+*DE3K9A0BIO|22-Jan-2022|Laxma Reddy K |CHG0191538|ELIP requirements
+*                       (503187592)               added
+*JE3K905057|17-fEB-2022|Pratyusha Adiraju|CHG0191538|Bug Fixes
+*JE3K905258|24-Feb-2022|Pratyusha Adiraju|JE3K905258|1. Validity end date for SA deletion changed to current date - 1
+* 2. Multiply rate with per price before trucating the decimal part
+*JE3K905771|11-Mar-2022|Pratyusha Adiraju|CHG0191538|Bug Fixes
+*DE3K9A0F1V|04.08.2022 |USVICHI          |          | Logic added to pass currency from vendor master as after EHP8 upgrade Currency is mandatory
+*01.11.2022 DE3K9A0GZK  USVICHI          |          | Inco terms logic is commented in case of ZLP & ZLU.
+*                                                      1.Now for ZLU inco terms will be fetched from customer master.
+*                                                      2.For ZLP inco terms will be blank at line level
+*28.11.2022 DE3K9A0HI0  USVICHI                       logic added to retrieve storage loaction as it is getting cleared
+*23.12.2022 DE3K9A0HZE  USSIGAD1                      Change in logic to compare Transfer Price
+*25.08.2023 DE3K9A0MHR  USSHSAT1                      fixed the SL updating from date when no changes are there in SA
+************************************************************************
+*USPRRAJ1 |27-Aug-2024 | DE3K9A0SXT | APT 203762 |1.To update Indicator: Unlimited Overdelivery Tolerance on the basis of material.
+*                                                 2.To upadte Overdelivery Tolerance Limit on the basis of material
+*                                                 3.Indicator:Update Info Record(updating as blank for already created SA and newly created SA).
+************************************************************************
+
+REPORT  zrmm_sasl_creation_maintenance MESSAGE-ID zmm.
+***Include for declarations
+INCLUDE zrmm_sasl_crt_mnt_top.
+***Include for selection screen
+INCLUDE zrmm_sasl_crt_mnt_ss.
+
+************************************************************************
+*INITIALIZATION Event
+************************************************************************
+INITIALIZATION.
+***Get harcode entries
+  PERFORM fetch_hardcode_entries.
+  PERFORM fetch_spk. "Change by 503187592 CHG0191538 DE3K9A0BIO
+
+************************************************************************
+*AT SELECTION-SCREEN Event
+************************************************************************
+AT SELECTION-SCREEN.
+  PERFORM validate_selection_screen.
+
+************************************************************************
+*AT SELECTION-SCREEN ON VALUE-REQUEST Event
+************************************************************************
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gp_plant.
+  PERFORM f4_plant.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_sobsl-low.
+  PERFORM f4_spk USING 'GS_SOBSL-LOW'.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR gs_sobsl-high.
+  PERFORM f4_spk USING 'GS_SOBSL-HIGH'.
+
+************************************************************************
+*START-OF-SELECTION Event
+************************************************************************
+START-OF-SELECTION.
+***Get prerequisite data
+  PERFORM fetch_initial_data.
+
+***Get valid materials
+  REFRESH gt_validmats[].
+  SELECT mc~matnr
+         ma~ekwsl     " +++ DE3K9A0SXT -> USPRRAJ1 To fetch the purch.value key from MARA table
+         ma~brgew
+         ma~ntgew
+         ma~gewei
+         ma~volum
+         ma~voleh
+         mc~ekgrp
+*         mc~plifz "Change by 503187592 CHG0191538 DE3K9A0BIO
+         mc~webaz
+         mc~sobsl  "Change by 503187592 CHG0191538 DE3K9A0BIO
+         mc~lgfsb
+         ta~wrk02
+         tk~bukrs
+         tw~vkorg  "Change by 503187592 CHG0191538 DE3K9A0BIO
+         FROM mara AS ma
+         INNER JOIN marc AS mc
+         ON ma~matnr = mc~matnr
+         INNER JOIN t460a AS ta
+         ON mc~werks = ta~werks AND
+            mc~sobsl = ta~sobsl AND
+            mc~beskz = ta~beskz
+         INNER JOIN t001k AS tk
+         ON ta~wrk02 = tk~bwkey
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+         INNER JOIN t001w AS tw
+         ON ta~wrk02 = tw~werks
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+         INTO TABLE gt_validmats
+         WHERE ma~matnr IN gs_matnr AND
+               ma~lvorm = space AND
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*               ma~mstae NOT LIKE gc_in AND
+*               ma~mstae NOT IN (gc_01, gc_02) AND
+               ma~mstae IN gs_mstae AND
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+               mc~werks = gp_plant AND
+               mc~lvorm = space AND
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*               mc~mmsta NOT LIKE gc_in AND
+*               mc~mmsta NOT IN (gc_01, gc_02) AND
+               mc~mmsta IN gs_mmsta AND
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+               mc~ekgrp IN gs_ekgrp AND
+               mc~dispo IN gs_dispo AND
+               mc~beskz = gc_f AND
+               mc~sobsl IN gs_sobsl AND
+               mc~strgr = space AND
+               ta~sobes = gc_7 AND
+               ta~wrk02 NE space.
+  IF sy-subrc IS INITIAL.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+***Get pricing data
+*    REFRESH gt_a501[].
+*    SELECT ekorg
+*           reswk
+*           werks
+*           matnr
+*           knumh
+*           FROM a501
+*           INTO TABLE gt_a501
+*           FOR ALL ENTRIES IN gt_validmats
+*           WHERE kappl = gc_m AND
+*                 kschl = gc_z101 AND
+*                 ekorg = gw_ekorg AND
+*                 reswk = gt_validmats-wrk02 AND
+*                 werks = gp_plant AND
+*                 matnr = gt_validmats-matnr AND
+*                 kfrst = space AND
+*                 datbi GE sy-datum AND
+*                 datab LE sy-datum.
+*    IF sy-subrc IS INITIAL.
+*      SORT gt_a501 BY ekorg reswk werks matnr.
+*      REFRESH gt_konp[].
+*      SELECT knumh
+*             kbetr
+*             FROM konp
+*             INTO TABLE gt_konp
+*             FOR ALL ENTRIES IN gt_a501
+*             WHERE knumh = gt_a501-knumh.
+*      IF sy-subrc IS INITIAL.
+*        SORT gt_konp BY knumh.
+*      ENDIF.
+*    ENDIF.
+
+    SORT gt_validmats BY matnr wrk02.
+    REFRESH gt_a557[].
+    SELECT ekorg
+           bukrs
+           vkorg
+           matnr
+           knumh
+           FROM a557
+           INTO TABLE gt_a557
+           FOR ALL ENTRIES IN gt_validmats
+           WHERE kappl = gc_m AND
+                 kschl = gc_z101 AND
+                 ekorg = gw_ekorg AND
+                 bukrs = gw_bukrs AND
+                 vkorg = gt_validmats-vkorg AND
+                 matnr = gt_validmats-matnr AND
+                 datbi GE sy-datum AND
+                 datab LE sy-datum.
+    IF sy-subrc IS INITIAL.
+      REFRESH gt_konp[].
+      SELECT knumh
+             kbetr
+             konwa
+             kpein
+             kmein
+             FROM konp
+             INTO TABLE gt_konp
+             FOR ALL ENTRIES IN gt_a557
+             WHERE knumh = gt_a557-knumh.
+      IF sy-subrc IS INITIAL.
+        SORT gt_konp BY knumh.
+      ENDIF.
+    ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+
+***Get plant data
+    REFRESH gt_t001w[].
+    SELECT werks
+           lifnr
+           FROM t001w
+           INTO TABLE gt_t001w
+           FOR ALL ENTRIES IN gt_validmats
+           WHERE werks = gt_validmats-wrk02.
+    IF sy-subrc IS INITIAL.
+      SORT gt_t001w BY werks.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+      REFRESH gt_lfm1[].
+      SELECT lifnr
+             ekorg
+             waers   " Added by USVICHI on 04.08.2022 - DE3K9A0F1V
+             inco1
+             inco2
+             FROM lfm1
+             INTO TABLE gt_lfm1
+             FOR ALL ENTRIES IN gt_t001w
+             WHERE lifnr = gt_t001w-lifnr
+             AND   ekorg = gw_ekorg
+             .
+      IF sy-subrc IS INITIAL.
+        SORT gt_lfm1 BY lifnr ekorg.
+      ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    ENDIF.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+****Get company code data
+*    REFRESH gt_t001[].
+*    SELECT bukrs
+*           waers
+*           FROM t001
+*           INTO TABLE gt_t001
+*           FOR ALL ENTRIES IN gt_validmats
+*           WHERE bukrs = gt_validmats-bukrs.
+*    IF sy-subrc IS INITIAL.
+*      SORT gt_t001 BY bukrs.
+*    ENDIF.
+
+    REFRESH gt_pdt[].
+    SELECT zspplnt
+           zrecplnt
+           zplifz
+           FROM ztscm_pldeltime
+           INTO TABLE gt_pdt
+           FOR ALL ENTRIES IN gt_validmats
+           WHERE zspplnt = gt_validmats-wrk02
+           AND   zrecplnt = gp_plant
+           .
+    IF sy-subrc IS INITIAL.
+      SORT gt_pdt BY zspplnt zrecplnt.
+    ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+*Start Of Change DE3K9A0SXT by USPRRAJ1
+*" to fetch the data from t405 for Indicator: Unlimited Overdelivery Allowed by passing the purch.value key from MARA table
+    IF gt_validmats IS NOT INITIAL.
+      SELECT ekwsl,untto,uebto,uebtk
+         FROM t405
+        INTO TABLE @DATA(lt_t405)
+        FOR ALL ENTRIES IN @gt_validmats
+        WHERE ekwsl = @gt_validmats-ekwsl.
+      IF sy-subrc IS INITIAL.
+        SORT lt_t405 BY ekwsl.
+      ENDIF.
+    ENDIF.
+*End Of Change DE3K9A0SXT by USPRRAJ1
+
+***Get SA data
+    REFRESH gt_schagr[].
+    SELECT  ek~ebeln
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+            ek~bukrs
+            ek~lifnr
+            ek~reswk
+            ek~knumv                                "Added by USSIGAD1 ON 23.12.2022 -
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+            ep~ebelp
+            ek~bsart
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+            ek~ekorg
+            ek~waers
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+            ep~matnr
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+            ep~werks
+*            ep~menge
+            ep~meins
+            ep~netpr
+            ep~peinh
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+            ep~webaz
+*Start Of Change DE3K9A0SXT by USPRRAJ1
+            ep~spinf  "to check the value of info record
+            ep~uebto  "over delivery tolerance limit
+            ep~uebtk  "to check for Indicator of Unlimited Overdelivery Allowed
+            ep~untto  "under delivery tolerance limit
+*End Of Change DE3K9A0SXT by USPRRAJ1
+            ep~etfz1
+            ep~plifz
+            ep~ntgew
+            ep~gewei
+            ep~brgew
+            ep~volum
+            ep~voleh
+            ep~reslo   "Change by 503187592 CHG0191538 DE3K9A0BIO
+            et~etenr
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+            et~menge
+            tw~vkorg
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+           FROM ekko AS ek
+           INNER JOIN ekpo AS ep
+           ON ek~ebeln = ep~ebeln
+           INNER JOIN t001w AS tw
+           ON ek~reswk = tw~werks
+           LEFT OUTER JOIN eket AS et
+           ON ek~ebeln = et~ebeln
+           INTO TABLE gt_schagr
+           FOR ALL ENTRIES IN gt_validmats
+           WHERE ek~bsart IN gr_bsart AND
+                 ek~ekorg = gw_ekorg AND
+                 ek~kdatb LE sy-datum AND
+                 ek~kdate GE sy-datum AND
+                 ek~reswk = gt_validmats-wrk02 AND
+                 ep~matnr = gt_validmats-matnr AND
+                 ep~werks = gp_plant AND
+                 ep~loekz = ' ' AND
+                 ep~elikz = ' '.
+    IF sy-subrc IS INITIAL.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+      REFRESH gt_ekpo[].
+      SELECT ebeln
+             ebelp
+             matnr
+             FROM ekpo
+             INTO TABLE gt_ekpo
+             FOR ALL ENTRIES IN gt_schagr
+             WHERE ebeln = gt_schagr-ebeln
+             AND   loekz = ' '
+             AND   elikz = ' '.
+      IF sy-subrc IS INITIAL.
+        SORT gt_ekpo BY ebeln ebelp.
+      ENDIF.
+*    ENDIF.
+
+      SORT gt_schagr BY ebeln ebelp etenr.
+***Begin of changes by USSIGAD1 ON 23.12.2022 -
+      SELECT knumv,
+             kposn,
+             kbetr,
+             waers,
+             kpein,
+             kmein
+        FROM konv
+        INTO TABLE @DATA(gt_konv)
+        FOR ALL ENTRIES IN @gt_schagr
+        WHERE knumv = @gt_schagr-knumv
+*          AND   kposn = @gt_schagr-ebelp
+        AND   kschl = @gc_z101.
+***End of changes by USSIGAD1 ON 23.12.2022 -
+      LOOP AT gt_schagr INTO gi_schagr.
+        gi_schagr_copy = gi_schagr.
+        CLEAR gw_cntbef.
+        DESCRIBE TABLE gt_ekpo LINES gw_cntbef.
+        IF gw_cntbef IS NOT INITIAL.
+          CLEAR gw_cntaft.
+          DELETE gt_ekpo WHERE ebeln = gi_schagr_copy-ebeln.
+          IF sy-subrc IS INITIAL.
+            DESCRIBE TABLE gt_ekpo LINES gw_cntaft.
+            IF gw_cntaft + 1 NE gw_cntbef.
+              gi_schagr_copy-multitm = 'X'.
+              MODIFY gt_schagr FROM gi_schagr_copy  TRANSPORTING multitm
+                                                    WHERE ebeln = gi_schagr_copy-ebeln
+                                                    .
+
+            ENDIF.
+          ENDIF.
+        ENDIF.
+        gw_menge = gi_schagr_copy-menge + gw_menge.
+        AT END OF ebelp.
+          gi_schagr_copy-menge = gw_menge.
+          MODIFY gt_schagr FROM gi_schagr_copy  TRANSPORTING menge
+                                                WHERE ebeln = gi_schagr_copy-ebeln
+                                                AND   ebelp = gi_schagr_copy-ebelp
+                                                .
+          CLEAR gw_menge.
+        ENDAT.
+      ENDLOOP.
+*      SORT gt_schagr BY matnr bsart ebeln ASCENDING etenr DESCENDING.
+*      DELETE ADJACENT DUPLICATES FROM gt_schagr COMPARING ebeln bsart matnr.
+      SORT gt_schagr BY ebeln ebelp bsart ASCENDING etenr DESCENDING.
+      DELETE ADJACENT DUPLICATES FROM gt_schagr COMPARING ebeln ebelp bsart.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    ENDIF.
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    SORT gt_schagr BY matnr.
+    SORT gt_schagr BY matnr reswk.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    LOOP AT gt_schagr INTO gi_schagr.
+      CLEAR: gw_tabix,
+             gi_schagr_copy.
+      gw_tabix = sy-tabix.
+      READ TABLE gt_schagr INTO gi_schagr_copy INDEX gw_tabix + 1.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      IF gi_schagr_copy-matnr = gi_schagr-matnr.
+      IF     gi_schagr_copy-matnr = gi_schagr-matnr
+         AND gi_schagr_copy-reswk = gi_schagr-reswk
+             .
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+        gi_schagr_copy-multi = 'X'.
+        MODIFY gt_schagr FROM gi_schagr_copy  TRANSPORTING multi WHERE matnr = gi_schagr-matnr.
+      ENDIF.
+    ENDLOOP.
+
+    LOOP AT gt_validmats INTO gi_validmats.
+      CLEAR gi_schagr.
+*Start of Change DE3K9A0SXT by USPRRAJ1
+*" To move the data from local table lt_t405 to the work are of gi_validmates which is used while updating or creating the schedule agreement.
+      READ TABLE lt_t405 INTO DATA(wa_t405) WITH KEY ekwsl = gi_validmats-ekwsl BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_validmats-untto = wa_t405-untto.
+        gi_validmats-uebto = wa_t405-uebto.
+        gi_validmats-uebtk = wa_t405-uebtk.
+      ENDIF.
+      CLEAR: wa_t405.
+*End of Change DE3K9A0SXT by USPRRAJ1
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+      CLEAR gi_pdt.
+      READ TABLE gt_pdt INTO gi_pdt WITH KEY zspplnt = gi_validmats-wrk02
+                                             zrecplnt = gp_plant
+                                             BINARY SEARCH.
+      IF sy-subrc IS NOT INITIAL.
+        CLEAR gi_pdt.
+      ENDIF.
+
+      CLEAR gi_spk.
+      READ TABLE gt_spk INTO gi_spk WITH KEY werks = gp_plant
+                                             sobsl = gi_validmats-sobsl
+                                             BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        CLEAR gw_spl.
+        SPLIT gi_spk-addin AT '-' INTO gi_spk-addin gw_spl.
+      ENDIF.
+
+*      READ TABLE gt_schagr INTO gi_schagr WITH KEY matnr = gi_validmats-matnr.
+      READ TABLE gt_schagr INTO gi_schagr WITH KEY matnr = gi_validmats-matnr
+                                                   reswk = gi_validmats-wrk02
+                                                   .
+      IF gi_schagr-reslo NE gw_spl.
+        gi_schagr-etenr = gc_9000.
+      ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      IF sy-subrc IS NOT INITIAL.
+**** Create SA
+        PERFORM create_sa.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      ELSEIF sy-subrc IS INITIAL AND gi_schagr-multi = ' '.
+      ELSEIF sy-subrc IS INITIAL AND gi_schagr-multi = ' ' AND gi_schagr-multitm = ' '.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+***Change SA
+        IF gi_schagr-etenr GE gc_9000.
+          PERFORM reduce_sa.
+          READ TABLE gt_sa_return WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+          IF sy-subrc IS NOT INITIAL.
+            READ TABLE gt_sa_return WITH KEY type = 'A' TRANSPORTING NO FIELDS.
+            IF sy-subrc IS NOT INITIAL.
+              CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+                EXPORTING
+                  wait = 'X'.
+              PERFORM create_sa.
+            ELSE.
+              CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'
+*               IMPORTING
+*                 RETURN        =
+                .
+            ENDIF.
+          ELSE.
+            CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'
+*               IMPORTING
+*                 RETURN        =
+              .
+          ENDIF.
+        ELSE.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+          IF gi_validmats-bukrs NE gw_bukrs.
+            CLEAR gi_a557.
+            READ TABLE gt_a557 INTO gi_a557 WITH KEY ekorg = gi_schagr-ekorg
+                                                     bukrs = gi_schagr-bukrs
+                                                     vkorg = gi_schagr-vkorg
+                                                     matnr = gi_schagr-matnr
+                                                     .
+            IF sy-subrc IS INITIAL.
+              CLEAR: gi_konp,
+                     gw_spl.
+* Begin of changes by USVICHI on 28.11.2022 - DE3K9A0HI0
+* below logic is added coz Storage location is getting cleared
+              CLEAR gi_spk.
+              READ TABLE gt_spk INTO gi_spk WITH KEY werks = gp_plant
+                                                     sobsl = gi_validmats-sobsl
+                                                     BINARY SEARCH.
+              IF sy-subrc IS INITIAL.
+                CLEAR gw_spl.
+                SPLIT gi_spk-addin AT '-' INTO gi_spk-addin gw_spl.
+              ENDIF.
+* End of changes by USVICHI on 28.11.2022 - DE3K9A0HI0
+              READ TABLE gt_konp INTO gi_konp WITH KEY knumh = gi_a557-knumh
+                                                               BINARY SEARCH.
+              IF sy-subrc IS INITIAL.
+***Begin of changes by USSIGAD1 ON 23.12.2022 -
+                READ TABLE gt_konv INTO DATA(li_konv) WITH KEY knumv = gi_schagr-knumv
+                                                            BINARY SEARCH.
+                IF sy-subrc IS INITIAL.
+*                  IF gi_schagr-netpr EQ gi_konp-kbetr AND
+*                     gi_schagr-waers EQ gi_konp-konwa AND
+*                     gi_schagr-peinh EQ gi_konp-kpein AND
+*                     gi_schagr-meins EQ gi_konp-kmein.
+                  IF li_konv-kbetr EQ gi_konp-kbetr AND
+                  li_konv-waers EQ gi_konp-konwa AND
+                  li_konv-kpein EQ gi_konp-kpein AND
+                  li_konv-kmein EQ gi_konp-kmein.
+***End of changes by USSIGAD1 ON 23.12.2022 -
+                    gw_spl = 'X'.
+                  ELSE.
+                    PERFORM reduce_sa.
+                    READ TABLE gt_sa_return WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+                    IF sy-subrc IS NOT INITIAL.
+                      READ TABLE gt_sa_return WITH KEY type = 'A' TRANSPORTING NO FIELDS.
+                      IF sy-subrc IS NOT INITIAL.
+                        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+                          EXPORTING
+                            wait = 'X'.
+                        PERFORM create_sa.
+                      ELSE.
+                        CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'
+*               IMPORTING
+*                 RETURN        =
+                          .
+                      ENDIF.
+                    ELSE.
+                      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'
+*               IMPORTING
+*                 RETURN        =
+                        .
+                    ENDIF.
+                  ENDIF.
+                ENDIF.                  "Added by USSIGAD1 ON 23.12.2022 -
+              ENDIF.
+            ENDIF.
+          ELSE.
+            gw_spl = 'X'.
+          ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+          IF gw_spl = 'X'.  "Change by 503187592 CHG0191538 DE3K9A0BIO
+            PERFORM update_sa.
+          ENDIF.  "Change by 503187592 CHG0191538 DE3K9A0BIO
+        ENDIF.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      ELSEIF sy-subrc IS INITIAL AND gi_schagr-multi = 'X'.
+****Multiple SAs - Manual process of error
+*        CLEAR gi_output.
+*        gi_output-operation = 'VALIDATION'(002).
+*        gi_output-msgtype = 'E'.
+*        gi_output-matnr = gi_validmats-matnr.
+*        gi_output-suplant = gi_validmats-wrk02.
+*        gi_output-purgrp = gi_validmats-ekgrp.
+*        gi_output-supcoco = gi_validmats-bukrs.
+*        gi_output-sa = 'MULTIPLE'(003).
+*        gi_output-msg = 'Multiple valid SAs exist for the material'(004).
+*        APPEND gi_output TO gt_output.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      ENDIF.
+    ENDLOOP.
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+    LOOP AT gt_schagr INTO gi_schagr WHERE multi = 'X' OR multitm = 'X'.
+      CLEAR: gi_validmats,
+             gi_output,
+             gi_atch_rec.
+      READ TABLE gt_validmats INTO gi_validmats WITH KEY matnr = gi_schagr-matnr
+                                                         wrk02 = gi_schagr-reswk.
+      IF sy-subrc IS INITIAL.
+        gi_output-operation = 'VALIDATION'(002).
+        gi_output-msgtype = 'E'.
+        gi_output-matnr = gi_validmats-matnr.
+        gi_output-suplant = gi_validmats-wrk02.
+        gi_output-purgrp = gi_validmats-ekgrp.
+        gi_output-supcoco = gi_validmats-bukrs.
+        gi_output-sa = gi_schagr-ebeln.
+        gi_output-saitem = gi_schagr-ebelp.
+        gi_output-satype = gi_schagr-bsart.
+        gi_atch_rec-matnr = gi_validmats-matnr.
+        gi_atch_rec-wrk02 = gi_validmats-wrk02.
+        gi_atch_rec-werks = gp_plant.
+        gi_atch_rec-ebeln = gi_schagr-ebeln.
+        gi_atch_rec-ebelp = gi_schagr-ebelp.
+        IF gi_schagr-multi = 'X' AND gi_schagr-multitm = ' '.
+          gi_output-msg = 'Multiple valid SAs exist for the material'(004).
+          gi_atch_rec-multi = 'X'.
+          APPEND gi_output TO gt_output.
+          APPEND gi_atch_rec TO gt_atch_rec.
+        ELSEIF gi_schagr-multi = ' ' AND gi_schagr-multitm = 'X'.
+          gi_output-msg = 'Multiple Lines exist for the SA'(042).
+          gi_atch_rec-multitm = 'X'.
+          APPEND gi_output TO gt_output.
+          APPEND gi_atch_rec TO gt_atch_rec.
+        ELSEIF gi_schagr-multi = 'X' AND gi_schagr-multitm = 'X'.
+          gi_output-msg = 'Multiple Lines for the SA and multiple SAs for material exist'(052).
+          gi_atch_rec-multi = 'X'.
+          gi_atch_rec-multitm = 'X'.
+          APPEND gi_output TO gt_output.
+          APPEND gi_atch_rec TO gt_atch_rec.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+  ENDIF.
+
+***Populate Fieldcat
+  m_fieldcat TEXT-011 TEXT-010. "Operation
+  m_fieldcat TEXT-012 TEXT-013. "Material
+  m_fieldcat TEXT-014 TEXT-015. "Msg type
+  m_fieldcat TEXT-016 TEXT-017. "Supl plant
+  m_fieldcat TEXT-018 TEXT-019. "Pur group
+  m_fieldcat TEXT-020 TEXT-021. "Supl comp code
+  m_fieldcat TEXT-022 TEXT-023. "Existing SA
+  m_fieldcat TEXT-024 TEXT-025. "Existing SA Item
+  m_fieldcat TEXT-026 TEXT-027. "SA Type
+  m_fieldcat TEXT-028 TEXT-029. "Message
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+  IF gt_atch_rec IS NOT INITIAL AND gp_mail IS NOT INITIAL.
+    SORT gt_atch_rec.
+    DELETE ADJACENT DUPLICATES FROM gt_atch_rec COMPARING ALL FIELDS.
+    PERFORM send_mail_for_multi.
+  ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+
+***Display ALV
+  gi_layout_ds-colwidth_optimize = 'X'.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      is_layout     = gi_layout_ds
+      it_fieldcat   = gt_fcat
+    TABLES
+      t_outtab      = gt_output
+    EXCEPTIONS
+      program_error = 1
+      OTHERS        = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+***Include for forms
+  INCLUDE zrmm_sasl_crt_mnt_forms.
+

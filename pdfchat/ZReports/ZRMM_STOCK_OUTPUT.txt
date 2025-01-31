@@ -1,0 +1,183 @@
+***------------------------------------------------------------------***
+*** Created by            : Sumit Srivastava
+*** Creation Date         : 02/08/2014
+*** Transport Request #   : DE3K944509
+*** RICEF Object No #     : RICEF-867
+*** CR number       #     : CHG0479283
+*** Transaction code      : ZMM867
+*** Description           : Future Stock Out Report for past due and Coming Weeks.
+***                         this program will be scheduled in Backgroung
+***                         to populate Ztable, when run in Foreground it will
+***                         query the Ztable to provide output on ALV screen.
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+***------------------------------------------------------------------***
+*************************************************************************
+* DATE         | CR No.     |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 2-Aug-2014   |CHG0479283  |502237354 | Initial Development
+*&---------------------------------------------------------------------*
+* 12-Aug-2014  |CHG0479283  |502237354 | Selection Screen Changes
+*&---------------------------------------------------------------------*
+* 15-Aug-2014  |CHG0479283  |502237354 | Calculation Changes
+*&---------------------------------------------------------------------*
+* 03-Sep-2014  |CHG0479283  |502237354 | Table changes
+*&---------------------------------------------------------------------*
+* 09-Sep-2014  |CHG0479283  |502237354 | Sorting and Text elements changes
+*&---------------------------------------------------------------------*
+* 05-Dec-2014  |CHG0479283  |502237354 | Few fields addition and open order quantity changes
+*&---------------------------------------------------------------------*
+* 28-Dec-2014  |CHG0994698  |502237354 | on hand quantity logic changes
+*&---------------------------------------------------------------------*
+* 12-Jan-2015  |CHG0994698  |502237354 | Average Weekly usage quantity change
+*&---------------------------------------------------------------------*
+* 13-Jan-2015  |CHG0994698  |502237354 | Display logic changes
+*&---------------------------------------------------------------------*
+* 03-Feb-2015  |CHG1043848  |502237354 | Weekly availablity logic changes
+*&---------------------------------------------------------------------*
+* 03-Feb-2015  |CHG1043848  |502237354 | Weeklu usage division changes
+*&---------------------------------------------------------------------*
+* 04-Feb-2015  |CHG1043848  |502237354 |Stock Calculation changes
+*&---------------------------------------------------------------------*
+* 11-Feb-2015  |CHG1043848  |502237354 |Weekly calculation date range change and doh change
+*&---------------------------------------------------------------------*
+* 13-Feb-2015  |CHG1043848  |502237354 |doh change
+*&---------------------------------------------------------------------*
+* 18-Feb-2015  |CHG1073059  |502237354 |mseg data changes for Open PO calculation
+*&---------------------------------------------------------------------*
+* 24-Feb-2015  |CHG1073059  |502237354 |PO release date logic changes
+*&---------------------------------------------------------------------*
+* 10-Mar-2015  |CHG1112746  |502237354 |Net Week Availability logic changes
+*&---------------------------------------------------------------------*
+* 07-May-2015  |CHG1206753  |502237354 |Added three checkboxes and their logic (Add Ind. Requiremnts,
+*                                       Include STCK only, Backflush Materials only
+*&---------------------------------------------------------------------*
+* 27-May-2015  |CHG1206753  |502237354 | Restoring the open quantity items having negative values
+*&---------------------------------------------------------------------*
+* 04-Jun-2015  |CHG1206753  |502237354 | Changing open quantity logic
+*&---------------------------------------------------------------------*
+* 17-Jun-2015  |CHG1276843  |502237354 | Open Quantity logic chnages
+*&---------------------------------------------------------------------*
+* 17-jul-2015  |CHG1350150  |502277866  | changed logic for Days on Hand
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+* 25-jul-2015  |CHG1363833  |502277866  | commentd code  for openqty condition
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+* 27-jul-2015  |CHG1363833  |502277866  | changed logic for  openqty
+*----------------------------------------------------------------------*
+* 28-Aug-2015  |CHG1422704  |502277866  | changed logic for  caluclating intransient stock
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+* 10-Aug-2020 |GECHG0896193 |212585362  | Performance improvement on data queries
+*----------------------------------------------------------------------*
+REPORT  zrmm_stock_output LINE-SIZE 255
+                          LINE-COUNT 58
+                          NO STANDARD PAGE HEADING
+                          MESSAGE-ID zmm.
+
+INCLUDE znmm_stock_output_top.
+
+SELECTION-SCREEN BEGIN OF BLOCK a WITH FRAME TITLE text-aaa.
+SELECT-OPTIONS     : gs_werks FOR  gw_werks NO INTERVALS,
+                     gs_plan  FOR  gw_planner,
+                     gs_vend  FOR  gw_vendor,
+                     gs_matnr FOR  gw_matnr,
+                     gs_proc  FOR  gw_proc,
+                     gs_lang  FOR  gw_spras NO INTERVALS NO-EXTENSION .
+SELECTION-SCREEN END OF BLOCK a.
+*Begin of Change CHG0994698  13/01/2015 Sumit(502237354)
+SELECTION-SCREEN SKIP.
+SELECTION-SCREEN BEGIN OF BLOCK s1 WITH FRAME TITLE text-001.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS gp_pweek AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT 4(30) text-008 FOR FIELD gp_pweek.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS gp_1week AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT 4(30) text-002 FOR FIELD gp_1week.
+PARAMETERS gp_2week AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT 38(30) text-003 FOR FIELD gp_2week.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS gp_3week AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT 4(30) text-004 FOR FIELD gp_3week.
+PARAMETERS gp_4week AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT 38(30) text-005 FOR FIELD gp_4week.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS gp_5week AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT 4(30) text-006 FOR FIELD gp_5week.
+PARAMETERS gp_6week AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT 38(30) text-007 FOR FIELD gp_6week.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN END OF BLOCK s1.
+*End of Change CHG0994698  13/01/2015 Sumit(502237354)
+*Begin of Change CHG1206753  07/05/2015 Sumit(502237354)
+SELECTION-SCREEN BEGIN OF BLOCK s3 WITH FRAME TITLE text-095.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS gp_indrq AS CHECKBOX.
+SELECTION-SCREEN COMMENT 4(30) text-092 FOR FIELD gp_indrq.
+PARAMETERS gp_istck AS CHECKBOX.
+SELECTION-SCREEN COMMENT 44(30) text-094 FOR FIELD gp_istck.
+SELECTION-SCREEN END  OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS gp_bkfls AS CHECKBOX.
+SELECTION-SCREEN COMMENT 4(30) text-093 FOR FIELD gp_bkfls.
+SELECTION-SCREEN END  OF LINE.
+SELECTION-SCREEN END OF BLOCK S3.
+*End of Change CHG1206753  07/05/2015 Sumit(502237354)
+SELECTION-SCREEN BEGIN OF BLOCK s2 WITH FRAME TITLE text-090.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS gp_batch AS CHECKBOX.
+SELECTION-SCREEN COMMENT 4(30) text-091 FOR FIELD gp_batch.
+SELECTION-SCREEN END  OF LINE.
+SELECTION-SCREEN END OF BLOCK s2.
+
+AT SELECTION-SCREEN.
+*Validate the Plant
+  IF gs_werks IS NOT INITIAL.
+    CLEAR gw_werks.
+    SELECT SINGLE werks FROM t001w INTO gw_werks WHERE werks IN gs_werks.
+    IF sy-subrc NE 0.
+      gi_return-type    = gc_e.
+      gi_return-message = text-009.
+      APPEND gi_return TO gt_return.
+      MESSAGE e083(zmm) WITH text-009.
+    ENDIF.
+  ELSE.
+    gi_return-type    = gc_e.
+    gi_return-message = text-010.
+    APPEND gi_return TO gt_return.
+    MESSAGE e083(zmm) WITH text-010.
+  ENDIF.
+
+*Validate Material
+  IF gs_matnr IS NOT INITIAL.
+    CLEAR gw_matnr.
+    SELECT SINGLE matnr FROM mara INTO gw_matnr WHERE matnr IN gs_matnr.
+    IF sy-subrc NE 0.
+      gi_return-type    = gc_e.
+      gi_return-message = text-011.
+      APPEND gi_return TO gt_return.
+      MESSAGE e083(zmm) WITH text-011.
+    ENDIF.
+  ENDIF.
+
+START-OF-SELECTION.
+  IF gt_return IS INITIAL.
+    IF gp_batch = 'X'.
+      PERFORM stock_out_details.
+      PERFORM populate_ftable.
+      PERFORM foreground_selection.
+      PERFORM build_fieldcatalog.
+      PERFORM display_output .
+    ELSE.
+      PERFORM foreground_selection.
+      PERFORM build_fieldcatalog.
+      PERFORM display_output .
+    ENDIF.
+  ENDIF.
+
+  INCLUDE znmm_stock_output_form.
+

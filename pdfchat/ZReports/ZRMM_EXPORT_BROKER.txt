@@ -1,0 +1,32 @@
+REPORT  zrmm_export_broker.
+*&---------------------------------------------------------------------*
+*** Created by            : Teja Prathyusha Adiraju (USPRADI)
+*** Creation Date         : 25.06.2021
+*** Transport Request #   : DE3K9A08AR
+*** Tcode                 : ZMM2395
+*** RICEF Object No #     : RICEF2395
+*** Change request No     : CHG0158498
+*** Description           : Program to reprocess failed records from Export broker interface
+***
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE               | CR No.          |TR NO.           |CHANGED BY |DESCRIPTION OF CHANGE
+* 25.06.2021         | CHG0158498      |DE3K9A08AR       |USPRADI    | Initial version
+* 02.07.2021         | CHG0158498      |DE3K9A08FX       |USPRADI    | Bug fix
+*****************************************************************************************
+** Include for global data declarations
+INCLUDE znmm_export_broker_top.
+
+** Include for selection screen
+INCLUDE znmm_export_broker_sel.
+
+** Include for subroutines
+INCLUDE znmm_export_broker_f01.
+
+START-OF-SELECTION.
+** Fetch data
+  PERFORM f_get_data.
+** Process data
+  PERFORM f_process_data.
+

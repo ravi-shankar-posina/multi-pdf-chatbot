@@ -1,0 +1,527 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZNMM_EU_PREF_DATA_RETRIVAL .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  MATDETAILS
+*&---------------------------------------------------------------------*
+
+FORM matdetails .
+****** Retriving data from marc based on werks and mmsta
+  SELECT matnr
+         werks
+         mmsta
+         dispo
+         stawn
+         herkl
+         zlclid FROM marc INTO TABLE gt_marc WHERE werks IN s_werks
+                                             AND mmsta IN s_mmsta.
+  IF sy-subrc EQ 0.
+    SORT gt_marc BY matnr.
+  ENDIF.
+******* Retriving data from mara for all entries in gt_marc and product owner
+  IF NOT gt_marc IS INITIAL.
+    SELECT  matnr
+            matkl
+            meins
+            labor
+            mstae  FROM mara INTO TABLE gt_mara
+                             FOR ALL ENTRIES IN gt_marc
+                                     WHERE matnr EQ gt_marc-matnr
+                                      AND  labor IN s_labor
+                                      AND   mstae IN s_mstae .
+    IF sy-subrc EQ 0.
+      SORT gt_mara BY matnr.
+    ENDIF.
+*****  Retriving Material Description from makt
+    SELECT matnr
+           maktx FROM makt INTO TABLE gt_makt
+                            FOR ALL ENTRIES IN gt_marc
+                            WHERE matnr EQ gt_marc-matnr
+                             AND spras EQ 'EN'.
+  ENDIF.
+
+*****  Retriving Standard cost from mbew for all values in gt_marc
+  IF NOT gt_marc IS INITIAL.
+    SELECT matnr
+           bwkey
+           stprs FROM mbew INTO TABLE gt_mbew
+                           FOR ALL ENTRIES IN gt_marc
+                           WHERE matnr EQ gt_marc-matnr
+                            AND bwkey EQ gt_marc-werks. ""Added for 19/06/2014 CHG0479115  DE3K939258  by 5022277866
+    IF sy-subrc EQ 0.
+      SORT gt_mbew BY matnr.
+    ENDIF.
+
+  ENDIF.
+****   Retriving numarator and denominator values from marm
+  IF NOT gt_mara IS INITIAL.
+    SELECT matnr
+           meinh
+           umrez
+           umren FROM marm INTO TABLE gt_marm
+                           FOR ALL ENTRIES IN gt_mara
+                            WHERE matnr EQ gt_mara-matnr
+                            AND meinh EQ gt_mara-meins.
+    IF sy-subrc EQ 0.
+      SORT gt_marm BY matnr.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " MATDETAILS
+*&---------------------------------------------------------------------*
+*&      Form  PODETAILS
+FORM podetails .
+  IF NOT gt_marc IS INITIAL.
+****    Retriving ebeln for all materials in gt_marc
+    SELECT ebeln
+           ebelp
+           matnr
+           infnr "Anil Reddy DE3K959275 CHG1060352 10.02.2015
+           FROM ekpo INTO TABLE gt_ekpo
+                           FOR ALL ENTRIES IN gt_marc
+                           WHERE matnr EQ gt_marc-matnr.
+    IF sy-subrc EQ 0.
+      SORT gt_ekpo BY matnr.
+    ENDIF.
+  ENDIF.
+*****   Retriving lifnr from ekko for all values in gt_ekpo
+  IF NOT gt_ekpo IS INITIAL.
+    SELECT ebeln
+           lifnr
+           ekorg FROM ekko INTO TABLE gt_ekko
+                           FOR ALL ENTRIES IN gt_ekpo
+                           WHERE ebeln EQ gt_ekpo-ebeln.
+    IF sy-subrc EQ 0.
+      SORT gt_ekko BY ebeln.
+    ENDIF.
+  ENDIF.
+****   Retriving name1 and land1 from lfa1
+  IF NOT gt_ekko IS INITIAL.
+    SELECT lifnr
+           name1
+           land1
+           ktokk FROM lfa1 INTO TABLE gt_lfa1
+                           FOR ALL ENTRIES IN gt_ekko
+                           WHERE lifnr EQ gt_ekko-lifnr.
+    IF sy-subrc EQ 0.
+      SORT gt_lfa1 BY lifnr.
+    ENDIF.
+  ENDIF.
+
+*****  getting all materials and lifnr into one internal table gt_lifnr
+  LOOP AT gt_ekpo INTO gs_ekpo.
+    READ TABLE gt_ekko INTO gs_ekko WITH KEY ebeln = gs_ekpo-ebeln.
+    IF sy-subrc EQ 0.
+      gs_lifnr-lifnr = gs_ekko-lifnr.
+      gs_lifnr-matnr = gs_ekpo-matnr.
+      APPEND gs_lifnr TO gt_lifnr.
+
+    ENDIF.
+    CLEAR : gs_ekko , gs_ekpo , gs_lifnr.
+
+  ENDLOOP.
+****  retriving information for fixed vendor id from eord for all values in gt_lifnr
+  IF NOT gt_lifnr IS INITIAL.
+    SELECT matnr
+           lifnr
+           flifn FROM eord INTO TABLE gt_eord
+                     FOR ALL ENTRIES IN gt_lifnr
+                         WHERE matnr EQ gt_lifnr-matnr
+                           AND lifnr EQ gt_lifnr-lifnr.
+    IF sy-subrc EQ 0.
+      SORT gt_eord BY matnr.
+    ENDIF.
+  ENDIF.
+***** Retriving all document no's and wrbtr from ekbe for all ponumbers in gt_ekpo
+  IF NOT gt_ekpo IS INITIAL.
+    SELECT ebeln
+           ebelp
+           gjahr
+           belnr
+           menge
+           wrbtr
+           waers
+           matnr FROM ekbe INTO TABLE gt_ekbe
+                           FOR ALL ENTRIES IN gt_ekpo
+                           WHERE ebeln EQ gt_ekpo-ebeln
+                             AND ebelp EQ gt_ekpo-ebelp
+                             AND matnr EQ gt_ekpo-matnr
+                             AND vgabe EQ 2.
+    IF sy-subrc EQ 0.
+      SORT gt_ekbe BY ebeln ebelp matnr.
+    ENDIF.
+***** Retriving created date and currency from rbkp for all values in gt_ekbe
+    IF NOT gt_ekbe IS INITIAL.
+      SELECT belnr
+             gjahr
+             bldat
+             lifnr
+             waers
+             rmwwr  FROM rbkp INTO TABLE gt_rbkp
+                             FOR ALL ENTRIES IN gt_ekbe
+                             WHERE belnr EQ gt_ekbe-belnr
+                               AND gjahr EQ gt_ekbe-gjahr.
+      IF sy-subrc EQ 0.
+        SORT gt_rbkp BY belnr gjahr.
+      ENDIF.
+    ENDIF.
+
+**** retriving price form eipa for all values in gt_ekpo
+    SELECT ebeln
+           ebelp
+           bedat
+           preis FROM eipa INTO TABLE gt_eipa
+                           FOR ALL ENTRIES IN gt_ekpo
+                           WHERE infnr EQ gt_ekpo-infnr "Anil Reddy DE3K959275 CHG1060352 10.02.2015
+                             AND ebeln EQ gt_ekpo-ebeln
+                             AND ebelp EQ gt_ekpo-ebelp.
+    IF sy-subrc EQ 0.
+      SORT gt_eipa BY bedat DESCENDING.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " PODETAILS
+*&---------------------------------------------------------------------*
+*&      Form  BOMDETAILS
+*&---------------------------------------------------------------------*
+FORM bomdetails .
+*  **** Retriving BOM components for each material
+
+  LOOP AT gt_marc INTO gs_marc.
+
+    CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+      EXPORTING
+        capid                 = 'BEST'
+        datuv                 = sy-datum
+        mktls                 = 'X'
+        mehrs                 = 'X'
+        mtnrv                 = gs_marc-matnr
+        stlal                 = '1'
+        werks                 = gs_marc-werks
+        vrsvo                 = 'X'
+      IMPORTING
+        topmat                = gs_topmat
+      TABLES
+        stb                   = gt_stob
+      EXCEPTIONS
+        alt_not_found         = 1
+        call_invalid          = 2
+        material_not_found    = 3
+        missing_authorization = 4
+        no_bom_found          = 5
+        no_plant_data         = 6
+        no_suitable_bom_found = 7
+        conversion_error      = 8
+        OTHERS                = 9.
+    IF sy-subrc EQ 0.
+*****collecting all bomcomponents and corressponding material into ogt_bom_comp
+      LOOP AT gt_stob INTO gs_stob.
+        gs_bom_comp-matnr       = gs_topmat-matnr.
+        gs_bom_comp-desc        = gs_topmat-maktx.
+        gs_bom_comp-werks        = gs_topmat-werks.
+*         gs_bom_comp-MPHEAD   = gs_topmat-maktx.
+        gs_bom_comp-stprs1   = gs_stob-stprs.
+        gs_bom_comp-stawn1   = gs_stob-stawn.
+        gs_bom_comp-req_h_qty    = gs_topmat-emeng.
+        gs_bom_comp-base_h_qty   = gs_topmat-bmeng.
+        gs_bom_comp-emgme        = gs_topmat-emgme.
+        gs_bom_comp-stufe        = gs_stob-stufe.
+        gs_bom_comp-posnr        = gs_stob-posnr.
+        gs_bom_comp-validto      = gs_stob-datuv.
+        gs_bom_comp-idnrk        = gs_stob-idnrk.
+        gs_bom_comp-ojtxp        = gs_stob-ojtxp.
+        gs_bom_comp-mpitem       = gs_stob-mmsta.
+        gs_bom_comp-menge        = gs_stob-menge.
+
+        APPEND gs_bom_comp TO gt_bom_comp.
+        CLEAR : gs_stob , gs_bom_comp.
+      ENDLOOP.
+    ENDIF.
+
+
+    CLEAR : gs_topmat , gs_stob , gs_marc.
+    REFRESH gt_stob.
+  ENDLOOP.
+  SORT gt_bom_comp BY matnr.
+  SORT gt_ekpo BY matnr.
+  SORT gt_marc BY matnr.
+  IF NOT gt_bom_comp IS INITIAL.
+    SELECT matnr
+           herkl FROM marc INTO TABLE gt_herkl1
+                           FOR ALL ENTRIES IN gt_bom_comp
+                           WHERE matnr EQ gt_bom_comp-idnrk
+                            AND werks EQ gt_bom_comp-werks.
+    IF sy-subrc EQ 0.
+      SORT gt_herkl1 BY matnr.
+    ENDIF.
+
+    SELECT matnr
+           bwkey
+           stprs FROM mbew INTO TABLE gt_mbew1
+                           FOR ALL ENTRIES IN gt_bom_comp
+                           WHERE matnr EQ gt_bom_comp-idnrk
+                             AND bwkey EQ gt_bom_comp-werks .
+
+    IF sy-subrc EQ 0.
+      SORT gt_mbew1 BY matnr.
+    ENDIF.
+
+
+  ENDIF.
+*  ****  collecting all puchase document information and material information into gt_final
+  LOOP AT gt_marc INTO gs_marc.
+    CLEAR : gw_index.
+    READ TABLE gt_mara INTO gs_mara WITH KEY matnr = gs_marc-matnr.
+    IF sy-subrc EQ 0.
+      READ TABLE gt_makt INTO gs_makt WITH KEY matnr = gs_marc-matnr.
+      IF sy-subrc EQ 0.
+        gs_final-desc = gs_makt-maktx.
+      ENDIF.
+      READ TABLE gt_marm INTO gs_marm WITH KEY matnr = gs_mara-matnr
+                                               meinh = gs_mara-meins.
+      IF sy-subrc EQ 0.
+        gs_final-umrez = gs_marm-umrez.
+        gs_final-umren = gs_marm-umren.
+        gs_final-meinh = gs_marm-meinh.
+
+      ENDIF.
+      READ TABLE gt_ekpo INTO gs_ekpo WITH KEY matnr = gs_marc-matnr.
+      IF sy-subrc EQ 0.
+        gw_index = sy-tabix.
+****  collecting all purchase document history into gt_final
+        LOOP AT gt_ekpo INTO gs_ekpo FROM gw_index ."WHERE matnr EQ gs_marc-matnr.
+          IF gs_ekpo-matnr EQ gs_marc-matnr.
+            READ TABLE gt_ekko INTO gs_ekko WITH KEY ebeln = gs_ekpo-ebeln.
+            IF sy-subrc EQ 0.
+              READ TABLE gt_lfa1 INTO gs_lfa1 WITH KEY lifnr = gs_ekko-lifnr.
+              IF sy-subrc EQ 0.
+                READ TABLE gt_eord INTO gs_eord WITH KEY lifnr = gs_ekko-lifnr
+                                                         matnr = gs_marc-matnr.
+                IF sy-subrc EQ 0.
+                  gs_final-flifn = gs_eord-flifn.
+                  IF gs_final-flifn EQ 'X'.
+                    gs_final-lifnr1 = gs_lfa1-lifnr.
+                    gs_final-vend_typ = gs_lfa1-ktokk.
+                  ENDIF.
+                ENDIF.
+                READ TABLE gt_mbew INTO gs_mbew WITH KEY matnr = gs_marc-matnr
+                                                         bwkey = gs_marc-werks.""Added for 19/06/2014 CHG0479115  DE3K939258  by 5022277866
+                IF sy-subrc EQ 0.
+                  gs_final-stprs = gs_mbew-stprs.
+                ENDIF.
+                READ TABLE gt_ekbe INTO gs_ekbe WITH KEY ebeln = gs_ekpo-ebeln
+                                                         ebelp = gs_ekpo-ebelp.
+                IF sy-subrc EQ 0.
+                  gs_final-menge2 = gs_ekbe-menge.
+                  READ TABLE gt_rbkp INTO gs_rbkp WITH KEY belnr = gs_ekbe-belnr
+                                                           gjahr = gs_ekbe-gjahr.
+                  IF sy-subrc EQ 0.
+                    gs_final-bldat = gs_rbkp-bldat.
+                    gs_final-rmwwr = gs_rbkp-rmwwr.
+                    gs_final-waers = gs_rbkp-waers.
+******* converting currency into euro
+                    gw_f_cur_in = gs_rbkp-rmwwr.
+                    gw_f_waerk_in = gs_rbkp-waers.
+                    gw_f_waerk_out = 'EUR'.
+                    gw_f_prsdt_in = sy-datum.
+
+                    CLEAR gw_f_exchange_rate_out.
+                    CLEAR gw_f_cur_out.
+                    CLEAR gw_l_exchange_rate.
+                    CALL FUNCTION 'CONVERT_TO_LOCAL_CURRENCY'
+                      EXPORTING
+*                       CLIENT            = SY-MANDT
+                        date              = gw_f_prsdt_in
+                        foreign_amount    = gw_f_cur_in
+                        foreign_currency  = gw_f_waerk_in
+                        local_currency    = gw_f_waerk_out
+*                       RATE              = 0
+                        type_of_rate      = 'M'
+*                       READ_TCURR        = 'X'
+                      IMPORTING
+                        exchange_rate     = gw_l_exchange_rate
+                        foreign_factor    = gw_l_foreign_factor
+                        local_amount      = gw_f_cur_out
+                        local_factor      = gw_l_local_factor
+*                       EXCHANGE_RATEX    =
+*                       FIXED_RATE        =
+*                       DERIVED_RATE_TYPE =
+                      EXCEPTIONS
+                        no_rate_found     = 1
+                        overflow          = 2
+                        no_factors_found  = 3
+                        no_spread_found   = 4
+                        derived_2_times   = 5
+                        OTHERS            = 6.
+                    IF sy-subrc = 0.
+                      gs_final-wrbtr = gw_f_cur_out.
+                    ENDIF.
+
+                  ENDIF.
+                ENDIF.
+                gs_final-matnr = gs_marc-matnr.
+                gs_final-mmsta = gs_marc-mmsta.
+                gs_final-dispo = gs_marc-dispo.
+                gs_final-desc = gs_makt-maktx.
+                gs_final-meins = gs_mara-meins.
+                gs_final-labor = gs_mara-labor.
+                gs_final-lifnr = gs_ekko-lifnr.
+                gs_final-name1 = gs_lfa1-name1.
+                gs_final-land1 = gs_lfa1-land1.
+                gs_final-ebeln = gs_ekpo-ebeln.
+                gs_final-ebelp = gs_ekpo-ebelp.
+                gs_final-ekorg = gs_ekko-ekorg.
+                gs_final-stawn = gs_marc-stawn.
+                gs_final-herkl = gs_marc-herkl.
+                gs_final-zlclid = gs_marc-zlclid.
+                APPEND gs_final TO gt_final.
+
+              ENDIF.
+            ENDIF.
+          ENDIF.
+          CLEAR : gs_ekpo , gs_ekko , gs_lfa1 , gs_final , gs_ekbe , gs_rbkp .
+        ENDLOOP.
+      ELSE.
+        READ TABLE gt_mbew INTO gs_mbew WITH KEY matnr = gs_marc-matnr
+                                                 bwkey = gs_marc-werks. ""Added for 19/06/2014 CHG0479115  DE3K939258  by 5022277866
+        IF sy-subrc EQ 0.
+          gs_final-stprs = gs_mbew-stprs.
+        ENDIF.
+        gs_final-matnr = gs_marc-matnr.
+        gs_final-mmsta = gs_marc-mmsta.
+        gs_final-dispo = gs_marc-dispo.
+        gs_final-meins = gs_mara-meins.
+        gs_final-labor = gs_mara-labor.
+        gs_final-stawn = gs_marc-stawn.
+        gs_final-herkl = gs_marc-herkl.
+        gs_final-zlclid = gs_marc-zlclid.
+        APPEND gs_final TO gt_final.
+      ENDIF.
+    ENDIF.
+    CLEAR : gs_mara , gs_marc , gs_ekpo, gs_mbew.
+  ENDLOOP.
+  SORT gt_final BY matnr.
+
+ENDFORM.                    " BOMDETAILS
+*&---------------------------------------------------------------------*
+*&      Form  FINAL_OUTPUT
+*&---------------------------------------------------------------------*
+FORM final_output .
+******  Preparing final output by collecting bom info and gt_final into gt_final1
+  LOOP AT gt_final INTO gs_final.
+    CLEAR : gw_index.
+    READ TABLE gt_bom_comp INTO gs_bom_comp WITH KEY matnr = gs_final-matnr.
+    IF sy-subrc EQ 0.
+      gw_index = sy-tabix.
+      LOOP AT gt_bom_comp INTO gs_bom_comp FROM gw_index WHERE matnr EQ gs_final-matnr.
+*        MOVE-CORRESPONDING gs_final TO gs_final1.
+        gs_final1-matnr = gs_final-matnr.
+        gs_final1-mmsta = gs_final-mmsta.
+        gs_final1-dispo = gs_final-dispo.
+        gs_final1-desc = gs_final-desc.
+        gs_final1-meins = gs_final-meins.
+        gs_final1-labor = gs_final-labor.
+        gs_final1-lifnr = gs_final-lifnr .
+        gs_final1-name1 = gs_final-name1 .
+        gs_final1-land1 = gs_final-land1 .
+        gs_final1-ebeln = gs_final-ebeln .
+        gs_final1-ebelp = gs_final-ebelp .
+        gs_final1-ekorg = gs_final-ekorg .
+        gs_final1-stawn = gs_final-stawn .
+        gs_final1-herkl = gs_final-herkl .
+        gs_final1-zlclid = gs_final-zlclid.
+        gs_final1-bldat = gs_final-bldat .
+        gs_final1-rmwwr = gs_final-rmwwr .
+        gs_final1-waers = gs_final-waers .
+        gs_final1-wrbtr = gs_final-wrbtr .
+        gs_final1-stprs = gs_final-stprs .
+        gs_final1-lifnr1 = gs_final-lifnr1.
+        gs_final1-vend_typ = gs_final-vend_typ.
+        gs_final1-flifn = gs_final-flifn.
+        gs_final1-umrez = gs_final-umrez.
+        gs_final1-umren = gs_final-umren.
+        gs_final1-meinh = gs_final-meinh.
+
+        gs_final1-matnr          = gs_bom_comp-matnr.
+        gs_final1-desc           = gs_bom_comp-desc  .
+        gs_final1-stawn1         = gs_bom_comp-stawn1  .
+        gs_final1-req_h_qty      = gs_bom_comp-req_h_qty .
+        gs_final1-base_h_qty     = gs_bom_comp-base_h_qty.
+        gs_final1-emgme          = gs_bom_comp-emgme     .
+        gs_final1-stufe          = gs_bom_comp-stufe     .
+        gs_final1-posnr          = gs_bom_comp-posnr     .
+        gs_final1-validto        = gs_bom_comp-validto   .
+        gs_final1-idnrk          = gs_bom_comp-idnrk     .
+        gs_final1-ojtxp          = gs_bom_comp-ojtxp     .
+        gs_final1-mpitem         = gs_bom_comp-mpitem    .
+        READ TABLE gt_herkl1 INTO gs_herkl1 WITH KEY matnr = gs_bom_comp-idnrk.
+        IF sy-subrc EQ 0.
+          gs_final1-herkl1 = gs_herkl1-herkl.
+        ENDIF.
+        CLEAR : gs_mbew.
+        READ TABLE gt_mbew1 INTO gs_mbew WITH KEY matnr = gs_bom_comp-idnrk
+                                                  bwkey  = gs_bom_comp-werks.""Added for 19/06/2014 CHG0479115  DE3K939258  by 5022277866
+        IF sy-subrc EQ 0.
+          gs_final1-stprs1 = gs_mbew-stprs.
+        ENDIF.
+        gs_final1-menge1 = gs_bom_comp-menge.
+        gs_final1-mphead = gs_final-mmsta.
+
+        APPEND gs_final1 TO gt_final1.
+        CLEAR : gs_final1 , gs_bom_comp. "gs_final commented for 19/06/2014 CHG0479115  DE3K939258  by 5022277866
+      ENDLOOP.
+    ELSE.
+      gs_final1-matnr = gs_final-matnr.
+      gs_final1-mmsta = gs_final-mmsta.
+      gs_final1-dispo = gs_final-dispo.
+      gs_final1-desc = gs_final-desc.
+      gs_final1-meins = gs_final-meins.
+      gs_final1-labor = gs_final-labor.
+      gs_final1-lifnr = gs_final-lifnr .
+      gs_final1-name1 = gs_final-name1 .
+      gs_final1-land1 = gs_final-land1 .
+      gs_final1-ebeln = gs_final-ebeln .
+      gs_final1-ebelp = gs_final-ebelp .
+      gs_final1-ekorg = gs_final-ekorg .
+      gs_final1-stawn = gs_final-stawn .
+      gs_final1-herkl = gs_final-herkl .
+      gs_final1-zlclid = gs_final-zlclid.
+      gs_final1-bldat = gs_final-bldat .
+      gs_final1-rmwwr = gs_final-rmwwr .
+      gs_final1-waers = gs_final-waers .
+      gs_final1-wrbtr = gs_final-wrbtr .
+      gs_final1-stprs = gs_final-stprs .
+      gs_final1-lifnr1 = gs_final-lifnr1.
+      gs_final1-vend_typ = gs_final-vend_typ.
+      gs_final1-flifn = gs_final-flifn.
+      gs_final1-umrez = gs_final-umrez.
+      gs_final1-umren = gs_final-umren.
+      gs_final1-meinh = gs_final-meinh.
+      gs_final1-mphead = gs_final-mmsta.
+      APPEND gs_final1 TO gt_final1.
+
+    ENDIF.
+    CLEAR : gs_final1 , gs_final ,gs_bom_comp .
+  ENDLOOP.
+****  Converting material into external format for all values in output table gt_final1
+  LOOP AT gt_final1 INTO gs_final1.
+    IF NOT gs_final1-matnr IS INITIAL.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+        EXPORTING
+          input  = gs_final1-matnr
+        IMPORTING
+          output = gs_final1-matnr.
+      gs_final1-matnr1 = gs_final1-matnr.
+    ENDIF.
+    IF NOT gs_final1-idnrk IS INITIAL.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+        EXPORTING
+          input  = gs_final1-idnrk
+        IMPORTING
+          output = gs_final1-idnrk.
+    ENDIF.
+    MODIFY gt_final1 FROM gs_final1 TRANSPORTING matnr matnr1 idnrk.
+    CLEAR : gs_final1.
+  ENDLOOP.
+
+ENDFORM.                    " FINAL_OUTPUT
+

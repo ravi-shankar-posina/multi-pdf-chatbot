@@ -1,0 +1,183 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SEND_IDOC_STATUS_ACK_TOP
+*&---------------------------------------------------------------------*
+************************************************************************
+* DATE       |  TR No    |  CHANGED BY  | DESCRIPTION OF change
+************************************************************************
+* 26/04/2022    DE3K9A0CY3    USDEJAI     EHP8 Defect - E1ED4 - SDATA field
+************************************************************************
+TYPE-POOLS: slis.
+TABLES: tbtco.                   " Job Status Overview Tab
+
+TYPES:
+  BEGIN OF ty_edidc,
+    docnum TYPE edi_docnum,   " NUMC 16 IDoc number
+    status TYPE edi_status,   " CHAR 2  Status of IDoc
+    doctyp TYPE edi_doctyp,   " CHAR 8  IDoc Type
+    direct TYPE edi_direct,   " CHAR 1  Direction for IDoc
+    rcvpor TYPE edi_rcvpor,   " CHAR 10 Receiver port
+    rcvprt TYPE edi_rcvprt,   " CHAR 2  Partner Type of Receiver
+    rcvprn TYPE edi_rcvprn,   " CHAR 10 Partner Number of Receiver
+    sndpor TYPE edi_sndpor,   " CHAR 10 Sender port
+    sndprt TYPE edi_sndprt,   " CHAR 2  Partner type of sender
+    sndprn TYPE edi_sndprn,   " CHAR 10 Partner Number of Sender
+    sndlad TYPE edi_sndlad,   " CHAR 70 Logical address of sender
+*Begin of changes by USBABEG TR DE3K9A09OH CR CHG0181553
+    refint TYPE idoccrfint,
+*End of changes by USBABEG TR DE3K9A09OH CR CHG0181553
+    refgrp TYPE idoccrfgrp,   " CHAR 14 Reference to message group
+    credat TYPE edi_ccrdat,   " DATS 8  IDoc Created On
+    cretim TYPE edi_ccrtim,   " TIMS 6  IDoc Created at
+    mestyp TYPE edi_mestyp,   " CHAR 30 Message Type
+    idoctp TYPE edi_idoctp,   " CHAR 30 Basic type
+  END OF ty_edidc,
+
+  BEGIN OF ty_edids,
+    docnum TYPE edi_docnum,  " NUMC 16 IDoc number
+    credat TYPE edi_credat,  " DATS 8  Date status record was created
+    cretim TYPE edi_cretim,  " TIMS 6  Time status record was created
+    countr TYPE edi_countr,  " NUMC 16 IDoc status counter
+    status TYPE edi_status,  " CHAR 2  Status of IDoc
+    statxt TYPE edi_statx_,  " CHAR 70 Text for status code
+    segnum TYPE idocssgnum,  " NUMC 6  Number of SAP segment
+    segfld TYPE edi_segfld,  " CHAR 30 Field Name in SAP Segment
+    stamid TYPE edi_stamid,  " CHAR 20 Status message ID
+    stamno TYPE edi_stamno,  " NUMC 3  Status message number
+    stapa1 TYPE edi_stapa1,  " CHAR 50 Parameter 1
+    stapa2 TYPE edi_stapa2,  " CHAR 50 Parameter 2
+    stapa3 TYPE edi_stapa3,  " CHAR 50 Parameter 3
+    stapa4 TYPE edi_stapa4,  " CHAR 50 Parameter 4
+  END OF ty_edids,
+
+  BEGIN OF ty_edid4,
+    docnum  TYPE edi_docnum,   " NUMC 16    IDoc number
+    counter TYPE edi_clustc,   " NUMC 3     Counter in cluster table
+    segnam  TYPE edi_segnam,   " CHAR 30    Name of SAP segment
+    dtint2  TYPE  edi_dtint2, " USDEJAI for  DE3K9A0CY3
+    sdata   TYPE edi_sdata,    " LCHR 1000  APPLICATION DATA
+  END OF ty_edid4,
+
+  BEGIN OF ty_final,
+    docnum TYPE edi_docnum,    " NUMC 16 IDoc number
+    status TYPE edi_status,    " CHAR 2  Status of IDoc
+    doctyp TYPE edi_doctyp,    " CHAR 8  IDoc Type
+    direct TYPE edi_direct,    " CHAR 1  Direction for IDoc
+    rcvpor TYPE edi_rcvpor,    " CHAR 10 Receiver port
+    rcvprt TYPE edi_rcvprt,    " CHAR 2  Partner Type of Receiver
+    rcvprn TYPE edi_rcvprn,    " CHAR 10 Partner Number of Receiver
+    sndpor TYPE edi_sndpor,    " CHAR 10 Sender port
+    sndprt TYPE edi_sndprt,    " CHAR 2  Partner type of sender
+    sndprn TYPE edi_sndprn,    " CHAR 10 Partner Number of Sender
+    sndlad TYPE edi_sndlad,    " CHAR 70 Logical address of sender
+    refgrp TYPE idoccrfgrp,    " CHAR 14 Reference to message group
+    credat TYPE edi_ccrdat,    " DATS 8  IDoc Created On
+    cretim TYPE edi_ccrtim,    " TIMS 6  IDoc Created at
+    mestyp TYPE edi_mestyp,    " CHAR 30 Message Type
+    idoctp TYPE edi_idoctp,    " CHAR 30 Basic type
+    countr TYPE edi_countr,    " NUMC 16 IDoc status counter
+    statxt TYPE edi_statx_,    " CHAR 70 Text for status code
+    segnum TYPE idocssgnum,    " NUMC 6  Number of SAP segment
+    segfld TYPE edi_segfld,    " CHAR 30 Field Name in SAP Segment
+    stamid TYPE edi_stamid,    " CHAR 20 Status message ID
+    stamno TYPE edi_stamno,    " NUMC 3  Status message number
+    stapa1 TYPE edi_stapa1,    " CHAR 50 Parameter 1
+    stapa2 TYPE edi_stapa2,    " CHAR 50 Parameter 2
+    stapa3 TYPE edi_stapa3,    " CHAR 50 Parameter 3
+    stapa4 TYPE edi_stapa4,    " CHAR 50 Parameter 4
+*Begin of changes by USBABEG TR DE3K9A09OH CR CHG0181553
+    refint TYPE idoccrfint,
+*End of changes by USBABEG TR DE3K9A09OH CR CHG0181553
+  END OF ty_final,
+
+  BEGIN OF ty_edid4_fin,
+    docnum TYPE edi_docnum,    " NUMC 16 IDoc number
+    bstnr  TYPE e1edl41-bstnr, " CHAR 35 Document number
+    posex  TYPE e1edl41-posex, " CHAR 6  Item Number
+    segnam TYPE edi_segnam,    " CHAR 30 Name of SAP segment
+    mestyp TYPE edi_mestyp,    " CHAR 30 Message Type
+  END OF ty_edid4_fin,
+
+  BEGIN OF ty_ekko,
+    ebeln TYPE ebeln,         " CHAR 10 Purchasing Document Number
+    ernam TYPE ernam,         " CHAR 12 Name of Person who Created the Object
+    lifnr TYPE elifn,         " CHAR 10 Vendor Account Number 14
+  END OF ty_ekko,
+
+  BEGIN OF ty_txt,
+    text TYPE char100,           " CHAR 100 Text
+  END OF ty_txt.
+
+***Data Declartions
+
+***Variable Declartion.
+DATA: gv_status     TYPE  edi_status,     " CHAR 2  Status of IDoc
+      gv_docnum     TYPE  edi_docnum,     " NUMC 16 IDoc number
+      gv_credat	    TYPE  edi_credat,     " DATS 8  IDoc Created On
+      gv_cretim	    TYPE  edi_cretim,     " TIMS 6  IDoc Created at
+      gv_stamno	    TYPE  edi_stamno,     " NUMC 3  Status message number
+      gv_direct     TYPE  edi_direct,     " CHAR 1  Direction for IDoc
+      gv_mestyp     TYPE  edi_mestyp,     " CHAR 30 Message Type
+      gv_start_date TYPE zjob_start_date, " DATS 8  Job Start Date
+      gv_start_time TYPE zjob_start_time, " TIMS 6  Job Start Time
+      gv_job_start  TYPE zjob_start_date, " DATS 8  Job Start Date
+      gv_job_time   TYPE zjob_start_time, " TIMS 6  Job Start Time
+      gv_crdate     TYPE zjob_start_date, " DATS 8  Job Start Date
+      gv_dat        TYPE zjob_start_date, " DATS 8  Job Start Date
+      gv_tim        TYPE zjob_start_time, " TIMS 6  Job Start Time
+****Begin of Changes by 503162060 on Dated 13/08/2021 TR: DE3K9A0907.
+      gv_dat1       TYPE zjob_end_date,   " DATS 8  Job End Date
+      gv_tim1       TYPE zjob_end_time.   " TIMS 6  Job End Time
+**      gv_flag       TYPE char1.
+****End of Changes by 503162060 on Dated 13/08/2021 TR: DE3K9A0907.
+
+***Workarea/Structure Declaration
+DATA: gi_ztuhcd1               TYPE ztuhcd1,          " Hardcode entries
+      gi_edid4                 TYPE ty_edid4,         " EDID4
+      gi_edids                 TYPE ty_edids,         " EDIDS
+      gi_edids1                TYPE ty_edids,         " EDIDS
+      gi_edidc                 TYPE ty_edidc,         " EDIDC
+      gi_e1edl41               TYPE e1edl41,          " ELEDL41
+      gi_ekko                  TYPE ty_ekko,          " EKKO
+      gi_final                 TYPE ty_final,         " Final Work Area
+      gi_edid4_fin             TYPE ty_edid4_fin,     " EDID4_FIN
+      gi_e1stats               TYPE e1stats,          " ELSTATS
+      gi_int_edidd_st          TYPE edidd,            " EDIDD
+      gi_control_record_help   TYPE edidc,            " EDIDC
+      gi_control_record_out_st TYPE edidc,            " EDIDC
+*      gi_status                TYPE zidoc_status_ack. " Status workarea "DE3K9A0AIA
+      gi_status                TYPE ztmm_idoc_ack. " Status workarea "DE3K9A0AIA
+
+
+***Internal Tables Declartion
+DATA: gt_edids                TYPE TABLE OF ty_edids,        " EDIDS
+      gt_edids1               TYPE TABLE OF ty_edids,        " EDIDS
+      gt_edidc                TYPE TABLE OF ty_edidc,        " EDIDC
+      gt_edid4                TYPE TABLE OF ty_edid4,        " EDID4
+      gt_edid4_fin            TYPE TABLE OF ty_edid4_fin,    " EDID4_FIN
+      gt_ekko                 TYPE TABLE OF ty_ekko,         " EKKO
+      gt_final                TYPE TABLE OF ty_final,        " Final Internal Table
+      gt_ztuhcd1              TYPE TABLE OF ztuhcd1,         " Hard Code Internal Table
+****Begin of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+**      gt_status                TYPE TABLE OF ztmm_status_idoc," Status Internal Table
+*      gt_status                TYPE TABLE OF zidoc_status_ack," Status Internal Table  "DE3K9A0AIA
+      gt_status               TYPE TABLE OF ztmm_idoc_ack, "zidoc_status_ack," Status Internal Table "DE3K9A0AIA
+****End of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+      gt_control_record_in_st TYPE TABLE OF edidc,           " EDIDC
+      gt_int_edidd_st         TYPE TABLE OF edidd.           " EDIDD
+
+
+***Constants Declaration
+CONSTANTS:
+****Begin of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+*****      gc_name(30) TYPE c             VALUE 'ZRMM_SEND_STATUS_IDOC_TO_AMSAP', " Hard Code Name
+  gc_name(30) TYPE c             VALUE 'ZRMM_SEND_IDOC_STATUS_ACK', " Hard Code Name
+****End of Changes by 503162060 on Dated 18/08/2021, TR:  DE3K9A0997.
+  gc_idoctp   TYPE edi_idoctp    VALUE 'SYSTAT01',                       " Basic Type
+  gc_mestyp   TYPE edi_mestyp    VALUE 'STATUS',                         " Message Type
+  gc_segnam   TYPE edilsegtyp    VALUE 'E1STATS',                        " Segment Name
+  gc_segnm    TYPE edi_segnam    VALUE 'E1EDL41'.                        " Segment Name
+
+***Ranges Declartion
+***RANGES: s_credat FOR edidc-credat, " Created Date
+***        s_cretim FOR edidc-cretim. " Created Time
+

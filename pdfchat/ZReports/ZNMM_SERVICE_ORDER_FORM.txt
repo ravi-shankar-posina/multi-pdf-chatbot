@@ -1,0 +1,1648 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SERVICE_ORDER_FORM
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_AUFK
+*&---------------------------------------------------------------------*
+*  Fetching field on the basis of Selection screen from AUFK
+*----------------------------------------------------------------------*
+FORM f_get_aufk.
+  SELECT aufnr auart ernam erdat bukrs werks ktext
+         FROM aufk INTO TABLE gt_aufk_ds
+         WHERE  aufnr EQ gp_aufnr.
+ENDFORM.                    " F_GET_AUFK
+*&---------------------------------------------------------------------*
+*&      Form  F_FILL_ORDER_HEADER
+*&---------------------------------------------------------------------*
+*  -->  Fetching data on basis og Internal table Gt_aufk_ds
+*----------------------------------------------------------------------*
+FORM f_fill_order_header.
+*&---------------------------------------------------------------------*
+*  -->  Fetching maintainence data from table AFIH
+*----------------------------------------------------------------------*
+  IF gt_aufk_ds IS NOT INITIAL.
+    SELECT aufnr
+           pm_objty
+           gewrk
+           equnr
+           iloan
+           FROM afih
+           INTO TABLE gt_afih_ds
+           FOR ALL ENTRIES IN gt_aufk_ds
+           WHERE aufnr = gt_aufk_ds-aufnr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_afih_ds BY aufnr .
+    ENDIF.
+    IF gt_afih_ds IS NOT INITIAL.
+*&---------------------------------------------------------------------*
+*  -->  Fetching object location from table ILOA
+*----------------------------------------------------------------------*
+      SELECT iloan
+             aufnr
+             tplnr
+             adrnr
+             abckz
+             ppsid
+             FROM iloa
+             INTO TABLE gt_iloa_ds
+             FOR ALL ENTRIES IN gt_afih_ds WHERE iloan = gt_afih_ds-iloan.
+      IF sy-subrc IS INITIAL.
+        SORT gt_iloa_ds BY iloan .
+      ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching Work center header data from table CRHD
+*----------------------------------------------------------------------*
+      SELECT objty
+             objid
+             arbpl
+             FROM crhd
+             INTO TABLE gt_crhd_ds
+             FOR ALL ENTRIES IN gt_afih_ds
+             WHERE objty = gt_afih_ds-pm_objty
+             AND objid = gt_afih_ds-gewrk.
+      IF sy-subrc IS INITIAL.
+        SORT gt_crhd_ds BY objty objid .
+      ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching Equipment data from table EQUI
+*----------------------------------------------------------------------*
+      SELECT equnr
+             eqart
+             invnr
+             serge
+             FROM equi
+             INTO TABLE gt_equi_ds
+             FOR ALL ENTRIES IN gt_afih_ds
+             WHERE equnr = gt_afih_ds-equnr.
+      IF sy-subrc IS INITIAL.
+        SORT gt_equi_ds BY equnr .
+      ENDIF.
+
+*&---------------------------------------------------------------------*
+*  -->  Fetching Equipment data from table EQKT
+*----------------------------------------------------------------------*
+      SELECT equnr
+             eqktx
+             spras
+             FROM eqkt
+             INTO TABLE gt_eqkt_ds
+             FOR ALL ENTRIES IN gt_afih_ds
+             WHERE equnr = gt_afih_ds-equnr.
+      IF sy-subrc IS INITIAL.
+        SORT gt_eqkt_ds BY equnr .
+      ENDIF.
+
+* code changes added by 502287934 for RITM3049332
+*&---------------------------------------------------------------------*
+*  -->  Fetching Equipment general data  from view itob
+*----------------------------------------------------------------------*
+      IF gt_equi_ds IS NOT INITIAL.
+
+        SELECT   equnr
+                 invnr
+                 inbdt
+                 herst
+                 herld
+                 typbz
+                 baujj
+                 mapar
+                 serge
+                 FROM itob
+                 INTO TABLE gt_itob_ds
+                 FOR ALL ENTRIES IN gt_equi_ds
+                 WHERE equnr = gt_equi_ds-equnr.
+      ENDIF.
+
+*&---------------------------------------------------------------------*
+*  -->  Fetching Equipment serdata from view itob
+*----------------------------------------------------------------------*
+
+      IF gt_equi_ds IS NOT INITIAL.
+
+        SELECT       a~equnr                   " Equipment Number
+                     a~matnr                   " Material Number
+                     b~maktx                   " Material description
+                     a~sernr                   " Serial Number
+                     FROM itob AS a INNER JOIN makt AS b
+                     ON a~matnr EQ b~matnr
+                     INTO TABLE gt_serdata_ds
+                     FOR ALL ENTRIES IN gt_equi_ds
+                     WHERE equnr = gt_equi_ds-equnr.
+      ENDIF.
+
+* code changes ended by 502287934 for RITM3049332
+
+*&---------------------------------------------------------------------*
+*  -->  Fetching Work centre data from table CRTX
+*----------------------------------------------------------------------*
+      IF gt_crhd_ds IS NOT INITIAL.
+        SELECT objty
+               objid
+               spras
+               ktext
+               FROM crtx
+               INTO TABLE gt_crtx_ds
+               FOR ALL ENTRIES IN gt_crhd_ds
+               WHERE objty = gt_crhd_ds-objty
+               AND objid = gt_crhd_ds-objid
+               AND spras = sy-langu.
+        IF sy-subrc IS INITIAL.
+          SORT gt_crtx_ds BY objty objid spras .
+        ENDIF.
+      ENDIF.
+    ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching Functional Location data from table IFLO
+*----------------------------------------------------------------------*
+    IF gt_iloa_ds IS NOT INITIAL.
+      SELECT tplnr
+             pltxt
+             adrnr                    " Added by 502287934
+             FROM iflo
+             INTO TABLE gt_iflo_ds
+             FOR ALL ENTRIES IN gt_iloa_ds
+             WHERE tplnr = gt_iloa_ds-tplnr.
+      IF sy-subrc IS INITIAL.
+        SORT gt_iflo_ds BY tplnr .
+      ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching Address data from table SADR
+*----------------------------------------------------------------------*
+*  start of code changes commented by 502287934 for RITM3049332
+*      SELECT adrnr
+*             anred
+*             name1
+*             name2
+*             stras
+*             ort01
+*             pstlz
+*             land1
+*             FROM sadr
+*             INTO TABLE gt_sadr_ds
+*             FOR ALL ENTRIES IN gt_iloa_ds
+*             WHERE adrnr = gt_iloa_ds-adrnr.
+*      IF sy-subrc IS INITIAL.
+*        SORT gt_sadr_ds BY adrnr .
+*      ENDIF.
+* end of code changes commented by 502287934 for RITM3049332
+
+* start of code changes by 502287934 for RITM3049332
+
+      DATA : lt_addr TYPE RANGE OF ad_addrnum,
+             lr_addr LIKE LINE OF lt_addr.
+
+      REFRESH lt_addr.
+
+* code modification started  by 502287934 for RITM3049332
+
+      LOOP AT gt_iflo_ds INTO gi_iflo_ds.
+        CLEAR lr_addr.
+        lr_addr-sign      = 'I'.
+        lr_addr-option    = 'EQ'.
+        CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+          EXPORTING
+            input  = gi_iflo_ds-adrnr
+          IMPORTING
+            output = gi_iflo_ds-adrnr.
+
+        lr_addr-low       = gi_iflo_ds-adrnr.
+
+        APPEND lr_addr TO lt_addr.
+        CLEAR gi_iflo_ds.
+      ENDLOOP.
+
+* code modification ended  by 502287934 for RITM3049332
+
+
+      IF lt_addr IS NOT INITIAL.
+
+        SELECT      addrnumber                                    " Address number
+                    title                                         " Form-of-Address Key
+                    name1                                         " Name 1
+                    name2                                         " Name 2
+*                   city_code                                     " City code for city/street file
+                    mc_street	                                    " Street name in upper case for search help " Added by 502287934
+                    city1                                         " City
+                    post_code1                                    " City postal code
+                    country                                       " Country Key
+                    FROM adrc
+                    INTO TABLE gt_sadr_ds
+                    WHERE  addrnumber IN lt_addr.
+
+      ENDIF.
+
+* changes start by by 502287934
+
+      IF sy-subrc IS INITIAL.
+        SORT gt_sadr_ds BY addrnumber.
+      ENDIF.
+
+* changes end by 502287934
+
+*&---------------------------------------------------------------------*
+*  -->  Fetching Address data from table SADR2
+*----------------------------------------------------------------------
+*  start of code commented by 502287934 RITM3049332
+*      SELECT adrnr
+*             telnr
+*             bezng
+*             FROM sadr2
+*             INTO TABLE gt_sadr2_ds
+*             FOR ALL ENTRIES IN gt_iloa_ds
+*             WHERE adrnr = gt_iloa_ds-adrnr.
+*      IF sy-subrc IS INITIAL.
+*        SORT gt_sadr2_ds BY adrnr .
+*      ENDIF.
+*  end of code commented by 502287934 RITM3049332
+*  start of code changes by 502287934 RITM3049332
+      SELECT     addrnumber                               " Address number
+                 tel_number                               " First telephone no.: dialling code+number
+                 FROM adrc
+                 INTO TABLE gt_sadr2_ds
+                 WHERE addrnumber IN lt_addr.
+*      IF sy-subrc IS INITIAL.
+*        SORT gt_sadr2_ds BY addrnumber .
+*      ENDIF.
+*  end of code changes by 502287934 RITM3049332
+
+    ENDIF.
+  ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching CLASS data, decription  from table KLAH, KSML, CABNT
+*----------------------------------------------------------------------*
+*     classification - UPS SYSTEMS.
+*----------------------------------------------------------------------*
+  CLEAR : gi_klah1_ds,gi_cabnt1_ds,gi_clvalue_ds.
+
+* changes done by 502287934 for PERFORMANCE TUNNING
+
+*  SELECT clint
+*         class
+*         FROM klah
+*         INTO TABLE gt_klah1_ds
+*         WHERE class = gc_class1_tx.
+
+  DATA : c_cursor1 TYPE cursor.
+
+  OPEN CURSOR c_cursor1 FOR  SELECT clint
+                                    class
+                                    FROM klah
+                                    WHERE class = gc_class1_tx.
+
+  FETCH NEXT CURSOR c_cursor1 INTO TABLE gt_klah1_ds.
+  CLOSE CURSOR c_cursor1.
+
+* CHANGES COMPLETED BY 502287934 FOR PERFORMANCE TUNNING
+
+
+  IF sy-subrc IS INITIAL.
+    SELECT clint
+        posnr
+        imerk
+        klart
+        FROM ksml
+        INTO TABLE gt_ksml1_ds
+        FOR ALL ENTRIES IN gt_klah1_ds
+        WHERE clint = gt_klah1_ds-clint.
+
+    IF sy-subrc IS INITIAL.
+      SELECT atinn
+             spras
+             atbez
+             FROM cabnt
+             INTO TABLE gt_cabnt1_ds
+             FOR ALL ENTRIES IN gt_ksml1_ds
+             WHERE atinn = gt_ksml1_ds-imerk
+             AND spras = sy-langu.
+      IF sy-subrc IS INITIAL.
+        SORT gt_cabnt1_ds BY atinn.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching OBJECT data from view Ksskausp
+*----------------------------------------------------------------------*
+*  IF NOT gt_klah1_ds IS INITIAL.
+*    READ TABLE gt_klah1_ds
+*          INTO gi_klah1_ds
+*          INDEX 1.
+*    IF sy-subrc IS INITIAL.
+*
+*      SELECT objek
+*             clint
+*             mafid
+*             atzhl
+*             statu
+*             klart
+*             atinn
+*             atwrt
+*             atflv
+*             FROM  ksskausp
+*             INTO TABLE gt_ksskausp1_ds
+*             WHERE clint = gi_klah1_ds-clint.
+
+*  changes started by 502287934 for performance tunning
+
+  IF NOT gt_klah1_ds IS INITIAL.
+    READ TABLE gt_klah1_ds INTO gi_klah1_ds INDEX 1.
+
+    DATA : lt_clint  TYPE RANGE OF klah-clint,
+           lw_clint  LIKE LINE OF  lt_clint.
+
+    DATA : c_cursor TYPE cursor.
+
+    lw_clint-sign            = 'I'.
+    lw_clint-option          = 'EQ'.
+    lw_clint-low             = gi_klah1_ds-clint.
+    APPEND lw_clint TO lt_clint.
+    CLEAR lw_clint.
+  ENDIF.
+
+
+  IF gt_cabnt1_ds IS NOT INITIAL.
+
+    SELECT a~objek
+           a~clint
+           a~mafid
+           a~atzhl
+           a~statu
+           a~klart
+           a~atinn
+           a~atwrt
+           a~atflv
+           FROM  ksskausp AS a INNER JOIN cabnt AS b
+           ON a~atinn = b~atinn
+           INTO TABLE gt_ksskausp1_ds
+           FOR ALL ENTRIES IN gt_cabnt1_ds
+           WHERE a~atinn = gt_cabnt1_ds-atinn
+           AND   a~clint IN lt_clint.
+
+  ENDIF.
+
+*  changes ENDED by 502287934 for performance tunning
+
+
+  IF sy-subrc IS INITIAL.
+
+    SELECT atinn
+           msehi
+           FROM cabn
+           INTO TABLE gt_cabn1_ds
+           FOR ALL ENTRIES IN gt_ksskausp1_ds
+           WHERE atinn = gt_ksskausp1_ds-atinn.
+
+    IF sy-subrc IS INITIAL.
+      SORT gt_cabn1_ds BY atinn .
+    ENDIF.
+
+    SELECT atinn
+           atwtb
+           spras
+           FROM cawnt
+           INTO TABLE gt_cawnt1_ds
+           FOR ALL ENTRIES IN gt_ksskausp1_ds
+           WHERE atinn = gt_ksskausp1_ds-atinn.
+    IF sy-subrc IS INITIAL.
+      SORT gt_cawnt1_ds BY atinn atwtb spras.
+*        ENDIF.
+    ENDIF.
+  ENDIF.
+*  ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching CLASS data, decription  from table KLAH, KSML, CABNT
+*----------------------------------------------------------------------*
+*      *classification - UPS-CONTRACTS
+*----------------------------------------------------------------------*
+  CLEAR : gi_klah2_ds,gi_cabnt2_ds,gi_clvalue_ds.
+  SELECT clint
+         class
+         FROM klah
+         INTO TABLE gt_klah2_ds
+         WHERE class = gc_class2_tx.
+
+  IF sy-subrc IS INITIAL.
+    SELECT clint
+           posnr
+           imerk
+           klart
+           FROM ksml
+           INTO TABLE gt_ksml2_ds
+           FOR ALL ENTRIES IN gt_klah2_ds
+           WHERE clint = gt_klah2_ds-clint.
+
+    IF sy-subrc IS INITIAL.
+
+      SELECT atinn
+             spras
+             atbez
+             FROM cabnt
+             INTO TABLE gt_cabnt2_ds
+             FOR ALL ENTRIES IN gt_ksml2_ds
+             WHERE atinn = gt_ksml2_ds-imerk
+             AND spras = sy-langu.
+      IF sy-subrc IS INITIAL.
+        SORT gt_cabnt2_ds BY atinn.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching OBJECT data from view Ksskausp
+*----------------------------------------------------------------------*
+
+  IF NOT gt_klah2_ds IS INITIAL.
+
+    READ TABLE gt_klah2_ds INTO gi_klah2_ds INDEX 1.
+
+    IF sy-subrc IS INITIAL.
+
+* changes started by 5022879354 for performnace tunning
+
+      DATA :   lt_clint1  TYPE RANGE OF klah-clint,
+               lw_clint1  LIKE LINE OF  lt_clint1.
+
+      lw_clint1-sign            = 'I'.
+      lw_clint1-option          = 'EQ'.
+      lw_clint1-low             = gi_klah2_ds-clint.
+      APPEND lw_clint1 TO lt_clint1.
+      CLEAR lw_clint1.
+
+*      SELECT objek
+*             clint
+*             mafid
+*             atzhl
+*             statu
+*             klart
+*             atinn
+*             atwrt
+*             atflv
+*             FROM  ksskausp
+*             INTO TABLE gt_ksskausp2_ds
+*             WHERE clint = gi_klah2_ds-clint.
+
+      SELECT objek
+             clint
+             mafid
+             atzhl
+             statu
+             klart
+             atinn
+             atwrt
+             atflv
+             FROM  ksskausp
+             INTO TABLE gt_ksskausp2_ds
+             FOR ALL ENTRIES IN gt_cabnt2_ds
+             WHERE atinn = gt_cabnt2_ds-atinn
+             AND   clint IN lt_clint1.
+
+* changes ended by 502287934 for performance tunning
+
+      IF sy-subrc IS INITIAL.
+
+        SELECT atinn
+                msehi
+                FROM cabn
+                INTO TABLE gt_cabn2_ds
+                FOR ALL ENTRIES IN gt_ksskausp2_ds
+                WHERE atinn = gt_ksskausp2_ds-atinn.
+        IF sy-subrc IS INITIAL.
+          SORT gt_cabn2_ds BY atinn.
+        ENDIF.
+
+        SELECT atinn
+               atwtb
+               spras
+               FROM cawnt
+               INTO TABLE gt_cawnt2_ds
+               FOR ALL ENTRIES IN gt_ksskausp2_ds
+               WHERE atinn = gt_ksskausp2_ds-atinn.
+
+        IF sy-subrc IS INITIAL.
+          SORT gt_cawnt2_ds BY atinn atwtb spras.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching SAP script text header data from table STXH
+*----------------------------------------------------------------------*
+  SELECT tdid
+         tdobject
+         tdname
+         tdspras
+         FROM stxh
+         INTO TABLE gt_stxh_ds
+         WHERE tdid = gc_tdid_tx
+         AND tdobject = gc_tdobj_tx.
+  IF sy-subrc IS INITIAL.
+    SORT gt_stxh_ds BY tdname.
+  ENDIF.
+
+  LOOP AT gt_aufk_ds INTO gi_aufk_ds.
+    CLEAR gi_caufv_ds.
+
+    CALL FUNCTION 'CO_DB_HEADER_READ'
+      EXPORTING
+        aufnr     = gi_aufk_ds-aufnr
+      IMPORTING
+        caufvwa   = gi_caufv_ds
+      EXCEPTIONS
+        not_found = 1.
+
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ELSE.
+      APPEND gi_caufv_ds TO gt_caufv_ds.
+    ENDIF.
+  ENDLOOP.
+
+*&---------------------------------------------------------------------*
+*  -->  Fetching reservation/dependant  data from table RESB
+*----------------------------------------------------------------------*
+  SELECT posnr
+         matnr
+         bdmng
+         rsnum
+         xloek
+         FROM resb
+         INTO TABLE gt_resb1_ds
+         FOR ALL ENTRIES IN gt_caufv_ds
+         WHERE rsnum = gt_caufv_ds-rsnum
+          AND  xloek = ' '.
+  IF sy-subrc IS INITIAL.
+    SORT gt_resb1_ds BY rsnum.
+  ENDIF.
+*&---------------------------------------------------------------------*
+*  -->  Fetching Customer Master data from Table Kna1
+*----------------------------------------------------------------------*
+* changes started by 502287934 on 03/12/2014
+*  SELECT kunnr
+*         name1
+*         name2
+*         telf1
+*         FROM kna1
+*         INTO TABLE gt_kna1_ds.
+*  IF sy-subrc IS INITIAL.
+*    SORT gt_kna1_ds BY kunnr.
+*  ENDIF.
+* changes ended by 502287934 on 03/12/2014
+*&---------------------------------------------------------------------*
+*  -->  Fetching Material data from Table Makt
+*----------------------------------------------------------------------*
+  SELECT matnr
+         maktx
+         spras
+         FROM makt
+         INTO TABLE gt_makt_ds
+         FOR ALL ENTRIES IN gt_resb1_ds
+         WHERE matnr = gt_resb1_ds-matnr.
+  IF sy-subrc IS INITIAL.
+    SORT gt_makt_ds BY matnr spras.
+  ENDIF.
+
+  LOOP AT gt_aufk_ds INTO gi_aufk_ds.
+    CLEAR : gi_caufv_ds ,gi_resb_ds , gi_caufvd_ds,gi_resb_ds .
+
+    READ TABLE gt_caufv_ds INTO gi_caufv_ds WITH KEY aufnr = gi_aufk_ds-aufnr.
+    IF sy-subrc IS INITIAL.
+      gi_caufvd_ds-aufnr = gi_caufv_ds-aufnr.
+      gi_caufvd_ds-rsnum = gi_caufv_ds-rsnum.
+      gi_caufvd_ds-auart = gi_caufv_ds-auart.
+      gi_caufvd_ds-ktext = gi_caufv_ds-ktext.
+      gi_caufvd_ds-gstrp = gi_caufv_ds-gstrp.
+    ENDIF.
+
+    READ TABLE gt_afih_ds INTO gi_afih_ds WITH KEY aufnr = gi_caufvd_ds-aufnr
+                                           BINARY SEARCH.
+
+    IF sy-subrc IS INITIAL.
+      gi_caufvd_ds-gewrk = gi_afih_ds-gewrk.
+*      **get equipment details
+      READ TABLE gt_equi_ds INTO gi_equi_ds WITH KEY equnr = gi_afih_ds-equnr BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        READ TABLE gt_iloa_ds INTO gi_iloa_ds WITH KEY iloan = gi_afih_ds-iloan BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+*         **contract details
+          CALL FUNCTION 'PM_SD_CONTRACT'
+            EXPORTING
+              tplnr       = gi_iloa_ds-tplnr
+              equnr       = gi_equi_ds-equnr
+              date        = sy-datlo
+              uzeit       = sy-timlo
+              hier        = gc_x
+              conf        = ' '
+            TABLES
+              veda_wa     = gt_veda_ds
+            EXCEPTIONS
+              no_contract = 1
+              OTHERS      = 2.
+          IF sy-subrc <> 0.
+            MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+          ENDIF.
+          CLEAR gi_veda_ds.
+          READ TABLE gt_veda_ds INTO  gi_veda_ds INDEX 1.
+          IF sy-subrc IS INITIAL.
+            CLEAR gi_rihveda_ds.
+            gi_rihveda_ds = gi_veda_ds.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+
+
+*    *** move data to output internal table
+    gi_output_ds-text = text-001.
+    gi_output_ds-aufnr  = gi_caufvd_ds-aufnr.
+    gi_output_ds-auart  = gi_caufvd_ds-auart.
+    gi_output_ds-ktext  = gi_caufvd_ds-ktext.
+
+    READ TABLE gt_crhd_ds INTO gi_crhd_ds WITH KEY objty = gc_objty_tx
+                                                   objid = gi_caufvd_ds-gewrk BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_output_ds-vaplz  = gi_crhd_ds-arbpl.
+    ELSE.
+      gi_output_ds-vaplz  = ''.
+    ENDIF.
+
+    gi_output_ds-gstrp  = gi_caufvd_ds-gstrp.
+
+    APPEND gi_output_ds TO gt_output_ds.
+    CLEAR gi_output_ds.
+*component details
+    REFRESH gt_resb_ds.
+    gt_resb_ds[] = gt_resb1_ds[].
+    DELETE gt_resb_ds WHERE rsnum <> gi_caufvd_ds-rsnum.
+
+    IF NOT gt_resb_ds IS INITIAL.
+      LOOP AT gt_resb_ds INTO gi_resb_ds.
+        gi_output_ds-text = text-002.
+        gi_output_ds-posnr = gi_resb_ds-posnr.
+        gi_output_ds-matnr = gi_resb_ds-matnr.
+        gi_output_ds-menge = gi_resb_ds-bdmng.
+        READ TABLE gt_makt_ds INTO gi_makt_ds WITH KEY matnr = gi_resb_ds-matnr
+                                                       spras = sy-langu BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          gi_output_ds-matxt = gi_makt_ds-maktx.
+        ELSE.
+          gi_output_ds-matxt = ''.
+        ENDIF.
+        APPEND gi_output_ds TO gt_output_ds.
+        CLEAR gi_output_ds.
+      ENDLOOP.
+    ELSE.
+*do append 3 empty lines in case components are not existing
+      gi_output_ds-text = text-002.
+      APPEND gi_output_ds TO gt_output_ds.
+      CLEAR gi_output_ds.
+
+      gi_output_ds-text = text-002.
+      APPEND gi_output_ds TO gt_output_ds.
+      CLEAR gi_output_ds.
+
+      gi_output_ds-text = text-002.
+      APPEND gi_output_ds TO gt_output_ds.
+      CLEAR gi_output_ds.
+
+    ENDIF.
+*Equipment.
+    gi_output_ds-text = text-003.
+    gi_output_ds-equnr = gi_equi_ds-equnr.
+    gi_output_ds-eqart = gi_equi_ds-eqart.
+    READ TABLE gt_eqkt_ds INTO gi_eqkt_ds WITH KEY equnr = gi_afih_ds-equnr
+                                                   spras = sy-langu BINARY SEARCH .
+    IF sy-subrc IS INITIAL.
+      gi_output_ds-eqktx = gi_eqkt_ds-eqktx.
+    ELSE.
+      gi_output_ds-eqktx = ''.
+    ENDIF.
+    gi_output_ds-invnr = gi_equi_ds-invnr.
+    gi_output_ds-serge = gi_equi_ds-serge.
+    APPEND gi_output_ds TO gt_output_ds.
+    CLEAR gi_output_ds.
+
+* code changes started by 502287934 RITM3049332 for general data
+
+    READ TABLE gt_itob_ds INTO gi_itob_ds WITH KEY equnr = gi_equi_ds-equnr BINARY SEARCH.
+*    gi_output_ds-equnr = gi_itob_ds-equnr.
+*    gi_output_ds-invnr=gi_itob_ds-invnr.
+    gi_output_ds-text  =  text-063.
+    gi_output_ds-inbdt =  gi_itob_ds-inbdt.
+    gi_output_ds-herst =  gi_itob_ds-herst.
+    gi_output_ds-herld =  gi_itob_ds-herld.
+    gi_output_ds-typbz =  gi_itob_ds-typbz.
+    gi_output_ds-baujj =  gi_itob_ds-baujj.
+    gi_output_ds-mapar =  gi_itob_ds-mapar.
+*    gi_output_ds-serge=gi_itob_ds-serge.
+    APPEND gi_output_ds TO gt_output_ds.
+    CLEAR gi_output_ds.
+
+* code changes eneded by 502287934 RITM3049332 for general data
+
+* code changes started by 502287934 RITM3049332 for serdata
+
+
+    READ TABLE gt_serdata_ds INTO gi_serdata_ds WITH KEY equnr = gi_equi_ds-equnr BINARY SEARCH.
+    gi_output_ds-text         =  text-064.
+    gi_output_ds-ser_matnr    =  gi_serdata_ds-matnr.
+    gi_output_ds-ser_maktx    =  gi_serdata_ds-maktx.
+    gi_output_ds-ser_sernr    =  gi_serdata_ds-sernr.
+
+    APPEND gi_output_ds TO gt_output_ds.
+    CLEAR gi_output_ds.
+
+* code changes ended bt 502287934 RITM3049332 for serdata
+
+    REFRESH gt_ksskausp_ds[].
+    gt_ksskausp_ds[] = gt_ksskausp1_ds[].
+    DELETE gt_ksskausp_ds WHERE objek NE gi_equi_ds-equnr.
+    SORT gt_ksskausp_ds BY atinn. " code changes added by 5022987934
+
+    LOOP AT gt_cabnt1_ds INTO gi_cabnt1_ds.
+      CLEAR gi_ksskausp_ds.
+      CLEAR gi_clvalue_ds.
+      READ TABLE gt_ksskausp_ds INTO gi_ksskausp_ds
+                        WITH KEY atinn = gi_cabnt1_ds-atinn BINARY SEARCH. " code changes added by 502287934
+      IF sy-subrc = 0.
+        IF gi_ksskausp_ds-atwrt IS INITIAL.
+          MOVE gi_ksskausp_ds-atflv TO gw_atflv.
+          gi_clvalue_ds-value = gw_atflv.
+        ELSE.
+          gi_clvalue_ds-value = gi_ksskausp_ds-atwrt.
+          SHIFT gi_clvalue_ds-value LEFT DELETING LEADING '0'.
+          CONDENSE gi_clvalue_ds-value.
+        ENDIF.
+      ENDIF.
+
+      gi_clvalue_ds-atbez = gi_cabnt1_ds-atbez.
+      IF gi_ksskausp_ds-atwrt IS INITIAL.
+        CLEAR gi_cabn1_ds.
+        READ TABLE gt_cabn1_ds INTO gi_cabn1_ds WITH KEY atinn = gi_ksskausp_ds-atinn BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          gi_clvalue_ds-uom = gi_cabn1_ds-msehi.
+        ENDIF.
+      ELSE.
+        CLEAR gw_atwtb.
+        CONCATENATE '%'  gi_clvalue_ds-value '%' INTO gw_atwtb.
+        CLEAR gi_cawnt1_ds.
+        READ TABLE gt_cawnt1_ds INTO gi_cawnt1_ds WITH  KEY  atinn = gi_ksskausp_ds-atinn
+                                                  atwtb = gw_atwtb
+                                                  spras = sy-langu BINARY SEARCH .
+        IF sy-subrc IS INITIAL.
+          gi_clvalue_ds-uom = gi_cawnt1_ds-atwtb.
+        ENDIF.
+      ENDIF.
+      APPEND gi_clvalue_ds TO gt_clvalue_ds.
+      CLEAR gi_clvalue_ds.
+      CLEAR gi_cabnt1_ds.
+    ENDLOOP.
+
+    LOOP AT gt_clvalue_ds INTO gi_clvalue_ds.
+      gi_output_ds-text = text-004.
+      gi_output_ds-atbez = gi_clvalue_ds-atbez.
+      gi_output_ds-value = gi_clvalue_ds-value.
+      gi_output_ds-uom   = gi_clvalue_ds-uom.
+      APPEND gi_output_ds TO gt_output_ds.
+      CLEAR gi_output_ds.
+    ENDLOOP.
+
+    REFRESH gt_ksskausp_ds[].
+    gt_ksskausp_ds[] = gt_ksskausp2_ds[].
+    DELETE gt_ksskausp_ds WHERE objek NE gi_equi_ds-equnr.
+    REFRESH gt_clvalue_ds.
+    SORT gt_ksskausp_ds BY atinn. " code changes added by 502287934
+    LOOP AT gt_cabnt2_ds INTO gi_cabnt2_ds.
+
+      CLEAR gi_ksskausp_ds.
+      CLEAR gi_clvalue_ds.
+      READ TABLE gt_ksskausp_ds INTO gi_ksskausp_ds
+                        WITH KEY atinn = gi_cabnt2_ds-atinn BINARY SEARCH. " code changes added by 502287934
+      IF sy-subrc = 0.
+        IF gi_ksskausp_ds-atwrt IS INITIAL.
+          MOVE gi_ksskausp_ds-atflv TO gw_atflv.
+          gi_clvalue_ds-value = gw_atflv.
+        ELSE.
+          gi_clvalue_ds-value = gi_ksskausp_ds-atwrt.
+          SHIFT gi_clvalue_ds-value LEFT DELETING LEADING '0'.
+          CONDENSE gi_clvalue_ds-value.
+        ENDIF.
+      ENDIF.
+
+      gi_clvalue_ds-atbez = gi_cabnt2_ds-atbez.
+      IF gi_ksskausp_ds-atwrt IS INITIAL.
+        CLEAR gi_cabn2_ds.
+        READ TABLE gt_cabn2_ds INTO gi_cabn2_ds WITH KEY atinn = gi_ksskausp_ds-atinn BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          gi_clvalue_ds-uom = gi_cabn2_ds-msehi.
+        ENDIF.
+      ELSE.
+        CLEAR gw_atwtb.
+        CONCATENATE '%'  gi_clvalue_ds-value '%' INTO gw_atwtb.
+        CLEAR gi_cawnt2_ds.
+
+        READ TABLE gt_cawnt2_ds INTO gi_cawnt2_ds WITH  KEY  atinn = gi_ksskausp_ds-atinn
+                                                  atwtb = gw_atwtb
+                                                     spras = sy-langu BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          gi_clvalue_ds-uom = gi_cawnt2_ds-atwtb.
+        ENDIF.
+      ENDIF.
+      APPEND gi_clvalue_ds TO gt_clvalue_ds.
+      CLEAR gi_clvalue_ds.
+      CLEAR gi_cabnt2_ds.
+    ENDLOOP.
+
+    LOOP AT gt_clvalue_ds INTO gi_clvalue_ds.
+      gi_output_ds-text = text-005.
+      gi_output_ds-atbez = gi_clvalue_ds-atbez.
+      gi_output_ds-value = gi_clvalue_ds-value.
+      gi_output_ds-uom   = gi_clvalue_ds-uom.
+      APPEND gi_output_ds TO gt_output_ds.
+      CLEAR gi_output_ds.
+    ENDLOOP.
+
+*Functionlocation
+    gi_output_ds-text = text-006.
+    READ TABLE gt_iflo_ds INTO gi_iflo_ds WITH KEY tplnr = gi_iloa_ds-tplnr BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_output_ds-tplnr = gi_iflo_ds-tplnr.
+      gi_output_ds-pltxt = gi_iflo_ds-pltxt.
+    ELSE.
+      gi_output_ds-tplnr = ''.
+      gi_output_ds-pltxt = ''.
+    ENDIF.
+
+*    gi_output_ds-arbpl = gi_iloa_ds-ppsid. " code commented by 502287934 RITM3049332
+
+* code changes started by 502287934 RITM3049332
+    gi_output_ds-arbpl = gi_crhd_ds-arbpl.
+* code changes ended  by 502287934 RITM3049332
+
+    gi_output_ds-abckz = gi_iloa_ds-abckz.
+    APPEND gi_output_ds TO gt_output_ds.
+    CLEAR gi_output_ds.
+
+* code changes started by 502287934 RITM3049332
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input  = gi_iloa_ds-adrnr
+      IMPORTING
+        output = gi_iloa_ds-adrnr.
+
+* code changes ended by 502287934 RITM3049332
+
+* *  **ADRESS
+
+*    READ TABLE gt_sadr_ds INTO gi_sadr_ds WITH KEY adrnr = gi_iloa_ds-adrnr BINARY SEARCH. 'code commented ended by 502287934 RITM3049332
+
+* code changes started by 502287934  RITM3049332
+*    READ TABLE gt_sadr_ds INTO gi_sadr_ds WITH KEY addrnumber = gi_iloa_ds-adrnr BINARY SEARCH. " Comment by 502287934
+    READ TABLE gt_sadr_ds INTO gi_sadr_ds WITH KEY addrnumber = gi_iflo_ds-adrnr BINARY SEARCH. " Added by 502287934 RITM3049332
+* code changes ended by 502287934 RITM3049332
+    IF sy-subrc IS INITIAL.
+*  code  started by 502287934 RITM3049332
+*      gi_output_ds-text = text-007.
+*      gi_output_ds-anred = gi_sadr_ds-anred.
+*      gi_output_ds-name1 = gi_sadr_ds-name1.
+*      gi_output_ds-name2 = gi_sadr_ds-name2.
+*      gi_output_ds-stras = gi_sadr_ds-stras.
+*      gi_output_ds-ort01 = gi_sadr_ds-ort01.
+*      gi_output_ds-pstlz = gi_sadr_ds-pstlz.
+*      gi_output_ds-land1 = gi_sadr_ds-land1.
+
+
+      gi_output_ds-text           = text-007.
+      gi_output_ds-title          = gi_sadr_ds-title.
+      gi_output_ds-name1          = gi_sadr_ds-name1.
+      gi_output_ds-name2          = gi_sadr_ds-name2.
+      gi_output_ds-mc_street      = gi_sadr_ds-mc_street.   " Added by 502287934
+      gi_output_ds-city1          = gi_sadr_ds-city1.
+      gi_output_ds-post_code1     = gi_sadr_ds-post_code1.
+      gi_output_ds-country        = gi_sadr_ds-country.
+
+* code changes ended by 502287934 RITM3049332
+
+    ELSE.
+* code started by 502287934 RITM3049332
+*      gi_output_ds-text = text-007.
+*      gi_output_ds-anred = ''.
+*      gi_output_ds-name1 = ''.
+*      gi_output_ds-name2 = ''.
+*      gi_output_ds-stras = ''.
+*      gi_output_ds-ort01 = ''.
+*      gi_output_ds-pstlz = ''.
+*      gi_output_ds-land1 = ''.
+
+      gi_output_ds-text = text-007.
+      gi_output_ds-title        = ''.
+      gi_output_ds-name1        = ''.
+      gi_output_ds-name2        = ''.
+      gi_output_ds-mc_street    = ''.                 " Added by 502287934
+      gi_output_ds-city1        = ''.
+      gi_output_ds-post_code1   = ''.
+      gi_output_ds-country      = ''.
+
+* code changes ended  by 502287934 RITM3049332
+
+
+    ENDIF.
+    APPEND gi_output_ds TO gt_output_ds.
+    CLEAR gi_output_ds.
+
+
+*    READ TABLE gt_sadr2_ds INTO gi_sadr2_ds WITH KEY adrnr = gi_iloa_ds-adrnr BINARY SEARCH. " code comments ended by 502287934 RITM3049332
+
+
+* code changes started  by 502287934 RITM3049332
+    READ TABLE gt_sadr2_ds INTO gi_sadr2_ds WITH KEY addrnumber = gi_iloa_ds-adrnr BINARY SEARCH.
+* code changes ended  by 502287934 RITM3049332
+
+    IF sy-subrc IS INITIAL.
+
+*  code strated  by 502287934 RITM3049332
+*      gi_output_ds-text = text-008.
+*      gi_output_ds-telnr = gi_sadr2_ds-telnr.
+*      gi_output_ds-bezng = gi_sadr2_ds-bezng.
+*  code comments ended by 502287934 RITM3049332
+
+
+      gi_output_ds-text        = text-008.
+      gi_output_ds-tel_number  = gi_sadr2_ds-tel_number.
+
+* code changes ended  by 502287934 RITM3049332
+
+******
+    ELSE.
+* code commented started by 502287934 RITM3049332
+*      gi_output_ds-text = text-008.
+*      gi_output_ds-telnr = ''.
+*      gi_output_ds-bezng = ''.
+
+
+      gi_output_ds-text = text-008.
+      gi_output_ds-tel_number = ''.
+
+* code changes ended by 502287934 RITM3049332
+    ENDIF.
+    APPEND gi_output_ds TO gt_output_ds.
+    CLEAR gi_output_ds.
+
+    gi_output_ds-text = text-009.
+    gi_output_ds-kauart  = gi_rihveda_ds-auart.
+    gi_output_ds-sdaufnr = gi_rihveda_ds-sdaufnr.
+    gi_output_ds-sdposnr = gi_rihveda_ds-posnr.
+
+* code changes added by 502287934 for performance tunning part
+
+    DATA : gt_bapicustomer_04 TYPE bapicustomer_04.
+    DATA : v_kunnr  TYPE  kunag.
+    CLEAR gi_kna1_ds.
+
+    v_kunnr = gi_rihveda_ds-kunnr.
+
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input  = v_kunnr
+      IMPORTING
+        output = v_kunnr.
+
+    CALL FUNCTION 'BAPI_CUSTOMER_GETDETAIL2'
+      EXPORTING
+        customerno      = v_kunnr
+*       COMPANYCODE     =
+      IMPORTING
+        customeraddress = gt_bapicustomer_04.
+*       customergeneraldetail =
+*       CUSTOMERCOMPANYDETAIL       =
+*       RETURN                      =
+*     TABLES
+*       CUSTOMERBANKDETAIL          =
+
+    gi_kna1_ds-kunnr    =   gt_bapicustomer_04-customer.
+    gi_kna1_ds-name1    =   gt_bapicustomer_04-name.
+    gi_kna1_ds-name2    =   gt_bapicustomer_04-name_2.
+    gi_kna1_ds-telf1    =   gt_bapicustomer_04-telephone.
+    APPEND gi_kna1_ds TO gt_kna1_ds.
+    CLEAR  gi_kna1_ds.
+    CLEAR v_kunnr.
+
+* code chnages ended by 502287934 for performance tunning part
+
+    READ TABLE gt_kna1_ds INTO gi_kna1_ds WITH KEY kunnr = gi_rihveda_ds-kunnr.
+    IF sy-subrc IS INITIAL.
+      gi_output_ds-kunnr   = gi_kna1_ds-kunnr.
+      gi_output_ds-kname1  = gi_kna1_ds-name1.
+      gi_output_ds-kname2  = gi_kna1_ds-name2.
+      gi_output_ds-ktelf1  = gi_kna1_ds-telf1.
+    ELSE.
+      gi_output_ds-kunnr   = ''.
+      gi_output_ds-kname1  = ''.
+      gi_output_ds-kname2  = ''.
+      gi_output_ds-ktelf1  = ''.
+    ENDIF.
+    APPEND gi_output_ds TO gt_output_ds.
+    CLEAR gi_output_ds.
+
+    READ TABLE gt_stxh_ds INTO gi_stxh_ds WITH KEY tdname = gi_equi_ds-equnr.
+
+    IF sy-subrc = 0.
+      CALL FUNCTION 'READ_TEXT'
+        EXPORTING
+          client                  = sy-mandt
+          id                      = gi_stxh_ds-tdid
+          language                = gi_stxh_ds-tdspras
+          name                    = gi_stxh_ds-tdname
+          object                  = gi_stxh_ds-tdobject
+*         ARCHIVE_HANDLE          = 0
+        IMPORTING
+          header                  = gi_zhead_ds
+        TABLES
+          lines                   = gt_zline_ds
+        EXCEPTIONS
+          id                      = 1
+          language                = 2
+          name                    = 3
+          not_found               = 4
+          object                  = 5
+          reference_check         = 6
+          wrong_access_to_archive = 7
+          OTHERS                  = 8.
+
+      IF sy-subrc <> 0.
+        MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      ENDIF.
+
+      LOOP AT gt_zline_ds INTO gi_zline_ds.
+        gi_output_ds-text = text-010.
+        gi_output_ds-internalnote = gi_zline_ds-tdline.
+        APPEND gi_output_ds TO gt_output_ds.
+      ENDLOOP.
+    ELSE.
+      gi_output_ds-text = text-010.
+      gi_output_ds-internalnote = ' '.
+      APPEND gi_output_ds TO gt_output_ds.
+    ENDIF.
+
+    CLEAR gi_aufk_ds.
+    CLEAR gi_rihveda_ds1.
+  ENDLOOP.
+
+
+ENDFORM.                    " F_FILL_ORDER_HEADER
+*&---------------------------------------------------------------------*
+*&      Form  F_WRITE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_write.
+  PERFORM f_title.
+*&---------------------------------------------------------------------*
+*&      Filling the Excel Sheet table with Output Data
+*&---------------------------------------------------------------------*
+  LOOP AT gt_output_ds INTO gi_output_ds.
+
+    CASE gi_output_ds-text.
+      WHEN gc_order_tx.
+        READ TABLE gt_crhd_ds INTO gi_crhd_ds WITH KEY arbpl = gi_output_ds-vaplz.
+        IF sy-subrc = 0.
+          READ TABLE gt_crtx_ds INTO gi_crtx_ds WITH KEY  objty = gi_crhd_ds-objty
+                  objid = gi_crhd_ds-objid
+                  spras = sy-langu BINARY SEARCH.
+
+        ENDIF.
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+               /2(20)  text-011,     22(12)   gi_output_ds-aufnr,
+               /2(20)  text-012,       22(5)  gi_output_ds-auart,
+               /2(20)  text-013,       22(40) gi_output_ds-ktext,
+               /2(20)  text-014,     22(10) gi_output_ds-vaplz,
+               33(40)  gi_crtx_ds-ktext,
+               /2(20)  text-015,  22(10) gi_output_ds-gstrp.
+**excel download
+        gi_excel_ds-field1 = gi_output_ds-text.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-011.
+        gi_excel_ds-field2 = gi_output_ds-aufnr .
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-012.
+        gi_excel_ds-field2 = gi_output_ds-auart.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-013.
+        gi_excel_ds-field2 = gi_output_ds-ktext.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-014.
+        gi_excel_ds-field2 = gi_output_ds-vaplz.
+        gi_excel_ds-field3 = gi_crtx_ds-ktext.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-015.
+        gi_excel_ds-field2 = gi_output_ds-gstrp.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+**end of excel download
+      WHEN  gc_component_tx.
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+               /2(20)  text-016                ,22(6)  gi_output_ds-posnr,
+               /2(20)  text-017            ,22(10) gi_output_ds-matnr,
+               /2(20)  text-018            , 22(40) gi_output_ds-matxt,
+               /2(20)  text-019            ,22(13) gi_output_ds-menge. "#EC UOM_IN_MES
+**excel download
+        gi_excel_ds-field1 = gi_output_ds-text.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-016.
+        gi_excel_ds-field2 = gi_output_ds-posnr.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-017.
+        gi_excel_ds-field2 = gi_output_ds-matnr.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 =  text-018.
+        gi_excel_ds-field2 = gi_output_ds-matxt.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 =  text-019.
+        MOVE gi_output_ds-menge TO gi_excel_ds-field2.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+**end of excel download
+      WHEN gc_equipment_tx .
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+               /2(20)  text-020,        22(18) gi_output_ds-equnr,
+               /2(20)  text-021,        22(40) gi_output_ds-eqktx,
+               /2(20)  text-022,         22(10) gi_output_ds-eqart,
+               /2(20)  text-023        ,22(25) gi_output_ds-invnr,
+               /2(20)  text-024       , 22(30) gi_output_ds-serge.
+
+**excel download
+        gi_excel_ds-field1 = gi_output_ds-text.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-020.
+        gi_excel_ds-field2 =  gi_output_ds-equnr.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-021.
+        gi_excel_ds-field2 =   gi_output_ds-eqktx.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-022.
+        gi_excel_ds-field2 =   gi_output_ds-eqart.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-023.
+        gi_excel_ds-field2 =   gi_output_ds-invnr.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-024.
+        gi_excel_ds-field2 =   gi_output_ds-serge.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+* Code changes added by 502287934 RITM3049332
+      WHEN gc_equipmentgd_tx.
+
+        WRITE :      /2(20)  text-057      ,  22(30)     gi_output_ds-inbdt,
+                    /2(22)   text-058       , 22(30)     gi_output_ds-herst,
+                    /2(22)   text-059       , 22(30)     gi_output_ds-herld,
+                    /2(25)   text-060       , 22(30)     gi_output_ds-typbz,
+                    /2(20)   text-061       , 22(30)     gi_output_ds-baujj,
+                    /2(24)   text-062       , 22(30)     gi_output_ds-mapar.
+
+**excel download
+*        gi_excel_ds-field1 = gi_output_ds-text.
+*        APPEND gi_excel_ds TO gt_excel_ds.
+*        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-057.
+        gi_excel_ds-field2 =  gi_output_ds-inbdt.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-058.
+        gi_excel_ds-field2 =   gi_output_ds-herst.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-059.
+        gi_excel_ds-field2 =   gi_output_ds-herld.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-060.
+        gi_excel_ds-field2 =   gi_output_ds-typbz.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-061.
+        gi_excel_ds-field2 =   gi_output_ds-baujj.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-062.
+        gi_excel_ds-field2 =   gi_output_ds-mapar.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+
+      WHEN gc_equipmentser_tx.
+
+        DATA : v_serdata(10) TYPE c.
+        v_serdata = 'SERDATA'.
+
+        WRITE :/2(20)  v_serdata COLOR COL_KEY.
+        WRITE :     /2(20)   text-065       , 22(30)  gi_output_ds-ser_matnr,
+                    /2(20)   text-066       , 22(30)  gi_output_ds-ser_maktx,
+                    /2(20)   text-067       , 22(30)  gi_output_ds-ser_sernr.
+
+**excel download
+
+        gi_excel_ds-field1 = text-068.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+
+        gi_excel_ds-field1    =  text-065.
+        gi_excel_ds-field2    =   gi_output_ds-ser_matnr.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1    =   text-066.
+        gi_excel_ds-field2    =   gi_output_ds-ser_maktx.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1    =   text-067.
+        gi_excel_ds-field2    =   gi_output_ds-ser_sernr.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+* code changes ended  by 502287934 RITM3049332
+
+
+      WHEN gc_upssy_tx.
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+                22(15) gi_output_ds-value,
+                38(10) gi_output_ds-uom,
+                49(30) gi_output_ds-atbez.
+**excel download
+        gi_excel_ds-field1 = gi_output_ds-text.
+        gi_excel_ds-field2 = gi_output_ds-value.
+        gi_excel_ds-field3 = gi_output_ds-uom.
+        gi_excel_ds-field4 = gi_output_ds-atbez.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+**end of excel download
+
+      WHEN gc_upscn_tx.
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+                22(15) gi_output_ds-value,
+                38(10) gi_output_ds-uom,
+                49(30) gi_output_ds-atbez.
+
+**excel download
+        gi_excel_ds-field1 = gi_output_ds-text.
+        gi_excel_ds-field2 = gi_output_ds-value.
+        gi_excel_ds-field3 = gi_output_ds-uom.
+        gi_excel_ds-field4 = gi_output_ds-atbez.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+**end of excel download
+
+      WHEN gc_funcl_tx.
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+               /2(20)  text-025      ,22(30) gi_output_ds-tplnr,
+               /2(20)  text-026      ,22(40) gi_output_ds-pltxt,
+               /2(20)  text-027      ,22(8)  gi_output_ds-arbpl,
+                       33(40)  gi_crtx_ds-ktext,
+               /2(20)  text-028      ,22(3) gi_output_ds-abckz.
+**excel download
+        gi_excel_ds-field1 = gi_output_ds-text.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-025.
+        gi_excel_ds-field2 = gi_output_ds-tplnr.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-026.
+        gi_excel_ds-field2 = gi_output_ds-pltxt.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-027.
+        gi_excel_ds-field2 = gi_output_ds-arbpl.
+        gi_excel_ds-field3 = gi_crtx_ds-ktext.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-028.
+        gi_excel_ds-field2 = gi_output_ds-abckz.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+**end of excel download
+
+
+      WHEN gc_addr_tx.
+* code changes started by 502287934 RITM3049332
+*        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+*               /2(20)  text-029       ,22(40) gi_output_ds-anred,
+*               /2(20)  text-030      ,22(40) gi_output_ds-name1,
+*               /2(20)  text-031      ,22(40) gi_output_ds-name2,
+*               /2(20)  text-032     ,22(40) gi_output_ds-stras,
+*               /2(20)  text-033       ,22(40) gi_output_ds-ort01,
+*               /2(20)  text-034     ,22(40) gi_output_ds-pstlz,
+*               /2(20)  text-035    , 22(40) gi_output_ds-land1.
+
+
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+                       /2(20)  text-029    ,22(40) gi_output_ds-title,
+                       /2(20)  text-030    ,22(40) gi_output_ds-name1,
+                       /2(20)  text-031    ,22(40) gi_output_ds-name2,
+                       /2(20)  text-032    ,22(40) gi_output_ds-mc_street,   " Added by 502287934
+                       /2(20)  text-033    ,22(40) gi_output_ds-city1,
+                       /2(20)  text-034    ,22(40) gi_output_ds-post_code1,
+                       /2(20)  text-035    ,22(40) gi_output_ds-country.
+
+* code changes ended by 502287934 RITM3049332
+
+**excel download
+        gi_excel_ds-field1 = gi_output_ds-text.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-029.
+
+*        gi_excel_ds-field2 = gi_output_ds-anred.
+
+
+        gi_excel_ds-field2 = gi_output_ds-title. " 502287934 RITM3049332
+
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-030.
+        gi_excel_ds-field2 = gi_output_ds-name1.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-031.
+        gi_excel_ds-field2 = gi_output_ds-name2.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-032.
+* code changes started by 502287934 RITM3049332
+*        gi_excel_ds-field2 = gi_output_ds-stras.
+
+        gi_excel_ds-field2 = gi_output_ds-mc_street.   " Added by 502287934
+* code changes ended by 502287934 RITM3049332
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-033.
+* code changes started by 502287934 RITM3049332
+*        gi_excel_ds-field2 = gi_output_ds-ort01.
+
+        gi_excel_ds-field2 = gi_output_ds-city1.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-034.
+
+*        gi_excel_ds-field2 = gi_output_ds-pstlz. "  commented by 502287934 RITM3049332
+
+        gi_excel_ds-field2 = gi_output_ds-post_code1.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-035.
+
+*        gi_excel_ds-field2 = gi_output_ds-land1.  " commented by 502287934 RITM3049332
+
+* code changes started by 502287934 RITM3049332
+        gi_excel_ds-field2 = gi_output_ds-country.
+* code changes ended by 502287934 RITM3049332
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+      WHEN gc_tel_tx.
+* code changes started by 502287934 RITM3049332
+*        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+*               /2(20) text-008    ,22(40) gi_output_ds-telnr,
+*               /2(20) text-026  ,22(40) gi_output_ds-bezng.
+
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+               /2(20) text-008    ,22(40) gi_output_ds-tel_number.
+*               /2(20) text-026  ,22(40) gi_output_ds-bezng.
+* code changes ended by 502287934 RITM3049332
+
+
+* code commented by 502287934 RITM3049332
+*        gi_excel_ds-field1 = text-008.
+*        gi_excel_ds-field2 = gi_output_ds-telnr.
+*        APPEND gi_excel_ds TO gt_excel_ds.
+*        CLEAR gi_excel_ds.
+* code commented by 502287934 RITM3049332
+
+* code changes by 502287934 RITM3049332
+        gi_excel_ds-field1 = text-008.
+        gi_excel_ds-field2 = gi_output_ds-tel_number.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+* code changes by 502287934 RITM3049332
+
+
+* code commented by 502287934 RITM3049332
+*        gi_excel_ds-field1 = text-026.
+*        gi_excel_ds-field2 = gi_output_ds-bezng.
+*        APPEND gi_excel_ds TO gt_excel_ds.
+*        CLEAR gi_excel_ds.
+* code commented by 502287934 RITM3049332
+**end of excel download
+
+      WHEN gc_contr_tx.
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+               /2(20) text-036        ,22(5) gi_output_ds-kauart ,
+               /2(20) text-037        ,22(12) gi_output_ds-sdaufnr,
+               /2(20) text-038        ,22(6)  gi_output_ds-sdposnr,
+               /2(20) text-039        ,22(10)  gi_output_ds-kunnr,
+               /2(20) text-040        ,22(40)  gi_output_ds-kname1,
+               /2(20) text-041        ,22(40)  gi_output_ds-kname2,
+               /2(20) text-042         ,22(40)  gi_output_ds-ktelf1.
+**excel download
+        gi_excel_ds-field1 = gi_output_ds-text.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-036.
+        gi_excel_ds-field2 = gi_output_ds-kauart.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-037.
+        gi_excel_ds-field2 = gi_output_ds-sdaufnr.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-039.
+        gi_excel_ds-field2 = gi_output_ds-kunnr.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+
+        gi_excel_ds-field1 = text-043.
+        gi_excel_ds-field2 = gi_output_ds-kname1.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+**end of excel download
+      WHEN gc_int_not_tx.
+        WRITE :/2(20)  gi_output_ds-text COLOR COL_KEY,
+               /22(80) gi_output_ds-internalnote.
+**excel download
+        gi_excel_ds-field1 = gi_output_ds-text.
+        gi_excel_ds-field2 = gi_output_ds-internalnote.
+        APPEND gi_excel_ds TO gt_excel_ds.
+        CLEAR gi_excel_ds.
+**end of excel download
+
+    ENDCASE.
+
+  ENDLOOP.
+ENDFORM.                    " F_WRITE
+*&---------------------------------------------------------------------*
+*&      Form  F_PC_DOWNLOAD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_pc_download.
+  gw_file_ds = gp_exfil.
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+*     BIN_FILESIZE                    =
+      filename                        = gw_file_ds
+     filetype                         = gc_file_ty_tx
+*     append                           = 'X'
+*     codepage                         = '8400'
+*     WRITE_FIELD_SEPARATOR           = ' '
+*   IMPORTING
+*     FILELENGTH                      =
+    TABLES
+      data_tab                        = gt_excel_ds"gt_output_ds
+   EXCEPTIONS
+     file_write_error                = 1
+     no_batch                        = 2
+     gui_refuse_filetransfer         = 3
+     invalid_type                    = 4
+     no_authority                    = 5
+     unknown_error                   = 6
+     header_not_allowed              = 7
+     separator_not_allowed           = 8
+     filesize_not_allowed            = 9
+     header_too_long                 = 10
+     dp_error_create                 = 11
+     dp_error_send                   = 12
+     dp_error_write                  = 13
+     unknown_dp_error                = 14
+     access_denied                   = 15
+     dp_out_of_memory                = 16
+     disk_full                       = 17
+     dp_timeout                      = 18
+     file_not_found                  = 19
+     dataprovider_exception          = 20
+     control_flush_error             = 21
+     OTHERS                          = 22
+            .
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno
+        WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+
+ENDFORM.                    " F_PC_DOWNLOAD
+*&---------------------------------------------------------------------*
+*&      Form  F_TITLE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_title.
+
+  WRITE :/1(200) sy-uline.
+  WRITE :/2(20)   text-001 COLOR COL_HEADING,
+           23(12) text-011 COLOR COL_HEADING,
+           37(5)  text-044 COLOR COL_HEADING,
+           44(40) text-013 COLOR COL_HEADING,
+           86(10) text-014 COLOR COL_HEADING,
+           98(10) text-015 COLOR COL_HEADING.
+
+  WRITE :/2(20)   text-002 COLOR COL_HEADING,
+           23(6)  text-016 COLOR COL_HEADING,
+           31(10) text-017 COLOR COL_HEADING,
+           44(40) text-026 COLOR COL_HEADING,
+           86(13) text-019 COLOR COL_HEADING.
+
+  WRITE :/2(20)    text-003 COLOR COL_HEADING,
+           23(18)  text-045 COLOR COL_HEADING,
+           44(40)  text-026 COLOR COL_HEADING,
+           86(10)  text-044 COLOR COL_HEADING,
+           98(25)  text-046 COLOR COL_HEADING,
+           125(30) text-047 COLOR COL_HEADING,
+           157(40) text-010 COLOR COL_HEADING.
+
+  WRITE :/2(20)   text-048 COLOR COL_HEADING,
+           23(30) text-049 COLOR COL_HEADING,
+           54(15) text-050 COLOR COL_HEADING,
+           70(10) text-051 COLOR COL_HEADING.
+
+  WRITE :/2(20)   text-006 COLOR COL_HEADING,
+           23(30) text-052 COLOR COL_HEADING,
+           55(40) text-026 COLOR COL_HEADING,
+           97(8)  text-055 COLOR COL_HEADING,
+           107(3) text-028 COLOR COL_HEADING.
+
+  WRITE :/2(20)  text-053 COLOR COL_HEADING.
+
+  WRITE :/2(20)  text-009 COLOR COL_HEADING,
+          23(5)  text-044 COLOR COL_HEADING,
+          30(12) text-052 COLOR COL_HEADING,
+          45(6)  text-054 COLOR COL_HEADING,
+          53(10) text-039 COLOR COL_HEADING,
+          65(40) text-043 COLOR COL_HEADING.
+
+  WRITE : /2(20)  text-010 COLOR COL_HEADING,
+           23(80) text-010 COLOR COL_HEADING.
+
+  WRITE :/1(200) sy-uline.
+ENDFORM.                    " F_TITLE
+

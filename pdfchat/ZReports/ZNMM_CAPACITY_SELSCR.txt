@@ -1,0 +1,84 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_CAPACITY_SELSCR
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+* selection screen design                              *
+*----------------------------------------------------------------------*
+
+*Selection-screen declration
+
+DATA : gw_dwerk TYPE afpo-dwerk,
+       gw_dfrei TYPE afpo-dfrei,
+       gw_arbpl TYPE crhd-arbpl,
+       gw_aufnr TYPE afpo-aufnr,
+       gw_dispo TYPE afko-dispo.
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-003."Enter
+
+SELECT-OPTIONS: p_dwerk FOR gw_dwerk NO-EXTENSION
+                                 NO INTERVALS  OBLIGATORY,"plant
+                s_dispo FOR gw_dispo,                   "MRP controller
+                s_arbpl FOR gw_arbpl,                   "Work center
+                s_aufnr FOR gw_aufnr,                   "Order Number
+                s_dfrei FOR gw_dfrei NO-EXTENSION  NO INTERVALS. "Indicator: Order released/partially released (for MRP)
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-002."Download
+PARAMETER :  p_alv RADIOBUTTON GROUP r01,  "added by 19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+             p_excel RADIOBUTTON GROUP r01," p_excel  AS CHECKBOX DEFAULT 'X',commented by 502347739 on 18.11.2014
+             p_exfile LIKE rlgrap-filename,
+             p_appl RADIOBUTTON GROUP r01, " added by 502347739 on 18.11.2014
+             p_fname TYPE eps2filnam,  "added by 502347739 on 18.11.2014
+             p_ftp RADIOBUTTON GROUP r01, "added by 19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+             p_file(50) TYPE c,           "added by 19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+             p_count(5) TYPE n.           "added by 19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+*             p_unix  AS CHECKBOX DEFAULT 'X',
+*             p_uxfile LIKE rlgrap-filename.
+
+SELECTION-SCREEN END OF BLOCK b2.
+*start of commented by  19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+* Begin of 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+*SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-T10.
+* PARAMETER: p_count(5) TYPE n,
+*            p_file(50) TYPE c. "added by 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+*SELECTION-SCREEN END OF BLOCK b3.
+* End of 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+*end of commenting19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_exfile.
+  PERFORM f4_fileselect.
+*----------------------------------------------------------------------*
+*  selection screen                                        *
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN.
+
+  IF p_exfile IS INITIAL AND p_excel = 'X'.
+    MESSAGE e090(zsd) WITH text-028.
+    EXIT.
+  ENDIF.
+*&---------------------------------------------------------------------*
+*&      Form  F4_FILESELECT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f4_fileselect .
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+    IMPORTING
+      file_name     = p_exfile.
+ENDFORM.                    "F4_FILESELECT
+* start of commented by  19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+* Begin of changes 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+*----------------------------------------------------------------------*
+*AT SELECTION-SCREEN ON BLOCK b3.
+**----------------------------------------------------------------------*
+*  SPLIT p_file AT '.' INTO gw_file1 gw_file2.
+*  IF gw_file2 <> text-T12.
+*    MESSAGE e000(zcc_c) WITH text-T11.
+*    EXIT.
+*  ENDIF.
+* End of changes 09/01/2015  CHG0993110  DE3K958029 502347739  RITM3672060
+*end of commented by  19/01/2015  CHG0993110   DE3K958340 502347739  RITM3672060
+

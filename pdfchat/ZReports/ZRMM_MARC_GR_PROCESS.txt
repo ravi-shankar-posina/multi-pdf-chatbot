@@ -1,0 +1,126 @@
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*** Created by            : Teja Prathyusha Adiraju
+*** Creation Date         : 20.01.2022
+*** Transport Request #   : DE3K9A09SK
+*** T-Code                : ZMM2185_REPROCESS
+*** RICEF Object No #     : 2185
+*** Change request No     : CHG0191538
+*** Description           : Program to process/reprocess MARC GR feed
+***------------------------------------------------------------------***
+*** Change History                                                   ***
+*************************************************************************
+* DATE         | CR No.     |TR NO.      |CHANGED BY      |DESCRIPTION OF CHANGE
+* 20.01.2022     CHG0191538  DE3K9A09SK    USPRADI          Initial Development
+*************************************************************************
+* 24.02.2022     CHG0191538  JE3K904585    USPRADI          Bug Fixes
+*************************************************************************
+* 02.03.2022     CHG0191538  JE3K905475    USPRADI          Bug Fixes
+*************************************************************************
+* 03.03.2022     CHG0191538  JE3K905507    USPRADI          Bug Fixes
+*************************************************************************
+* 15.03.2022     CHG0191538  JE3K905848    USPRADI          Bug Fixes
+*************************************************************************
+* 30.03.2022     CHG0191538  JE3K906283    USPRADI          Bug Fixes
+*************************************************************************
+* 06.04.2022     CHG0191538  JE3K906487    USPRADI          Bug Fixes - Added commit work and wait
+* instaed of commit due to commit issues to ZTMM_MARC_GR_L table
+*************************************************************************
+* 12.04.2022     CHG0191538  DE3K9A0CR0    USPRADI          Code changes to deal with non unique combination
+* of PO, line item, lp and cart lp
+*************************************************************************
+* 13.05.2022     CHG0191538  DE3K9A0D94    USPRADI          Bug Fixes
+*************************************************************************
+* 02.06.2022     CHG0191538  DE3K9A0DSF    USPRADI          Changes done to consider
+* Local Material id instead of Alternate material number
+*************************************************************************
+* 08.07.2022    CHG0213931   DE3K9A0EHD    USSHSAT1         Bug Fixes#2642
+* reason for MARC GR File Upload failed
+*************************************************************************
+*18.11.2022                  DE3K9A0HE2    USVICHI          Added new Returns STO Functionality
+*************************************************************************
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_MARC_GR_PROCESS
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  zrmm_marc_gr_process MESSAGE-ID zmm.
+*&---------------------------------------------------------------------*
+*& Top Include for Data Declareation
+*&---------------------------------------------------------------------*
+INCLUDE znmm_marc_gr_process_top.
+*&---------------------------------------------------------------------*
+*& Sel Include for Selection Screen
+*&---------------------------------------------------------------------*
+INCLUDE znmm_marc_gr_process_sel.
+*&---------------------------------------------------------------------*
+*& Form Include for Subroutines
+*&---------------------------------------------------------------------*
+INCLUDE znmm_marc_gr_process_form.
+
+*&--------------------------------------------------------------------&*
+*&--------------------------INITIALIZATION----------------------------&*
+*&--------------------------------------------------------------------&*
+INITIALIZATION.
+** Refresh all global variables
+  PERFORM refresh.
+**Get Hardcode Entries
+  PERFORM get_hardcode_values.
+**Get transformation table data for movement type
+  PERFORM get_movement_type.
+** Get message table details
+  PERFORM get_message_details.
+*&--------------------------------------------------------------------&*
+*&--------------------AT SELECTION SCREEN ----------------------------&*
+*&--------------------------------------------------------------------&*
+AT SELECTION-SCREEN OUTPUT.
+** Modify screen
+  PERFORM modify_screen.
+
+*&-------------------------------------------------------------------&*
+*&------------------------START-OF-SELECTION-------------------------&*
+*&-------------------------------------------------------------------&*
+START-OF-SELECTION.
+  IF p_repr IS INITIAL.
+** Get file path and printer
+    PERFORM get_filepath_printer.
+  ENDIF.
+  IF p_repr = 'X'.
+    IF s_msgid IS INITIAL.
+      PERFORM fill_automsgs.
+    ENDIF.
+  ENDIF.
+** Get RECH and RECL records
+  PERFORM get_file_data.
+*&-------------------------------------------------------------------&*
+*&------------------------END-OF-SELECTION-------------------------&*
+*&-------------------------------------------------------------------&*
+END-OF-SELECTION.
+  IF p_repr = 'X'. "Error Reprocess
+    PERFORM error_reprocess.
+  ELSE. "Main(Delta) Processing
+** Only 1 tran seq number will be given for main processing
+** Only consider the records which are not yet processed for Main processing
+    REFRESH: gt_gr_rech, gt_gr_recl.
+    LOOP AT gt_gr_rech_main INTO gi_gr_rech WHERE process_status = ' '.
+      APPEND gi_gr_rech TO gt_gr_rech.
+      LOOP AT gt_gr_recl_main INTO gi_gr_recl WHERE comp_code = gi_gr_rech-comp_code
+                                                AND tran_seq_no = gi_gr_rech-tran_seq_no
+                                                AND rech_seq = gi_gr_rech-rech_seq.
+        APPEND gi_gr_recl TO gt_gr_recl.
+        CLEAR: gi_gr_rech, gi_gr_recl.
+      ENDLOOP.
+    ENDLOOP.
+    IF gt_gr_rech IS NOT INITIAL AND gt_gr_recl IS NOT INITIAL.
+      PERFORM process_gr.
+      REFRESH: gt_gr_rech, gt_gr_recl.
+    ELSE.
+      MESSAGE TEXT-079 TYPE 'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ENDIF.
+

@@ -1,0 +1,91 @@
+*&---------------------------------------------------------------------*
+* Name                          : ZRMM_DATA_ERROR
+* Tcode                         : ZMM113
+* Created by                    : Soumya Subudhi
+* Creation Date                 : 25 Sep 2023
+* Transport Request #           : DE3K9A0N21
+* RICEF Object No #             : RICEF2684
+* Description                   : Card Missmatch for ZTMM_PICT
+*----------------------------------------------------------------------*
+*****************************************************************************************
+* CHANGED BY | DATE        | TR #       | CR No(INCUM).  | DESCRIPTION OF CHANGE
+******************************************************************************
+* CHTAMUR    | 08/Nov/2024 | DE3K9A0U0J | 87274 | PICT Minor issue fixes
+*****************************************************************************************
+
+REPORT zrmm_data_mismatch.
+
+TABLES:ztmm_pict,ztmm_picc_log , ztmm_pict_1. " DE3K9A0QXS        USANBOD11
+
+TYPES:BEGIN OF ty_final,
+*        summary(158) TYPE c.
+*        INCLUDE STRUCTURE ztmm_pict.
+        zintc        TYPE ztmm_pict-zintc,
+        zcount       TYPE ztmm_pict-zcount,
+        werks        TYPE ztmm_pict-werks,
+        gjahr        TYPE ztmm_pict-gjahr,
+        gidat        TYPE ztmm_pict-gidat,
+        inccd        TYPE ztmm_pict-inccd,
+        lgort        TYPE ztmm_pict-lgort,
+        zuser        TYPE ztmm_pict-zuser,
+        matnr        TYPE ztmm_pict-matnr,
+        bismt        TYPE ztmm_pict-bismt,
+        alqty        TYPE ztmm_pict-alqty,
+        aluom        TYPE ztmm_pict-aluom,
+        bsqty        TYPE ztmm_pict-bsqty,
+        bsuom        TYPE ztmm_pict-bsuom,
+        bkqty        TYPE ztmm_pict-bkqty,
+        vbkqty       TYPE ztmm_pict-vbkqty,
+        ecount       TYPE ztmm_pict-ecount,
+        dfqty        TYPE ztmm_pict-dfqty,
+        dumps        TYPE ztmm_pict-dumps,
+        sobkz        TYPE ztmm_pict-sobkz,
+        bstar        TYPE ztmm_pict-bstar,
+        charg        TYPE ztmm_pict-charg,
+        iblnr        TYPE ztmm_pict-iblnr,
+        zeili        TYPE ztmm_pict-zeili,
+        pspnr        TYPE ztmm_pict-pspnr,
+        vbeln        TYPE ztmm_pict-vbeln,
+        posnr        TYPE ztmm_pict-posnr,
+        lifnr        TYPE ztmm_pict-lifnr,
+        ztext        TYPE ztmm_pict-ztext,
+        adcom        TYPE ztmm_pict-adcom,
+        xloek        TYPE ztmm_pict-xloek,
+        aufnr        TYPE ztmm_pict-aufnr,
+        entdate      TYPE ztmm_pict-entdate,
+        schgt        TYPE ztmm_pict-schgt,
+        bklas        TYPE ztmm_pict-bklas,
+        line         TYPE ztmm_pict-line,
+        wip          TYPE ztmm_pict-wip,
+        sbdkz        TYPE ztmm_pict-sbdkz,
+        splstkind    TYPE ztmm_pict-splstkind,
+        shpsplst     TYPE ztmm_pict-shpsplst,
+        stprs        TYPE ztmm_pict-stprs,
+        bom_explode  TYPE ztmm_pict-bom_explode,
+        summary(158) TYPE c,
+* Start of Change for DE3K9A0U0J by CHTAMUR
+        prctr        TYPE ztmm_pict-prctr,
+        pcdesc       TYPE ztmm_pict-pcdesc,
+* End of Change for DE3K9A0U0J by CHTAMUR
+      END OF ty_final.
+
+DATA: gt_ztmm_pict     TYPE STANDARD TABLE OF ztmm_pict_1, " DE3K9A0QXS        USANBOD11
+      gt_final         TYPE STANDARD TABLE OF ty_final, "ztmm_pict,
+      gs_final         TYPE  ty_final, "ztmm_pict,
+      gt_fieldcatalog1 TYPE slis_t_fieldcat_alv,
+      wa_fcat1         TYPE slis_fieldcat_alv,
+      lv_col           TYPE i,
+      lv_con           TYPE xfld,
+      gt_ztmm_picc_log TYPE STANDARD TABLE OF ztmm_picc_log.
+
+RANGES: r_log FOR ztmm_picc_log-cardfrm.
+
+SELECTION-SCREEN:BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-000.
+
+SELECT-OPTIONS: s_plant FOR ztmm_pict-werks NO INTERVALS NO-EXTENSION,
+                s_year FOR ztmm_pict-gjahr NO INTERVALS
+                NO-EXTENSION DEFAULT sy-datum+0(4),
+                s_ver   FOR ztmm_picc_log-version NO INTERVALS NO-EXTENSION.
+
+SELECTION-SCREEN:END OF BLOCK b1.
+

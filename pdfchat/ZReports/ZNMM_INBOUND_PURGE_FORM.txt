@@ -1,0 +1,1697 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMM_INBOUND_PURGE_FORM
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_HARDCODED_VALUES
+*&---------------------------------------------------------------------*
+*       Get hardcoded values from ZTUHCD1 table
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_hardcoded_values .
+  CLEAR: gt_ztuhcd1,
+         gi_ztuhcd1.
+  gi_ztuhcd1-name = gc_prog. "Inbound_purge
+  APPEND     gi_ztuhcd1 TO gt_ztuhcd1.
+  CLEAR      gi_ztuhcd1.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc IS INITIAL.
+    SORT gt_ztuhcd1 BY name zkey field index_no.
+    LOOP AT gt_ztuhcd1 INTO gi_ztuhcd1 WHERE zkey = 'PLNT'
+                                        AND field = 'WERKS'.
+
+      gi_werks-sign = 'I'.
+      gi_werks-option = 'EQ'.
+      gi_werks-low = gi_ztuhcd1-low.
+      APPEND gi_werks TO gr_werks.
+      CLEAR: gi_werks,
+             gi_ztuhcd1.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.                    " GET_HARDCODED_VALUES
+*&---------------------------------------------------------------------*
+*&      Form  DATA_VALIDATION
+*&---------------------------------------------------------------------*
+*       Validate selection screen data
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM data_validation .
+  IF p_window LT 1.
+    MESSAGE text-005 TYPE 'I' DISPLAY LIKE 'E'.
+  ENDIF.
+** Check if the user is allowed to purge
+  SELECT * FROM tvswz
+    INTO TABLE gt_tvswz
+    WHERE vstel = p_vstel.
+  IF sy-subrc IS INITIAL.
+    SELECT * FROM ztmm_marc_dcusrs
+      INTO TABLE gt_marc_users
+      FOR ALL ENTRIES IN gt_tvswz
+      WHERE werks = gt_tvswz-werks
+        AND bname = sy-uname
+        AND chgind = 'X'.
+    IF sy-subrc IS NOT INITIAL.
+      MESSAGE text-006 TYPE 'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " DATA_VALIDATION
+*&---------------------------------------------------------------------*
+*&      Form  FETCH_DATA
+*&---------------------------------------------------------------------*
+*       Fetch data using the inputs provided in Selection screen
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fetch_data .
+  TYPES: BEGIN OF ty_vbeln,
+           vbeln TYPE vbeln_vl,
+         END OF ty_vbeln,
+         BEGIN OF ty_temp,
+           po_no TYPE zpo_no,
+** Begin of changes by USPRADI JE3K904585 on 07.02.2022
+*           po_line_no TYPE zpo_line_no,
+           po_line_no TYPE char6,
+** End of changes by USPRADI JE3K904585 on 07.02.2022
+         END OF ty_temp.
+  RANGES: lr_gbsta FOR vbup-gbsta,
+          lr_bsart FOR ekko-bsart,
+          lr_bwart FOR vbfa-bwart,
+          lr_wbstk FOR vbuk-wbstk.
+  DATA: lv_cutoff TYPE datum,
+        li_gbsta LIKE LINE OF lr_gbsta,
+        li_bsart LIKE LINE OF lr_bsart,
+        li_bwart LIKE LINE OF lr_bwart,
+        li_wbstk LIKE LINE OF lr_wbstk,
+        lv_101 TYPE rfmng,
+        lv_102 TYPE rfmng,
+        lt_vbeln TYPE TABLE OF ty_vbeln,
+        li_vbeln TYPE ty_vbeln,
+        lt_temp TYPE TABLE OF ty_temp,
+        li_temp TYPE ty_temp,
+        li_lips TYPE ty_lips.
+  FIELD-SYMBOLS: <fs_likp> TYPE ty_likp,
+                 <fs_lips> TYPE ty_lips.
+  CONSTANTS: lc_r TYPE vbtyp_n VALUE 'R',
+             lc_7 TYPE vbtyp_v VALUE '7'.
+** Calculate cutoff date for deliveries to be purged
+  lv_cutoff = sy-datum - p_window.
+  SELECT vbeln
+         erdat
+         vstel
+         lfart
+         lifnr
+         lifex
+    FROM likp
+    INTO TABLE gt_likp
+    WHERE vbeln IN s_delv
+      AND erdat LE lv_cutoff.
+  IF sy-subrc IS INITIAL.
+    SORT gt_likp BY vbeln.
+    CLEAR: gt_outb_delv.
+** User may enter both outbound and inbound deliveries.
+** Seperate outbound deliveries and delete any deliveries other than inbound and outbound
+    LOOP AT gt_likp ASSIGNING <fs_likp>.
+      IF <fs_likp> IS ASSIGNED.
+        IF <fs_likp>-lfart EQ 'EL'. "Inbound delivery
+          IF <fs_likp>-vstel NE p_vstel.
+            CLEAR <fs_likp>-vbeln.
+          ENDIF.
+        ELSEIF <fs_likp>-lfart EQ 'NL' OR <fs_likp>-lfart EQ 'NLCC'. "Outbound delivery
+          APPEND <fs_likp> TO gt_outb_delv.
+          CLEAR <fs_likp>-vbeln.
+        ELSE. "Others
+          CLEAR <fs_likp>-vbeln.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+** Now We will have only inbound deliveries in gt_likp
+    DELETE gt_likp WHERE vbeln IS INITIAL.
+  ELSE.
+    MESSAGE text-007 TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+** fetch corresponding inbound deliveries for outbound deliveries
+  IF gt_outb_delv IS NOT INITIAL.
+    SELECT vbelv
+           posnv
+           vbeln
+           posnn
+           vbtyp_n
+      FROM vbfa
+      INTO TABLE gt_vbfa
+      FOR ALL ENTRIES IN gt_outb_delv
+      WHERE vbelv = gt_outb_delv-vbeln
+        AND vbtyp_n = '7'
+      ORDER BY PRIMARY KEY.
+    IF sy-subrc IS INITIAL.
+** Fetch details from LIKP for the above fetched inbound deliveries
+      SELECT vbeln
+             erdat
+             vstel
+             lfart
+             lifnr
+             lifex
+        FROM likp
+        APPENDING TABLE gt_likp
+        FOR ALL ENTRIES IN gt_vbfa
+        WHERE vbeln = gt_vbfa-vbeln
+          AND vstel = p_vstel.
+      IF sy-subrc IS INITIAL.
+        SORT gt_likp BY vbeln.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+** Now we will get inbound delivery numbers which are to be considered further for purging
+  IF gt_likp IS NOT INITIAL.
+** Begin of changes by USPRADI JE3K905915 on 16.03.2022
+    SELECT werks
+           lifnr
+      FROM t001w
+      INTO TABLE gt_t001w
+      FOR ALL ENTRIES IN gt_likp
+      WHERE lifnr = gt_likp-lifnr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_t001w BY werks lifnr.
+    ENDIF.
+** End of changes by USPRADI JE3K905915 on 16.03.2022
+** Get the details of inbound delivery
+    SELECT vbeln
+           posnr
+           matnr
+           werks
+           charg
+           lfimg
+           meins
+           vgbel
+           vgpos
+           uecha
+      FROM lips
+      INTO TABLE gt_lips
+      FOR ALL ENTRIES IN gt_likp
+      WHERE vbeln = gt_likp-vbeln
+        AND werks IN gr_werks. "Only for plants maintained in ZTUHCD1 table
+    IF sy-subrc IS INITIAL.
+      CLEAR: li_wbstk,
+             lr_wbstk.
+      li_wbstk-low = 'B'. "Partially completed Deliveries
+      li_wbstk-sign = 'I'.
+      li_wbstk-option = 'EQ'.
+      APPEND li_wbstk TO lr_wbstk.
+      IF ch_opdel IS  NOT INITIAL.
+        CLEAR: li_wbstk.
+        li_wbstk-low = 'A'. "Fully open Deliveries
+        li_wbstk-sign = 'I'.
+        li_wbstk-option = 'EQ'.
+        APPEND li_wbstk TO lr_wbstk.
+      ENDIF.
+      SELECT vbeln
+             wbstk
+        FROM vbuk
+        INTO TABLE gt_vbuk
+        FOR ALL ENTRIES IN gt_lips
+        WHERE vbeln = gt_lips-vbeln
+          AND wbstk IN lr_wbstk.
+      IF sy-subrc IS INITIAL.
+        SORT gt_vbuk BY vbeln.
+        CLEAR: li_gbsta,
+               lr_gbsta.
+        li_gbsta-low = 'B'. "Partially completed line items
+        li_gbsta-sign = 'I'.
+        li_gbsta-option = 'EQ'.
+        APPEND li_gbsta TO lr_gbsta.
+        CLEAR li_gbsta.
+        li_gbsta-low = 'C'.
+        li_gbsta-sign = 'I'.
+        li_gbsta-option = 'EQ'.
+        APPEND li_gbsta TO lr_gbsta.
+        CLEAR li_gbsta.
+        li_gbsta-low = 'A'.
+        li_gbsta-sign = 'I'.
+        li_gbsta-option = 'EQ'.
+        APPEND li_gbsta TO lr_gbsta.
+        CLEAR li_gbsta.
+        SELECT vbeln
+               posnr
+               gbsta
+          FROM vbup
+          INTO TABLE gt_vbup
+          FOR ALL ENTRIES IN gt_lips
+          WHERE vbeln = gt_lips-vbeln
+            AND posnr = gt_lips-posnr
+            AND gbsta IN lr_gbsta.
+        IF sy-subrc IS INITIAL.
+          SORT gt_vbup BY vbeln posnr.
+          LOOP AT gt_lips ASSIGNING <fs_lips>.
+            IF <fs_lips> IS ASSIGNED.
+              READ TABLE gt_vbuk INTO gi_vbuk WITH KEY vbeln = <fs_lips>-vbeln BINARY SEARCH.
+              IF sy-subrc IS INITIAL.
+                READ TABLE gt_vbup WITH KEY vbeln = <fs_lips>-vbeln posnr = <fs_lips>-posnr BINARY SEARCH TRANSPORTING NO FIELDS.
+                IF sy-subrc IS NOT INITIAL.
+                  CLEAR <fs_lips>-vbeln.
+                ENDIF.
+              ELSE.
+                CLEAR <fs_lips>-vbeln.
+              ENDIF.
+            ENDIF.
+          ENDLOOP.
+          DELETE gt_lips WHERE vbeln IS INITIAL.
+        ELSE.
+          CLEAR gt_lips.
+        ENDIF.
+      ELSE.
+        CLEAR gt_lips.
+      ENDIF.
+      IF gt_lips IS NOT INITIAL.
+        CLEAR: li_bsart,
+               lr_bsart.
+        li_bsart-low = 'UD'.
+        li_bsart-sign = 'I'.
+        li_bsart-option = 'EQ'.
+        APPEND li_bsart TO lr_bsart.
+        li_bsart-low = 'ZB'.
+        APPEND li_bsart TO lr_bsart.
+        li_bsart-low = 'ZLU'.
+        APPEND li_bsart TO lr_bsart..
+        li_bsart-low = 'ZLP'.
+        APPEND li_bsart TO lr_bsart.
+        CLEAR li_bsart.
+        SELECT ebeln
+               bsart
+          FROM ekko
+          INTO TABLE gt_ekko
+          FOR ALL ENTRIES IN gt_lips
+          WHERE ebeln = gt_lips-vgbel
+            AND bsart IN lr_bsart.
+        IF sy-subrc IS INITIAL.
+          SORT gt_ekko BY ebeln.
+          LOOP AT gt_lips ASSIGNING <fs_lips>.
+            IF <fs_lips> IS ASSIGNED.
+              READ TABLE gt_ekko WITH KEY ebeln = <fs_lips>-vgbel BINARY SEARCH TRANSPORTING NO FIELDS.
+              IF sy-subrc IS NOT INITIAL.
+                CLEAR <fs_lips>-vbeln.
+              ENDIF.
+            ENDIF.
+          ENDLOOP.
+          DELETE gt_lips WHERE vbeln IS INITIAL.
+        ELSE.
+          CLEAR gt_lips.
+        ENDIF.
+      ELSE.
+        MESSAGE text-007 TYPE 'S' DISPLAY LIKE 'E'.
+        LEAVE LIST-PROCESSING.
+      ENDIF.
+    ENDIF.
+    IF gt_lips IS NOT INITIAL.
+      CLEAR: li_bwart,
+             lr_bwart.
+      li_bwart-low = '101'.
+      li_bwart-sign = 'I'.
+      li_bwart-option = 'EQ'.
+      APPEND li_bwart TO lr_bwart.
+      li_bwart-low = '102'.
+      APPEND li_bwart TO lr_bwart.
+      CLEAR li_bwart.
+      SELECT
+        vbelv
+        posnv
+        vbeln
+        posnn
+        vbtyp_n
+        rfmng
+        vbtyp_v
+        erdat
+        bwart
+        FROM vbfa
+        INTO TABLE gt_vbfa_qty
+        FOR ALL ENTRIES IN gt_lips
+        WHERE vbelv = gt_lips-vbeln
+          AND posnv = gt_lips-posnr
+          AND vbtyp_n = lc_r "'R'
+          AND vbtyp_v = lc_7 "'7'
+          AND bwart IN lr_bwart "101 or 102
+        ORDER BY PRIMARY KEY.
+      IF sy-subrc IS INITIAL.
+        SORT gt_vbfa_qty BY vbelv posnv vbeln posnn.
+        CLEAR: lv_101,
+               lv_102.
+** Here we calculate the GR quantity per line item of Inbound delivery
+        LOOP AT gt_vbfa_qty INTO gi_vbfa_qty.
+          IF gi_vbfa_qty-bwart = '101'.
+            lv_101 = lv_101 + gi_vbfa_qty-rfmng.
+            gi_vbfa_pre-vbelv = gi_vbfa_qty-vbelv.
+            gi_vbfa_pre-posnv = gi_vbfa_qty-posnv.
+            gi_vbfa_pre-vbeln = gi_vbfa_qty-vbeln.
+            gi_vbfa_pre-posnn = gi_vbfa_qty-posnn.
+            gi_vbfa_pre-erdat = gi_vbfa_qty-erdat.
+            gi_vbfa_pre-bwart = gi_vbfa_qty-bwart.
+            APPEND gi_vbfa_pre TO gt_vbfa_pre.
+            CLEAR gi_vbfa_pre.
+          ELSE.
+            lv_102 = lv_102 + gi_vbfa_qty-rfmng.
+          ENDIF.
+          gi_gr_qty-vbeln = gi_vbfa_qty-vbelv.
+          gi_gr_qty-posnr = gi_vbfa_qty-posnv.
+          AT END OF posnv.
+            gi_gr_qty-gr_qty = lv_101 - lv_102.
+            APPEND gi_gr_qty TO gt_gr_qty.
+            CLEAR: lv_101,
+                   lv_102,
+                   gi_gr_qty,
+                   gi_vbfa_qty.
+          ENDAT.
+        ENDLOOP.
+        SORT gt_vbfa_pre BY vbelv erdat DESCENDING.
+        IF gt_vbfa_pre IS NOT INITIAL.
+          SELECT mblnr
+                 mjahr
+                 zeile
+                 grund
+                 budat_mkpf
+            FROM mseg
+            INTO TABLE gt_mseg
+            FOR ALL ENTRIES IN gt_vbfa_pre
+            WHERE mblnr = gt_vbfa_pre-vbeln.
+          IF sy-subrc IS INITIAL.
+            SORT gt_mseg BY mblnr mjahr zeile.
+            DELETE gt_mseg WHERE grund = 2.
+            LOOP AT gt_lips ASSIGNING <fs_lips>.
+              IF <fs_lips> IS ASSIGNED.
+                LOOP AT gt_vbfa_pre INTO gi_vbfa_pre WHERE vbelv = <fs_lips>-vbeln.
+                  READ TABLE gt_mseg INTO gi_mseg WITH KEY mblnr = gi_vbfa_pre-vbeln BINARY SEARCH.
+                  IF sy-subrc IS INITIAL.
+                    IF gi_mseg-budat_mkpf GT lv_cutoff.
+                      CLEAR <fs_lips>-vbeln.
+                      EXIT.
+                    ENDIF.
+                  ENDIF.
+                ENDLOOP.
+              ENDIF.
+            ENDLOOP.
+            DELETE gt_lips WHERE vbeln IS INITIAL.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+      IF gt_lips IS NOT INITIAL.
+        SELECT matnr
+               werks
+               xchpf
+          FROM marc
+          INTO TABLE gt_marc
+          FOR ALL ENTRIES IN gt_lips
+          WHERE matnr = gt_lips-matnr
+            AND werks = gt_lips-werks.
+        IF sy-subrc IS INITIAL.
+          SORT gt_marc BY matnr werks.
+        ENDIF.
+        SELECT ebeln
+               ebelp
+               knttp
+          FROM ekpo
+          INTO TABLE gt_ekpo
+          FOR ALL ENTRIES IN gt_lips
+          WHERE ebeln = gt_lips-vgbel.
+        IF sy-subrc IS INITIAL.
+          SELECT ebeln
+                 ebelp
+                 zekkn
+                 vbeln
+                 vbelp
+            FROM ekkn
+            INTO TABLE gt_ekkn
+            FOR ALL ENTRIES IN gt_ekpo
+            WHERE ebeln = gt_ekpo-ebeln
+              AND ebelp = gt_ekpo-ebelp.
+          IF sy-subrc IS INITIAL.
+            SORT gt_ekkn BY ebeln ebelp zekkn.
+          ENDIF.
+        ENDIF.
+      ELSE.
+        MESSAGE text-007 TYPE 'S' DISPLAY LIKE 'E'.
+        LEAVE LIST-PROCESSING.
+      ENDIF.
+    ELSE.
+      MESSAGE text-007 TYPE 'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+** Fetch Supplying plant
+    SELECT lifnr
+           werks
+      FROM lfa1
+      INTO TABLE gt_lfa1
+      FOR ALL ENTRIES IN gt_likp
+      WHERE lifnr = gt_likp-lifnr.
+    IF sy-subrc IS INITIAL.
+      SORT gt_lfa1 BY lifnr werks.
+    ENDIF.
+** Fetch Outbound delivery details from LIPS
+    LOOP AT gt_likp ASSIGNING <fs_likp>.
+      IF <fs_likp> IS ASSIGNED.
+        MOVE <fs_likp>-lifex TO li_vbeln-vbeln.
+        APPEND li_vbeln TO lt_vbeln.
+        CLEAR li_vbeln.
+      ENDIF.
+    ENDLOOP.
+    SELECT vbeln
+          posnr
+          matnr
+          werks
+          charg
+          lfimg
+          meins
+          vgbel
+          vgpos
+          uecha
+     FROM lips
+     INTO TABLE gt_lips_outb
+     FOR ALL ENTRIES IN lt_vbeln
+     WHERE vbeln = lt_vbeln-vbeln.
+    IF sy-subrc IS INITIAL.
+      SORT gt_lips_outb BY vbeln posnr.
+      LOOP AT gt_lips_outb INTO li_lips.
+        li_temp-po_no = li_lips-vbeln.
+        li_temp-po_line_no = li_lips-posnr.
+        APPEND li_temp TO lt_temp.
+        CLEAR: li_temp,
+               li_lips.
+      ENDLOOP.
+      IF lt_temp IS NOT INITIAL.
+** Begin of changes by USPRADI JE3K904585 on 07.02.2022
+*        SELECT  tran_no
+*                tran_seq_no
+*                seq_no
+*                data_type
+*                comp_code
+*                po_no
+*                po_line_no
+*                bapi_unload_pt
+*                bapi_po_no
+*                bapi_po_line_no
+*           FROM ztmm_marc_gr_er
+*          INTO TABLE gt_marc_gr
+*          FOR ALL ENTRIES IN lt_temp
+*          WHERE po_no = lt_temp-po_no
+*            AND po_line_no = lt_temp-po_line_no.
+*        IF sy-subrc IS INITIAL.
+*
+*        ENDIF.
+        SELECT * FROM ztmm_marc_gr_l
+          INTO TABLE gt_marc_grrecl
+          FOR ALL ENTRIES IN lt_temp
+          WHERE po_no = lt_temp-po_no
+            AND po_line_no = lt_temp-po_line_no
+            AND ( process_status = 'E'
+             OR process_status = 'M' ).
+        IF sy-subrc IS INITIAL.
+
+        ENDIF.
+** End of changes by USPRADI JE3K904585 on 07.02.2022
+      ENDIF.
+    ENDIF.
+
+  ELSE.
+    MESSAGE text-007 TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+ENDFORM.                    " FETCH_DATA
+*&---------------------------------------------------------------------*
+*&      Form  FILL_OUTPUT
+*&---------------------------------------------------------------------*
+*       Fill the output table based on the data fetched above
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fill_output .
+  DATA: li_lips TYPE ty_lips,
+        li_lips_outb TYPE ty_lips,
+        li_likp TYPE ty_likp,
+        li_lfa1 TYPE ty_lfa1,
+        lv_window TYPE datum,
+        li_lips_child TYPE ty_lips,
+        lv_grdate TYPE sy-datum.
+  CLEAR: gi_final,
+         li_lips,
+         gt_final,
+         li_lips_outb,
+         gi_gr_qty,
+         gi_ekbe,
+         li_likp,
+         li_lfa1.
+  FIELD-SYMBOLS: <fs_lips> TYPE ty_lips.
+  LOOP AT gt_lips ASSIGNING <fs_lips>.
+    IF <fs_lips> IS ASSIGNED.
+      IF <fs_lips>-posnr GT 900000.
+        APPEND <fs_lips> TO gt_lips_child.
+        CLEAR <fs_lips>-vbeln.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+  DELETE gt_lips WHERE vbeln IS INITIAL.
+  SORT gt_gr_qty BY vbeln posnr.
+  SORT gt_likp BY vbeln.
+  SORT gt_lfa1 BY lifnr.
+  LOOP AT gt_lips INTO li_lips.
+    gi_final-plant = li_lips-werks.        "Plant
+    gi_final-inbound_delv = li_lips-vbeln. "Inbound Delivery
+    gi_final-inbound_item = li_lips-posnr. "Inbound Item
+    gi_final-delv_qty = li_lips-lfimg.     "Delivery Quantity
+    gi_final-ref_doc = li_lips-vgbel.      "Reference document
+    gi_final-ref_item = li_lips-vgpos.     "Reference item
+    gi_final-material = li_lips-matnr.     "Material
+    gi_final-batch    = li_lips-charg.
+    READ TABLE gt_lips_outb INTO li_lips_outb WITH KEY vgbel = li_lips-vgbel
+                                                       vgpos = li_lips-vgpos.
+    IF sy-subrc IS INITIAL.
+      gi_final-outbound_delv = li_lips_outb-vbeln. "Outbound Delivery
+      gi_final-outbound_item = li_lips_outb-posnr. "Outbound Item
+    ENDIF.
+    READ TABLE gt_gr_qty INTO gi_gr_qty WITH KEY vbeln = li_lips-vbeln
+                                                 posnr = li_lips-posnr BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final-gr_qty = gi_gr_qty-gr_qty. "GR Quantity
+    ENDIF.
+    gi_final-open_qty = gi_final-delv_qty - gi_final-gr_qty. "Open Quantity
+    READ TABLE gt_vbfa_pre INTO gi_vbfa_pre WITH KEY vbelv = li_lips-vbeln
+                                                     posnv = li_lips-posnr.
+    IF sy-subrc IS INITIAL.
+      gi_final-last_gr = gi_vbfa_pre-erdat.   "Last GR
+    ELSE.
+      CLEAR lv_grdate.
+      LOOP AT gt_lips_child INTO li_lips_child WHERE vbeln = li_lips-vbeln
+                                                AND  uecha = li_lips-posnr.
+        READ TABLE gt_vbfa_pre INTO gi_vbfa_pre WITH KEY vbelv = li_lips_child-vbeln
+                                                         posnv = li_lips_child-posnr.
+        IF sy-subrc IS INITIAL.
+          IF lv_grdate LT gi_vbfa_pre-erdat.
+            lv_grdate = gi_vbfa_pre-erdat.
+          ELSE.
+
+          ENDIF.
+        ENDIF.
+      ENDLOOP.
+      IF lv_grdate IS NOT INITIAL.
+        gi_final-last_gr = lv_grdate.
+      ENDIF.
+    ENDIF.
+    READ TABLE gt_likp INTO li_likp WITH KEY vbeln = li_lips-vbeln BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      READ TABLE gt_lfa1 INTO li_lfa1 WITH KEY lifnr = li_likp-lifnr BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_final-suppl_plnt = li_lfa1-werks.
+      ENDIF.
+    ENDIF.
+    lv_window = sy-datum - p_window.
+    APPEND gi_final TO gt_final.
+    CLEAR gi_final.
+    LOOP AT gt_lips_child INTO li_lips_child WHERE vbeln = li_lips-vbeln
+                                               AND uecha = li_lips-posnr.
+      gi_final-inbound_delv = li_lips_child-vbeln.
+      gi_final-child_item = li_lips_child-posnr.
+      gi_final-delv_qty = li_lips_child-lfimg.
+      gi_final-batch = li_lips_child-charg.
+      READ TABLE gt_gr_qty INTO gi_gr_qty WITH KEY vbeln = li_lips_child-vbeln
+                                                   posnr = li_lips_child-posnr BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_final-gr_qty = gi_gr_qty-gr_qty. "GR Quantity
+      ENDIF.
+      gi_final-open_qty = gi_final-delv_qty - gi_final-gr_qty.
+      APPEND gi_final TO gt_final.
+      CLEAR gi_final.
+    ENDLOOP.
+    CLEAR: gi_final,
+           li_lips,
+           li_lips_outb,
+           gi_gr_qty,
+           gi_ekbe,
+           li_likp,
+           li_lfa1.
+  ENDLOOP.
+  IF gt_final IS INITIAL.
+    MESSAGE text-007 TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+ENDFORM.                    " FILL_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*       Display output - List of deliveries eligible for purging
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_output .
+  CREATE OBJECT gr_event_handler.
+  SET SCREEN 100.
+  IF gr_alvgrid IS INITIAL.
+
+    CREATE OBJECT gr_ccontainer
+      EXPORTING
+        container_name              = 'CC_OUTPUT'
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5
+        OTHERS                      = 6.
+    IF sy-subrc <> 0.
+
+    ENDIF.
+
+    CREATE OBJECT gr_alvgrid
+      EXPORTING
+        i_parent          = gr_ccontainer
+      EXCEPTIONS
+        error_cntl_create = 1
+        error_cntl_init   = 2
+        error_cntl_link   = 3
+        error_dp_create   = 4
+        OTHERS            = 5.
+    IF sy-subrc <> 0.
+
+    ENDIF.
+** Build Field catalog
+    PERFORM create_fcat CHANGING gt_fcat.
+** Create layout
+    PERFORM create_layout CHANGING gs_layo.
+** Make purge field not selectable if there is no open quantity
+    PERFORM adjust_editables CHANGING gt_final.
+** Exclude functions from tool bar
+    PERFORM exclude_tb_functions CHANGING gt_exclude.
+** Set handlers for events
+    SET HANDLER gr_event_handler->handle_toolbar FOR gr_alvgrid .
+    SET HANDLER gr_event_handler->handle_data_changed FOR gr_alvgrid.
+    SET HANDLER gr_event_handler->handle_user_command FOR gr_alvgrid .
+
+** Make the Alv ready for inputs
+    CALL METHOD gr_alvgrid->set_ready_for_input
+      EXPORTING
+        i_ready_for_input = 1.
+** Register edit event
+    CALL METHOD gr_alvgrid->register_edit_event
+      EXPORTING
+        i_event_id = cl_gui_alv_grid=>mc_evt_modified.
+
+    CALL METHOD gr_alvgrid->set_table_for_first_display
+      EXPORTING
+        i_save                        = 'A'
+        is_layout                     = gs_layo
+        it_toolbar_excluding          = gt_exclude
+      CHANGING
+        it_outtab                     = gt_final
+        it_fieldcatalog               = gt_fcat
+      EXCEPTIONS
+        invalid_parameter_combination = 1
+        program_error                 = 2
+        too_many_lines                = 3
+        OTHERS                        = 4.
+    IF sy-subrc <> 0.
+*     MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*                WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+    ENDIF.
+
+    CALL METHOD gr_alvgrid->set_toolbar_interactive.
+  ELSE.
+    CALL METHOD gr_alvgrid->refresh_table_display.
+  ENDIF.
+
+ENDFORM.                    " DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_GT_FCAT  text
+*----------------------------------------------------------------------*
+FORM create_fcat  CHANGING pt_fcat TYPE lvc_t_fcat.
+
+  DATA : ls_fcat TYPE lvc_s_fcat.
+** Purge
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 1.
+  ls_fcat-fieldname = 'PURGE'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-008.
+  ls_fcat-outputlen = 2.
+  ls_fcat-checkbox = 'X'.
+  ls_fcat-edit = 'X'.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Plant
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 2.
+  ls_fcat-fieldname = 'PLANT'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-009.
+  ls_fcat-outputlen = 4.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Inbound Delivery
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 3.
+  ls_fcat-fieldname = 'INBOUND_DELV'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-010.
+  ls_fcat-outputlen = 10.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Inbound delivery item
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 4.
+  ls_fcat-fieldname = 'INBOUND_ITEM'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-011.
+  ls_fcat-outputlen = 6.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Inbound delivery child item
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 5.
+  ls_fcat-fieldname = 'CHILD_ITEM'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-012.
+  ls_fcat-outputlen = 6.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** IBatch
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 6.
+  ls_fcat-fieldname = 'BATCH'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-013.
+  ls_fcat-outputlen = 10.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+** Outbound delivery
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 7.
+  ls_fcat-fieldname = 'OUTBOUND_DELV'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-014.
+  ls_fcat-outputlen = 10.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Outbound delivery item
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 8.
+  ls_fcat-fieldname = 'OUTBOUND_ITEM'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-015.
+  ls_fcat-outputlen = 6.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Material
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 9.
+  ls_fcat-fieldname = 'MATERIAL'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-016.
+  ls_fcat-outputlen = 18.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Reference doc
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 10.
+  ls_fcat-fieldname = 'REF_DOC'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-017.
+  ls_fcat-outputlen = 10.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Reference item
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 11.
+  ls_fcat-fieldname = 'REF_ITEM'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-018.
+  ls_fcat-outputlen = 6.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Delivery Quantity
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 12.
+  ls_fcat-fieldname = 'DELV_QTY'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-019.
+  ls_fcat-outputlen = 20.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** GR Quantity
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 13.
+  ls_fcat-fieldname = 'GR_QTY'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-020.
+  ls_fcat-outputlen = 20.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+** Open Quantity
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 14.
+  ls_fcat-fieldname = 'OPEN_QTY'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-021.
+  ls_fcat-outputlen = 20.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+**LAst GR
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 15.
+  ls_fcat-fieldname = 'LAST_GR'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-022.
+  ls_fcat-outputlen = 10.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+**Supplying plant
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 16.
+  ls_fcat-fieldname = 'SUPPL_PLNT'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-023.
+  ls_fcat-outputlen = 4.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+**GR 101
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 17.
+  ls_fcat-fieldname = 'GR_101'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-024.
+  ls_fcat-outputlen = 20.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+**GR 702
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 18.
+  ls_fcat-fieldname = 'GR_702'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-025.
+  ls_fcat-outputlen = 20.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+**GR 701
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 19.
+  ls_fcat-fieldname = 'GR_701'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-026.
+  ls_fcat-outputlen = 20.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+
+**Comments
+  ls_fcat-row_pos = 1.
+  ls_fcat-col_pos = 19.
+  ls_fcat-fieldname = 'COMMENTS'.
+  ls_fcat-tabname = 'GT_FINAL'.
+  ls_fcat-coltext = text-027.
+  ls_fcat-outputlen = 20.
+  APPEND ls_fcat TO pt_fcat.
+  CLEAR ls_fcat.
+ENDFORM.                    " CREATE_FCAT
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_LAYOUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_GS_LAYO  text
+*----------------------------------------------------------------------*
+FORM create_layout  CHANGING ps_layo TYPE lvc_s_layo.
+  ps_layo-zebra = 'X'.
+  ps_layo-stylefname = 'CELLSTYLES'.
+  ps_layo-no_rowmark = 'X'.
+ENDFORM.                    " CREATE_LAYOUT
+*&---------------------------------------------------------------------*
+*&      Form  GOODS_MVMT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM goods_mvmt .
+  DATA: li_gm_header TYPE bapi2017_gm_head_01,
+        li_gm_code TYPE bapi2017_gm_code,
+        lt_gm_item101 TYPE STANDARD TABLE OF bapi2017_gm_item_create,
+        li_gm_item101 TYPE bapi2017_gm_item_create,
+        lt_gm_item702 TYPE STANDARD TABLE OF bapi2017_gm_item_create,
+        li_gm_item702 TYPE bapi2017_gm_item_create,
+        lt_gm_item701 TYPE STANDARD TABLE OF bapi2017_gm_item_create,
+        li_gm_item701 TYPE bapi2017_gm_item_create,
+        lt_return  TYPE STANDARD TABLE OF bapiret2,
+        lt_return101  TYPE STANDARD TABLE OF bapiret2,
+        lt_return702  TYPE STANDARD TABLE OF bapiret2,
+        lt_return701  TYPE STANDARD TABLE OF bapiret2,
+        lw_mblnr         TYPE bapi2017_gm_head_ret-mat_doc,
+        lw_mjahr         TYPE bapi2017_gm_head_ret-doc_year,
+        li_lips TYPE ty_lips,
+        li_lips_child TYPE ty_lips,
+        li_lips_outb TYPE ty_lips,
+        li_likp TYPE ty_likp,
+        li_return TYPE bapiret2,
+        li_stylerow TYPE lvc_s_styl,
+        li_styletab TYPE lvc_t_styl,
+        lw_posnr TYPE posnr_vl,
+        lw_batch TYPE charg_d,
+        li_final TYPE ty_final.
+** Begin of changes by USPRADI JE3K905915 on 16.03.2022
+  DATA: lv_skip_701 TYPE char1.
+** End of changes by USPRADI JE3K905915 on 16.03.2022
+  CLEAR: gi_final,
+         li_lips,
+         li_likp.
+  SORT gt_lips BY vbeln posnr.
+  SORT gt_ekpo BY ebeln ebelp.
+  SORT gt_ekkn BY ebeln ebelp zekkn.
+  LOOP AT gt_final INTO gi_final WHERE purge = 'X'.
+**Header data for 101,702 and 701
+    li_gm_header-ref_doc_no = gi_final-inbound_delv.
+    li_gm_header-pstng_date = sy-datum.
+    li_gm_header-doc_date = sy-datum.
+    READ TABLE gt_likp INTO li_likp WITH KEY vbeln = gi_final-inbound_delv BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      li_gm_header-header_txt = li_likp-lifnr.
+    ENDIF.
+** Item data
+
+    READ TABLE gt_lips INTO li_lips WITH KEY vbeln = gi_final-inbound_delv
+                                             posnr = gi_final-inbound_item BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      READ TABLE gt_ekpo INTO gi_ekpo WITH KEY ebeln = li_lips-vgbel
+                                               ebelp = li_lips-vgpos BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        IF gi_ekpo-knttp = 'E'.
+          li_gm_item701-spec_stock = gi_ekpo-knttp.
+          li_gm_item702-spec_stock = gi_ekpo-knttp.
+          READ TABLE gt_ekkn INTO gi_ekkn WITH KEY ebeln = gi_ekpo-ebeln
+                                                   ebelp = gi_ekpo-ebelp BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            li_gm_item701-val_sales_ord = gi_ekkn-vbeln.
+            li_gm_item701-val_s_ord_item = gi_ekkn-vbelp.
+            li_gm_item702-val_sales_ord = gi_ekkn-vbeln.
+            li_gm_item702-val_s_ord_item = gi_ekkn-vbelp.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+** Check if the material is batch managed
+      READ TABLE gt_marc INTO gi_marc WITH KEY matnr = gi_final-material
+                                               werks = li_lips-werks
+                                               xchpf = 'X'.
+      IF sy-subrc IS INITIAL. "Batch managed
+        READ TABLE gt_lips_child WITH KEY vbeln = li_lips-vbeln
+                                          uecha = li_lips-posnr TRANSPORTING NO FIELDS .
+        IF sy-subrc IS INITIAL. " Already batch split exists
+* Add new child item to the main item with the remaining open quantity in delivery
+          IF gi_final-open_qty GT 0.
+            PERFORM batch_split USING gi_final
+                                CHANGING lw_posnr lw_batch.
+          ENDIF.
+          LOOP AT gt_lips_child INTO li_lips_child WHERE vbeln = li_lips-vbeln
+                                                     AND uecha = li_lips-posnr.
+            READ TABLE gt_final INTO li_final WITH KEY inbound_delv = li_lips_child-vbeln
+                                                       child_item = li_lips_child-posnr.
+            IF sy-subrc IS INITIAL.
+              IF li_final-open_qty GT 0.
+                li_gm_item101-entry_qnt = li_final-open_qty.
+                li_gm_item702-entry_qnt = li_final-open_qty.
+                li_gm_item701-entry_qnt = li_final-open_qty.
+                li_gm_item101-batch = li_final-batch.
+                li_gm_item702-batch = li_final-batch.
+                li_gm_item701-batch = li_final-batch.
+                li_gm_item101-stge_loc = 'SHRT'.
+                li_gm_item702-stge_loc = 'SHRT'.
+                li_gm_item701-stge_loc = 'SHRT'.
+                li_gm_item101-material = li_lips_child-matnr.
+                li_gm_item702-material = li_lips_child-matnr.
+                li_gm_item701-material = li_lips_child-matnr.
+                li_gm_item101-entry_uom = li_lips_child-meins.
+                li_gm_item702-entry_uom = li_lips_child-meins.
+                li_gm_item701-entry_uom = li_lips_child-meins.
+                li_gm_item101-plant = li_lips_child-werks.
+                li_gm_item702-plant = li_lips_child-werks.
+                li_gm_item701-plant = gi_final-suppl_plnt.
+                CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item101-item_text.
+                CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item702-item_text.
+                CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item701-item_text.
+                li_gm_item101-deliv_numb_to_search = gi_final-inbound_delv.
+                li_gm_item101-deliv_item_to_search = li_lips_child-posnr.
+                li_gm_item101-po_number = gi_final-ref_doc.
+                li_gm_item101-po_item = gi_final-ref_item.
+                li_gm_item101-mvt_ind = 'B'.
+                li_gm_item101-move_type = '101'.
+                li_gm_item101-move_reas = '2'.
+                APPEND li_gm_item101 TO lt_gm_item101.
+                li_gm_item702-move_reas = '11'.
+                li_gm_item702-move_type = '702'.
+                APPEND li_gm_item702 TO lt_gm_item702.
+                li_gm_item701-move_reas = '10'.
+                li_gm_item701-move_type = '701'.
+                APPEND li_gm_item701 TO lt_gm_item701.
+              ENDIF.
+            ENDIF.
+          ENDLOOP.
+          IF lw_posnr IS NOT INITIAL.
+            li_gm_item101-entry_qnt = gi_final-open_qty.
+            li_gm_item702-entry_qnt = gi_final-open_qty.
+            li_gm_item701-entry_qnt = gi_final-open_qty.
+            li_gm_item101-stge_loc = 'SHRT'.
+            li_gm_item702-stge_loc = 'SHRT'.
+            li_gm_item701-stge_loc = 'SHRT'.
+            li_gm_item101-batch = lw_batch.
+            li_gm_item702-batch = lw_batch.
+            li_gm_item701-batch = lw_batch.
+            li_gm_item101-material = li_lips-matnr.
+            li_gm_item702-material = li_lips-matnr.
+            li_gm_item701-material = li_lips-matnr.
+            li_gm_item101-entry_uom = li_lips-meins.
+            li_gm_item702-entry_uom = li_lips-meins.
+            li_gm_item701-entry_uom = li_lips-meins.
+            li_gm_item101-plant = li_lips-werks.
+            li_gm_item702-plant = li_lips-werks.
+            li_gm_item701-plant = gi_final-suppl_plnt.
+            CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item101-item_text.
+            CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item702-item_text.
+            CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item701-item_text.
+            li_gm_item101-deliv_numb_to_search = gi_final-inbound_delv.
+            li_gm_item101-deliv_item_to_search = lw_posnr.
+            li_gm_item101-po_number = gi_final-ref_doc.
+            li_gm_item101-po_item = gi_final-ref_item.
+            li_gm_item101-mvt_ind = 'B'.
+            li_gm_item101-move_type = '101'.
+            li_gm_item101-move_reas = '2'.
+            APPEND li_gm_item101 TO lt_gm_item101.
+            li_gm_item702-move_reas = '11'.
+            li_gm_item702-move_type = '702'.
+            APPEND li_gm_item702 TO lt_gm_item702.
+            li_gm_item701-move_reas = '10'.
+            li_gm_item701-move_type = '701'.
+            APPEND li_gm_item701 TO lt_gm_item701.
+          ENDIF.
+        ELSE. "Batch managed but no split
+          IF gi_final-batch IS INITIAL. "Batch number not found in Inbound delivery
+            READ TABLE gt_lips_outb INTO li_lips_outb WITH KEY vbeln = gi_final-outbound_delv
+                                                               posnr = gi_final-outbound_item BINARY SEARCH.
+            IF sy-subrc IS INITIAL. " Batch number found in outbound delivery
+              IF li_lips_outb-charg IS NOT INITIAL.
+                li_gm_item101-batch = li_lips_outb-charg.
+                li_gm_item702-batch = li_lips_outb-charg.
+                li_gm_item701-batch = li_lips_outb-charg.
+              ELSE. "Batch number not found in Both inbound or outbound
+                li_gm_item101-batch = 'PURGE'.
+                li_gm_item702-batch = 'PURGE'.
+                li_gm_item701-batch = 'PURGE'.
+              ENDIF.
+            ENDIF.
+          ELSE. " Batch number found in inbound delivery
+            li_gm_item101-batch = gi_final-batch.
+            li_gm_item702-batch = gi_final-batch.
+            li_gm_item701-batch = gi_final-batch.
+          ENDIF.
+          li_gm_item101-entry_qnt = gi_final-open_qty.
+          li_gm_item702-entry_qnt = gi_final-open_qty.
+          li_gm_item701-entry_qnt = gi_final-open_qty.
+          li_gm_item101-stge_loc = 'SHRT'.
+          li_gm_item702-stge_loc = 'SHRT'.
+          li_gm_item701-stge_loc = 'SHRT'.
+          li_gm_item101-material = li_lips-matnr.
+          li_gm_item702-material = li_lips-matnr.
+          li_gm_item701-material = li_lips-matnr.
+          li_gm_item101-entry_uom = li_lips-meins.
+          li_gm_item702-entry_uom = li_lips-meins.
+          li_gm_item701-entry_uom = li_lips-meins.
+          li_gm_item101-plant = li_lips-werks.
+          li_gm_item702-plant = li_lips-werks.
+          li_gm_item701-plant = gi_final-suppl_plnt.
+          CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item101-item_text.
+          CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item702-item_text.
+          CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item701-item_text.
+          li_gm_item101-deliv_numb_to_search = gi_final-inbound_delv.
+          li_gm_item101-deliv_item_to_search = gi_final-inbound_item.
+          li_gm_item101-po_number = gi_final-ref_doc.
+          li_gm_item101-po_item = gi_final-ref_item.
+          li_gm_item101-mvt_ind = 'B'.
+          li_gm_item101-move_type = '101'.
+          li_gm_item101-move_reas = '2'.
+          APPEND li_gm_item101 TO lt_gm_item101.
+          li_gm_item702-move_reas = '11'.
+          li_gm_item702-move_type = '702'.
+          APPEND li_gm_item702 TO lt_gm_item702.
+          li_gm_item701-move_reas = '10'.
+          li_gm_item701-move_type = '701'.
+          APPEND li_gm_item701 TO lt_gm_item701.
+        ENDIF.
+      ELSE. "Not batch managed
+        li_gm_item101-entry_qnt = gi_final-open_qty.
+        li_gm_item702-entry_qnt = gi_final-open_qty.
+        li_gm_item701-entry_qnt = gi_final-open_qty.
+        li_gm_item101-stge_loc = 'SHRT'.
+        li_gm_item702-stge_loc = 'SHRT'.
+        li_gm_item701-stge_loc = 'SHRT'.
+        li_gm_item101-material = li_lips-matnr.
+        li_gm_item702-material = li_lips-matnr.
+        li_gm_item701-material = li_lips-matnr.
+        li_gm_item101-entry_uom = li_lips-meins.
+        li_gm_item702-entry_uom = li_lips-meins.
+        li_gm_item701-entry_uom = li_lips-meins.
+        li_gm_item101-plant = li_lips-werks.
+        li_gm_item702-plant = li_lips-werks.
+        li_gm_item701-plant = gi_final-suppl_plnt.
+        CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item101-item_text.
+        CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item702-item_text.
+        CONCATENATE gi_final-inbound_delv gi_final-inbound_item INTO li_gm_item701-item_text.
+        li_gm_item101-deliv_numb_to_search = gi_final-inbound_delv.
+        li_gm_item101-deliv_item_to_search = gi_final-inbound_item.
+        li_gm_item101-po_number = gi_final-ref_doc.
+        li_gm_item101-po_item = gi_final-ref_item.
+        li_gm_item101-mvt_ind = 'B'.
+        li_gm_item101-move_type = '101'.
+        li_gm_item101-move_reas = '2'.
+        APPEND li_gm_item101 TO lt_gm_item101.
+        li_gm_item702-move_reas = '11'.
+        li_gm_item702-move_type = '702'.
+        APPEND li_gm_item702 TO lt_gm_item702.
+        li_gm_item701-move_reas = '10'.
+        li_gm_item701-move_type = '701'.
+        APPEND li_gm_item701 TO lt_gm_item701.
+      ENDIF.
+    ENDIF.
+
+** GR 101 Movement type
+    li_gm_code-gm_code = '01'.
+    CALL FUNCTION 'BAPI_GOODSMVT_CREATE'
+      EXPORTING
+        goodsmvt_header  = li_gm_header
+        goodsmvt_code    = li_gm_code
+      IMPORTING
+        materialdocument = lw_mblnr
+        matdocumentyear  = lw_mjahr
+      TABLES
+        goodsmvt_item    = lt_gm_item101
+        return           = lt_return.
+
+    READ TABLE lt_return INTO li_return WITH KEY type = 'E'.
+    IF sy-subrc = 0.
+      gi_final-gr_101 = li_return-message.
+    ELSE.
+      gi_final-gr_101 = lw_mblnr.
+      CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+        EXPORTING
+          wait = 'X'.
+*       IMPORTING
+*         RETURN        =
+      .
+
+** Grey out checkbox of purged lines
+      REFRESH: gi_final-cellstyles,
+               li_styletab.
+      CLEAR gi_final-purge.
+      li_stylerow-fieldname = 'PURGE'.
+      li_stylerow-style = cl_gui_alv_grid=>mc_style_disabled.
+      APPEND li_stylerow TO li_styletab.
+      INSERT LINES OF li_styletab INTO TABLE gi_final-cellstyles.
+
+** 702 Movement type
+      CLEAR: lw_mblnr,
+             lw_mjahr.
+      li_gm_code-gm_code = '03'.
+      CALL FUNCTION 'BAPI_GOODSMVT_CREATE'
+        EXPORTING
+          goodsmvt_header  = li_gm_header
+          goodsmvt_code    = li_gm_code
+        IMPORTING
+          materialdocument = lw_mblnr
+          matdocumentyear  = lw_mjahr
+        TABLES
+          goodsmvt_item    = lt_gm_item702
+          return           = lt_return.
+      READ TABLE lt_return INTO li_return WITH KEY type = 'E'.
+      IF sy-subrc = 0.
+        gi_final-gr_702 = li_return-message.
+      ELSE.
+        gi_final-gr_702 = lw_mblnr.
+        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+          EXPORTING
+            wait = 'X'.
+*       IMPORTING
+*         RETURN        =
+        .
+
+** 701 Movement type
+        IF gi_final-suppl_plnt IS NOT INITIAL.
+          CLEAR: lw_mblnr,
+                 lw_mjahr.
+** Begin of changes by USPRADI JE3K905915 on 16.03.2022
+** If supplying plant is ELIS plant maintained in ZTUHCD1 table then skip 701 posting
+          CLEAR lv_skip_701.
+          READ TABLE gt_likp INTO li_likp WITH KEY vbeln = gi_final-inbound_delv BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+            READ TABLE gt_t001w INTO gi_t001w WITH KEY lifnr = li_likp-lifnr.
+            IF sy-subrc IS INITIAL.
+              READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY zkey = 'SUPP'
+                                                             field = 'WERKS'
+                                                             low = gi_t001w-werks.
+              IF sy-subrc IS INITIAL.
+                lv_skip_701 = 'X'.
+                gi_final-gr_701 = text-029.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+          IF lv_skip_701 IS INITIAL.
+** End of changes by USPRADI JE3K905915 on 16.03.2022
+            li_gm_code-gm_code = '03'.
+            CALL FUNCTION 'BAPI_GOODSMVT_CREATE'
+              EXPORTING
+                goodsmvt_header  = li_gm_header
+                goodsmvt_code    = li_gm_code
+              IMPORTING
+                materialdocument = lw_mblnr
+                matdocumentyear  = lw_mjahr
+              TABLES
+                goodsmvt_item    = lt_gm_item701
+                return           = lt_return.
+            READ TABLE lt_return INTO li_return WITH KEY type = 'E'.
+            IF sy-subrc = 0.
+              gi_final-gr_701 = li_return-message.
+            ELSE.
+              gi_final-gr_701 = lw_mblnr.
+              CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+                EXPORTING
+                  wait = 'X'.
+*       IMPORTING
+*         RETURN        =
+              .
+            ENDIF.
+** Begin of changes by USPRADI JE3K905915 on 16.03.2022
+          ENDIF.
+** End of changes by USPRADI JE3K905915 on 16.03.2022
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    MODIFY gt_final FROM gi_final.
+    CLEAR: gi_final,
+             li_likp,
+             li_lips,
+             gi_marc,
+             li_lips_child,
+             li_final,
+             li_lips_outb,
+             li_gm_header ,
+             li_gm_code ,
+             lt_gm_item101 ,
+             li_gm_item101 ,
+             lt_gm_item702 ,
+             li_gm_item702 ,
+             lt_gm_item701 ,
+             li_gm_item701 ,
+             lt_return ,
+             lt_return101,
+             lt_return702,
+             lt_return701,
+             lw_mblnr ,
+             lw_mjahr.
+
+  ENDLOOP.
+ENDFORM.                    " GOODS_MVMT
+*&---------------------------------------------------------------------*
+*&      Form  ADJUST_EDITABLES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM adjust_editables CHANGING ct_final LIKE gt_final .
+  DATA: li_listrow  LIKE LINE OF ct_final,
+        li_stylerow TYPE lvc_s_styl,
+        li_styletab TYPE lvc_t_styl,
+        li_lips     TYPE ty_lips,
+        li_temp     TYPE ty_final,
+        lv_purge    TYPE char1.
+
+  LOOP AT ct_final INTO li_listrow.
+    REFRESH: li_listrow-cellstyles,
+             li_styletab.
+    LOOP AT gt_lips_child INTO li_lips WHERE vbeln = li_listrow-inbound_delv
+                                         AND uecha = li_listrow-inbound_item .
+      READ TABLE ct_final INTO li_temp WITH KEY inbound_delv = li_lips-vbeln
+                                                child_item = li_lips-posnr.
+      IF sy-subrc IS INITIAL.
+        IF li_temp-open_qty GT 0.
+          lv_purge = 'X'.
+          EXIT.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+    IF sy-subrc IS NOT INITIAL.
+      IF li_listrow-open_qty = 0 OR li_listrow-inbound_item IS INITIAL .
+        li_stylerow-fieldname = 'PURGE'.
+        li_stylerow-style = cl_gui_alv_grid=>mc_style_disabled.
+** If the delivery exists in ZTMM_MARC_GR_ER table then it is to be greyed out with comments as below
+** Begin of changes by USPRADI JE3K904585 on 07.02.2022
+*        READ TABLE gt_marc_gr WITH KEY bapi_po_no = li_listrow-inbound_delv
+*                                       bapi_po_line_no = li_listrow-inbound_item
+*                                       TRANSPORTING NO FIELDS.
+        READ TABLE gt_marc_grrecl WITH KEY bapi_po_no = li_listrow-inbound_delv
+                                       bapi_po_line_no = li_listrow-inbound_item
+                                       TRANSPORTING NO FIELDS.
+** End of changes by USPRADI JE3K904585 on 07.02.2022
+        IF sy-subrc IS INITIAL.
+          li_listrow-comments = text-028.
+          li_stylerow-fieldname = 'PURGE'.
+          li_stylerow-style = cl_gui_alv_grid=>mc_style_disabled.
+        ENDIF.
+        APPEND li_stylerow TO li_styletab.
+      ELSE.
+        li_stylerow-fieldname = 'PURGE'.
+        li_stylerow-style = cl_gui_alv_grid=>mc_style_enabled.
+** If the delivery exists in ZTMM_MARC_GR_ER table then it is to be greyed out with comments as below
+** Begin of changes by USPRADI JE3K904585 on 07.02.2022
+*        READ TABLE gt_marc_gr WITH KEY bapi_po_no = li_listrow-inbound_delv
+*                                       bapi_po_line_no = li_listrow-inbound_item
+*                                       TRANSPORTING NO FIELDS.
+        READ TABLE gt_marc_grrecl WITH KEY bapi_po_no = li_listrow-inbound_delv
+                                       bapi_po_line_no = li_listrow-inbound_item
+                                       TRANSPORTING NO FIELDS.
+** End of changes by USPRADI JE3K904585 on 07.02.2022
+        IF sy-subrc IS INITIAL.
+          li_listrow-comments = text-028.
+          li_stylerow-fieldname = 'PURGE'.
+          li_stylerow-style = cl_gui_alv_grid=>mc_style_disabled.
+        ENDIF.
+        APPEND li_stylerow TO li_styletab.
+      ENDIF.
+      INSERT LINES OF li_styletab INTO TABLE li_listrow-cellstyles.
+    ELSE.
+      IF lv_purge IS INITIAL OR li_listrow-inbound_item IS INITIAL .
+        li_stylerow-fieldname = 'PURGE'.
+        li_stylerow-style = cl_gui_alv_grid=>mc_style_disabled.
+** If the delivery exists in ZTMM_MARC_GR_ER table then it is to be greyed out with comments as below
+** Begin of changes by USPRADI JE3K904585 on 07.02.2022
+*        READ TABLE gt_marc_gr WITH KEY bapi_po_no = li_listrow-inbound_delv
+*                                       bapi_po_line_no = li_listrow-inbound_item
+*                                       TRANSPORTING NO FIELDS.
+        READ TABLE gt_marc_grrecl WITH KEY bapi_po_no = li_listrow-inbound_delv
+                                       bapi_po_line_no = li_listrow-inbound_item
+                                       TRANSPORTING NO FIELDS.
+** End of changes by USPRADI JE3K904585 on 07.02.2022
+        IF sy-subrc IS INITIAL.
+          li_listrow-comments = text-028.
+          li_stylerow-fieldname = 'PURGE'.
+          li_stylerow-style = cl_gui_alv_grid=>mc_style_disabled.
+        ENDIF.
+        APPEND li_stylerow TO li_styletab.
+      ELSE.
+        li_stylerow-fieldname = 'PURGE'.
+        li_stylerow-style = cl_gui_alv_grid=>mc_style_enabled.
+** If the delivery exists in ZTMM_MARC_GR_ER table then it is to be greyed out with comments as below
+** Begin of changes by USPRADI JE3K904585 on 07.02.2022
+*        READ TABLE gt_marc_gr WITH KEY bapi_po_no = li_listrow-inbound_delv
+*                                       bapi_po_line_no = li_listrow-inbound_item
+*                                       TRANSPORTING NO FIELDS.
+        READ TABLE gt_marc_grrecl WITH KEY bapi_po_no = li_listrow-inbound_delv
+                                       bapi_po_line_no = li_listrow-inbound_item
+                                       TRANSPORTING NO FIELDS.
+** End of changes by USPRADI JE3K904585 on 07.02.2022
+        IF sy-subrc IS INITIAL.
+          li_listrow-comments = text-028.
+          li_stylerow-fieldname = 'PURGE'.
+          li_stylerow-style = cl_gui_alv_grid=>mc_style_disabled.
+        ENDIF.
+        APPEND li_stylerow TO li_styletab.
+      ENDIF.
+      INSERT LINES OF li_styletab INTO TABLE li_listrow-cellstyles.
+    ENDIF.
+    MODIFY ct_final FROM li_listrow.
+  ENDLOOP.
+
+ENDFORM.                    " ADJUST_EDITABLES
+*&---------------------------------------------------------------------*
+*&      Form  EXCLUDE_TB_FUNCTIONS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_GT_EXCLUDE  text
+*----------------------------------------------------------------------*
+FORM exclude_tb_functions  CHANGING pt_exclude TYPE ui_functions.
+
+  DATA ls_exclude TYPE ui_func.
+
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_copy_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_delete_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_append_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_insert_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_move_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_copy.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_cut.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_paste.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_paste_new_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_undo.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_refresh.
+  APPEND ls_exclude TO pt_exclude.
+ENDFORM.                    " EXCLUDE_TB_FUNCTIONS
+*&---------------------------------------------------------------------*
+*&      Form  SELECT_ALL_ENTRIES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM select_all_entries .
+  CLEAR gi_final.
+  LOOP AT gt_final INTO gi_final WHERE open_qty NE 0.
+    gi_final-purge = 'X'.
+    MODIFY gt_final FROM gi_final TRANSPORTING purge.
+  ENDLOOP.
+ENDFORM.                    " SELECT_ALL_ENTRIES
+*&---------------------------------------------------------------------*
+*&      Form  DESELECT_ALL_ENTRIES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM deselect_all_entries .
+  CLEAR gi_final.
+  LOOP AT gt_final INTO gi_final.
+    CLEAR gi_final-purge.
+    MODIFY gt_final FROM gi_final TRANSPORTING purge.
+  ENDLOOP.
+ENDFORM.                    " DESELECT_ALL_ENTRIES
+*&---------------------------------------------------------------------*
+*&      Form  BATCH_SPLIT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_GI_FINAL  text
+*      <--P_LW_POSNR  text
+*      <--P_LW_BATCH  text
+*----------------------------------------------------------------------*
+FORM batch_split  USING    pi_final TYPE ty_final
+                  CHANGING pw_posnr TYPE posnr_vl
+                           pw_batch TYPE charg_d.
+  TYPES: BEGIN OF ty_lips1,
+          vbeln TYPE lips-vbeln,
+          posnr TYPE lips-posnr,
+          matnr TYPE lips-matnr,
+          werks TYPE lips-werks,
+          lgort TYPE lgort_d,
+          charg TYPE charg_d,
+          lfimg TYPE lips-lfimg,
+          meins TYPE lips-meins,
+          vrkme TYPE vrkme,
+          umvkz TYPE umvkz,
+          umvkn TYPE umvkn,
+          vgbel TYPE lips-vgbel,
+          vgpos TYPE lips-vgpos,
+          xchpf TYPE xchpf,
+          uecha TYPE uecha,
+          insmk TYPE lips-insmk,
+          ormng TYPE lips-ormng,
+        END OF ty_lips1.
+  DATA: lt_lips TYPE TABLE OF ty_lips1,
+        lt_lips1 TYPE TABLE OF ty_lips1,
+        li_lips TYPE ty_lips1.
+*** Select all line items for the inbound delivery
+*** This data is used for batch split scenario
+  SELECT  vbeln
+          posnr
+          matnr
+          werks
+          lgort
+          charg
+          lfimg
+          meins
+          vrkme
+          umvkz
+          umvkn
+          vgbel
+          vgpos
+          xchpf
+          uecha
+          insmk
+          ormng
+    INTO TABLE lt_lips
+    FROM lips
+    WHERE vbeln = pi_final-inbound_delv.
+  IF sy-subrc IS INITIAL.
+    SORT lt_lips BY vbeln posnr.
+    lt_lips1 = lt_lips.
+    SORT lt_lips1 BY  posnr DESCENDING.
+    CLEAR li_lips.
+    READ TABLE lt_lips1 INTO li_lips INDEX 1.
+    IF sy-subrc IS INITIAL AND li_lips-posnr GT 900000.
+      pw_posnr = li_lips-posnr + 1.
+    ENDIF.
+** To get batch number - get batch number of first split item for that line item
+    CLEAR:li_lips.
+    READ TABLE lt_lips INTO li_lips WITH KEY vbeln = pi_final-inbound_delv
+                                             uecha = pi_final-inbound_item.
+    IF sy-subrc IS INITIAL.
+      pw_batch = li_lips-charg.
+    ENDIF.
+    IF pw_posnr IS NOT INITIAL AND pw_batch IS NOT INITIAL.
+      CLEAR li_lips.
+      READ TABLE lt_lips INTO li_lips WITH KEY vbeln = pi_final-inbound_delv
+                                               posnr = pi_final-inbound_item BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        gi_header_data-deliv_numb    = li_lips-vbeln.
+        gi_header_control-deliv_numb = li_lips-vbeln.
+        gw_delivery                  = li_lips-vbeln.
+
+        gi_item_data-deliv_numb = li_lips-vbeln.
+        gi_item_data-deliv_item = li_lips-posnr.
+        gi_item_data-material   = li_lips-matnr.
+        gi_item_data-dlv_qty    = 0.
+        gi_item_data-batch      = ' '.
+
+        gi_item_data-fact_unit_nom      = li_lips-umvkz.
+        gi_item_data-fact_unit_denom    = li_lips-umvkn.
+        gi_item_data-sales_unit         = li_lips-vrkme.
+        gi_item_data-base_uom           = li_lips-meins.
+
+        gi_item_control-deliv_numb = li_lips-vbeln.
+        gi_item_control-deliv_item  = li_lips-posnr.
+        gi_item_control-chg_delqty = 'X'.
+
+        APPEND gi_item_data TO gt_item_data.
+        APPEND gi_item_control TO gt_item_control.
+        CLEAR: gi_item_data,gi_item_control.
+
+***Adding New child line item
+*                  gi_header_data-deliv_numb    = gi_lips1-vbeln.
+*                  gi_header_control-deliv_numb = gi_lips1-vbeln.
+*                  gw_delivery                  = gi_lips1-vbeln.
+
+        gi_item_data-deliv_numb = li_lips-vbeln.
+        gi_item_data-deliv_item = pw_posnr.
+        gi_item_control-deliv_item = pw_posnr.
+        gi_item_data-material   = li_lips-matnr.
+        gi_item_data-dlv_qty    = pi_final-open_qty.
+        gi_item_data-batch      = pw_batch.
+        gi_item_data-hieraritem = li_lips-posnr.
+        gi_item_data-usehieritm = '1'.
+        gi_item_data-fact_unit_nom      = li_lips-umvkz.
+        gi_item_data-fact_unit_denom    = li_lips-umvkn.
+        gi_item_data-sales_unit         = li_lips-vrkme.
+        gi_item_data-base_uom           = li_lips-meins.
+
+        gi_item_control-deliv_numb = li_lips-vbeln.
+        gi_item_control-chg_delqty = 'X'.
+
+        IF gi_item_data IS NOT INITIAL.
+          APPEND gi_item_data TO gt_item_data.
+          APPEND gi_item_control TO gt_item_control.
+          CLEAR: gi_item_data,gi_item_control.
+        ENDIF.
+        CLEAR:li_lips.
+        CALL FUNCTION 'BAPI_INB_DELIVERY_CHANGE'
+          EXPORTING
+            header_data    = gi_header_data
+            header_control = gi_header_control
+            delivery       = gw_delivery
+          TABLES
+            item_data      = gt_item_data
+            item_control   = gt_item_control
+            return         = gt_return.
+      ENDIF.
+      IF gt_return IS INITIAL.
+        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+         EXPORTING
+           wait          = 'X'
+* IMPORTING
+*   RETURN        =
+                  .
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " BATCH_SPLIT
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'ZPF_PURGE'.
+  SET TITLEBAR '0100' ."WITH text-purge report.
+
+ENDMODULE.                 " STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+
+  CASE sy-ucomm.
+    WHEN 'BACK' OR 'CANC' OR 'EXIT'.
+      IF gr_alvgrid IS BOUND.
+        CALL METHOD gr_alvgrid->free.
+      ENDIF.
+*      SET SCREEN 0.
+*      LEAVE SCREEN.
+      LEAVE TO LIST-PROCESSING AND RETURN TO SCREEN 0.
+  ENDCASE.
+ENDMODULE.                 " USER_COMMAND_0100  INPUT
+

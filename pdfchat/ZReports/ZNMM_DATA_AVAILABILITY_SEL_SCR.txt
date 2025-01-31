@@ -1,0 +1,12 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_DATA_AVAILABILITY_SCR
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN :BEGIN OF BLOCK b1 WITH FRAME TITLE  text-s01.
+PARAMETERS : p_cjv RADIOBUTTON GROUP grp1 DEFAULT 'X',
+             p_ejv RADIOBUTTON GROUP grp1.
+SELECTION-SCREEN:END OF BLOCK b1.
+SELECTION-SCREEN :BEGIN OF BLOCK b2 WITH FRAME TITLE  text-s02.
+PARAMETERS:  p_golive RADIOBUTTON GROUP grp2 DEFAULT 'X',
+             p_histry RADIOBUTTON GROUP grp2.
+SELECTION-SCREEN:END OF BLOCK b2.
+

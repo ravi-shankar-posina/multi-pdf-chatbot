@@ -1,0 +1,96 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMM_DOWNLOAD_LTEXT_TOP
+*&---------------------------------------------------------------------*
+***********************************************************************
+*TYPE DECLARATION                                                     *
+***********************************************************************
+*Text
+TYPES: BEGIN OF ty_text_rec,
+         tdname   TYPE tdobname,
+         tdid     TYPE tdid,
+         tdobject TYPE tdobject,
+         tdspras  TYPE spras,
+         tdformat TYPE tdformat,
+         tdline   TYPE tdline,
+         vornr    TYPE vornr,       " Added by 503103496 DE3K9A0DUS CHG0207844
+       END OF ty_text_rec.
+
+*STXH type
+TYPES : BEGIN OF ty_stxh,
+        tdobject TYPE tdobject,
+        tdname   TYPE tdobname,
+        tdid     TYPE tdid,
+        tdspras  TYPE spras,
+        END OF ty_stxh.
+
+*TLINE type
+TYPES : BEGIN OF ty_tline,
+        tdformat TYPE tdformat,
+        tdline   TYPE tdline,
+END OF ty_tline.
+
+TYPES: BEGIN OF ty_title,
+         title(50),
+       END OF ty_title,
+* Begin of  Changes by 503103496 DE3K9A0DT3 CHG0207844
+   BEGIN OF ty_plpo,
+      plnty TYPE plnty,
+      plnnr TYPE plnnr,
+      plnkn TYPE plnkn,
+      zaehl TYPE cim_count,
+      loekz TYPE lkenz,
+      vornr TYPE vornr ,       " Added by 503103496 DE3K9A0DUS CHG0207844
+      werks TYPE werks_d,
+      txtsp TYPE spras,
+    END OF ty_plpo,
+
+    BEGIN OF ty_werks,
+      tdname(30) TYPE c,
+      vornr TYPE vornr ,       " Added by 503103496 DE3K9A0DUS CHG0207844
+     END OF ty_werks.
+* End of Changes by 503103496 DE3K9A0DT3 CHG0207844
+
+***********************************************************************
+*INTERNAL TABLE DECLARATION                                           *
+***********************************************************************
+DATA : gt_lines     TYPE STANDARD TABLE OF ty_tline,
+       gt_text      TYPE STANDARD TABLE OF ty_text_rec,
+       gt_stxh      TYPE STANDARD TABLE OF ty_stxh,
+       gt_title     TYPE STANDARD TABLE OF ty_title,
+       gt_fieldcat  TYPE slis_t_fieldcat_alv,  "lvc_t_fcat.
+* Begin of Changes by 503103496 DE3K9A0DT3 CHG0207844
+       gt_plpo TYPE TABLE OF ty_plpo,
+       gt_werks TYPE TABLE OF ty_werks.
+* End of Chnages by 503103496 DE3K9A0DT3 CHG0207844
+
+***********************************************************************
+*WORK AREA DECLARATION                                                *
+***********************************************************************
+DATA : wa_text      TYPE ty_text_rec,
+       wa_lines     TYPE ty_tline,
+       wa_stxh      TYPE ty_stxh,
+       wa_title     TYPE ty_title,
+       wa_fieldcat  TYPE slis_fieldcat_alv,
+       wa_filename  TYPE string,
+* Begin of Changes by 503103496 DE3K9A0DT3 CHG0207844
+       gi_werks TYPE ty_werks,
+       gi_plpo  TYPE ty_plpo.
+*  End of Changes by 503103496 DE3K9A0DT3 CHG0207844
+
+
+***********************************************************************
+*DATA DECLARATION                                                     *
+***********************************************************************
+DATA : gv_num_htxt TYPE i,
+       gv_num_ltxt TYPE i,
+       gv_tdobject TYPE tdobject,
+       gv_tdname   TYPE tdobname,
+       gv_tdid     TYPE tdid,
+       gv_tdspras  TYPE spras.
+
+***********************************************************************
+*CONSTANT DECLARATION                                                 *
+***********************************************************************
+CONSTANTS
+       gc_x TYPE c VALUE 'X'.
+

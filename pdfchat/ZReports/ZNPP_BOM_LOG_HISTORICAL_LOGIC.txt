@@ -1,0 +1,251 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZRPP_BOM_LOG_HISTORICAL_LOGIC .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+***Retriving complete data from ztpp_prodbom_log based on input plant
+  SELECT   * FROM  ztpp_prodbom_log
+             INTO TABLE gt_bomlog
+             WHERE werks IN s_plant.
+  IF sy-subrc EQ 0.
+    SORT gt_bomlog BY sno aufnr .
+  ENDIF.
+***collecting sales related data into gt_sales, prodorder related data
+***  into gt_bomlog1.
+  LOOP AT gt_bomlog INTO gi_bomlog.
+
+    IF  NOT gi_bomlog-vbeln IS  INITIAL.
+
+      APPEND gi_bomlog TO gt_sales. " sales related data
+
+    ELSE.
+
+      APPEND gi_bomlog TO gt_bomlog1. " prod order related data
+
+    ENDIF.
+    CLEAR : gi_bomlog.
+  ENDLOOP.
+***Retriving sales order completion status from vbup into gt_vbup.
+  IF NOT gt_sales IS INITIAL.
+    SELECT  vbeln
+            posnr
+            gbsta FROM vbup
+                  INTO TABLE gt_vbup
+                  FOR ALL ENTRIES IN gt_sales
+                  WHERE vbeln = gt_sales-vbeln
+                    AND posnr = gt_sales-posnr1
+                    AND gbsta EQ 'C'.
+    IF sy-subrc EQ 0.
+
+      SORT gt_vbup BY vbeln posnr.
+
+    ENDIF.
+
+  ENDIF.
+***Retriving object numbers from aufk into gt_aufk
+  IF NOT gt_bomlog1 IS INITIAL.
+
+    SELECT aufnr
+           loekz
+           objnr FROM aufk
+                 INTO TABLE gt_aufk
+                 FOR ALL ENTRIES IN gt_bomlog1
+                 WHERE aufnr EQ gt_bomlog1-aufnr.
+    IF sy-subrc EQ 0.
+      SORT gt_aufk BY aufnr.
+    ENDIF.
+  ENDIF.
+***Retriving status for jcds table tinto gt_jcds
+  IF NOT gt_aufk IS INITIAL.
+    SELECT objnr
+           stat
+           udate FROM jcds
+                 INTO TABLE gt_jcds
+                 FOR ALL ENTRIES IN gt_aufk
+                  WHERE objnr EQ gt_aufk-objnr
+                    AND inact EQ ' ' .
+    IF sy-subrc EQ 0.
+      SORT gt_jcds BY objnr.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_data .
+  DATA : lw_flag1,
+        lw_date TYPE cddatum,
+        lw_date1 TYPE cddatum.
+
+  REFRESH gt_bomlog.
+****Collecting all completed sales orders into gt_bomlog
+  LOOP AT gt_sales INTO gi_sales.
+    READ TABLE  gt_vbup INTO gi_vbup WITH KEY vbeln = gi_sales-vbeln
+                                              posnr = gi_sales-posnr1 BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+
+      APPEND gi_sales TO gt_bomlog.
+    ENDIF.
+    CLEAR : gi_sales.
+  ENDLOOP.
+***collecting all deleted , completed , delivered , teco orders into gt_bomlog
+  LOOP AT  gt_bomlog1 INTO gi_bomlog.
+    READ TABLE gt_aufk INTO gi_aufk WITH KEY aufnr = gi_bomlog-aufnr BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+      READ TABLE gt_jcds INTO gi_jcds WITH KEY objnr = gi_aufk-objnr
+                                               stat = gc_i0046  . "checking for closed status
+
+      IF sy-subrc EQ 0.
+
+        lw_flag1 = 'X'.
+        lw_date1 = gi_jcds-udate.
+      ELSE.
+        READ TABLE gt_jcds INTO gi_jcds WITH KEY objnr = gi_aufk-objnr
+                                            stat = gc_i0045  . " Checking for TECO status
+
+        IF sy-subrc EQ 0.
+          lw_flag1 = 'X'.
+          lw_date1 = gi_jcds-udate.
+        ELSE.
+          READ TABLE gt_jcds INTO gi_jcds WITH KEY objnr = gi_aufk-objnr
+                                            stat = gc_i0012 . " Checking for DLV status
+
+          IF sy-subrc EQ 0.
+            lw_flag1 = 'X'.
+            lw_date1 = gi_jcds-udate.
+          ELSE.
+            READ TABLE gt_jcds INTO gi_jcds WITH KEY objnr = gi_aufk-objnr
+                                              stat = gc_i0009 ."Checking for CNF status
+
+            IF sy-subrc EQ 0.
+              lw_flag1 = 'X'.
+              lw_date1 = gi_jcds-udate.
+            ELSE.
+              READ TABLE gt_jcds INTO gi_jcds WITH KEY objnr = gi_aufk-objnr
+                                              stat = gc_i0076 ."Checking for DLFL status
+
+              IF sy-subrc EQ 0.
+                lw_flag1 = 'X'.
+                lw_date1 = gi_jcds-udate.
+              ENDIF.
+
+            ENDIF.
+
+          ENDIF.
+
+        ENDIF.
+      ENDIF.
+
+    ENDIF.
+*** if flag is not initial then check for date. if date is lessthan 60 days
+*** delete in ztpp_prod_bomlog table and moved to ztpp_bomlog_hist
+    IF lw_flag1 EQ 'X'.
+
+      lw_date = sy-datum - 60. " checking for date
+      IF ( lw_date1 LT  lw_date  ).
+        APPEND gi_bomlog TO gt_bomlog.
+      ENDIF.
+    ENDIF.
+
+
+    CLEAR : lw_flag1  , gi_bomlog , gi_jcds , lw_date , gi_aufk , lw_date1.
+  ENDLOOP.
+**** deletting from ztpp_prod_bomlog table and moved to ztpp_bomlog_hist
+***  all entries in gt_bomlog
+  IF gt_bomlog IS NOT INITIAL.
+
+    DELETE  ztpp_prodbom_log FROM TABLE gt_bomlog.
+    INSERT  ztpp_bomlog_hist FROM TABLE gt_bomlog.
+
+  ENDIF.
+
+ENDFORM.                    " PROCESS_DATA
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM display_data .
+  IF NOT gt_bomlog IS INITIAL.
+    TRY.
+**** prpearing alv for the final table
+        cl_salv_table=>factory( IMPORTING r_salv_table = gt_alv
+                           CHANGING  t_table   = gt_bomlog ).
+      CATCH cx_salv_msg INTO gc_msg .
+    ENDTRY.
+
+    go_layout = gt_alv->get_layout( ).
+    gi_key-report = sy-repid.
+    go_layout->set_key( gi_key ).
+    go_layout->set_default( abap_true ).
+    go_function =    gt_alv->get_functions( ).
+    go_function->set_all( abap_true ).
+
+    go_function->set_layout_save( abap_true ).
+    go_cols = gt_alv->get_columns( ).
+    go_column ?= go_cols->get_column( 'PSPEL' ).
+    go_column->set_long_text( 'WBS ELEMENT'(002) ).
+    go_column->set_medium_text( 'WBS ELEMENT'(002) ).
+    go_column->set_output_length( 24 ).
+    go_column ?= go_cols->get_column( 'FDATE' ).
+    go_column->set_long_text( 'Forecast Delivery Date'(003) ).
+    go_column->set_medium_text( 'Forecast Date'(004) ).
+    go_column->set_output_length( 24 ).
+    go_column ?= go_cols->get_column( 'DDAY' ).
+    go_column->set_long_text( 'Delta From Planned Date'(005) ).
+    go_column->set_medium_text( 'Delta  Date'(006) ).
+    go_column->set_output_length( 24 ).
+    go_column ?= go_cols->get_column( 'LOG' ).
+    go_column->set_long_text( 'Log Update'(007) ).
+    go_column->set_medium_text( 'Log Update'(007) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'BDMNG' ).
+    go_column->set_long_text( 'New Requirement Quantity'(008) ).
+    go_column->set_medium_text( 'New Quantity'(009) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'BDMNG1' ).
+    go_column->set_long_text( 'Old Requirement Quantity'(010) ).
+    go_column->set_medium_text( 'Old  Quantity'(011) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'MATNR' ).
+    go_column->set_long_text( 'Component'(012) ).
+    go_column->set_medium_text( 'Component'(012) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'ERDAT' ).
+    go_column->set_long_text( 'Prod Ord Create Date'(013) ).
+    go_column->set_medium_text( 'PO Create Date'(014) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'ZZALTMN' ).
+    go_column->set_long_text( 'Alternative Material Num'(015) ).
+    go_column->set_medium_text( 'Alternative Mat'(016) ).
+    go_column->set_optimized( if_salv_c_bool_sap=>true ).
+    go_column->set_output_length( 25 ).
+    go_column ?= go_cols->get_column( 'SNO' ).
+    go_column->set_long_text( 'Serial NO'(017) ).
+    go_column->set_medium_text( 'Serial NO'(017) ).
+    go_column->set_output_length( 10 ).
+    go_column ?= go_cols->get_column( 'MANDT' ).
+    go_column->set_visible( abap_false ).
+    gt_alv->display( ).  " calling alv to dispaly
+  ELSE.
+    MESSAGE i021(zpp) WITH 'No Data Found'(001).
+  ENDIF.
+ENDFORM.                    " DISPLAY_DATA
+

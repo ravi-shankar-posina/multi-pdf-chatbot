@@ -1,0 +1,767 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_AUTO_PIR_SL_TOP
+*&---------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+* 28-May-2019        | GECHG0488738     |502277866 | Initial Development
+* 03-Jun-2019        | GECHG0488738     |502277866 | Added logic for formating error in ME11 bdc for NETPR
+* 04-Jun-2019        | GECHG0488738     |502277866 | Added logic for custom message for me11 and me01 BDC
+* 17-Jun-2019        | GECHG0488738     |502277866 | Added logic to restict for single plant in selection screen
+*                                                   and corrected the text message
+* 09-Jul-2019        | GECHG0532576     |502277866 | Added logic for EMAX option
+* 17-Jul-2019        | GECHG0532576     |502277866 | Modified  logic for  BOM Price calucclation for EMAX option
+* 19-Jul-2019        | GECHG0532576     |502277866 | Modified  logic for   retriving PB00 price  for EMAX option
+* 09-SEP-2019        | GECHG0588463     |502277866 | Added logic to update the material price
+* 12-SEP-2019        | GECHG0588463     |502277866 | modifed logic to pick correct tcode for bdc processing.
+* 16-SEP-2019        | GECHG0588463     |502277866 | modified logic for displaying correct message.
+* 10-OCT-2019        | GECHG0626527     |503119365 | Generation 4 logic implementation
+* 24-Feb-2020        | GECHG0717071     |503167886 | Update existing PIRs with recalculated price
+* 14-May-2020        | GECHG0812367     |503167886 | Incorporating additional product line 'Elevator switch' .
+*-----------------------------------------------------------------------------------------
+* DATE               | TR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*-----------------------------------------------------------------------------------------
+* 06-Dec-2019        |  DE3K995123      |503119365 | Additional logic for account assignment category 'M'
+* 22-Apr-2020        |  DE3K996954      |503167886 | logic to calculate the net PIR price for multilevel BOM.
+* 14-May-2020        |  DE3K997766      |503167886 | Incorporating additional product line 'Elevator switch' .
+* 20-Oct-2020        |  DE3K999829      |503167886 | Logic to Change the Material-plant specific status from 'IN' to 'BLANK'.
+* 05-May-2022        |  JE3K906805      |USSRM     | logic to incorporate EBAN_KNTTP,Changes in BDC to include EINA-IDNLF
+*                                                  | for FOC price copied to the PIR Price should be 0.01
+* 21-NOV-2023        |  DE3K9A0NSH      |USPRSAH   | Added logic to create pir and sl on mulitple vendor
+*                    |                  |          | Added logic to , bifurcate records with error and convert to excel and send via email
+*-------------------------------------------------------------------------------------------
+TABLES :  ebkn.
+DATA : gw_werks TYPE  werks_d,
+       gw_ekgrp TYPE  ekgrp,
+       gw_rdate TYPE  badat,
+       gw_matnr TYPE  matnr,
+       gw_banfn TYPE  banfn,
+       gw_vbeln TYPE  vbeln,
+       gw_vbelp TYPE  posnr_va,
+       gw_ebakz TYPE ebakz,
+       gw_prdha TYPE  prodh_d,
+       gw_flief TYPE  flief,
+       gw_statu TYPE  banst,
+       gw_flag  TYPE c,
+       gw_email type adr6-smtp_addr.    "USPRSAH FOR RITM6256388
+
+
+
+
+
+TYPES :  BEGIN OF ty_marc,
+         matnr TYPE matnr,
+         werks TYPE werks_d,
+         ekgrp TYPE ekgrp,
+         END OF ty_marc,
+         BEGIN OF ty_mara,
+         matnr TYPE matnr,
+         bismt TYPE bismt,
+         meins TYPE meins,"Added on  17.07.2019 for  GECHG0532576 by 502277866
+         bstme TYPE bstme,"Added on  17.07.2019 for  GECHG0532576 by 502277866
+         prdha TYPE prodh_d,
+         venmatgrp type string,    "gen 7 changes
+         END OF ty_mara,
+         BEGIN OF ty_eban,
+         banfn TYPE banfn,
+         bnfpo TYPE bnfpo,
+         ekgrp TYPE ekgrp,
+         matnr TYPE matnr,
+         werks TYPE werks_d,
+         knttp TYPE knttp,          "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+         END OF ty_eban,
+          BEGIN OF ty_eban1,
+         banfn TYPE banfn,
+         bnfpo TYPE bnfpo,
+         ekgrp TYPE ekgrp,
+         matnr TYPE matnr,
+         werks TYPE werks_d,
+         knttp TYPE knttp,
+         flief TYPE eban-flief,
+         infnr TYPE eban-infnr,
+         lifnr type eban-lifnr,                  "USPRSAH FOR RITM6080718
+         END OF ty_eban1,
+        BEGIN OF ty_eban3,                              "USPRSAH FOR RITM6080718
+         lifnr TYPE eban-flief,                    "USPRSAH FOR RITM6080718
+         matnr type eban-matnr,                           "USPRSAH FOR RITM6080718
+         werks type werks_d,                          "USPRSAH FOR RITM6080718
+end of ty_eban3,                                     "USPRSAH FOR RITM6080718
+         BEGIN OF ty_ebkn,
+         banfn TYPE banfn,
+         bnfpo TYPE bnfpo,
+         zebkn TYPE dzebkn,
+         vbeln TYPE vbeln,
+         vbelp TYPE posnr_va,
+*   Begin of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+         aufnr      TYPE aufnr,
+         ps_psp_pnr	TYPE ps_psp_pnr,
+         nplnr      TYPE nplnr,
+         aufpl      TYPE co_aufpl,
+         aplzl      TYPE cim_count,
+*   End   of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+          END OF ty_ebkn.
+
+
+DATA : gt_marc TYPE TABLE OF ty_marc,
+       gt_mara TYPE TABLE OF ty_mara,
+       gi_mara TYPE ty_mara,
+       gt_eban TYPE TABLE OF ty_eban,
+       gt_eban1 TYPE TABLE OF ty_eban1,
+       gt_ebkn TYPE TABLE OF ty_ebkn,
+       gi_eban TYPE ty_eban,
+       gi_eban1 TYPE ty_eban1,
+       gi_ebkn TYPE ty_ebkn .
+TYPES : BEGIN OF ty_eina,
+      infnr TYPE infnr,
+      matnr TYPE matnr,
+      lifnr TYPE elifn,
+      loekz TYPE iloea,
+      END OF ty_eina,
+      BEGIN OF ty_eine,
+       infnr TYPE infnr,
+       ekorg TYPE ekorg,
+       esokz TYPE esokz,
+       werks TYPE ewerk,
+       loekz TYPE iloee,
+       ekgrp TYPE bkgrp,
+       waers TYPE waers,
+       minbm TYPE minbm,
+       norbm TYPE norbm,
+       mwskz TYPE mwskz,
+       netpr TYPE iprei,
+       peinh TYPE epein,
+       bprme TYPE bbprm,
+       bstae TYPE bstae,      "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+       END OF ty_eine,
+       BEGIN OF ty_info,
+        infnr TYPE infnr,
+       matnr TYPE matnr,
+       lifnr TYPE elifn,
+       ekorg TYPE ekorg,
+       werks TYPE ewerk,
+       ekgrp TYPE bkgrp,
+       waers TYPE waers,
+       minbm TYPE minbm,
+       norbm TYPE norbm,
+       mwskz TYPE mwskz,
+       netpr TYPE iprei,
+       peinh TYPE epein,
+       bprme TYPE bbprm,
+       msg   TYPE string,
+       bstae TYPE bstae,       "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+       END OF ty_info.
+
+DATA : gt_eina TYPE TABLE OF ty_eina,
+       gi_eina TYPE ty_eina,
+       gt_eine TYPE TABLE OF ty_eine,
+       gi_eine TYPE ty_eine,
+       gt_info TYPE TABLE OF ty_info,
+       gi_info TYPE ty_info,
+       gi_info1 TYPE ty_info.
+TYPES : BEGIN OF ty_eord,
+      matnr TYPE matnr,
+      werks TYPE ewerk,
+      zeord TYPE dzeord,
+      END OF ty_eord.
+***start of changes  on 09-Jul-2019 for  GECHG0532576 by 502277866
+TYPES : BEGIN OF ty_eord1,
+      matnr TYPE matnr,
+      werks TYPE ewerk,
+      zeord TYPE dzeord,
+      lifnr TYPE elifn,
+      ekorg TYPE ekorg,
+      flifn type FLIFN,    "USPRSAH FOR RITM6080718
+      m_matnr type matnr,  "USPRSAH FOR RITM6080718
+      END OF ty_eord1.
+
+
+TYPES : BEGIN OF ty_eord2,
+     matnr TYPE matnr,
+     werks TYPE ewerk,
+     zeord TYPE dzeord,
+     lifnr TYPE elifn,
+     ekorg TYPE ekorg,
+     flifn TYPE eord-flifn,
+     END OF ty_eord2.
+
+DATA : gt_eord1 TYPE TABLE OF ty_eord1,
+       gt_eord_fix TYPE TABLE OF ty_eord2,  "(+) 503119365
+       gt_eord_r3  TYPE TABLE OF ty_eord2,  "(+) 503119365
+       gt_eord2 TYPE TABLE OF ty_eord2,
+       gt_eord3 TYPE TABLE OF ty_eord1,
+       gt_eord4 TYPE TABLE OF ty_eord1,
+       gt_eord5 TYPE STANDARD TABLE OF ty_eord1,
+       gi_eord1 TYPE ty_eord1,
+       gi_eord_fix TYPE ty_eord1,            "(+) 503119365
+       gi_eord_r3  TYPE ty_eord1,            "(+) 503119365
+       gi_eord2 TYPE ty_eord2,
+       gi_eord3 TYPE ty_eord1,
+       gi_eord4 TYPE ty_eord1.
+***end changes  on 09-Jul-2019 for  GECHG0532576 by 502277866
+DATA : gt_eord TYPE TABLE OF ty_eord,
+       gi_eord TYPE ty_eord.
+
+TYPES : BEGIN OF ty_vbak,
+      vbeln TYPE vbeln_va,
+      vkorg TYPE vkorg,
+      END OF ty_vbak,
+      BEGIN OF ty_t001w,
+      werks TYPE werks_d,
+      vkorg TYPE vkorg,
+       END OF ty_t001w,
+       BEGIN OF ty_t024w,
+        werks TYPE werks_d,
+        ekorg TYPE ekorg,
+       END OF ty_t024w,
+       BEGIN OF ty_konp,
+       knumh TYPE knumh,
+       kopos TYPE kopos,
+       kbetr TYPE kbetr_kond,
+       konwa TYPE konwa,
+       kpein TYPE kpein,
+       kmein TYPE kmein,
+       END OF ty_konp.
+DATA : gt_vbak TYPE TABLE OF ty_vbak,
+       gi_vbak TYPE ty_vbak,
+       gt_t001w TYPE TABLE OF ty_t001w,
+       gi_t001w TYPE ty_t001w,
+       gt_t024w TYPE TABLE OF ty_t024w,
+       gi_t024w TYPE ty_t024w,
+       gt_konp TYPE TABLE OF ty_konp,
+       gi_konp TYPE ty_konp,
+       gt_konp1 TYPE TABLE OF ty_konp,
+       gt_a503 TYPE TABLE OF a503,
+       gi_a503 TYPE a503,
+*       gt_a970 TYPE TABLE OF a970,
+*       gi_a970 TYPE a970.
+       gt_a971 TYPE TABLE OF a971,   "Added on 14-may-2020 for DE3K997766 by 503167886
+       gi_a971 type a971.
+DATA: gt_alv TYPE REF TO cl_salv_table .
+DATA :  gc_msg TYPE REF TO cx_salv_msg.
+DATA: go_cols TYPE REF TO cl_salv_columns,
+     go_column TYPE REF TO cl_salv_column_table,
+     go_function TYPE REF TO cl_salv_functions_list.
+
+TYPES: ty_ekorg TYPE RANGE OF ekorg,
+       tr_ekorg TYPE LINE OF ty_ekorg,
+       ty_prdha TYPE RANGE OF prodh_d, "Added on 09-Jul-2019 for  GECHG0532576 by 502277866
+       tr_prdha TYPE LINE OF ty_prdha. "Added on 09-Jul-2019 for  GECHG0532576 by 502277866
+
+DATA : gr_ekorg TYPE ty_ekorg,
+       gw_ekorg TYPE tr_ekorg,
+       gr_prdha TYPE ty_prdha,"Added on 09-Jul-2019 for  GECHG0532576 by 502277866
+       gw_prdha3 TYPE tr_prdha."Added on 09-Jul-2019 for  GECHG0532576 by 502277866
+***start of changes  on 09-Jul-2019 for  GECHG0532576 by 502277866
+*** for EmAX
+TYPES : BEGIN OF ty_message1,
+        matnr TYPE matnr,
+        bismt TYPE bismt,
+        mes   TYPE string,
+        lifnr type lifnr,
+        END OF ty_message1.
+DATA  : gt_mess TYPE TABLE OF ty_message1,
+        gi_mess TYPE ty_message1.
+TYPES :  BEGIN OF ty_comp,
+            matnr TYPE matnr,
+            matnr1 TYPE matnr,
+            werks TYPE werks_d,
+            ekorg TYPE ekorg,
+            mnglg TYPE cs_e_mnglg,"Added on  17.07.2019 for  GECHG0532576 by 502277866
+            mmein TYPE meins,"Added on  17.07.2019 for  GECHG0532576 by 502277866
+           END OF ty_comp.
+DATA : gt_comp TYPE TABLE OF ty_comp,
+       gi_comp TYPE ty_comp,
+       gi_comp1 TYPE ty_comp.
+
+DATA : gt_stob TYPE TABLE OF stpox,
+      gs_stob TYPE stpox,
+      gt_mat TYPE TABLE OF cscmat,
+      gs_topmat TYPE cstmat,
+      lw_tab TYPE sy-tabix.
+
+TYPES : BEGIN OF ty_lfm11,
+        lifnr TYPE elifn,
+        ekorg TYPE ekorg,
+        sperm TYPE sperm_m,
+        loevm TYPE loevm_m,
+        waers TYPE bstwa, "Added chnges on 09-SEP-2019 for  GECHG0588463 by 502277866
+        END OF ty_lfm11,
+        BEGIN OF ty_lfa1,
+         lifnr TYPE elifn,
+         sperm TYPE sperm_m,
+        loevm TYPE loevm_m,
+
+          END OF ty_lfa1.
+
+DATA : gt_lfa1 TYPE TABLE OF ty_lfa1,
+       gi_lfa1 TYPE ty_lfa1,
+       gt_lfm11 TYPE TABLE OF ty_lfm11,
+       gi_lfm11 TYPE ty_lfm11.
+TYPES : BEGIN OF ty_ven,
+        m_matnr TYPE matnr,
+        matnr TYPE matnr,
+        lifnr TYPE lifnr,
+        werks TYPE werks_d,
+        ekorg TYPE ekorg,
+        END OF ty_ven.
+DATA : gt_ven TYPE TABLE OF ty_ven,
+       gi_ven TYPE ty_ven.
+TYPES : BEGIN OF ty_comp_ven,
+      matnr TYPE matnr,
+      lifnr type lifnr,   "USPRSAH FOR RITM6080718
+      bismt TYPE matnr,
+      comp  TYPE matnr,
+      mnglg type CS_E_MNGLG,    " added on 20/03/2020 for JE3K902966 by 503167886
+*      lifnr TYPE lifnr,   "USPRSAH FOR RITM6080718
+      werks TYPE werks_d,
+      ekorg TYPE ekorg,
+      flag(1),
+      END OF ty_comp_ven.
+DATA : gt_comp_ven TYPE TABLE OF ty_comp_ven,
+       gi_comp_ven TYPE ty_comp_ven,
+       gi_comp_ven1 TYPE ty_comp_ven.
+TYPES : BEGIN OF ty_comp_price,
+      matnr TYPE matnr,
+      matnr1 TYPE matnr,
+      netpr TYPE netpr,
+      msg1  TYPE string,
+      END OF ty_comp_price,
+      BEGIN OF ty_konp3,
+      knumh TYPE knumh,
+      kopos TYPE kopos, " Added on 19-Jul-2019 for GECHG0532576 by 502277866
+      kbetr TYPE kbetr_kond,
+      konwa TYPE konwa,
+      kpein TYPE kpein,
+      kmein TYPE kmein,
+      zaehk_ind TYPE dzaehk_ind, " Added on 19-Jul-2019 for GECHG0532576 by 502277866
+      END OF ty_konp3.
+
+
+
+DATA : gt_a017  TYPE TABLE OF a017,
+       gi_a017  TYPE a017,
+       gt_konp3  TYPE TABLE OF ty_konp3,
+       gi_konp3  TYPE ty_konp3.
+DATA : lw_wears TYPE konwa,
+       lw_netpr TYPE P LENGTH 14 DECIMALS 4,"iprei,       "added by 503167886/ TR DE3K996954/as part of gen6.
+       lw_netpr1 TYPE iprei,
+       gi_info3 TYPE ty_info,
+       gw_np(1).
+
+***end of emax chnages on 09-Jul-2019 for  GECHG0532576 by 502277866
+
+
+TYPES :  BEGIN OF ty_pr_list,
+         matnr TYPE matnr,
+         werks TYPE werks_d,
+         banfn TYPE banfn,
+         bnfpo TYPE bnfpo,
+         vbeln TYPE vbeln,
+         vbelp TYPE vbelp,
+*   Begin of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+         aufnr      TYPE aufnr,
+         ps_psp_pnr	TYPE ps_psp_pnr,
+         nplnr      TYPE nplnr,
+         vornr      TYPE vornr,
+         knttp      TYPE knttp,
+*   End   of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+        END OF ty_pr_list.
+DATA : gt_pr_list TYPE TABLE OF ty_pr_list,
+       gt_pr_list1 TYPE TABLE OF ty_pr_list,
+       gi_pr_list TYPE ty_pr_list,
+       gi_pr_list2 TYPE ty_pr_list. " Rama DE3K9A09FN CHG0190266.
+
+DATA : gt_bdcdata       TYPE STANDARD TABLE OF bdcdata,     "Int Table for BDC Data
+      gt_messtab       TYPE STANDARD TABLE OF bdcmsgcoll, "Int Table for Messages
+    gi_bdcdata TYPE bdcdata,          "Table type for BDCDATA
+   gi_messtab TYPE bdcmsgcoll,   "Table type to hold messages
+   gw_mes     TYPE char255,
+   gc_me11    TYPE c,
+   gc_me01    TYPE c,
+   gc_mr21    TYPE c, "Added chnges on 09-SEP-2019 for  GECHG0588463 by 502277866
+    gw_yy     TYPE char4,
+    gw_mm     TYPE char2,
+    gw_dd     TYPE char2,
+    gw_databi TYPE char8,
+    gw_netpr  TYPE char14, " Added on  03-Jun-2019 for  GECHG0488738 by 502277866
+    gw_prcupd TYPE c,
+    gw_date2  TYPE sy-datum,
+    gw_databi1 TYPE char8,
+    gw_datab TYPE sy-datum,
+    gw_datab1 TYPE sy-datum,
+    gw_loop type n,               "USPRSAH FOR RITM6080718
+    gw_autet type string,         "usprsah
+    gw_vdatu type string,         "usprsah
+    gw_bdatu type string,         "usprsah
+    gw_lifnr type string,         "usprsah
+    gw_ekorg1 type string,         "usprsah
+    gw_feskz type string.         "usprsah
+TYPES : BEGIN OF ty_result,
+       banfn TYPE banfn,
+       bnfpo TYPE bnfpo,
+        knttp TYPE knttp,           "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+        matnr TYPE matnr,
+        werks TYPE werks_d,
+        vbeln TYPE vbeln,
+        vbelp TYPE vbelp,
+        lifnr TYPE lifnr,
+*   Begin of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+        aufnr       TYPE aufnr,
+        ps_psp_pnr  TYPE ps_psp_pnr,
+        nplnr       TYPE nplnr,
+        vornr       TYPE vornr,
+*   End   of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+        msg1(222)  ,
+        msg2(222)  ,
+        msg3(222)  , "Added chnges on 09-SEP-2019 for  GECHG0588463 by 502277866
+       END OF ty_result.
+DATA :  gt_result TYPE TABLE OF ty_result,
+        gi_result TYPE ty_result.
+DATA :  gt_result1 TYPE TABLE OF ty_result,                      "USPRSAH FOR RITM6256388
+        gi_result1 TYPE ty_result.                               "USPRSAH FOR RITM6256388
+
+TYPES :  BEGIN OF ty_fin_mat,
+         matnr TYPE matnr,
+         werks TYPE werks_d,
+         vkorg TYPE vkorg,
+         ekorg TYPE ekorg,
+*   Begin of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+         aufnr      TYPE aufnr,
+         ps_psp_pnr	TYPE ps_psp_pnr,
+         nplnr      TYPE nplnr,
+         vornr      TYPE vornr,
+         vbeln      TYPE vbeln,  "Rama added on 12/10/2021  DE3K9A09FN CHG0190266
+         vbelp      TYPE vbelp,  "Rama added on 12/10/2021  DE3K9A09FN CHG0190266
+*   End   of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+         END OF ty_fin_mat.
+DATA  :gw_fin_index TYPE sy-tabix.
+DATA : gt_fin_mat TYPE TABLE OF ty_fin_mat,
+       gi_fin_mat TYPE ty_fin_mat.
+TYPES :  BEGIN OF ty_lfm1,
+       lifnr TYPE lifnr,
+       ekorg TYPE ekorg,
+       waers TYPE bstwa,
+       END OF ty_lfm1.
+DATA : gt_lfm1 TYPE TABLE OF ty_lfm1,
+       gi_lfm1 TYPE ty_lfm1.
+
+TYPES : BEGIN OF ty_mat_temp,
+       matnr TYPE matnr,
+       werks TYPE werks_d,
+       vkorg TYPE vkorg,
+       ekorg TYPE ekorg,
+       infnr TYPE infnr,
+       lifnr TYPE elifn,
+       flifn type FLIFN,             "usprsah2
+       ekgrp TYPE bkgrp,
+       waers TYPE waers,
+       minbm TYPE minbm,
+       norbm TYPE norbm,
+       mwskz TYPE mwskz,
+       netpr TYPE iprei,
+       peinh TYPE epein,
+       bprme TYPE bbprm,
+       bstae TYPE bstae,      "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+       bstme TYPE mara-bstme,  "(+) Changes for TR# DE3K994056/SAP ID#503167886 on 11.01.2021
+       meins TYPE mara-meins,  "(+) Changes for /TR# DE3K994056/SAP ID#503167886
+       msg1  TYPE char255,
+       msg2  TYPE char255  ,
+       msg3  TYPE char255  ,  "Added on 09-SEP-2019 for  GECHG0588463 by 502277866
+      END OF ty_mat_temp.
+DATA : gt_mat_temp TYPE TABLE OF ty_mat_temp,
+       gi_mat_temp TYPE ty_mat_temp,
+       gw_costupd TYPE c,  "Added by Ramakrishna
+       gw_waers TYPE waers,
+       gw_kbetr1 TYPE P LENGTH 14 DECIMALS 4,"kbetr_kond,     "added by 503167886/ TR DE3K996954/as part of gen6.
+       gw_konwa1 TYPE konwa,
+       gw_kpein1 TYPE kpein,
+       gw_kmein1 TYPE kmein,
+       gw_kbetr2 TYPE P LENGTH 14 DECIMALS 4,"kbetr_kond,     "added by 503167886/ TR DE3K996954/as part of gen6.
+       gw_konwa2 TYPE konwa,
+       gw_kpein2 TYPE kpein,
+       gw_menge TYPE bstmg,
+       gw_menge1 TYPE bstmg,
+       gw_kmein2 TYPE kmein.
+DATA:  gw_er          TYPE ukurs_curr,
+    gw_ff             TYPE ffact_curr,
+    gw_lf             TYPE tfact_curr,
+    gw_vfd            TYPE datum,
+    gw_erate          TYPE char12,
+    gt_ztuhcd1_ds    TYPE STANDARD TABLE OF ztuhcd1,
+    gt_ztuhcd1_ds1   TYPE STANDARD TABLE OF ztuhcd1, "Added rama  DE3K9A09FN CHG0190266
+    gi_ztuhcd1_ds    TYPE ztuhcd1,
+    gw_prdha1         TYPE prodh_d,
+    gw_prdha5         type prodh_d,                "Added on 14-may-2020 for DE3K997766 by 503167886
+    gw_prdha6         TYPE prodh_d,                 "Added on 27-Aug-2020 for versaruptor by 503167886
+    gw_prdha7         TYPE prodh_d,                 "**Added By Rama DE3K9A062G CHG0171620 on 15/04/2021
+    gw_stlal          TYPE stlan,"stalt,
+    gw_capid          TYPE capid,
+    gw_kschl         TYPE kschl,
+    gw_days          TYPE string."Added on 04-Jun-2019 for GECHG0488738 by 502277866
+***start of chnages  on 17.07.2019 for  GECHG0532576 by 502277866
+DATA : gt_topmat TYPE TABLE OF cstmat,
+       gi_topmat TYPE cstmat,
+       gw_check.
+***End  of chnages  on 17.07.2019 for  GECHG0532576 by 502277866
+CONSTANTS : gc_x TYPE c VALUE'X',
+            gc_i TYPE c VALUE'I',
+            gc_v TYPE c VALUE 'V',
+            gc_m TYPE c VALUE 'M',
+            gc_eq TYPE char2 VALUE 'EQ',
+            gc_zpro TYPE char4 VALUE 'ZPR0',
+            gc_zpdg TYPE char4 VALUE 'ZDPG',
+            gc_zkey TYPE zkey1 VALUE 'PRDH',
+            gc_zkey1 TYPE zkey1 VALUE 'MULT',
+            gc_zkey3 TYPE zkey1 VALUE 'APPL',"Added on 09-Jul-2019 for  GECHG0532576 by 502277866
+            gc_zkey2 TYPE zkey1 VALUE 'DATE',"Added on 04-Jun-2019 for GECHG0488738 by 502277866
+            gc_field1       TYPE zfield       VALUE 'PRDHA',
+            gc_field3       TYPE zfield       VALUE 'CAPL',"Added on 09-Jul-2019 for  GECHG0532576 by 502277866
+            gc_field2       TYPE zfield       VALUE 'DATAB',"Added on 04-Jun-2019 for GECHG0488738 by 502277866
+             gc_field        TYPE zfield       VALUE 'KSCHL',
+
+*   Begin of changes for CR#GECHG0588463/TR# DE3K994056/SAP ID#503119365
+            gc_aac_n            TYPE knttp                VALUE 'N',
+            gc_aac_q            TYPE knttp                VALUE 'Q',
+            gc_aac_x            TYPE knttp                VALUE 'X',
+            gc_aac_e            TYPE knttp                VALUE 'E',
+            gc_aac_f            TYPE knttp                VALUE 'F',
+            gc_aac_space        TYPE knttp                VALUE ' ',
+            gc_aac_y            TYPE knttp                VALUE 'Y', "Added By Rama on 02/09/2021
+            gc_aac_m            TYPE knttp                VALUE 'M',    "(+) Changes for CR#GECHG0626527/TR# DE3K995123/SAP ID#503119365/Date#06-12-2019
+            gc_knttp            TYPE dfies-fieldname      VALUE 'KNTTP',
+            gc_s_knttp          TYPE help_info-dynprofld  VALUE 'S_KNTTP',
+*  Begin of changes by ID#503119365/TR#DE3K995067/CR#GECHG0532576/DATE#04-12-2019
+            gc_emax(4)          TYPE c                    VALUE 'EMAX',
+            gc_tmax(4)          TYPE c                    VALUE 'TMAX',
+            gc_retrofil(8)      TYPE c                    VALUE 'RETROFIL',        "added by 503167886/ TR DE3K996954/as part of gen6.
+*  End   of changes by ID#503119365/TR#DE3K995067/CR#GECHG0532576/DATE#04-12-2019
+            gc_org_s            TYPE ddbool_d             VALUE 'S',
+*   End   of changes for CR#GECHG0588463/TR# DE3K994056/SAP ID#503119365
+            gc_ekgrp(3)         TYPE c                    VALUE 'U42'.   "(+) Changes for CR#CHG0207470/TR#JE3K906805/SAP ID#USSRM
+
+****Added chnges on 09-SEP-2019 for  GECHG0588463 by 502277866
+TYPES : BEGIN OF ty_t001k,
+        bwkey TYPE bwkey,
+        bukrs TYPE bukrs,
+        END OF ty_t001k,
+        BEGIN OF ty_t001,
+        bukrs TYPE bukrs,
+        waers TYPE waers,
+        END OF ty_t001,
+        BEGIN OF ty_mbew,
+        matnr TYPE matnr,
+        bwkey TYPE bwkey,
+        bwtar TYPE bwtar_d,
+        pprdl TYPE CK_PPRDL, "Rama DE3K9A09FN CHG0190266
+        peinh TYPE peinh,
+        END OF ty_mbew.
+DATA : gt_t001k TYPE TABLE OF ty_t001k,
+       gi_t001k TYPE ty_t001k,
+       gt_t001 TYPE TABLE OF ty_t001,
+       gi_t001 TYPE ty_t001,
+       gw_piir  TYPE c,
+       gt_mbew TYPE TABLE OF ty_mbew,
+       gi_mbew TYPE ty_mbew.
+
+*** End of chnages.
+*   Begin of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+TYPES : BEGIN OF ty_afvc,
+         aufpl    TYPE co_aufpl,
+         aplzl    TYPE co_aplzl,
+         vornr    TYPE vornr,
+        END   OF ty_afvc.
+DATA : gt_afvc    TYPE STANDARD TABLE OF ty_afvc,
+       gi_afvc    TYPE                   ty_afvc.
+*             gi_knttp   LIKE LINE OF s_knttp.
+*   End   of changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+
+*Begin of changes by 503167886  on 19.02.2020 for GECHG0717071***********.
+
+TYPES :BEGIN OF ty_pir_exist,
+         infnr    TYPE eina-infnr,
+         matnr    TYPE eina-matnr,
+         lifnr    TYPE eina-lifnr,
+        END   OF ty_pir_exist.
+
+TYPES :BEGIN OF ty_pir_exist1,
+         matnr    TYPE eina-matnr,
+         infnr    TYPE eina-infnr,
+         lifnr    TYPE eina-lifnr,
+        END   OF ty_pir_exist1.
+TYPES : BEGIN OF ty_eine1,
+       infnr TYPE infnr,
+       ekorg TYPE ekorg,
+       esokz TYPE esokz,
+       werks TYPE ewerk,
+       loekz TYPE iloee,
+       ekgrp TYPE bkgrp,
+       waers TYPE waers,
+       minbm TYPE minbm,
+       norbm TYPE norbm,
+       mwskz TYPE mwskz,
+       netpr TYPE iprei,
+       peinh TYPE epein,
+       bprme TYPE bbprm,
+       bstae TYPE bstae,
+*       loekz type eine-loekz,      "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+       END OF ty_eine1.
+
+DATA : gt_pir_exist TYPE STANDARD TABLE OF ty_pir_exist,
+       gi_pir_exist TYPE ty_pir_exist,
+
+       gt_pir_exist3 TYPE STANDARD TABLE OF ty_pir_exist,
+       gi_pir_exist3 TYPE ty_pir_exist,
+       gt_pir_exist1 TYPE STANDARD TABLE OF ty_pir_exist1,
+       gi_pir_exist1 TYPE ty_pir_exist1,
+       gt_eine1 TYPE STANDARD TABLE OF ty_eine1,
+       gi_eine1 TYPE ty_eine1.
+
+TYPES :BEGIN OF ty_nopir_exist,
+         infnr    TYPE eina-infnr,
+         matnr    TYPE eina-matnr,
+         lifnr    TYPE eina-lifnr,
+        END   OF ty_nopir_exist.
+
+DATA : gt_nopir_exist TYPE STANDARD TABLE OF ty_nopir_exist,
+       gi_nopir_exist TYPE ty_nopir_exist.
+
+TYPES :BEGIN OF ty_bdc_me12_mat,
+         lifnr    TYPE eina-lifnr,
+         ekorg    TYPE eine-ekorg,
+         werks    TYPE eine-werks,
+         matnr    TYPE eina-matnr,
+         netpr    TYPE eine-netpr,
+         netpr1   TYPE eine-netpr,
+         msg1  TYPE char255,
+         msg2  TYPE char255,
+         msg3  TYPE char255,
+         esokz  TYPE eine-esokz,
+*         werks  TYPE  eine-werks,
+         loekz  TYPE  eine-loekz,
+         ekgrp  TYPE  eine-ekgrp,
+         waers TYPE    eine-waers,
+         minbm TYPE   eine-minbm,
+         norbm TYPE    eine-norbm,
+         mwskz TYPE   eine-mwskz,
+         peinh TYPE    eine-peinh,
+         bprme TYPE    eine-bprme,
+         bstme TYPE    mara-bstme,
+         meins TYPE    mara-meins,
+        END   OF ty_bdc_me12_mat.
+
+DATA : gt_bdc_me12_mat TYPE STANDARD TABLE OF ty_bdc_me12_mat,
+       gi_bdc_me12_mat TYPE ty_bdc_me12_mat.
+
+TYPES : BEGIN OF ty_netpr_equal,
+        matnr TYPE eina-matnr,
+        lifnr TYPE eina-lifnr,
+        werks TYPE  eine-werks,
+        msg1  TYPE char255,
+         msg2  TYPE char255,
+         msg3  TYPE char255,
+        END OF ty_netpr_equal.
+
+DATA: gt_netpr_equal TYPE STANDARD TABLE OF ty_netpr_equal,
+      gi_netpr_equal TYPE  ty_netpr_equal.
+
+TYPES : BEGIN OF ty_lfm12,
+         lifnr TYPE lfm1-lifnr,
+         waers TYPE  lfm1-waers,
+         ekorg TYPE  lfm1-ekorg,
+        END OF ty_lfm12.
+DATA : gt_lfm12 TYPE STANDARD TABLE OF ty_lfm12,
+       gi_lfm12 TYPE ty_lfm12.
+TYPES :  BEGIN OF ty_del_flag,
+     infnr TYPE infnr,
+     ekorg TYPE ekorg,
+     esokz TYPE esokz,
+     werks TYPE ewerk,
+     loekz TYPE iloee,
+     ekgrp TYPE bkgrp,
+     waers TYPE waers,
+     minbm TYPE minbm,
+     norbm TYPE norbm,
+     mwskz TYPE mwskz,
+     netpr TYPE iprei,
+     peinh TYPE epein,
+     bprme TYPE bbprm,
+     bstae TYPE bstae,
+     msg1  TYPE char255,
+     msg2  TYPE char255  ,
+     msg3  TYPE char255  ,
+        END OF ty_del_flag.
+
+TYPES : BEGIN OF ty_pir_create,
+        matnr TYPE mara-matnr,
+        END OF ty_pir_create.
+
+DATA : gt_del_flag TYPE TABLE OF ty_del_flag,
+       gi_del_flag TYPE ty_del_flag,
+       git_mess TYPE STANDARD TABLE OF bdcmsgcoll,
+       gi_mess1   TYPE bdcmsgcoll,
+       gt_mat_temp1 TYPE TABLE OF ty_mat_temp,
+       gi_mat_temp1 TYPE ty_mat_temp,
+        gw_mes1    TYPE char255,
+       gt_pir_create TYPE STANDARD TABLE OF ty_pir_create,
+       gi_pir_create TYPE ty_pir_create,
+       gw_norbm type char17.
+*       lv_count type I,
+*       v_string type string.
+*******End of changes by 503167886 on 19.02.2020 for GECHG0717071**********.
+
+******** Begin of changes of 503167886 on 30.03.2020********
+DATA :  gt_cscmat type table of CSCMAT,
+        gi_cscmat  type cscmat.
+*****End of changes by 503167886 on 30.03.2020 **********.
+
+
+*** Start of changes on  20-OCT-2019 for 8th Gen by 503167886...TR# DE3K999829
+
+TYPES : begin of ty_marc1,
+       matnr TYPE marc-matnr,
+       werks type marc-werks,
+       mmsta TYPE marc-mmsta,
+     END OF ty_marc1.
+
+ data : gt_marc1 TYPE STANDARD TABLE OF ty_marc1,
+        gi_marc1 TYPE ty_marc1.
+
+
+***Begin of changes by Rama
+TYPES: BEGIN OF ty_vbak1,
+       vbeln TYPE vbeln,
+       knumv TYPE knumv,
+       END OF ty_vbak1,
+       BEGIN OF ty_konv,
+         knumv  TYPE knumv,
+         kposn  TYPE kposn,
+         kschl  TYPE kscha,
+         kbetr  TYPE kbetr,
+         waers  TYPE waers,
+         kpein  TYPE kpein,
+         kmein  TYPE kvmei,
+       END OF ty_konv.
+DATA: gt_vbak1 TYPE TABLE OF ty_vbak1,
+      gi_vbak1 TYPE ty_vbak1,
+      gt_konv TYPE TABLE OF ty_konv,
+      gi_konv TYPE ty_konv.
+
+*** End of changes on  20-OCT-2019 for 8th Gen by 503167886...TR# DE3K999829
+Data: gt_eban_des_ven type table of ty_eban3,                              "USPRSAH
+      gi_eban_des_ven type ty_eban3.                                   "USPRSAH
+                                                   "USPRSAH
+TABLES: somlreci1.                   " USPRSAH BEGIN FOR RITM6256388
+CONSTANTS:gc_sub TYPE sodocchgi1-obj_descr VALUE 'ERROR STATUS MAIL'.
+    DATA : flag TYPE i.          "
+    CONSTANTS : gc_cr    TYPE string VALUE 'created',
+                gc_cg    TYPE string VALUE 'changed',
+                gc_ncr   TYPE string VALUE 'No change required',
+                gc_slc   TYPE string VALUE 'Source List is Created',
+                gc_slchd TYPE string VALUE 'Source List Changed',
+                gc_sla   TYPE string VALUE 'Source List already assigned',
+                gc_mcu   TYPE string VALUE 'Material Cost updated',
+                gc_mcnu  TYPE string VALUE ' Material Cost not updated'.     "USPRSAH END FOR RITM6256388
+

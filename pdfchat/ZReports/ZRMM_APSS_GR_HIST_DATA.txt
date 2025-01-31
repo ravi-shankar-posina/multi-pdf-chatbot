@@ -1,0 +1,427 @@
+*&---------------------------------------------------------------------*
+* Copyright ©  2000 GE ENERGY
+* ALL RIGHTS RESERVED
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* PROGRAM DOCUMENTATION
+******************************************************************************************
+* Created by          : Sindhuja Ravi(502304796)
+* Creation Date       : 08/05/2014
+* Transport Request # : FE3K900431
+* RICEF Object No #   : 1312
+* Change request No   : CHG0479115
+* Transaction code    : ZMM201
+* Description         : GHistorical report for Goods Receipt pertaining to
+*                       APSS Project
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+*************************************************************************
+* DATE      | CR No.      |CHANGED BY    |DESCRIPTION OF CHANGE
+*------------------------------------------------------------------------
+*18/06/2014 | CHG0479115  |Sindhuja Ravi |Field order display and Date format
+*                                        |TR : FE3K900515
+*24/07/2014 | CHG0479115  |Sindhuja Ravi |Logic change for Ship Line ID
+*                                        |TR : FE3K900620
+*28/07/2014 | CHG0479283  |Sindhuja Ravi |Data type Change for shipment line number
+*                                         to accomodate PK settings in APSS
+*                                        |TR : FE3K900622
+*03/09/2014 | CHG0479283  |Sindhuja Ravi |Length change for Receipt ID.
+*                                        |TR : FE3K900659
+*11/09/2014 | CHG0479283  |Sindhuja Ravi |Concatenate Ship line id in Receipt ID
+*                                        |TR : FE3K900663
+*21/10/2014 | CHG0479283  |Sindhuja Ravi |Logic inclusion for inserting dummy shipment lines
+*                                        |TR : FE3K900714
+*11/04/2014 | CHG0479283  |Ramaiah       |Code received from APSS teamm Logic inclusion for inserting
+*                                        |dummy shipment lines
+*************************************************************************
+
+REPORT  zrmm_apss_gr_hist_data NO STANDARD PAGE HEADING MESSAGE-ID zfi_apss_msg_cl LINE-COUNT 1023.
+
+************************************************************************
+* T Y P E S   D E C L A R A T I O N
+************************************************************************
+TYPES : BEGIN OF type_fields,
+           field TYPE char40,
+          END OF type_fields,
+
+        BEGIN OF type_cc,
+            bukrs	TYPE bukrs,
+            butxt	TYPE butxt,
+          END OF type_cc,
+
+        BEGIN OF type_output,
+          sor_id              TYPE char4,
+          receipt_id          TYPE char40,
+          receipt_number      TYPE mblnr,
+          receipt_date        TYPE char40,
+          received_qty        TYPE i,
+          received_amount     TYPE dmbtr,
+          ship_line_number(6) TYPE c,
+          po_line_number(5)   TYPE c,
+          po_number           TYPE bstnr,
+          shipment_line_id    TYPE char40,"dummy shipline number
+          loaddate            TYPE char40,
+        END OF type_output.
+
+INCLUDE : znfi_apss_top_include,
+          znfi_apss_subroutines_include.
+************************************************************************
+* W O R K   A R E A S   D E C L A R A T I O N
+************************************************************************
+DATA : gi_output       TYPE type_output,
+       gi_fields       TYPE type_fields,
+       gi_output_fm    TYPE zpi_dt_gr_req_receipts_request,
+       gi_log_output   TYPE zpi_dt_gr_req_receipts_request.
+************************************************************************
+* I N T E R N A L   T A B L E    D E C L A R A T I O N
+************************************************************************
+DATA : gt_fields       TYPE TABLE OF type_fields,
+       gt_output_fm    TYPE zpi_dt_gr_req_receipts_req_tab,
+       gt_log_output   TYPE zpi_dt_gr_req_receipts_req_tab,
+       gt_output       TYPE TABLE OF type_output,
+       gt_bukrs        TYPE TABLE OF type_cc.
+************************************************************************
+* T A B L E S
+************************************************************************
+TABLES : proj.
+************************************************************************
+* S E L E C T I O N   S C R E E  N
+************************************************************************
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+
+SELECT-OPTIONS : s_date  FOR proj-erdat NO-EXTENSION OBLIGATORY,
+                 s_bukrs FOR proj-vbukr NO INTERVALS.
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-002.
+
+PARAMETERS : p_file TYPE rlgrap-filename OBLIGATORY .
+
+SELECTION-SCREEN END OF BLOCK b2.
+************************************************************************
+* I N I T I A L I Z A T I O N
+************************************************************************
+INITIALIZATION.
+  s_date-low = sy-datum.
+  s_date-high = sy-datum.
+  s_date-option = gc_bt.
+  s_date-sign = gc_i1.
+  APPEND s_date.
+  PERFORM get_ccodes.
+************************************************************************
+* S E L E C T I O N   S C R E E N   E V E N T S
+************************************************************************
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+
+  CALL FUNCTION 'KD_GET_FILENAME_ON_F4'
+    EXPORTING
+      field_name    = p_file
+    CHANGING
+      file_name     = p_file
+    EXCEPTIONS
+      mask_too_long = 1
+      OTHERS        = 2.
+  IF sy-subrc <> 0.
+    MESSAGE e026(zfi_apss_msg_cl).
+  ENDIF.                    " IF sy-subrc <> 0.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR s_bukrs-low.
+  PERFORM f4_bukrs.
+************************************************************************
+* S T A R T   O F   S E L E C T I O N
+************************************************************************
+START-OF-SELECTION.
+
+  PERFORM data_fetch.
+************************************************************************
+* E N D   OF   S E L E C T I O N
+************************************************************************
+END-OF-SELECTION.
+  IF gt_output_fm IS NOT INITIAL.
+    PERFORM output_alv.
+    PERFORM clear_variables.
+  ELSE.
+    MESSAGE s030(zfi_apss_msg_cl).
+  ENDIF.
+
+*&---------------------------------------------------------------------*
+*&      Form  DATA_FETCH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM data_fetch .
+
+  PERFORM get_comp_codes.
+
+  LOOP AT gt_ccodes INTO gi_ccodes.
+    IF gi_ccodes-bukrs NOT IN s_bukrs[].
+      gi_ccodes-bukrs = ' '.
+      MODIFY gt_ccodes FROM gi_ccodes.
+    ENDIF.
+  ENDLOOP.
+
+  DELETE gt_ccodes WHERE bukrs = ' '.
+
+  IF gt_ccodes IS NOT INITIAL.
+*  create FM for vendor data fetch - common for both extraction program
+    CALL FUNCTION 'ZMM_SAP_TO_APSS_GRDATA_FM'
+      EXPORTING
+        im_datefrom   = s_date-low
+        im_dateto     = s_date-high
+        im_hist       = gc_x
+      IMPORTING
+        ex_output     = gt_output_fm
+      TABLES
+        tb_ccodes     = gt_ccodes[]
+      EXCEPTIONS
+        program_error = 1
+        OTHERS        = 2.
+  ENDIF.
+ENDFORM.                    " DATA_FETCH
+*&---------------------------------------------------------------------*
+*&      Form  OUTPUT_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM output_alv .
+  PERFORM fill_output_table.
+  PERFORM fill_field_names.
+  PERFORM download_file.
+  PERFORM create_field_catalog.
+  PERFORM create_alv_layout.
+  PERFORM call_alv.
+
+ENDFORM.                    " OUTPUT_ALV
+*&---------------------------------------------------------------------*
+*&      Form  FILL_OUTPUT_TABLE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fill_output_table .
+
+  LOOP AT gt_output_fm INTO gi_output_fm.
+    gi_output-sor_id    = gi_output_fm-po_sor_id.
+    CONCATENATE text-016 gi_output_fm-receipt_id INTO gi_output-receipt_id.
+    IF gi_output_fm-shipment_line_id IS NOT INITIAL.
+      CONCATENATE text-016 gi_output_fm-shipment_line_id INTO gi_output-shipment_line_id.
+    ENDIF.
+    gi_output-receipt_number = gi_output_fm-receipt_number.
+
+    gw_df = gi_output_fm-receipt_date.
+    PERFORM conv_date_format USING gw_df.
+    gi_output-receipt_date = gw_df.
+    CLEAR gw_df.
+
+    gi_output-ship_line_number = gi_output_fm-ship_line_number.
+    gi_output-received_amount = gi_output_fm-received_amount.
+    gi_output-received_qty = gi_output_fm-received_qty.
+    gi_output-po_number = gi_output_fm-po_number.
+    gi_output-po_line_number = gi_output_fm-po_line_number.
+
+    gw_df = sy-datum.
+    PERFORM conv_date_format USING gw_df.
+    gi_output-loaddate = gw_df.
+    CLEAR gw_df.
+
+    APPEND gi_output TO gt_output.
+    CLEAR : gi_output_fm,gi_output.
+  ENDLOOP.
+ENDFORM.                    " FILL_OUTPUT_TABLE
+*&---------------------------------------------------------------------*
+*&      Form  FILL_FIELD_NAMES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fill_field_names .
+
+  gi_fields-field = text-003.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-004.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-005.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-006.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-007.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-008.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-009.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-010.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-011.
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-017. "shipment line id
+  APPEND gi_fields TO gt_fields.
+  gi_fields-field = text-015.
+  APPEND gi_fields TO gt_fields.
+
+ENDFORM.                    " FILL_FIELD_NAMES
+*&---------------------------------------------------------------------*
+*&      Form  DOWNLOAD_FILE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM download_file .
+  DATA : lw_filename TYPE string,
+         lw_filetype TYPE char10.
+
+  lw_filename = p_file.
+  lw_filetype = gc_asc.
+  IF p_file IS NOT INITIAL.
+    IF gt_output IS NOT INITIAL.
+      CALL FUNCTION 'GUI_DOWNLOAD'
+        EXPORTING
+          filename                = lw_filename
+          filetype                = lw_filetype
+          write_field_separator   = gc_x
+          trunc_trailing_blanks   = gc_x
+          codepage                = space
+          write_bom               = gc_x
+        TABLES
+          data_tab                = gt_output
+          fieldnames              = gt_fields
+        EXCEPTIONS
+          file_write_error        = 1
+          no_batch                = 2
+          gui_refuse_filetransfer = 3
+          invalid_type            = 4
+          no_authority            = 5
+          unknown_error           = 6
+          header_not_allowed      = 7
+          separator_not_allowed   = 8
+          filesize_not_allowed    = 9
+          header_too_long         = 10
+          dp_error_create         = 11
+          dp_error_send           = 12
+          dp_error_write          = 13
+          unknown_dp_error        = 14
+          access_denied           = 15
+          dp_out_of_memory        = 16
+          disk_full               = 17
+          dp_timeout              = 18
+          file_not_found          = 19
+          dataprovider_exception  = 20
+          control_flush_error     = 21
+          OTHERS                  = 22.
+      IF sy-subrc <> 0.
+        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      ELSE.
+        MESSAGE s028(zfi_apss_msg_cl).
+      ENDIF.
+    ENDIF.
+  ELSE.
+    MESSAGE s029(zfi_apss_msg_cl).
+  ENDIF.
+ENDFORM.                    " DOWNLOAD_FILE
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_field_catalog .
+
+  PERFORM: fill_catalog USING gw_seqno 'SOR_ID' text-003,
+           fill_catalog USING gw_seqno 'RECEIPT_ID' text-004,
+           fill_catalog USING gw_seqno 'RECEIPT_NUMBER' text-005,
+           fill_catalog USING gw_seqno 'RECEIPT_DATE' text-006,
+           fill_catalog USING gw_seqno 'RECEIVED_QTY' text-007,
+           fill_catalog USING gw_seqno 'RECEIVED_AMOUNT' text-008,
+           fill_catalog USING gw_seqno 'SHIP_LINE_NUMBER' text-009,
+           fill_catalog USING gw_seqno 'PO_LINE_NUMBER' text-010,
+           fill_catalog USING gw_seqno 'PO_NUMBER' text-011,
+           fill_catalog USING gw_seqno 'SHIPMENT_LINE_ID' text-017,
+           fill_catalog USING gw_seqno 'LOADDATE' text-015.
+
+ENDFORM.                    " CREATE_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*&      Form  CALL_ALV
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM call_alv .
+
+  IF gt_output IS NOT INITIAL.
+    PERFORM display_output TABLES gt_output.
+  ELSE.
+    MESSAGE s030(zfi_apss_msg_cl).
+  ENDIF.
+ENDFORM.                    " CALL_ALV
+*&---------------------------------------------------------------------*
+*&      Form  CLEAR_VARIABLES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM clear_variables .
+  CLEAR : gt_output[],gt_output_fm[],gt_ccodes[],gt_fieldcat[].
+  CLEAR : gi_output,gi_output_fm,gi_fieldcat,gw_seqno,
+          gi_layout.
+ENDFORM.                    " CLEAR_VARIABLES
+*&---------------------------------------------------------------------*
+*&      Form  GET_CCODES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_ccodes .
+  SELECT bukrs
+         butxt
+    FROM ztfi_apss_ccodes
+    INTO TABLE gt_bukrs.                                "#EC CI_NOWHERE
+ENDFORM.                    " GET_CCODES
+*&---------------------------------------------------------------------*
+*&      Form  F4_BUKRS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_bukrs .
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'BUKRS'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'S_BUKRS-LOW'
+      value_org       = gc_s
+    TABLES
+      value_tab       = gt_bukrs
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+ENDFORM.                    " F4_BUKRS

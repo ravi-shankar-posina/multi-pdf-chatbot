@@ -1,0 +1,41 @@
+*=================================================================
+*= Copyright ©  2000 GE ENERGY  =
+*= ALL RIGHTS RESERVED =
+*=================================================================
+*****************************************************************************************
+* PROGRAM DOCUMENTATION
+******************************************************************************************
+*** Created by             : Sheenu Arora & 502237352
+*** Creation Date          : 07-feb-2014
+*** Transport Request #    : DE3K919081
+*** RICEF Object No #      : RICEF1117
+*** Transaction Code       : ZMM1117
+***Change request No       : CHG0479115
+*** Description            : Report to display Pegging and Pegged elements
+*****************************************************************************************
+***********************************************************************************************************
+*  DATE       | CR No            | CHANGED BY           | DESCRIPTION OF CHANGE
+***********************************************************************************************************
+*10/03/2014    |CHG0479115       | 502237352            | Changes made in top include and forms subroutine.
+***********************************************************************************************************
+
+
+REPORT  ZRMM_PEGGING_ELEMENTS.
+
+
+INCLUDE ZNMM_PEGGING_TOP."TOP INCLUDE
+
+INCLUDE ZNMM_PEGGING_SSR."SELECTION SCREEN
+
+INCLUDE ZNMM_PEGGING_F01."SUBROUTINES
+
+START-OF-SELECTION.
+
+PERFORM GET_DATA.
+
+END-OF-SELECTION.
+
+PERFORM build_fieldcatalog.
+
+PERFORM display_output.
+

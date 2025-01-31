@@ -1,0 +1,44 @@
+*&---------------------------------------------------------------------*
+
+*=======================================================================
+*= Copyright © 2013 GE IS                                              =
+*= ALL RIGHTS RESERVED                                                 =
+*=======================================================================
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* Name              : ZRPP_BOM_LOG_HISTORICAL_DATA
+* Created by        : Sekhar Perala, 502277866
+* Transport Request : DE3K969663
+* RICEF Object No   : RICEF1568,1605
+* Transaction code  : ZPP023
+* Change request No : CHG1858725
+* Description       : This program will move ZTPP_PRODBOM_LOG data
+*                     into ZTPP_BOMLOG_HIST based on below conditions
+*                     1.if order is linked with sales order , chek the
+*                      orderstatus, if it is completed move .
+*                     2. order status is completed , deleted then
+*                      move .
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+* DATE               | CR No.     |CHANGED BY |   DESCRIPTION OF CHANGE
+*10.03.2016           CHG1858725    502277866   Changed logic to capture Udate
+
+REPORT  zrpp_bom_log_historical_data.
+INCLUDE znpp_bom_log_historical_top.
+***Selsection screen
+SELECT-OPTIONS : s_plant FOR gw_werks OBLIGATORY.
+
+START-OF-SELECTION.
+*** Retriving Data
+  PERFORM get_data.
+***  Updating and deleting data
+  PERFORM process_data.
+***  Displaying Processed data
+  PERFORM display_data.
+
+  INCLUDE znpp_bom_log_historical_logic.
+

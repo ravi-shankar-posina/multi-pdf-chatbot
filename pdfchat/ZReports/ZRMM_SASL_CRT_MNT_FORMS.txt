@@ -1,0 +1,1722 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRMM_SASL_CRT_MNT_FORMS
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_SA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+*****************************************************************************************
+* Change History
+*****************************************************************************************
+* CHANGED BY    |      DATE           | TR #       |CR No(   INCUM). | DESCRIPTION OF CHANG
+******************************************************************************
+*USPRRAJ1 |27-Aug-2024 | DE3K9A0SXT | APT 203762 |1.To update Indicator: Unlimited Overdelivery Tolerance on the basis of material.
+*                                                 2.To upadte Overdelivery Tolerance Limit on the basis of material
+*                                                 3.Indicator:Update Info Record(updating as blank for already created SA and newly created SA).
+************************************************************************
+FORM create_sa .
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+  DATA: lw_i     TYPE i,
+        lw_char  TYPE string,
+        lw_ktwrt TYPE ktwrt,
+** Begin of changes by USPRADI JE3K905771 on 11.03.2022
+*        lw_kbetr TYPE kbetr_kond.
+        lw_kbetr TYPE char30,
+        lw_dec   TYPE char10.
+** End of changes by USPRADI JE3K905771 on 11.03.2022
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+  CLEAR: gw_ebeln,
+         "gw_pricing, "Change by 503187592 CHG0191538 DE3K9A0BIO
+         gw_s,
+         gi_t001w.
+  READ TABLE gt_t001w INTO gi_t001w WITH KEY werks = gi_validmats-wrk02
+                                             BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+    CLEAR gi_lfm1.
+    READ TABLE gt_lfm1 INTO gi_lfm1 WITH KEY lifnr = gi_t001w-lifnr
+                                             ekorg = gw_ekorg
+                                             BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+    ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+  ENDIF.
+
+  IF gi_validmats-bukrs NE gw_bukrs.
+    CLEAR: gi_ztuhcd1,
+           gw_ktmng,
+           gw_ktwrt,
+           gw_pricing.
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+    READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY zkey = 'ZLP' field = 'KTMNG' index_no = 1.
+    IF sy-subrc IS INITIAL.
+*      CLEAR gi_a501.
+*      READ TABLE gt_a501 INTO gi_a501 WITH KEY ekorg = gw_ekorg
+*                                               reswk = gi_validmats-wrk02
+*                                               werks = gp_plant
+*                                               matnr = gi_validmats-matnr
+*                                               BINARY SEARCH.
+*      IF sy-subrc IS INITIAL.
+*        CLEAR gi_konp.
+*        READ TABLE gt_konp INTO gi_konp WITH KEY knumh = gi_a501-knumh
+*                                                 BINARY SEARCH.
+**        IF sy-subrc IS INITIAL.
+*          gw_ktwrt = gi_ztuhcd1-low.
+*          gw_ktmng = gw_ktwrt / gi_konp-kbetr.
+*        ELSE.
+*          PERFORM validate_pricing.
+*        ENDIF.
+*      ELSE.
+*        PERFORM validate_pricing.
+*      ENDIF.
+      CLEAR gi_a557.
+      READ TABLE gt_a557 INTO gi_a557 WITH KEY ekorg = gw_ekorg
+                                               bukrs = gw_bukrs
+                                               vkorg = gi_validmats-vkorg
+                                               matnr = gi_validmats-matnr
+                                               .
+      IF sy-subrc IS INITIAL.
+        CLEAR: gi_konp.
+        READ TABLE gt_konp INTO gi_konp WITH KEY knumh = gi_a557-knumh
+                                                 BINARY SEARCH.
+        IF sy-subrc IS INITIAL AND gi_konp-kbetr IS NOT INITIAL.
+** Begin of changes by USPRADI JE3K905258 on 24.02.2022
+*          lw_kbetr = gi_ztuhcd1-low / gi_konp-kbetr.
+          lw_kbetr = ( gi_ztuhcd1-low / gi_konp-kbetr ) * gi_konp-kpein.
+** End of changes by USPRADI JE3K905258 on 24.02.2022
+** Begin of changes by USPRADI JE3K905771 on 11.03.2022
+*          lw_i = trunc( lw_kbetr ).
+*          lw_char = lw_i.
+          SPLIT lw_kbetr AT '.' INTO lw_char lw_dec.
+** End of changes by USPRADI JE3K905771 on 11.03.2022
+          CONDENSE lw_char.
+          lw_i = strlen( lw_char ).
+          CLEAR lw_char.
+          lw_i = lw_i - 1.
+** Begin of changes by USPRADI JE3K905771 on 11.03.2022
+          IF lw_i GT 7.
+            lw_i = 7.
+          ENDIF.
+** End of changes by USPRADI JE3K905771 on 11.03.2022
+          DO lw_i TIMES.
+            CONCATENATE '9' lw_char INTO lw_char.
+          ENDDO.
+
+          IF gi_konp-kpein IS NOT INITIAL.
+            lw_ktwrt = ( gi_konp-kbetr / gi_konp-kpein ) * lw_char.
+            WRITE lw_ktwrt TO gw_ktwrt.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    ENDIF.
+
+*    IF gw_pricing NE 'X'.  "Change by 503187592 CHG0191538 DE3K9A0BIO
+
+    REFRESH: gt_bdcdata[],
+             gt_messtab[],
+             gt_sa_return[].
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0200'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'EKKO-LIFNR'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM bdc_field       USING 'EKKO-LIFNR'
+                                  gi_t001w-lifnr.
+    PERFORM bdc_field       USING 'RM06E-EVART'
+                                  'ZLP'.
+    CLEAR gw_agr_date.
+    CALL FUNCTION 'CONVERSION_EXIT_PDATE_OUTPUT'
+      EXPORTING
+        input  = sy-datum
+      IMPORTING
+        output = gw_agr_date.
+    PERFORM bdc_field       USING 'RM06E-VEDAT'
+                                  gw_agr_date.
+    PERFORM bdc_field       USING 'EKKO-EKORG'
+                                  gw_ekorg.
+    PERFORM bdc_field       USING 'EKKO-EKGRP'
+                                  gi_validmats-ekgrp.
+    PERFORM bdc_field       USING 'RM06E-WERKS'
+                                  gp_plant.
+** Begin of changes by USPRADI JE3K905057 on 17.02.2022
+    PERFORM bdc_field       USING 'RM06E-LGORT'
+                                  ' '.
+** End of changes by USPRADI JE3K905057 on 17.02.2022
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0201'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'EKKO-KDATE'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM bdc_field       USING 'EKKO-KDATB'
+                                  gw_beg_date.
+    PERFORM bdc_field       USING 'EKKO-KDATE'
+                                  gw_end_date.
+    PERFORM bdc_field       USING 'EKKO-KTWRT'
+                                  gw_ktwrt.
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0220'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'EKPO-KTMNG(01)'.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+    PERFORM bdc_field       USING 'EKPO-RESLO(01)'
+                                  gw_spl.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM bdc_field       USING 'EKPO-EMATN(01)'
+                                  gi_validmats-matnr.
+    PERFORM bdc_field       USING 'EKPO-KTMNG(01)'
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*                                  gw_ktmng.
+                                  lw_char.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0211'.
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0220'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'RM06E-EVRTP(01)'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '=DETZ'.
+    PERFORM bdc_field       USING 'RM06E-TCSELFLAG(01)'
+                                  'X'.
+** Begin of changes by USPRADI JE3K905057 on 17.02.2022
+    CLEAR gw_lgort.
+    WRITE gi_validmats-lgfsb TO gw_lgort.
+    PERFORM bdc_field       USING 'EKPO-LGORT(01)'
+                                   gw_lgort.
+** End of changes by USPRADI JE3K905057 on 17.02.2022
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0212'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'EKPO-ETFZ1'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '=BACK'.
+    CLEAR gw_dec.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    WRITE gi_validmats-plifz TO gw_dec.
+    WRITE gi_pdt-zplifz TO gw_dec.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    PERFORM bdc_field       USING 'EKPO-PLIFZ'
+                                  gw_dec.
+
+    CLEAR gw_gew.
+    WRITE gi_validmats-ntgew TO gw_gew.
+    PERFORM bdc_field       USING 'EKPO-NTGEW'
+                                  gw_gew.
+    CLEAR gw_dec.
+    WRITE gi_validmats-webaz TO gw_dec.
+    PERFORM bdc_field       USING 'EKPO-WEBAZ'
+                                  gw_dec.
+    CLEAR gw_gew.
+    WRITE gi_validmats-brgew TO gw_gew.
+    PERFORM bdc_field       USING 'EKPO-BRGEW'
+                                   gw_gew.
+    CLEAR gw_gew.
+    WRITE gi_validmats-volum TO gw_gew.
+    PERFORM bdc_field       USING 'EKPO-VOLUM'
+                                   gw_gew.
+
+    CLEAR gw_dec.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    WRITE gi_validmats-plifz TO gw_dec.
+    WRITE gw_etfz1 TO gw_dec.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    PERFORM bdc_field       USING 'EKPO-ETFZ1'
+                                  gw_dec.
+***Begin of changes by USVICHI on 01.11.2022 DE3K9A0GZK
+** Commented the below logic
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+**    PERFORM bdc_field       USING 'EKPO-INCO1'
+**                                 gi_lfm1-inco1.
+**    PERFORM bdc_field       USING 'EKPO-INCO2'
+**                                 gi_lfm1-inco2.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+***End of changes by USVICHI on 01.11.2022 DE3K9A0GZK
+*Start Of Change  DE3K9A0SXT by USPRRAJ1
+*" added changes to make the Indicator: Update Info Record blank
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0220'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'EKPO-EMATN(01)'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '=DETA'.
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0211'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'EKPO-SPINF'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '=BU'.
+    PERFORM bdc_field       USING 'EKPO-SPINF'
+                                   abap_false.
+*End Of Change  DE3K9A0SXT by USPRRAJ1
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0220'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'RM06E-EVRTP(01)'.
+*** Begin of changes by USPRADI JE3K905057 on 17.02.2022
+*    CLEAR gw_lgort.
+*    WRITE gi_validmats-lgfsb TO gw_lgort.
+*    PERFORM bdc_field       USING 'EKPO-LGORT(01)'
+*                                   gw_lgort.
+*** End of changes by USPRADI JE3K905057 on 17.02.2022
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '=BU'.
+    PERFORM bdc_dynpro      USING 'SAPLSPO1' '0300'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '=YES'.
+    gw_s = 'N'.
+*perform bdc_transaction using 'ME31L'.
+    CALL TRANSACTION 'ME31L' USING gt_bdcdata MODE gw_s UPDATE 'S' MESSAGES INTO gt_messtab.
+    CALL FUNCTION 'CONVERT_BDCMSGCOLL_TO_BAPIRET2'
+      TABLES
+        imt_bdcmsgcoll = gt_messtab[]
+        ext_return     = gt_sa_return[].
+    LOOP AT gt_sa_return INTO gi_sa_return.
+      PERFORM format_message.
+      IF gi_sa_return-type = 'S' AND gi_sa_return-id = '06' AND gi_sa_return-number = '017'.
+        gw_ebeln = gi_sa_return-message_v2(10).
+      ENDIF.
+      PERFORM create_sa_msg_populate.
+    ENDLOOP.
+    READ TABLE gt_sa_return WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+    IF sy-subrc IS NOT INITIAL.
+      READ TABLE gt_sa_return WITH KEY type = 'A' TRANSPORTING NO FIELDS.
+      IF sy-subrc IS NOT INITIAL.
+        PERFORM create_update_sl USING gw_ebeln gc_ebelp.
+      ENDIF.
+    ENDIF.
+*    ENDIF.  "Change by 503187592 CHG0191538 DE3K9A0BIO
+  ELSE.
+    CLEAR: gi_sa_head,
+           gi_sa_headx,
+           gi_sa_item,
+           gi_sa_itemx.
+
+    REFRESH: gt_sa_item[],
+             gt_sa_itemx[],
+             gt_sa_return[].
+
+    gi_sa_head-doc_type = 'ZLU'.
+    gi_sa_headx-doc_type = 'X'.
+    gi_sa_head-comp_code = gi_validmats-bukrs.
+    gi_sa_headx-comp_code = 'X'.
+    gi_sa_head-doc_date = sy-datum.
+    gi_sa_headx-doc_date = 'X'.
+    gi_sa_head-purch_org = gw_ekorg.
+    gi_sa_headx-purch_org = 'X'.
+    gi_sa_head-vper_start = gw_beg_datum.
+    gi_sa_headx-vper_start = 'X'.
+    gi_sa_head-vper_end = gw_end_datum.
+    gi_sa_headx-vper_end = 'X'.
+    gi_sa_head-pur_group = gi_validmats-ekgrp.
+    gi_sa_headx-pur_group = 'X'.
+    gi_sa_head-vendor = gi_t001w-lifnr.
+    gi_sa_headx-vendor = 'X'.
+
+**Begin of changes by USVICHI on 04.08.2022 - DE3K9A0F1V
+    CLEAR gi_lfm1.
+    READ TABLE gt_lfm1 INTO gi_lfm1 WITH KEY lifnr = gi_sa_head-vendor
+                                             ekorg = gi_sa_head-purch_org
+                                             BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_sa_head-currency  = gi_lfm1-waers.
+      gi_sa_headx-currency = abap_true.
+    ENDIF.
+**End of changes by USVICHI on 04.08.2022 - DE3K9A0F1V
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    CLEAR gi_t001.
+*    READ TABLE gt_t001 INTO gi_t001 WITH KEY bukrs = gi_validmats-bukrs
+*                                             BINARY SEARCH.
+*    IF sy-subrc IS INITIAL.
+*      gi_sa_head-currency = gi_t001-waers.
+*      gi_sa_headx-currency = 'X'.
+*    ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+
+    gi_sa_item-item_no = 10.
+    gi_sa_itemx-item_no = 10.
+    gi_sa_itemx-item_nox = 'X'.
+    gi_sa_item-plant = gp_plant.
+    gi_sa_itemx-plant = 'X'.
+    gi_sa_item-ematerial = gi_validmats-matnr.
+    gi_sa_itemx-ematerial = 'X'.
+
+    CLEAR: gi_ztuhcd1.
+    READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY zkey = 'ZLU' field = 'KTMNG' index_no = 1.
+    IF sy-subrc IS INITIAL.
+      gi_sa_item-target_qty = gi_ztuhcd1-low.
+      gi_sa_itemx-target_qty = 'X'.
+    ENDIF.
+
+    gi_sa_item-gr_basediv = 'X'.
+    gi_sa_itemx-gr_basediv = 'X'.
+    gi_sa_item-stge_loc = gi_validmats-lgfsb.
+    gi_sa_itemx-stge_loc = 'X'.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    gi_sa_item-plan_del = gi_validmats-plifz.
+    gi_sa_item-plan_del = gi_pdt-zplifz.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    gi_sa_itemx-plan_del = 'X'.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    gi_sa_item-firm_zone = gi_validmats-plifz.
+    gi_sa_item-firm_zone = gw_etfz1.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    gi_sa_itemx-firm_zone = 'X'.
+    gi_sa_item-gr_pr_time = gi_validmats-webaz.
+    gi_sa_itemx-gr_pr_time = 'X'.
+    gi_sa_item-net_weight = gi_validmats-ntgew.
+    gi_sa_itemx-net_weight = 'X'.
+    gi_sa_item-gross_wt = gi_validmats-brgew.
+    gi_sa_itemx-gross_wt = 'X'.
+    gi_sa_item-weightunit = gi_validmats-gewei.
+    gi_sa_itemx-weightunit = 'X'.
+    gi_sa_item-volume = gi_validmats-volum.
+    gi_sa_itemx-volume = 'X'.
+    gi_sa_item-volumeunit = gi_validmats-voleh.
+    gi_sa_itemx-volumeunit = 'X'.
+***Begin of changes by USVICHI on 01.11.2022 DE3K9A0GZK
+** Commented the below logic
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    gi_sa_item-incoterms1 = gi_lfm1-inco1.
+*    gi_sa_itemx-incoterms1 = 'X'.
+*    gi_sa_item-incoterms2 = gi_lfm1-inco2.
+*    gi_sa_itemx-incoterms2 = 'X'.
+    gi_sa_item-suppl_stloc = gw_spl.
+    gi_sa_itemx-suppl_stloc = 'X'.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+***End of changes by USVICHI on 01.11.2022 DE3K9A0GZK
+    APPEND gi_sa_item TO gt_sa_item.
+    APPEND gi_sa_itemx TO gt_sa_itemx.
+
+    CALL FUNCTION 'BAPI_SAG_CREATE'
+      EXPORTING
+        header             = gi_sa_head
+        headerx            = gi_sa_headx
+*       VENDOR_ADDRESS     =
+*       HEAD_EXPORT_IMPORT =
+*       HEAD_EXPORT_IMPORTX   =
+*       testrun            = 'X'
+*       TECHNICAL_DATA     =
+      IMPORTING
+        purchasingdocument = gw_ebeln
+*       exp_header         =
+      TABLES
+        return             = gt_sa_return
+        item               = gt_sa_item
+        itemx              = gt_sa_itemx
+*       ACCOUNT            =
+*       ACCOUNTPROFITSEGMENT  =
+*       ACCOUNTX           =
+*       SCHEDULE           =
+*       SCHEDULEX          =
+*       SC_COMPONENT       =
+*       SC_COMPONENTX      =
+*       SHIPPING           =
+*       SHIPPINGX          =
+*       SHIPPING_EXP       =
+*       DELIVERY_ADDRESS   =
+*       ITEM_COND_VALIDITY =
+*       ITEM_COND_VALIDITYX   =
+*       ITEM_CONDITION     =
+*       ITEM_CONDITIONX    =
+*       ITEM_COND_SCALE_VALUE =
+*       ITEM_COND_SCALE_QUAN  =
+*       EXPORT_IMPORT      =
+*       EXPORT_IMPORTX     =
+*       ITEM_TEXT          =
+*       HEADER_TEXT        =
+*       HEAD_COND_VALIDITY =
+*       HEAD_COND_VALIDITYX   =
+*       HEAD_CONDITION     =
+*       HEAD_CONDITIONX    =
+*       HEAD_COND_SCALE_VAL   =
+*       HEAD_COND_SCALE_QUAN  =
+*       PARTNER            =
+*       PARTNERX           =
+*       EXTENSIONIN        =
+*       EXTENSIONOUT       =
+      .
+
+    LOOP AT gt_sa_return INTO gi_sa_return.
+      PERFORM format_message.
+      PERFORM create_sa_msg_populate.
+    ENDLOOP.
+
+    READ TABLE gt_sa_return WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+    IF sy-subrc IS NOT INITIAL.
+      READ TABLE gt_sa_return WITH KEY type = 'A' TRANSPORTING NO FIELDS.
+      IF sy-subrc IS NOT INITIAL.
+        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+          EXPORTING
+            wait = 'X'.
+        PERFORM create_update_sl USING gw_ebeln gc_ebelp.
+      ELSE.
+        CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'
+*               IMPORTING
+*                 RETURN        =
+          .
+      ENDIF.
+    ELSE.
+      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'
+*               IMPORTING
+*                 RETURN        =
+        .
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " CREATE_SA
+
+*&---------------------------------------------------------------------*
+*&      Form  reduce_sa
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM reduce_sa .
+  IF gi_validmats-bukrs NE gw_bukrs.
+    REFRESH: gt_bdcdata[],
+             gt_messtab[],
+             gt_sa_return[].
+** Begin of changes by USPRADI JE3K905258 on 24.02.2022
+    DATA: lv_datum TYPE sy-datum.
+** End of changes by USPRADI JE3K905258 on 24.02.2022
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0205'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'RM06E-EVRTN'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM bdc_field       USING 'RM06E-EVRTN'
+                                  gi_schagr-ebeln.
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0220'.
+    IF gi_schagr-menge IS NOT INITIAL. "Change by 503187592 CHG0191538 DE3K9A0BIO
+      PERFORM bdc_field       USING 'BDC_CURSOR'
+                                    'EKPO-KTMNG(01)'.
+      PERFORM bdc_field       USING 'BDC_OKCODE'
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*                                  '=BU'.
+                                    '=KOPF'.
+      PERFORM bdc_dynpro      USING 'SAPMM06E' '0201'.
+** Begin of changes by USPRADI JE3K905258 on 24.02.2022
+      lv_datum = sy-datum - 1.
+** End of changes by USPRADI JE3K905258 on 24.02.2022
+      CLEAR gw_agr_date.
+      CALL FUNCTION 'CONVERSION_EXIT_PDATE_OUTPUT'
+        EXPORTING
+** Begin of changes by USPRADI JE3K905258 on 24.02.2022
+*         input  = sy-datum
+          input  = lv_datum
+** End of changes by USPRADI JE3K905258 on 24.02.2022
+        IMPORTING
+          output = gw_agr_date.
+      PERFORM bdc_field       USING 'EKKO-KDATE' gw_agr_date.
+      PERFORM bdc_field       USING 'BDC_OKCODE' '=AB'.
+      PERFORM bdc_dynpro      USING 'SAPMM06E' '0220'.
+*    PERFORM bdc_field       USING 'RM06E-EBELP'
+*                                  gi_schagr-ebelp.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+
+      CLEAR gw_ktmng.
+      WRITE gi_schagr-menge TO gw_ktmng DECIMALS 0.
+      PERFORM bdc_field       USING 'EKPO-KTMNG(01)'
+                                    gw_ktmng.
+      PERFORM bdc_field       USING 'BDC_OKCODE' '=BU'.  "Change by 503187592 CHG0191538 DE3K9A0BIO
+      PERFORM bdc_dynpro      USING 'SAPLSPO1' '0300'.
+      PERFORM bdc_field       USING 'BDC_OKCODE'
+                                    '=YES'.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+    ELSE.
+      PERFORM bdc_field       USING 'BDC_OKCODE'
+                                    '=DL'.
+      PERFORM bdc_field       USING 'RM06E-TCSELFLAG(01)'
+                                    'X'.
+      PERFORM bdc_dynpro      USING 'SAPMM06E' '0220'.
+      PERFORM bdc_field       USING 'BDC_OKCODE'
+                                    '=BU'.
+    ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    gw_s = 'N'.
+*perform bdc_transaction using 'ME31L'.
+    CALL TRANSACTION 'ME32L' USING gt_bdcdata MODE gw_s UPDATE 'S' MESSAGES INTO gt_messtab.
+    CALL FUNCTION 'CONVERT_BDCMSGCOLL_TO_BAPIRET2'
+      TABLES
+        imt_bdcmsgcoll = gt_messtab[]
+        ext_return     = gt_sa_return[].
+    LOOP AT gt_sa_return INTO gi_sa_return.
+      PERFORM format_message.
+      PERFORM reduce_sa_msg_populate.
+    ENDLOOP.
+  ELSE.
+    CLEAR: gi_sa_head,
+           gi_sa_headx,
+           gi_sa_item,
+           gi_sa_itemx.
+
+    REFRESH: gt_sa_item[],
+             gt_sa_itemx[],
+             gt_sa_return[].
+
+    gi_sa_head-number = gi_schagr-ebeln.
+    gi_sa_headx-number = 'X'.
+***Begin changes by 503187592 CHG0191538 DE3K9A0BIO
+    IF gi_schagr-menge IS NOT INITIAL.
+** Begin of changes by USPRADI JE3K905258 on 24.02.2022
+      lv_datum = sy-datum - 1.
+      gi_sa_head-vper_end = lv_datum.
+*      gi_sa_head-vper_end = sy-datum.
+** End of changes by USPRADI JE3K905258 on 24.02.2022
+      gi_sa_headx-vper_end = 'X'.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      gi_sa_item-item_no = gi_schagr-ebelp.
+      gi_sa_item-material = gi_schagr-matnr.
+      gi_sa_item-target_qty = gi_schagr-menge.
+      APPEND gi_sa_item TO gt_sa_item.
+
+      gi_sa_itemx-item_no   = gi_schagr-ebelp.
+      gi_sa_itemx-item_nox  = 'X'.
+      gi_sa_itemx-material  = 'X'.
+      gi_sa_itemx-target_qty = 'X'.
+      APPEND gi_sa_itemx TO gt_sa_itemx.
+***Begin changes by 503187592 CHG0191538 DE3K9A0BIO
+    ELSE.
+      gi_sa_item-item_no = gi_schagr-ebelp.
+      gi_sa_item-delete_ind = 'X'.
+      APPEND gi_sa_item TO gt_sa_item.
+
+      gi_sa_itemx-item_no   = gi_schagr-ebelp.
+      gi_sa_itemx-item_nox  = 'X'.
+      gi_sa_itemx-delete_ind  = 'X'.
+      APPEND gi_sa_itemx TO gt_sa_itemx.
+    ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    PERFORM call_change_sa_bapi.
+    LOOP AT gt_sa_return INTO gi_sa_return.
+      PERFORM format_message.
+      PERFORM reduce_sa_msg_populate.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.                    " reduce_sa
+
+
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_SA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM update_sa .
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*  IF gi_validmats-bukrs NE gw_bukrs.
+  IF gi_validmats-bukrs NE gw_bukrs AND gw_spl = 'X'.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    REFRESH: gt_bdcdata[],
+             gt_messtab[],
+             gt_sa_return[].
+
+    CLEAR: gw_dec,
+           gw_gew.
+
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0205'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                                  'RM06E-EVRTN'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM bdc_field       USING 'RM06E-EVRTN'
+                                  gi_schagr-ebeln.
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0220'.
+*Start of Change DE3K9A0SXT by USPRRAJ1
+*" Added the changes to remove the Update Info Record from scheduling agreement
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                              'EKPO-TXZ01(01)'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '=DETA'.
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0211'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                              'EKPO-SPINF'.
+    PERFORM bdc_field       USING 'EKPO-SPINF'
+                                   abap_false.
+*" Added the code changes to check if the Indicator: Unlimited Overdelivery Allowed is checked or not
+*" if it is checked we have to update it in the scheduling aggrement along with the Underdelivery Tolerance Limit
+*" and Overdelivery Tolerance Limit.
+    IF gi_validmats-uebtk NE gi_schagr-uebtk.
+      PERFORM bdc_field       USING 'EKPO-UEBTK'
+                              gi_validmats-uebtk.
+    ENDIF.
+    IF gi_validmats-untto NE gi_schagr-untto.
+      CONDENSE gi_validmats-untto.
+      PERFORM bdc_field       USING 'EKPO-UNTTO'
+                              gi_validmats-untto.
+    ENDIF.
+    IF gi_validmats-uebto NE gi_schagr-uebto.
+      CONDENSE gi_validmats-uebto.
+      PERFORM bdc_field       USING 'EKPO-UEBTO'
+                               gi_validmats-uebto.
+    ENDIF.
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0220'.
+*End Of Change DE3K9A0SXT by USPRRAJ1
+    PERFORM bdc_field       USING 'BDC_CURSOR'
+                               'EKPO-EMATN(01)'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '=DETZ'.
+    PERFORM bdc_field       USING 'RM06E-EBELP'
+                                  gi_schagr-ebelp.
+    PERFORM bdc_dynpro      USING 'SAPMM06E' '0212'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'
+                                  '=BU'.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    IF gi_validmats-plifz NE gi_schagr-plifz.
+    IF gi_pdt-zplifz NE gi_schagr-plifz.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      CLEAR gw_dec.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      WRITE gi_validmats-plifz TO gw_dec.
+      WRITE gi_pdt-zplifz TO gw_dec.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      PERFORM bdc_field       USING 'BDC_CURSOR'
+                              'EKPO-PLIFZ'.
+      PERFORM bdc_field       USING 'EKPO-PLIFZ'
+                                    gw_dec.
+    ENDIF.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    IF gi_validmats-plifz NE gi_schagr-etfz1.
+    IF gw_etfz1 NE gi_schagr-etfz1.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      CLEAR gw_dec.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      WRITE gi_validmats-plifz TO gw_dec.
+      WRITE gw_etfz1 TO gw_dec.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      PERFORM bdc_field       USING 'BDC_CURSOR'
+                              'EKPO-ETFZ1'.
+      PERFORM bdc_field       USING 'EKPO-ETFZ1'
+                                    gw_dec.
+    ENDIF.
+    IF gi_validmats-webaz NE gi_schagr-webaz.
+      CLEAR gw_dec.
+      WRITE gi_validmats-webaz TO gw_dec.
+      PERFORM bdc_field       USING 'BDC_CURSOR'
+                           'EKPO-WEBAZ'.
+      PERFORM bdc_field       USING 'EKPO-WEBAZ'
+                                    gw_dec.
+    ENDIF.
+    IF gi_validmats-ntgew NE gi_schagr-ntgew.
+      CLEAR gw_gew.
+      WRITE gi_validmats-ntgew TO gw_gew.
+      PERFORM bdc_field       USING 'BDC_CURSOR'
+                           'EKPO-NTGEW'.
+      PERFORM bdc_field       USING 'EKPO-NTGEW'
+                                    gw_gew.
+    ENDIF.
+    IF gi_validmats-brgew NE gi_schagr-brgew.
+      CLEAR gw_gew.
+      WRITE gi_validmats-brgew TO gw_gew.
+      PERFORM bdc_field       USING 'BDC_CURSOR'
+                     'EKPO-BRGEW'.
+      PERFORM bdc_field       USING 'EKPO-BRGEW'
+                                    gw_gew.
+    ENDIF.
+    IF gi_validmats-volum NE gi_schagr-volum.
+      CLEAR gw_gew.
+      WRITE gi_validmats-volum TO gw_gew.
+      PERFORM bdc_field       USING 'BDC_CURSOR'
+                     'EKPO-VOLUM'.
+      PERFORM bdc_field       USING 'EKPO-VOLUM'
+                                    gw_gew.
+    ENDIF.
+    IF gi_validmats-gewei NE gi_schagr-gewei.
+      PERFORM bdc_field       USING 'BDC_CURSOR'
+                     'EKPO-GEWEI'.
+      PERFORM bdc_field       USING 'EKPO-GEWEI'
+                                    gi_validmats-gewei.
+    ENDIF.
+    IF gi_validmats-voleh NE gi_schagr-voleh.
+      PERFORM bdc_field       USING 'BDC_CURSOR'
+                     'EKPO-VOLEH'.
+      PERFORM bdc_field       USING 'EKPO-VOLEH'
+                                    gi_validmats-voleh.
+    ENDIF.
+    gw_s = 'N'.
+*perform bdc_transaction using 'ME32L'.
+    IF gw_dec IS NOT INITIAL OR gw_gew IS NOT INITIAL OR gi_validmats-voleh NE gi_schagr-voleh
+                                           OR gi_validmats-gewei NE gi_schagr-gewei
+*Start of Change DE3K9A0SXT by USPRRAJ1
+*" to update the SA if the Info record value is not initial or if the overdelivery tolerance limit and under delivery tolerance limit values are not equal or and comparing the value of indicatoris same in SA and at material level
+                                           OR gi_schagr-spinf IS NOT INITIAL
+                                           OR gi_validmats-uebtk NE gi_schagr-uebtk
+                                           OR gi_validmats-untto NE gi_schagr-untto
+                                           OR gi_validmats-uebto NE gi_schagr-uebto.
+*End of Change DE3K9A0SXT by USPRRAJ1
+      CALL TRANSACTION 'ME32L' USING gt_bdcdata MODE gw_s UPDATE 'S' MESSAGES INTO gt_messtab.
+      CALL FUNCTION 'CONVERT_BDCMSGCOLL_TO_BAPIRET2'
+        TABLES
+          imt_bdcmsgcoll = gt_messtab[]
+          ext_return     = gt_sa_return[].
+      LOOP AT gt_sa_return INTO gi_sa_return.
+        PERFORM format_message.
+        PERFORM update_sa_validate_populate USING gi_sa_return-type gw_message.
+      ENDLOOP.
+      READ TABLE gt_sa_return WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+      IF sy-subrc IS NOT INITIAL.
+        READ TABLE gt_sa_return WITH KEY type = 'A' TRANSPORTING NO FIELDS.
+        IF sy-subrc IS NOT INITIAL.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+            EXPORTING
+              wait = 'X'.
+*          PERFORM create_update_sl USING gi_schagr-ebeln gi_schagr-ebelp. " Commented by USSHSAT1 TR DE3K9A0MHR on 25/08/2023
+        ENDIF.
+      ENDIF.
+    ELSE.
+      CLEAR gw_message.
+      gw_message = 'VALIDATION: Data in SA is up-to-date hence update is not required'(006).
+      PERFORM update_sa_validate_populate USING 'I' gw_message.
+*      PERFORM create_update_sl USING gi_schagr-ebeln gi_schagr-ebelp.  " Commented by USSHSAT1 TR DE3K9A0MHR on 25/08/2023
+    ENDIF.
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*  ELSE.
+  ELSEIF gi_validmats-bukrs = gw_bukrs.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+    CLEAR: gi_sa_head,
+           gi_sa_headx,
+           gi_sa_item,
+           gi_sa_itemx.
+
+    REFRESH: gt_sa_item[],
+             gt_sa_itemx[],
+             gt_sa_return[].
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    IF gi_validmats-plifz NE gi_schagr-plifz.
+*      gi_sa_item-plan_del = gi_validmats-plifz.
+    IF gi_pdt-zplifz NE gi_schagr-plifz.
+      gi_sa_item-plan_del = gi_pdt-zplifz.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      gi_sa_itemx-plan_del = 'X'.
+    ENDIF.
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*    IF gi_validmats-plifz NE gi_schagr-etfz1.
+*      gi_sa_item-firm_zone = gi_validmats-plifz.
+    IF gw_etfz1 NE gi_schagr-etfz1.
+      gi_sa_item-firm_zone = gw_etfz1.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+      gi_sa_itemx-firm_zone = 'X'.
+    ENDIF.
+
+    IF gi_validmats-webaz NE gi_schagr-webaz.
+      gi_sa_item-gr_pr_time = gi_validmats-webaz.
+      gi_sa_itemx-gr_pr_time = 'X'.
+    ENDIF.
+
+    IF gi_validmats-ntgew NE gi_schagr-ntgew.
+      gi_sa_item-net_weight = gi_validmats-ntgew.
+      gi_sa_itemx-net_weight = 'X'.
+    ENDIF.
+
+    IF gi_validmats-brgew NE gi_schagr-brgew.
+      gi_sa_item-gross_wt = gi_validmats-brgew.
+      gi_sa_itemx-gross_wt = 'X'.
+    ENDIF.
+
+    IF gi_validmats-volum NE gi_schagr-volum.
+      gi_sa_item-volume = gi_validmats-volum.
+      gi_sa_itemx-volume = 'X'.
+    ENDIF.
+
+    IF gi_validmats-gewei NE gi_schagr-gewei.
+      gi_sa_item-weightunit = gi_validmats-gewei.
+      gi_sa_itemx-weightunit = 'X'.
+    ENDIF.
+
+    IF gi_validmats-voleh NE gi_schagr-voleh.
+      gi_sa_item-volumeunit = gi_validmats-voleh.
+      gi_sa_itemx-volumeunit = 'X'.
+    ENDIF.
+
+    IF gi_sa_item IS NOT INITIAL.
+      gi_sa_head-number = gi_schagr-ebeln.
+      gi_sa_headx-number = 'X'.
+
+      gi_sa_item-item_no = gi_schagr-ebelp.
+      gi_sa_item-material = gi_schagr-matnr.
+      APPEND gi_sa_item TO gt_sa_item.
+
+      gi_sa_itemx-item_no   = gi_schagr-ebelp.
+      gi_sa_itemx-item_nox  = 'X'.
+      gi_sa_itemx-material  = 'X'.
+      APPEND gi_sa_itemx TO gt_sa_itemx.
+      PERFORM call_change_sa_bapi.
+      LOOP AT gt_sa_return INTO gi_sa_return.
+        PERFORM format_message.
+        PERFORM update_sa_validate_populate USING gi_sa_return-type gw_message.
+      ENDLOOP.
+      READ TABLE gt_sa_return WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+      IF sy-subrc IS NOT INITIAL.
+        READ TABLE gt_sa_return WITH KEY type = 'A' TRANSPORTING NO FIELDS.
+        IF sy-subrc IS NOT INITIAL.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+            EXPORTING
+              wait = 'X'.
+*          PERFORM create_update_sl USING gi_schagr-ebeln gi_schagr-ebelp. " Commented by USSHSAT1 TR DE3K9A0MHR on 25/08/2023
+        ENDIF.
+      ENDIF.
+    ELSE.
+      CLEAR gw_message.
+      gw_message = 'VALIDATION: Data in SA is up-to-date hence update is not required'(006).
+      PERFORM update_sa_validate_populate USING 'I' gw_message.
+*      PERFORM create_update_sl USING gi_schagr-ebeln gi_schagr-ebelp. " Commented by USSHSAT1 TR DE3K9A0MHR on 25/08/2023
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " UPDATE_SA
+
+*&---------------------------------------------------------------------*
+*&      Form  FETCH_HARDCODE_ENTRIES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fetch_hardcode_entries.
+  DATA lt_plants TYPE STANDARD TABLE OF ty_plants.
+  CLEAR : gi_ztuhcd1.
+  REFRESH: gt_ztuhcd1,
+           gt_plants.
+  gi_ztuhcd1-name = 'ZRMM_SASL_CREATION_MAINTENANCE'.
+  APPEND gi_ztuhcd1 TO gt_ztuhcd1.
+
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+    LOOP AT gt_ztuhcd1 INTO gi_ztuhcd1 WHERE field = 'WERKS'.
+      REFRESH lt_plants.
+      SPLIT gi_ztuhcd1-low AT '|' INTO TABLE lt_plants.
+      APPEND LINES OF lt_plants TO gt_plants.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.                    " FETCH_HARDCODE_ENTRIES
+
+*****----------------------------------------------------------------------*
+*        Start new screen                                              *
+*----------------------------------------------------------------------*
+FORM bdc_dynpro USING program dynpro.
+  CLEAR gi_bdcdata.
+  gi_bdcdata-program  = program.
+  gi_bdcdata-dynpro   = dynpro.
+  gi_bdcdata-dynbegin = 'X'.
+  APPEND gi_bdcdata TO gt_bdcdata.
+ENDFORM.                    "BDC_DYNPRO
+
+*----------------------------------------------------------------------*
+*        Insert field                                                  *
+*----------------------------------------------------------------------*
+FORM bdc_field USING fnam fval.
+  CLEAR gi_bdcdata.
+  gi_bdcdata-fnam = fnam.
+  gi_bdcdata-fval = fval.
+  APPEND gi_bdcdata TO gt_bdcdata.
+ENDFORM.                    "BDC_FIELD
+
+
+*&---------------------------------------------------------------------*
+*&      Form  create_update_sl
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_update_sl USING p_ebeln p_ebelp.
+  REFRESH: gt_bdcdata[],
+           gt_messtab[],
+           gt_sa_return[].
+
+  PERFORM bdc_dynpro      USING 'SAPLMEOR' '0200'.
+  PERFORM bdc_field       USING 'BDC_CURSOR'
+                                'EORD-WERKS'.
+  PERFORM bdc_field       USING 'BDC_OKCODE'
+                                '/00'.
+  PERFORM bdc_field       USING 'EORD-MATNR'
+                                gi_validmats-matnr.
+  PERFORM bdc_field       USING 'EORD-WERKS'
+                                gp_plant.
+  PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+  PERFORM bdc_field       USING 'BDC_CURSOR'
+                                'EORD-AUTET(01)'.
+  PERFORM bdc_field       USING 'BDC_OKCODE'
+                                '/00'.
+  PERFORM bdc_field       USING 'EORD-VDATU(01)'
+                                 gw_beg_date.
+  PERFORM bdc_field       USING 'EORD-BDATU(01)'
+                                gw_end_date.
+  PERFORM bdc_field       USING 'EORD-EBELN(01)'
+                                p_ebeln.
+  PERFORM bdc_field       USING 'EORD-EBELP(01)'
+                                p_ebelp.
+  PERFORM bdc_field       USING 'EORD-RESWK(01)'
+                                gi_validmats-wrk02.
+  CLEAR gi_t001w.
+  READ TABLE gt_t001w INTO gi_t001w WITH KEY werks = gi_validmats-wrk02
+                                             BINARY SEARCH.
+  IF sy-subrc IS INITIAL.
+    PERFORM bdc_field       USING 'EORD-LIFNR(01)'
+                                  gi_t001w-lifnr.
+  ENDIF.
+  PERFORM bdc_field       USING 'EORD-EKORG(01)'
+                                gw_ekorg.
+  PERFORM bdc_field       USING 'RM06W-FESKZ(01)'
+                                 'X'.
+  PERFORM bdc_field       USING 'EORD-NOTKZ(01)'
+                                 ' '.
+  PERFORM bdc_field       USING 'EORD-AUTET(01)'
+                                '2'.
+  PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+  PERFORM bdc_field       USING 'BDC_CURSOR'
+                                'EORD-AUTET(01)'.
+  PERFORM bdc_field       USING 'BDC_OKCODE'
+                                '=BU'.
+  gw_s = 'N'.
+  CALL TRANSACTION 'ME01' USING gt_bdcdata MODE gw_s UPDATE 'S' MESSAGES INTO gt_messtab.
+  CALL FUNCTION 'CONVERT_BDCMSGCOLL_TO_BAPIRET2'
+    TABLES
+      imt_bdcmsgcoll = gt_messtab[]
+      ext_return     = gt_sa_return[].
+
+  LOOP AT gt_sa_return INTO gi_sa_return.
+    PERFORM format_message.
+
+    CLEAR gi_output.
+    gi_output-operation = 'CRT_UPD_SL'(007).
+    gi_output-msgtype = gi_sa_return-type.
+    gi_output-matnr = gi_validmats-matnr.
+    gi_output-suplant = gi_validmats-wrk02.
+    gi_output-purgrp = gi_validmats-ekgrp.
+    gi_output-supcoco = gi_validmats-bukrs.
+    gi_output-sa = gi_schagr-ebeln.
+    gi_output-saitem = gi_schagr-ebelp.
+    gi_output-satype = gi_schagr-bsart.
+    gi_output-msg = gw_message.
+    APPEND gi_output TO gt_output.
+  ENDLOOP.
+ENDFORM.                    " create_update_sl
+
+*&---------------------------------------------------------------------*
+*&      Form  FETCH_INITIAL_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fetch_initial_data.
+  TYPES: BEGIN OF ty_satypes,
+           bsart TYPE bsart,
+         END OF ty_satypes.
+
+  DATA: li_satypes      TYPE ty_satypes,
+        lt_satypes      TYPE STANDARD TABLE OF ty_satypes,
+        lt_satypes_copy TYPE STANDARD TABLE OF ty_satypes,
+        li_bsart        LIKE LINE OF gr_bsart.
+
+
+  REFRESH lt_satypes.
+  LOOP AT gt_ztuhcd1 INTO gi_ztuhcd1 WHERE field = 'BSART'.
+    REFRESH lt_satypes_copy.
+    SPLIT gi_ztuhcd1-low AT '|' INTO TABLE lt_satypes_copy.
+    APPEND LINES OF lt_satypes_copy TO lt_satypes.
+  ENDLOOP.
+
+  LOOP AT lt_satypes INTO li_satypes.
+    li_bsart-sign = 'I'.
+    li_bsart-option = 'EQ'.
+    li_bsart-low = li_satypes-bsart.
+    APPEND li_bsart TO gr_bsart.
+    CLEAR li_bsart.
+  ENDLOOP.
+
+  CLEAR gw_bukrs.
+  SELECT SINGLE bukrs
+                FROM t001k
+                INTO gw_bukrs
+                WHERE bwkey = gp_plant.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE s070 WITH TEXT-038 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+  CLEAR gw_ekorg.
+  SELECT SINGLE ekorg
+                FROM t024w
+                INTO gw_ekorg
+                WHERE werks = gp_plant.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE s070 WITH TEXT-039 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+  CLEAR: gi_ztuhcd1,
+         gw_end_datum,
+         gw_end_date.
+  READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY field = 'KDATE' index_no = 1.
+  IF sy-subrc IS INITIAL.
+    gw_end_datum = gi_ztuhcd1-low.
+    CALL FUNCTION 'CONVERSION_EXIT_PDATE_OUTPUT'
+      EXPORTING
+        input  = gw_end_datum
+      IMPORTING
+        output = gw_end_date.
+  ENDIF.
+
+  CLEAR: gi_ztuhcd1,
+         gw_beg_datum,
+         gw_beg_date.
+  READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY field = 'KDATB' index_no = 1.
+  IF sy-subrc IS INITIAL.
+    gw_beg_datum = sy-datum - gi_ztuhcd1-low.
+    CALL FUNCTION 'CONVERSION_EXIT_PDATE_OUTPUT'
+      EXPORTING
+        input  = gw_beg_datum
+      IMPORTING
+        output = gw_beg_date.
+  ENDIF.
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+  CLEAR: gi_ztuhcd1,
+         gw_etfz1.
+  READ TABLE gt_ztuhcd1 INTO gi_ztuhcd1 WITH KEY field = 'ETFZ1' index_no = 1.
+  IF sy-subrc IS INITIAL.
+    gw_etfz1 = gi_ztuhcd1-low.
+  ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+ENDFORM.                    " FETCH_INITIAL_DATA
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+**&---------------------------------------------------------------------*
+**&      Form  VALIDATE_PRICING
+**&---------------------------------------------------------------------*
+**       text
+**----------------------------------------------------------------------*
+**  -->  p1        text
+**  <--  p2        text
+**----------------------------------------------------------------------*
+*FORM validate_pricing.
+*  gw_pricing = 'X'.
+*  CLEAR gi_output.
+*  gi_output-operation = 'CREATE_SA'(002).
+*  gi_output-msgtype = 'E'.
+*  gi_output-matnr = gi_validmats-matnr.
+*  gi_output-suplant = gi_validmats-wrk02.
+*  gi_output-purgrp = gi_validmats-ekgrp.
+*  gi_output-supcoco = gi_validmats-bukrs.
+*  gi_output-sa = gi_schagr-ebeln.
+*  gi_output-saitem = gi_schagr-ebelp.
+*  gi_output-satype = gi_schagr-bsart.
+*  gi_output-msg = 'VALIDATION: Maintain pricing in condtion records'(001).
+*  APPEND gi_output TO gt_output.
+*ENDFORM.                    " VALIDATE_PRICING
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_SA_VALIDATE_POPULATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM update_sa_validate_populate USING p_msgtype TYPE c
+                              p_message TYPE bapi_msg.
+  CLEAR gi_output.
+  gi_output-operation = 'UPDATE_SA'(005).
+  gi_output-msgtype = p_msgtype.
+  gi_output-matnr = gi_validmats-matnr.
+  gi_output-suplant = gi_validmats-wrk02.
+  gi_output-purgrp = gi_validmats-ekgrp.
+  gi_output-supcoco = gi_validmats-bukrs.
+  gi_output-sa = gi_schagr-ebeln.
+  gi_output-saitem = gi_schagr-ebelp.
+  gi_output-satype = gi_schagr-bsart.
+  gi_output-msg = p_message.
+  APPEND gi_output TO gt_output.
+ENDFORM.                    " UPDATE_SA_VALIDATE_POPULATE
+
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_SA_MSG_POPULATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_sa_msg_populate.
+  CLEAR gi_output.
+  gi_output-operation = 'CREATE_SA'(009).
+  gi_output-msgtype = gi_sa_return-type.
+  gi_output-matnr = gi_validmats-matnr.
+  gi_output-suplant = gi_validmats-wrk02.
+  gi_output-purgrp = gi_validmats-ekgrp.
+  gi_output-supcoco = gi_validmats-bukrs.
+  gi_output-sa = gi_schagr-ebeln.
+  gi_output-saitem = gi_schagr-ebelp.
+  gi_output-satype = gi_schagr-bsart.
+  IF gw_s IS NOT INITIAL AND gw_ebeln IS NOT INITIAL.
+    gi_output-satype = gc_zlp.
+  ELSEIF gw_s IS INITIAL AND gw_ebeln IS NOT INITIAL.
+    gi_output-satype = gc_zlu.
+  ENDIF.
+  gi_output-msg = gw_message.
+  APPEND gi_output TO gt_output.
+ENDFORM.                    " CREATE_SA_MSG_POPULATE
+
+*&---------------------------------------------------------------------*
+*&      Form  FORMAT_MESSAGE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM format_message .
+  CLEAR: gw_message.
+  CALL FUNCTION 'BAPI_MESSAGE_GETDETAIL'
+    EXPORTING
+      id         = gi_sa_return-id
+      number     = gi_sa_return-number
+      language   = sy-langu
+      textformat = space
+*     LINKPATTERN  =
+      message_v1 = gi_sa_return-message_v1
+      message_v2 = gi_sa_return-message_v2
+      message_v3 = gi_sa_return-message_v3
+      message_v4 = gi_sa_return-message_v4
+*     LANGUAGE_ISO =
+    IMPORTING
+      message    = gw_message.
+ENDFORM.                    " FORMAT_MESSAGE
+
+*&---------------------------------------------------------------------*
+*&      Form  REDUCE_SA_MSG_POPULATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM reduce_sa_msg_populate .
+  CLEAR gi_output.
+  gi_output-operation = 'REDUCE_SA'(008).
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+  IF gi_schagr-menge IS INITIAL.
+    gi_output-operation = 'REDUCE_SA_NO_SCHDLN_QTY'(001).
+  ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+  gi_output-msgtype = gi_sa_return-type.
+  gi_output-matnr = gi_validmats-matnr.
+  gi_output-suplant = gi_validmats-wrk02.
+  gi_output-purgrp = gi_validmats-ekgrp.
+  gi_output-supcoco = gi_validmats-bukrs.
+  gi_output-sa = gi_schagr-ebeln.
+  gi_output-saitem = gi_schagr-ebelp.
+  gi_output-satype = gi_schagr-bsart.
+  gi_output-msg = gw_message.
+  APPEND gi_output TO gt_output.
+ENDFORM.                    " REDUCE_SA_MSG_POPULATE
+
+*&---------------------------------------------------------------------*
+*&      Form  CALL_CHANGE_SA_BAPI
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM call_change_sa_bapi .
+  CALL FUNCTION 'BAPI_SAG_CHANGE'
+    EXPORTING
+      purchasingdocument = gi_schagr-ebeln
+      header             = gi_sa_head
+      headerx            = gi_sa_headx
+*     VENDOR_ADDRESS     =
+*     HEAD_EXPORT_IMPORT =
+*     HEAD_EXPORT_IMPORTX          =
+*     TESTRUN            =
+*     TECHNICAL_DATA     =
+* IMPORTING
+*     EXP_HEADER         =
+*     EXP_HEAD_EXPORT_IMPORT       =
+    TABLES
+      return             = gt_sa_return[]
+      item               = gt_sa_item[]
+      itemx              = gt_sa_itemx[]
+*     ACCOUNT            =
+*     ACCOUNTPROFITSEGMENT         =
+*     ACCOUNTX           =
+*     SCHEDULE           =
+*     SCHEDULEX          =
+*     SC_COMPONENT       =
+*     SC_COMPONENTX      =
+*     SHIPPING           =
+*     SHIPPINGX          =
+*     SHIPPING_EXP       =
+*     DELIVERY_ADDRESS   =
+*     ITEM_COND_VALIDITY =
+*     ITEM_COND_VALIDITYX          =
+*     ITEM_CONDITION     =
+*     ITEM_CONDITIONX    =
+*     ITEM_COND_SCALE_VALUE        =
+*     ITEM_COND_SCALE_QUAN         =
+*     EXPORT_IMPORT      =
+*     EXPORT_IMPORTX     =
+*     ITEM_TEXT          =
+*     HEADER_TEXT        =
+*     HEAD_COND_VALIDITY =
+*     HEAD_COND_VALIDITYX          =
+*     HEAD_CONDITION     =
+*     HEAD_CONDITIONX    =
+*     HEAD_COND_SCALE_VAL          =
+*     HEAD_COND_SCALE_QUAN         =
+*     PARTNER            =
+*     PARTNERX           =
+*     EXTENSIONIN        =
+*     EXTENSIONOUT       =
+    .
+ENDFORM.                    " CALL_CHANGE_SA_BAPI
+
+*&---------------------------------------------------------------------*
+*&      Form  F4_SPK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_spk USING p_dynprofield TYPE dynfnam.
+  DATA: li_dynpvals TYPE dynpread,
+        lt_dynpvals TYPE STANDARD TABLE OF dynpread,
+        lt_spk      TYPE STANDARD TABLE OF ty_spk,
+        lt_spk1     TYPE STANDARD TABLE OF ty_spk1, "Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+        lt_spk2     TYPE STANDARD TABLE OF ty_spk1, "Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+        lw_spk2     TYPE  ty_spk1, "Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+        lw_spk1     TYPE  ty_spk1, "Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+        lw_spk      TYPE  ty_spk. "Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+
+  REFRESH lt_dynpvals.
+  CLEAR li_dynpvals.
+  li_dynpvals-fieldname = 'GP_PLANT'.
+  APPEND li_dynpvals TO lt_dynpvals.
+
+  CALL FUNCTION 'DYNP_VALUES_READ'
+    EXPORTING
+      dyname               = sy-cprog
+      dynumb               = sy-dynnr
+      translate_to_upper   = 'X'
+    TABLES
+      dynpfields           = lt_dynpvals
+    EXCEPTIONS
+      invalid_abapworkarea = 1
+      invalid_dynprofield  = 2
+      invalid_dynproname   = 3
+      invalid_dynpronummer = 4
+      invalid_request      = 5
+      no_fielddescription  = 6
+      invalid_parameter    = 7
+      undefind_error       = 8
+      double_conversion    = 9
+      stepl_not_found      = 10
+      OTHERS               = 11.
+  IF sy-subrc = 0.
+    CLEAR li_dynpvals.
+    READ TABLE lt_dynpvals INTO li_dynpvals INDEX 1.
+    IF sy-subrc IS INITIAL.
+***BOC by Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+      REFRESH lt_spk.
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*      SELECT sobsl
+*             FROM t460a
+*             INTO TABLE lt_spk
+*             WHERE werks = li_dynpvals-fieldvalue.
+      lt_spk = gt_spk.
+      DELETE lt_spk WHERE werks NE li_dynpvals-fieldvalue OR sobes NE gc_7.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+
+      REFRESH lt_spk1.
+      SELECT sobsl
+             ltext
+      FROM t460t
+      INTO TABLE lt_spk1
+      WHERE spras = sy-langu
+        AND werks = li_dynpvals-fieldvalue.
+
+      REFRESH lt_spk2. "Change by 503187592 CHG0191538 DE3K9A0BIO
+      LOOP AT lt_spk INTO lw_spk.
+        READ TABLE lt_spk1 INTO lw_spk1 WITH KEY sobsl = lw_spk-sobsl.
+        IF sy-subrc IS INITIAL.
+          APPEND lw_spk1 TO lt_spk2.
+          CLEAR : lw_spk1.
+        ELSE.
+          lw_spk2-sobsl = lw_spk-sobsl.
+          APPEND lw_spk2 TO lt_spk2.
+        ENDIF.
+        CLEAR : lw_spk, lw_spk2.
+      ENDLOOP.
+***EOC by Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+      IF sy-subrc IS INITIAL.
+        CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+          EXPORTING
+            retfield        = 'SOBSL'
+            dynpprog        = sy-repid
+            dynpnr          = sy-dynnr
+            dynprofield     = p_dynprofield "'GS_SOBSL-LOW'
+            window_title    = 'Special Procurment Keys'(037)
+            value_org       = 'S'
+          TABLES
+*           value_tab       = lt_spk "Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+            value_tab       = lt_spk2 "Jatin|DE3K9A07SQ|CHG015849|USJAAGG|08.06.2021
+          EXCEPTIONS
+            parameter_error = 1
+            no_values_found = 2
+            OTHERS          = 3.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " F4_SPK
+
+*&---------------------------------------------------------------------*
+*&      Form  F4_PLANT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f4_plant .
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'WERKS'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GP_PLANT'
+      window_title    = 'SELECT A PLANT'(030)
+      value_org       = 'S'
+    TABLES
+      value_tab       = gt_plants
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+ENDFORM.                    " F4_PLANT
+
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_SELECTION_SCREEN
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_selection_screen .
+  DATA: lt_spk TYPE STANDARD TABLE OF ty_spk. "Change by 503187592 CHG0191538 DE3K9A0BIO
+
+  READ TABLE gt_plants WITH KEY werks = gp_plant TRANSPORTING NO FIELDS.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE e070 WITH TEXT-032.
+  ENDIF.
+
+  CLEAR gw_matnr.
+  SELECT SINGLE matnr
+                FROM mara
+                INTO gw_matnr
+                WHERE matnr IN gs_matnr.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE e070 WITH TEXT-033.
+  ENDIF.
+
+  CLEAR gw_ekgrp.
+  SELECT SINGLE ekgrp
+                FROM t024
+                INTO gw_ekgrp
+                WHERE ekgrp IN gs_ekgrp.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE e070 WITH TEXT-034.
+  ENDIF.
+
+  CLEAR gw_dispo.
+  SELECT SINGLE dispo
+                FROM t024d
+                INTO gw_dispo
+                WHERE werks = gp_plant AND
+                      dispo IN gs_dispo.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE e070 WITH TEXT-035.
+  ENDIF.
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*  CLEAR gw_sobsl.
+*  SELECT SINGLE sobsl
+*                FROM t460a
+*                INTO gw_sobsl
+*                WHERE werks = gp_plant AND
+*                      sobsl IN gs_sobsl.
+*  IF sy-subrc IS NOT INITIAL.
+*    MESSAGE e070 WITH text-036.
+*  ENDIF.
+
+  REFRESH lt_spk.
+  lt_spk = gt_spk.
+  DELETE lt_spk WHERE werks NE gp_plant OR sobes NE gc_7.
+  LOOP AT lt_spk INTO gi_spk.
+    IF gi_spk-sobsl NOT IN gs_sobsl.
+      DELETE lt_spk INDEX sy-tabix.
+    ENDIF.
+  ENDLOOP.
+  IF lt_spk IS INITIAL.
+    MESSAGE e070 WITH TEXT-036.
+  ENDIF.
+
+  CLEAR gw_mmsta.
+  SELECT SINGLE mmsta
+                FROM t141
+                INTO gw_mmsta
+                WHERE mmsta IN gs_mmsta.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE e070 WITH 'Enter valid Plant-sp.matl status'(040).
+  ENDIF.
+
+  CLEAR gw_mmsta.
+  SELECT SINGLE mmsta
+                FROM t141
+                INTO gw_mmsta
+                WHERE mmsta IN gs_mstae.
+  IF sy-subrc IS NOT INITIAL.
+    MESSAGE e070 WITH 'Enter valid X-plant matl status'(041).
+  ENDIF.
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+ENDFORM.                    " VALIDATE_SELECTION_SCREEN
+
+***Begin of changes by 503187592 CHG0191538 DE3K9A0BIO
+*&---------------------------------------------------------------------*
+*&      Form  FETCH_SPK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM fetch_spk .
+  IF gt_plants[] IS NOT INITIAL.
+    REFRESH gt_spk.
+    SELECT werks
+           sobsl           sobes
+           addin
+           FROM t460a
+           INTO TABLE gt_spk
+           FOR ALL ENTRIES IN gt_plants
+           WHERE werks = gt_plants-werks
+           .
+    IF sy-subrc IS INITIAL.
+      SORT gt_spk BY werks sobsl.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " FETCH_SPK
+
+*&---------------------------------------------------------------------*
+*&      Form  SEND_MAIL_FOR_MULTI
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM send_mail_for_multi .
+  DATA: lw_filename       TYPE string,
+        lo_result_data    TYPE REF TO cl_salv_ex_result_data_table,
+        lo_data           TYPE REF TO data,
+        lw_version        TYPE string,
+        lw_file_type      TYPE salv_bs_constant,
+        lw_flavour        TYPE string,
+        lw_contents_line  TYPE xstring,
+        lt_obj_bin        TYPE solix_tab,
+        lt_binary_content TYPE solix_tab,
+        lt_att_head       TYPE soli_tab,
+        li_text_line      TYPE soli,
+        lw_i              TYPE sood-objlen,
+        lw_sub            TYPE so_obj_des,
+        lw_text           TYPE so_text255,
+        lw_att            TYPE so_obj_des,
+        lw_count          TYPE so_obj_len,
+        lo_send_request   TYPE REF TO cl_bcs,
+        lt_main_text      TYPE bcsy_text,
+        li_fieldcat       TYPE lvc_s_fcat,
+        lt_fldcat         TYPE STANDARD TABLE OF lvc_s_fcat,
+        lo_document       TYPE REF TO cl_document_bcs,
+        lo_recipient      TYPE REF TO if_recipient_bcs,
+        lo_sender         TYPE REF TO cl_sapuser_bcs,
+        lw_sent_to_all    TYPE os_boolean,
+        lo_bcs_exception  TYPE REF TO cx_bcs.
+
+  CONSTANTS: lc_xlsx(5)      TYPE c  VALUE '.XLSX'.
+
+  lw_text = 'Found multiple scheduling agreements / multiple line as per attachment.'(043).
+  APPEND lw_text TO lt_main_text.
+  APPEND INITIAL LINE TO lt_main_text.
+  lw_text = 'Need action.'(044).
+  APPEND lw_text TO lt_main_text.
+  APPEND INITIAL LINE TO lt_main_text.
+  lw_text = 'SA Creation Program.'(045).
+  APPEND lw_text TO lt_main_text.
+
+  li_fieldcat-fieldname = 'MATNR'.     "Fieldname
+  li_fieldcat-reptext   = 'Material'(013).     "Column text
+  APPEND li_fieldcat TO lt_fldcat.
+  FREE li_fieldcat.
+
+  li_fieldcat-fieldname = 'WRK02'.     "Fieldname
+  li_fieldcat-reptext   = 'Supplying Plant'(017).     "Column text
+  APPEND li_fieldcat TO lt_fldcat.
+  FREE li_fieldcat.
+
+  li_fieldcat-fieldname = 'WERKS'.     "Fieldname
+  li_fieldcat-reptext   = 'Receiving Plant'(047).     "Column text
+  APPEND li_fieldcat TO lt_fldcat.
+  FREE li_fieldcat.
+
+  li_fieldcat-fieldname = 'EBELN'.     "Fieldname
+  li_fieldcat-reptext   = 'SA Number'(048).     "Column text
+  APPEND li_fieldcat TO lt_fldcat.
+  FREE li_fieldcat.
+
+  li_fieldcat-fieldname = 'EBELP'.     "Fieldname
+  li_fieldcat-reptext   = 'SA Line'(049). "Column text
+  APPEND li_fieldcat TO lt_fldcat.
+  FREE li_fieldcat.
+
+  li_fieldcat-fieldname = 'MULTI'.     "Fieldname
+  li_fieldcat-reptext   = 'Multiple SAs for material'(050). "Column text
+  APPEND li_fieldcat TO lt_fldcat.
+  FREE li_fieldcat.
+
+  li_fieldcat-fieldname = 'MULTITM'.     "Fieldname
+  li_fieldcat-reptext   = 'Multiple lines for SA'(051). "Column text
+  APPEND li_fieldcat TO lt_fldcat.
+  FREE li_fieldcat.
+
+  TRY.
+*     -------- create persistent send request ------------------------
+      lo_send_request = cl_bcs=>create_persistent( ).
+
+      lw_count = 255.
+      CLEAR lw_sub.
+      lw_sub = 'Alert—Multiple agreements / multiple lines found – need action'(046).
+
+*     -------- create and set document with attachment ---------------
+      lo_document = cl_document_bcs=>create_document(
+                      i_type    = 'RAW'    " Type of data
+                      i_text    = lt_main_text     " Email body text
+                      i_length  = lw_count     " String length of email body
+                      i_subject = lw_sub ).
+
+      GET REFERENCE OF gt_atch_rec[] INTO lo_data.
+      CLEAR: lo_result_data.
+      lo_result_data =
+      cl_salv_ex_util=>factory_result_data_table(
+           r_data                      = lo_data " internal table data reference
+           t_fieldcatalog              = lt_fldcat"field cat
+       ).
+* get the version from Abstract Super Class for All Transformations
+      CLEAR: lw_version.
+      lw_version = cl_salv_bs_a_xml_base=>get_version( ).
+* Get the file Type
+*     value 10 for XLSX file type
+      CLEAR: lw_file_type.
+      lw_file_type = if_salv_bs_xml=>c_type_xlsx.
+* Get the flavour export
+*      Flavor for Complete ALV XML
+      CLEAR: lw_flavour.
+      lw_flavour = if_salv_bs_c_tt=>c_tt_xml_flavour_export.
+* Transformation of data to XSTRING
+      CLEAR: lw_contents_line.
+      CALL METHOD cl_salv_bs_tt_util=>if_salv_bs_tt_util~transform
+        EXPORTING
+          xml_type      = lw_file_type
+          xml_version   = lw_version
+          r_result_data = lo_result_data
+          xml_flavour   = lw_flavour
+          gui_type      = if_salv_bs_xml=>c_gui_type_gui
+        IMPORTING
+          xml           = lw_contents_line.
+
+
+*  Converting the table contents from xstring to binary
+      CLEAR lt_obj_bin.
+      CALL FUNCTION 'SCMS_XSTRING_TO_BINARY'
+        EXPORTING
+          buffer     = lw_contents_line
+*        IMPORTING
+*         output_length = l_count1
+        TABLES
+          binary_tab = lt_obj_bin.
+      APPEND LINES OF lt_obj_bin TO lt_binary_content.
+* Four character file extension '.XLSX' is set
+
+      CONCATENATE 'SA Creation mail alert'(053) lc_xlsx INTO lw_att.
+
+      lw_filename = lw_att. " provide the extension in file name
+* You can set a file name with a freely selectable file name extension
+* separately from the document description. For this, use the header table
+* of the document or the attachment with the key word '&SO_FILENAME='.
+      CONCATENATE '&SO_FILENAME='
+                  lw_filename
+                  INTO
+                  li_text_line.
+      APPEND li_text_line TO lt_att_head.
+
+*Calculate the xstring length
+      lw_i = xstrlen( lw_contents_line ).
+* Create the attachment reference.
+      CALL METHOD lo_document->add_attachment
+        EXPORTING
+          i_attachment_type    = 'BIN' " type of data
+          i_attachment_subject = lw_att "'File with deleted materials'
+          i_attachment_size    = lw_i   " XTRING length of lw_contents_line
+          i_att_content_hex    = lt_binary_content
+          i_attachment_header  = lt_att_head. "file details
+
+*     add document to send request
+      CALL METHOD lo_send_request->set_document( lo_document ).
+
+      lo_sender = cl_sapuser_bcs=>create( sy-uname ).
+      CALL METHOD lo_send_request->set_sender
+        EXPORTING
+          i_sender = lo_sender.
+
+
+*     --------- add recipient (e-mail address) -----------------------
+*     create recipient object
+      lo_recipient = cl_cam_address_bcs=>create_internet_address( gp_mail ).
+
+*     add recipient object to send request
+      lo_send_request->add_recipient(
+      EXPORTING
+     i_recipient = lo_recipient
+     i_express = 'X' ).
+
+*     ---------- send document ---------------------------------------
+      lw_sent_to_all = lo_send_request->send( i_with_error_screen = 'X' ).
+
+      COMMIT WORK.
+*   ------------ exception handling ----------------------------------
+*   replace this rudimentary exception handling with your own one !!!
+    CATCH cx_bcs INTO lo_bcs_exception.
+      MESSAGE i865(so) WITH lo_bcs_exception->error_type.
+  ENDTRY.
+ENDFORM.                    " SEND_MAIL_FOR_MULTI
+***End of changes by 503187592 CHG0191538 DE3K9A0BIO
+

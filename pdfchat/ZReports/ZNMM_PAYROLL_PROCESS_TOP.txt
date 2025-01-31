@@ -1,0 +1,335 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_PAYROLL_PROCESS_TOP
+*&---------------------------------------------------------------------*
+
+TYPES : BEGIN OF ty_t001w,
+        werks TYPE werks_d,"plant
+        END OF ty_t001w.
+
+TYPES : BEGIN OF ty_aufk,
+        aufnr TYPE aufnr, "Order number
+        END OF ty_aufk.
+
+TYPES: BEGIN OF ty_afko,
+        aufnr TYPE  aufnr,
+        plnbez TYPE matnr,
+        dispo TYPE  co_dispo,
+        aufpl TYPE  co_aufpl,
+        rueck TYPE  rueck,
+        zaehl TYPE  cim_count,"for rmghl
+      END OF ty_afko.
+*Start of modifications by Durga CHG0479115 DE3K943364
+TYPES: BEGIN OF ty_afvv,
+        aufpl TYPE  co_aufpl,
+        aplzl TYPE  co_aplzl,  "Added by Vijay Kumar N CHG1937301 DE3K970478 18/03/2016
+        vge01 TYPE  vgwrteh,
+        vgw01 TYPE  vgwrt,
+        vge03 TYPE  vgwrteh,
+        vgw03 TYPE  vgwrt,
+        bmsch	TYPE  bmsch, " Changes done by 502287934 for incident INC4848952 DE3K951367 on 09.10.2014
+      END OF ty_afvv.
+*End of modifications by Durga CHG0479115 DE3K943364
+
+TYPES: BEGIN OF ty_afru,
+        aufnr(12) TYPE c,"aufnr, "added by vivekkumar
+        ersda TYPE ru_ersda,
+        iedz TYPE  ru_iedz,
+        aufpl TYPE co_aufpl,
+        rueck TYPE co_rueck,
+        rmzhl TYPE co_rmzhl,
+        ltxa1 TYPE co_rtext,
+        ile01 TYPE afru-ile01, "unit
+        ile03 TYPE afru-ile03, "unit
+        lmnga TYPE afru-lmnga,
+        xmnga TYPE afru-xmnga,
+        pernr TYPE afru-pernr,
+        smeng TYPE afru-smeng,
+        ism01 TYPE afru-ism01, "quant
+        ism03 TYPE afru-ism03, " quat
+        ismnw type afru-ismnw, "Changes done by USSACHI4 17/08/2021 DE3K9A098A CHG0179586
+        vornr TYPE afru-vornr,
+        werks TYPE afru-werks,
+        grund TYPE afru-grund,"502347739 DE3K954624  INC5350239 on 12.11.2014
+        END OF ty_afru.
+
+TYPES: BEGIN OF ty_afvc,
+        aufpl TYPE co_aufpl,
+        vornr TYPE vornr,
+        arbid TYPE afvc-arbid,
+        ltxa1 TYPE ltxa1,
+*        rueck TYPE rueck,
+        rueck TYPE co_rueck,
+      END OF ty_afvc.
+TYPES: BEGIN OF ty_afpo,
+        aufnr TYPE aufnr,
+        matnr TYPE matnr,
+      END OF ty_afpo.
+
+TYPES: BEGIN OF ty_crhd,
+        objid TYPE objid," Object ID of the resource
+        arbpl TYPE arbpl, " Work center
+      END OF ty_crhd.
+
+TYPES: BEGIN OF ty_afru_vali,
+        ersda TYPE ru_ersda,
+      END OF ty_afru_vali.
+
+TYPES : BEGIN OF t_output,
+            ersda TYPE char10,"ru_ersda," DE3K939125 added by vivek
+            iedz  TYPE char08,"ru_iedz,"iedz, " Confirmation time
+            dispo TYPE dispo, "MRP controller
+            zlclid TYPE zlclid, " Local code
+            plnbez TYPE matnr, "Material
+            aufnr(12) TYPE c,"aufnr,   "Order number
+            vornr TYPE vornr,   " Operation number
+            arbpl TYPE arbpl,   " Work center
+            gmnga TYPE i,
+            xmnga TYPE i,
+            total TYPE i,
+            werks TYPE werks,"NR
+            ism01 TYPE ru_ismng, " Routing setup
+            ile01 TYPE co_ismngeh, " UOM
+            ism03 TYPE ru_ismng,  " Routing labor
+            ile03 TYPE co_ismngeh,   " UOM
+            ltxa1(20),
+            pltxa1 TYPE plpo-ltxa1,           " Sri 27/1/05
+       END OF t_output,
+
+*Structure declaration for final internal table text table
+      BEGIN OF t_outputt,
+            ersda(10),   " Confirm date
+            iedz(10),    " Time
+            dispo(10),   " MRP
+            zlclid(40),   " Local materila number
+            plnbez(18),  " material
+            aufnr(12),   " order no
+            pltex(40),   " Operation Description
+            vornr(10),   " Opern
+            plnnr(10),   " ROS Number
+            ktext(20),   " ROS Description
+            arbpl(8),    " Wrk center
+            gmnga(13),   " Good Quantity
+            xmnga(13),   " Scrap Qnty
+            total(13),   " Total Qnty
+            setup(13),   "
+            vge01(5),
+            labor(13),
+            vge03(5),
+            ltxa1(40),
+       END OF t_outputt.
+
+*Structure declration final internal table
+TYPES:    BEGIN OF ty_output1,
+           ersda TYPE char10,"ru_ersda," DE3K939125 added by vivek
+           iedz   TYPE char08,"ru_iedz,"iedz, " Confirmation time 2
+           dispo  TYPE dispo, "MRP controller 3
+           zlclid TYPE zlclid, " Local material number 4
+           plnbez TYPE matnr, "Material 5
+           aufnr(12)  TYPE c," aufnr,   "Order number 6
+           ltxa1  TYPE ltxa1,   " Operation description 7
+           vornr  TYPE vornr,   " Operation number 8
+           arbpl  TYPE arbpl,   " Work center 9
+*Start of modifications by Durga CHG0479115 DE3K943364
+*           lmnga  TYPE afru-lmnga, " Good quantity 10
+*           xmnga  TYPE afru-xmnga, " Scarp quantity 11
+*           smeng  TYPE afru-smeng, " total quantity 12
+           lmnga  TYPE char10, " Good quantity 10
+           xmnga  TYPE char10, " Scarp quantity 11
+           smeng  TYPE char10, " total quantity 12
+*End of modifications by Durga CHG0479115 DE3K943364
+           pernr  TYPE afru-pernr ," Personnel number
+           ism01  TYPE afru-ism01, " Routing setup 14
+           ile01  TYPE afru-ile01, " UOM 15
+           ism03  TYPE afru-ism03,  " Routing labor 16
+           ile03  TYPE afru-ile03,   " UOM 17
+           pltxa1 TYPE ltxa1,  "Confirmation text. 18
+           grund TYPE afru-grund, " Reason 19  502347739 DE3K954624  INC5350239 on 12.11.2014
+      END OF ty_output1.
+
+TYPES : BEGIN OF ty_marc,
+           matnr TYPE matnr,
+           werks TYPE werks,
+           zlclid TYPE zlclid,
+       END OF ty_marc.
+
+TYPES  : BEGIN OF ty_makt,
+            matnr TYPE matnr,
+            maktx TYPE maktx,
+         END OF ty_makt.
+DATA : gt_makt_ds TYPE TABLE OF ty_makt,"ITAB
+       gw_makt_ds TYPE ty_makt."Wa
+
+TYPES: BEGIN OF ty_mara,
+            matnr TYPE matnr,
+            matkl TYPE matkl,
+      END OF ty_mara.
+TYPES:    BEGIN OF ty_outputex_1,
+            ersda TYPE char10,"ru_ersda," DE3K939125 added by vivek
+            iedz  TYPE char08," ru_iedz,"iedz,
+            dispo TYPE dispo,
+            zlclid TYPE zlclid,
+            plnbez TYPE matnr,
+            maktx  TYPE maktx,
+            matkl  TYPE matkl,
+            aufnr(13) TYPE c,"aufnr, "added
+            ltxa1 TYPE ltxa1,
+            vornr TYPE vornr,
+            arbpl TYPE arbpl,
+            lmnga TYPE lmnga,
+            xmnga TYPE xmnga,
+            smeng TYPE smeng,
+            ism01 TYPE ru_ismng,
+            ile01 TYPE co_ismngeh,
+            ism03 TYPE ru_ismng,
+            ile03 TYPE co_ismngeh,
+            pltxa1 TYPE ltxa1,
+            pernr TYPE pernr,
+            grund TYPE afru-grund, " Reason  502347739 DE3K954624  INC5350239 on 12.11.2014
+       END OF ty_outputex_1.
+*Structure declration for excel download text title when option2
+TYPES:   BEGIN OF ty_outputt_1,
+            ersda(18),   " Confirm date
+            iedz(08),    " Time
+            dispo(14),   " MRP
+            zlclid(40), "Local material number
+*            plnbez(08),  " material " Commented by 502283763 for INC4848952 CHG0845630 DE3K948040
+            plnbez(18),  " material  " Add by 502283763 for INC4848952 CHG0845630 DE3K948040
+            maktx(20),   "material description
+            matkl(14),    "material group
+            aufnr(15),   " order no " 12
+            ltxa1(40),   " Operation Description
+            vornr(16),   " Opern
+            arbpl(18),    " Work center
+            lmnga(13),   " Good Quantity
+            xmnga(17),   " Scrap Qnty
+            smeng(14),   " Total Qnty
+            ism01(18),   " Routing setup
+            ile01(15),    " UOM
+            ism03(14),   " Routing labor
+            ile03(15),    " UOM
+            pltxa1(40),   " COnfirmation text
+            pernr(16),    " Personnel number
+            grund(6),   " Reason 502347739 DE3K954624  INC5350239 on 12.11.2014
+  END OF ty_outputt_1.
+
+TYPES :     BEGIN OF ty_outputex,
+            ersda TYPE char10, "ru_ersda," DE3K939125 added by vivek
+            iedz  TYPE char08,"ru_iedz," iedz,
+            dispo TYPE dispo,
+            zlclid TYPE zlclid,
+            plnbez TYPE matnr,
+            aufnr(12) TYPE c,"aufnr,
+            ltxa1 TYPE ltxa1,
+            vornr TYPE vornr,
+            arbpl TYPE arbpl,
+            lmnga TYPE gmnga,
+            xmnga TYPE xmnga,
+            smeng TYPE xmnga,
+            ism01 TYPE ru_ismng,
+            ile01 TYPE co_ismngeh,
+            ism03 TYPE ru_ismng,
+            ile03 TYPE co_ismngeh,
+            pltxa1 TYPE ltxa1,
+            pernr  TYPE pernr,"Personnel number
+            grund TYPE afru-grund, "Reason 502347739 DE3K954624  INC5350239 on 12.11.2014
+       END OF ty_outputex.
+
+TYPES : BEGIN OF ty_outputt,
+            ersda(18),   " Confirm date
+            iedz(08),    " Time
+            dispo(14),   " MRP
+            zlclid(40),   " Local materila number
+            plnbez(08),  " material
+            aufnr(12),   " order no
+            ltxa1(40),   " Operation Description
+            vornr(16),   " Opern
+            arbpl(18),    " Wrk center
+            lmnga(13),   " Good Quantity
+            xmnga(17),   " Scrap Qnty
+            smeng(14),   " Total Qnty
+            ism01(18),   "
+            ile01(15),
+            ism03(14),
+            ile03(15),
+            pltxa1(40),
+            pernr(16),"Personnel number
+            grund(6), " Reason 502347739 DE3K954624  INC5350239 on 12.11.2014
+       END OF ty_outputt.
+CONSTANTS gc_hr_ds TYPE afru-ile01 VALUE 'H'.
+CONSTANTS gc1_std_ds TYPE afru-ile01 VALUE 'HR'.
+*Begin of CR#CHG2435524   by 502683007 on Jan-19-2017
+CONSTANTS : gc_name(25) TYPE c VALUE 'ZRMM_PAYROLL_PROCESS' ,
+            gc_key(4)              TYPE c          VALUE 'MILE',
+            gc_field(5)            TYPE c          VALUE 'SMI'.
+*End of CR#CHG2435524   by 502683007 on Jan-19-2017
+
+DATA : gt_t001w_ds TYPE TABLE OF ty_t001w,
+       gw_hr_ds TYPE afru-ile01 VALUE 'H',
+       gw_ism01_ds TYPE afru-ism01,
+       gw_ism01_ds1 TYPE afru-ism01,
+       gw_check(1),
+       gw_ism03_ds TYPE afru-ism03,
+       gw_ism03_ds1 TYPE afru-ism03,
+       gw_afru_out_ds TYPE char02,
+       gt_aufk_ds  TYPE TABLE OF ty_aufk,
+       gw_aufk_ds  TYPE ty_aufk,
+       gt_afko_ds TYPE TABLE OF ty_afko,
+       gw_afko_ds TYPE ty_afko,
+       gt_afru_ds TYPE TABLE OF ty_afru,
+       gt_afru_ds1 TYPE TABLE OF ty_afru,
+       gw_afru_ds TYPE ty_afru,
+       gw_afru_ds1 TYPE ty_afru,
+       gw_afru TYPE afru-ersda,
+       gw_t001w TYPE t001w-werks,
+       gt_afvc_ds TYPE TABLE OF ty_afvc,
+       gw_afvc_ds TYPE ty_afvc,
+       gt_afvv_ds TYPE TABLE OF ty_afvv,
+       gw_afvv_ds TYPE ty_afvv,
+       gt_afvv_ds1 TYPE TABLE OF ty_afvv,
+       gw_afvv_ds1 TYPE ty_afvv,
+       gt_afpo_ds TYPE TABLE OF ty_afpo,
+       gw_afpo_ds TYPE ty_afpo,
+       gt_crhd_ds TYPE TABLE OF ty_crhd,
+       gw_crhd_ds TYPE ty_crhd,
+       gt_afru_val_ds TYPE TABLE OF ty_afru_vali,
+       gw_output TYPE t_output,
+       gw_outputt_ds TYPE ty_outputt,
+       gt_outputt_ds TYPE TABLE OF ty_outputt,
+       gw_outputt TYPE t_outputt,
+       gw_afru_val_ds TYPE afru.
+DATA  gw_output1_ds TYPE ty_output1.
+DATA  gt_output1_ds TYPE TABLE OF ty_output1.
+DATA : gt_marc_ds TYPE TABLE OF ty_marc,
+       gw_marc_ds TYPE ty_marc.
+*structure declration for Material Descriptions
+DATA : gt_mara_ds TYPE TABLE OF ty_mara,"ITAB
+       gw_mara_ds TYPE ty_mara."Wa
+DATA : gt_outputex_1_ds TYPE TABLE OF ty_outputex_1,
+       gw_outputex_1_ds TYPE ty_outputex_1.
+DATA : gw_outputt_1_ds TYPE ty_outputt_1,"WA
+       gt_outputt_1_ds TYPE TABLE OF ty_outputt_1."ITAB
+DATA :gw_outputex_ds TYPE ty_outputex,"Wa
+      gt_outputex_ds TYPE TABLE OF ty_outputex."ITAB
+DATA : gi_ztuhcd1_ds  TYPE ztuhcd1,
+       gt_ztuhcd1_ds  TYPE TABLE OF ztuhcd1,
+       gc_payroll_ds  TYPE char30 VALUE 'ZRMM_PAYROLL_PROCESS',
+       gw_tabix TYPE sy-tabix."n
+DATA : gv_year TYPE char04,
+       gv_month TYPE char02,
+       gv_date TYPE char02.
+
+DATA lv_date TYPE sy-datum.
+DATA p_date TYPE sy-datum.
+DATA : gv_hour TYPE char02,
+       gv_mins TYPE char02,
+       gv_sec  TYPE char02.
+DATA lv_time TYPE sy-uzeit.
+DATA gv_final_time TYPE char08.
+FIELD-SYMBOLS <fs_output1_ds> TYPE ty_output1.
+***************************  Code started by 502287934 for incident no INC4848952  DE3K951367 on 09.10.2014********************************
+DATA : w_temp   TYPE    vgwrt.
+DATA : w_temp1  TYPE    vgwrt.
+***************************  Code ended by 502287934 for incident no INC4848952  DE3K951367 on 09.10.2014***********************************
+*FORMULA TO CONVERT 1 MILE INTO HOURS IS : 1*1609.345/60/60 = 0.447040278 HR.
+DATA gc_mile TYPE p DECIMALS 6 VALUE '0.447040' .                            "CR#CHG2435524 by 502683007 on Jan-19-2017
+

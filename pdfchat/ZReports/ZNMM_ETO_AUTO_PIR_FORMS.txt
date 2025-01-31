@@ -1,0 +1,3213 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_ETO_AUTO_PIR_FORMS
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_ETO_AUTO_PIR_FORMS
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+***INCLUDE ZNMM_AUTO_PIR_SL_FORMS .
+*----------------------------------------------------------------------*
+***------------------------------------------------------------------***
+*** Change History                                                  ***
+*************************************************************************
+************************************************************************
+* DATE               | CR No.          |CHANGED BY |DESCRIPTION OF CHANGE
+*************************************************************************
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_PR_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_pr_data .
+
+  TYPES : BEGIN OF ty_mat,
+          matnr TYPE matnr,
+          END OF ty_mat.
+  DATA:lt_mat TYPE TABLE OF ty_mat,
+       lw_date TYPE datum.
+  DATA: gr_msgno TYPE RANGE OF msgno,
+        gi_msgno LIKE LINE OF gr_msgno.
+
+  SELECT matnr FROM ztpp_na_bom_inf
+    INTO TABLE lt_mat
+    WHERE
+    srcsyst IN p_system
+    AND vbeln IN p_sorder
+    AND posnr  IN p_item
+    AND matnr  IN s_mat
+    AND werks_ext IN s_werks
+*    AND   msgno IN ('029','012')
+    AND   rec_insert_date IN s_rdate.
+  IF sy-subrc EQ 0.
+    SELECT matnr
+                 werks
+                 ekgrp FROM marc
+                       INTO TABLE gt_marc
+                       FOR ALL ENTRIES IN lt_mat
+                       WHERE matnr EQ lt_mat-matnr
+                        AND  werks EQ s_werks-low
+                        AND  ekgrp IN s_ekgrp
+                        AND  mmsta EQ 'IN'.
+
+    IF sy-subrc EQ 0.
+
+      SELECT  matnr
+              bismt
+              meins
+              bstme
+              prdha FROM mara
+                    INTO TABLE gt_mara
+                    FOR ALL ENTRIES IN gt_marc
+                    WHERE matnr EQ gt_marc-matnr
+                    AND   prdha IN gr_prdha4.
+
+      IF sy-subrc EQ 0.
+        SORT   gt_mara BY matnr.
+        LOOP AT gt_mara INTO gi_mara.
+
+          ls_matnr-low = gi_mara-matnr.
+          ls_matnr-option = 'EQ'.
+          ls_matnr-sign   = 'I'.
+
+          APPEND ls_matnr TO s_matnr..
+
+          gi_pr_list-matnr = gi_mara-matnr.
+          gi_pr_list-werks = s_werks-low.
+
+          APPEND gi_pr_list TO gt_pr_list.
+
+          CLEAR : ls_matnr , gi_mara,gi_pr_list.
+
+        ENDLOOP.
+      ENDIF.
+
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " GET_PR_DATA
+*&---------------------------------------------------------------------*
+*&      Form  TEMPLATE_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM template_data .
+
+  IF NOT s_werks IS INITIAL.
+
+    SELECT werks
+           ekorg FROM t024w
+                 INTO TABLE gt_t024w
+                 WHERE werks EQ s_werks-low.
+    IF sy-subrc EQ 0.
+      SORT gt_t024w BY werks.
+    ENDIF.
+
+  ENDIF.
+
+
+  LOOP AT gt_t024w INTO gi_t024w.
+
+    gw_ekorg-sign = gc_i.
+    gw_ekorg-option = gc_eq.
+    gw_ekorg-low = gi_t024w-ekorg.
+
+    APPEND gw_ekorg TO gr_ekorg.
+
+    CLEAR : gw_ekorg , gi_t024w.
+
+  ENDLOOP.
+
+
+
+  IF  gt_mara IS INITIAL  AND  gt_pr_list IS NOT INITIAL.
+
+    SELECT  matnr
+           bismt
+           meins
+           bstme
+           prdha FROM mara
+                 INTO TABLE gt_mara
+                 FOR ALL ENTRIES IN gt_pr_list
+                 WHERE matnr EQ gt_pr_list-matnr.
+
+    IF sy-subrc EQ 0.
+
+      SORT gt_mara BY matnr.
+
+    ENDIF.
+
+  ENDIF.
+*  DATA : lw_flag5.
+*
+*  CLEAR gr_prdha.
+*  gr_prdha[] = gr_prdha4[].
+***    End for ETO
+*  LOOP AT gt_mara INTO gi_mara.
+*
+*    lw_tab = sy-tabix.
+*    LOOP AT gr_prdha INTO gw_prdha3. ""#EC CI_NESTED commented because we are looping only with few ( curently two) records
+*
+*
+*
+*      CONCATENATE gw_prdha3-low '*' INTO gw_prdha3-low.
+*
+*      IF gi_mara-prdha NP gw_prdha3-low.
+*        lw_flag5 = 'X'.
+*      ELSE.
+*
+*        CLEAR lw_flag5.
+*        EXIT.
+*      ENDIF.
+*
+*      CLEAR :  gw_prdha3.
+*    ENDLOOP.
+*
+*    IF lw_flag5 EQ 'X'.
+*
+*      DELETE gt_mara  INDEX lw_tab.
+*      gi_mess-matnr = gi_mara-matnr.
+*      gi_mess-bismt = gi_mara-bismt.
+*      CONCATENATE 'PR material '(011) gi_mara-matnr 'Product Hierachy Not belongs to ETO'(110) INTO gi_mess-mes SEPARATED BY space.
+*
+*      APPEND gi_mess TO gt_mess.
+*
+*      gi_mess-mes = gi_mara-matnr.
+*
+*    ENDIF.
+*
+*    CLEAR : lw_flag5 , gi_mara , gi_mess.
+*
+*  ENDLOOP.
+*** This IF condition was commented since PR list should be filtered based on product heirarchy in both ATS/EMAX-TMAX cases.
+***Currently it is waorking for ATS scenario only.
+  LOOP AT gt_pr_list INTO gi_pr_list.
+
+    READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_pr_list-matnr BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+
+      APPEND gi_pr_list TO gt_pr_list1.
+    ENDIF.
+
+    CLEAR : gi_pr_list , gi_mara.
+  ENDLOOP.
+
+  gt_pr_list = gt_pr_list1.
+
+
+  IF NOT gt_mara IS INITIAL.
+
+    SELECT infnr
+           matnr
+           lifnr
+           loekz FROM eina
+                 INTO TABLE gt_eina
+                 FOR ALL ENTRIES IN gt_mara
+                 WHERE matnr EQ gt_mara-bismt
+                   AND  loekz NE gc_x.
+
+    IF sy-subrc EQ 0.
+
+      SELECT infnr
+             ekorg
+             esokz
+             werks
+             loekz
+             ekgrp
+             waers
+             minbm
+             norbm
+             mwskz
+             netpr
+             peinh
+             bprme
+             bstae
+               FROM eine
+                   INTO TABLE gt_eine
+                   FOR ALL ENTRIES IN gt_eina
+                   WHERE infnr EQ gt_eina-infnr
+                     AND werks EQ s_werks-low
+                     AND ekorg IN gr_ekorg
+                     AND  loekz NE gc_x.
+
+      IF sy-subrc EQ 0.
+
+        SORT gt_eine BY infnr.
+
+      ENDIF.
+
+    ENDIF.
+
+
+    SELECT matnr
+           werks
+           zeord FROM eord
+                 INTO TABLE gt_eord
+                 FOR ALL ENTRIES IN gt_mara
+                 WHERE matnr EQ gt_mara-matnr
+                  AND werks EQ s_werks-low
+                  AND vdatu LE sy-datum
+                  AND bdatu GE sy-datum.
+    IF sy-subrc EQ 0.
+
+      SORT gt_eord BY matnr werks.
+
+    ENDIF.
+
+  ENDIF.
+
+  IF NOT gt_ebkn IS  INITIAL.
+
+    SELECT vbeln
+           vkorg FROM vbak
+                 INTO TABLE gt_vbak
+                 FOR ALL ENTRIES IN gt_ebkn
+                 WHERE vbeln EQ gt_ebkn-vbeln.
+    IF sy-subrc EQ 0.
+
+      SORT gt_vbak BY vbeln.
+    ENDIF.
+
+  ENDIF.
+
+ENDFORM.                    " TEMPLATE_DATA
+*&---------------------------------------------------------------------*
+*&      Form  FINAL_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM final_data .
+
+  LOOP AT gt_mara INTO gi_mara .
+    MOVE-CORRESPONDING gi_mara TO gi_fin_mat.
+
+    READ TABLE gt_t024w INTO gi_t024w WITH KEY werks = s_werks-low BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+
+      gi_fin_mat-ekorg = gi_t024w-ekorg.
+      gi_fin_mat-werks = s_werks-low.
+      APPEND gi_fin_mat TO gt_fin_mat.
+      CLEAR gi_fin_mat.
+
+    ENDIF.
+  ENDLOOP.
+
+
+  PERFORM emax_comp_price.
+
+  SELECT bwkey
+         bukrs FROM t001k
+               INTO TABLE gt_t001k
+               WHERE bwkey EQ s_werks-low.
+
+  IF sy-subrc EQ 0.
+
+    SELECT bukrs
+           waers FROM t001
+                 INTO TABLE gt_t001
+                 FOR ALL ENTRIES IN gt_t001k
+                 WHERE bukrs EQ gt_t001k-bukrs.
+
+    IF sy-subrc EQ 0.
+
+      SORT gt_t001k BY bwkey.
+      SORT gt_t001 BY  bukrs.
+
+    ENDIF.
+  ENDIF.
+
+  IF NOT gt_mat_temp1 IS INITIAL.
+    SELECT matnr
+           bwkey
+           bwtar
+           pprdl
+           peinh    FROM mbew INTO  TABLE gt_mbew
+                       FOR ALL ENTRIES IN gt_mat_temp1
+                       WHERE matnr EQ gt_mat_temp1-matnr
+                         AND bwkey EQ gt_mat_temp1-werks.
+    IF sy-subrc EQ 0.
+      SORT gt_mbew BY matnr bwkey.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " FINAL_DATA
+*&---------------------------------------------------------------------*
+*&      Form  BCD_ME11_ME01
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM bcd_me11_me01 .
+  IF gt_mat_temp IS NOT INITIAL.
+
+    SELECT matnr
+           werks
+           mmsta
+      FROM marc
+      INTO TABLE gt_marc1
+      FOR ALL ENTRIES IN gt_mat_temp
+      WHERE matnr = gt_mat_temp-matnr.
+
+    IF  sy-subrc = 0.
+      SORT gt_marc1 BY matnr werks.
+
+    ENDIF.
+
+    gw_date2 = sy-datum - gw_days.
+
+    WRITE  gw_date2 TO gw_databi.
+
+    LOOP AT gt_mat_temp INTO gi_mat_temp.
+
+
+      IF  gi_mat_temp-msg1 IS INITIAL.
+        PERFORM bdc_dynpro      USING 'SAPMM06I' '0100'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'EINA-LIFNR'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '/00'.
+        PERFORM bdc_field       USING 'EINA-LIFNR'
+                                      gi_mat_temp-lifnr.
+        PERFORM bdc_field       USING 'EINA-MATNR'
+                                      gi_mat_temp-matnr.
+        PERFORM bdc_field       USING 'EINE-EKORG'
+                                      gi_mat_temp-ekorg.
+        PERFORM bdc_field       USING 'EINE-WERKS'
+                                      gi_mat_temp-werks.
+        PERFORM bdc_field       USING 'RM06I-NORMB'
+                                      'X'.
+        PERFORM bdc_dynpro      USING 'SAPMM06I' '0101'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'EINA-TXZ01'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '/00'.
+        PERFORM bdc_dynpro      USING 'SAPMM06I' '0102'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'EINE-NETPR'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '/00'.
+        PERFORM bdc_field       USING 'EINE-EKGRP'
+                                      gi_mat_temp-ekgrp.
+
+        WRITE gi_mat_temp-norbm TO gw_norbm.
+
+        PERFORM bdc_field       USING 'EINE-NORBM'
+                                      gw_norbm. "gi_mat_temp-norbm.
+
+        PERFORM bdc_field       USING 'EINE-MWSKZ'
+                                      gi_mat_temp-mwskz.
+
+        WRITE gi_mat_temp-netpr TO gw_netpr." CURRENCY
+
+        PERFORM bdc_field       USING 'EINE-NETPR'
+                                      gw_netpr.
+
+        gw_menge = 1.
+        CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+          EXPORTING
+            i_matnr              = gi_mat_temp-matnr
+            i_in_me              = 'EA'
+            i_out_me             = gi_mat_temp-bprme
+            i_menge              = gw_menge
+          IMPORTING
+            e_menge              = gw_menge1
+          EXCEPTIONS
+            error_in_application = 1
+            error                = 2
+            OTHERS               = 3.
+        IF sy-subrc EQ 0.
+          gi_mat_temp-peinh = gi_mat_temp-peinh * gw_menge1.
+        ENDIF.
+
+
+        PERFORM bdc_field       USING 'EINE-PEINH'
+                                     gi_mat_temp-peinh.
+
+        CALL FUNCTION 'CONVERSION_EXIT_CUNIT_OUTPUT'
+          EXPORTING
+            input                = gi_mat_temp-bprme
+           language             = sy-langu
+         IMPORTING
+*           LONG_TEXT            =
+           output               = gi_mat_temp-bprme
+*           SHORT_TEXT           =
+*         EXCEPTIONS
+*           UNIT_NOT_FOUND       = 1
+*           OTHERS               = 2
+                  .
+        IF sy-subrc <> 0.
+* Implement suitable error handling here
+        ENDIF.
+
+
+        PERFORM bdc_field       USING 'EINE-BPRME'
+                                     gi_mat_temp-bprme.
+
+        IF gi_mat_temp-bstae IS NOT INITIAL.
+          PERFORM bdc_field       USING 'EINE-BSTAE'
+                                      gi_mat_temp-bstae.
+        ENDIF.
+
+        PERFORM bdc_dynpro      USING 'SAPMM06I' '0105'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'EINE-INFNR'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '=KO'.
+        PERFORM bdc_dynpro      USING 'SAPMV13A' '0201'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'RV13A-DATBI'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '/00'.
+        PERFORM bdc_dynpro      USING 'SAPMV13A' '0201'.
+        PERFORM bdc_field       USING 'BDC_CURSOR'
+                                      'RV13A-DATAB'.
+        PERFORM bdc_field       USING 'BDC_OKCODE'
+                                      '=SICH'.
+
+        PERFORM bdc_field        USING 'RV13A-DATAB'
+                                 gw_databi.
+        gc_me11 = 'X'.
+        CLEAR gc_me01.
+        PERFORM f1002call_transaction .
+
+        DELETE gt_messtab WHERE  msgtyp = 'W'.
+
+        READ TABLE gt_messtab INTO gi_messtab WITH KEY msgnr = '331'
+                                                       msgid = '06'
+                                                       msgtyp = 'S'.
+        IF sy-subrc EQ 0.
+          PERFORM message_collect CHANGING gi_mat_temp-msg1 .
+          gw_piir = 'X'.
+        ELSE.
+          READ TABLE gt_messtab INTO gi_messtab  INDEX 1.
+          IF sy-subrc EQ 0.
+            PERFORM message_collect CHANGING gi_mat_temp-msg1 .
+          ENDIF.
+        ENDIF.
+
+
+        READ TABLE gt_eord INTO gi_eord WITH KEY matnr = gi_mat_temp-matnr
+                                                 werks = gi_mat_temp-werks BINARY SEARCH.
+        IF sy-subrc EQ 0.
+
+          gi_mat_temp-msg2  = 'Source List already assigned'(006).
+
+        ELSE.
+
+          REFRESH gt_bdcdata.
+          CLEAR  gi_bdcdata.
+
+
+          gw_yy = '9999'.
+          gw_mm =  '12'.
+          gw_dd = '31'.
+          CONCATENATE gw_yy gw_mm gw_dd INTO gw_datab1.
+          CLEAR: gw_yy, gw_mm, gw_dd.
+          WRITE gw_datab1 TO gw_databi1.
+
+
+          PERFORM bdc_dynpro      USING 'SAPLMEOR' '0200'.
+          PERFORM bdc_field       USING 'BDC_CURSOR'
+                                        'EORD-WERKS'.
+          PERFORM bdc_field       USING 'BDC_OKCODE'
+                                        '/00'.
+          PERFORM bdc_field       USING 'EORD-MATNR'
+                                        gi_mat_temp-matnr.
+          PERFORM bdc_field       USING 'EORD-WERKS'
+                                        gi_mat_temp-werks.
+          PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+          PERFORM bdc_field       USING 'BDC_CURSOR'
+                                        'EORD-AUTET(01)'.
+          PERFORM bdc_field       USING 'BDC_OKCODE'
+                                        '/00'.
+          PERFORM bdc_field       USING 'EORD-VDATU(01)'
+                                         gw_databi.
+          PERFORM bdc_field       USING 'EORD-BDATU(01)'
+                                         gw_databi1.
+          PERFORM bdc_field       USING 'EORD-LIFNR(01)'
+                                        gi_mat_temp-lifnr.
+          PERFORM bdc_field       USING 'EORD-EKORG(01)'
+                                        gi_mat_temp-ekorg.
+          PERFORM bdc_field       USING 'RM06W-FESKZ(01)'
+                                         'X'.
+          PERFORM bdc_field       USING 'EORD-AUTET(01)'
+                                        '1'.
+          PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+          PERFORM bdc_field       USING 'BDC_CURSOR'
+                                        'EORD-AUTET(01)'.
+          PERFORM bdc_field       USING 'BDC_OKCODE'
+                                        '=BU'.
+          gc_me01 = 'X'.
+          CLEAR gc_me11.
+          PERFORM f1002call_transaction .
+
+          DELETE gt_messtab WHERE  msgtyp = 'W'.
+          READ TABLE gt_messtab INTO gi_messtab INDEX 1.
+          IF sy-subrc EQ 0.
+            PERFORM message_collect CHANGING gi_mat_temp-msg2.
+          ENDIF.
+
+        ENDIF.
+         READ TABLE gt_mbew INTO gi_mbew WITH KEY matnr = gi_mat_temp-matnr
+                                                     bwkey = gi_mat_temp-werks.
+          IF sy-subrc EQ 0  AND gi_mbew-pprdl IS NOT INITIAL.
+
+            ELSE.
+
+        IF gw_piir EQ 'X'.
+          REFRESH : gt_bdcdata , gt_messtab.
+          READ TABLE gt_mbew INTO gi_mbew WITH KEY matnr = gi_mat_temp-matnr
+                                                     bwkey = gi_mat_temp-werks.
+*          IF sy-subrc EQ 0  AND gi_mbew-stprs IS NOT INITIAL.
+*
+*          ELSE.
+          READ TABLE gt_marc1 INTO gi_marc1 WITH KEY matnr = gi_mat_temp-matnr
+                                                     werks = gi_mat_temp-werks BINARY SEARCH.
+          IF gi_marc1-mmsta = 'IN'.
+
+            PERFORM material_status_update.
+            CLEAR gw_prcupd.
+***         material cost update
+            PERFORM mat_cost_update.
+***            material cost release ck24
+            IF gw_costupd IS INITIAL.
+              PERFORM material_cost_release.
+            ENDIF.
+          ENDIF.
+
+
+        ELSE.
+          gi_mat_temp-msg3 = ' Material Cost not updated'(022).
+        ENDIF.
+
+        ENDIF.
+
+        MODIFY gt_mat_temp FROM gi_mat_temp.
+*        ENDIF.
+
+      ENDIF.
+
+      CLEAR : gi_mat_temp ,gi_bdcdata , gi_messtab , gi_eord , gw_netpr , gw_mes ,gw_norbm,
+              gw_piir ,
+              gc_mr21 , gc_me11, gc_me01.
+
+      REFRESH : gt_bdcdata , gt_messtab.
+
+    ENDLOOP.
+
+    SORT gt_mat_temp BY matnr werks.
+
+  ENDIF.
+
+
+  IF gt_bdc_me12_mat IS NOT INITIAL.
+
+    PERFORM bdc_me12_mat.
+
+  ENDIF.
+
+  SORT :gt_bdc_me12_mat BY matnr werks,
+        gt_netpr_equal BY matnr werks,
+        gt_pir_exist BY matnr.
+*
+  LOOP AT gt_pr_list INTO gi_pr_list.
+
+    gi_result-banfn = gi_pr_list-banfn.
+    gi_result-bnfpo = gi_pr_list-bnfpo.
+    gi_result-vbeln = gi_pr_list-vbeln.
+    gi_result-vbelp = gi_pr_list-vbelp.
+    gi_result-matnr = gi_pr_list-matnr.
+    gi_result-werks =  gi_pr_list-werks.
+
+    gi_result-aufnr      = gi_pr_list-aufnr.
+    gi_result-ps_psp_pnr = gi_pr_list-ps_psp_pnr.
+    gi_result-nplnr      = gi_pr_list-nplnr.
+    gi_result-vornr      = gi_pr_list-vornr.
+    gi_result-knttp      = gi_pr_list-knttp.
+
+
+    READ TABLE gt_mat_temp INTO gi_mat_temp WITH KEY matnr = gi_pr_list-matnr
+                                                    werks = gi_pr_list-werks BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+
+      gi_result-msg1 = gi_mat_temp-msg1.
+      gi_result-msg2 = gi_mat_temp-msg2.
+      gi_result-msg3 = gi_mat_temp-msg3.
+      gi_result-lifnr = gi_mat_temp-lifnr.
+    ENDIF.
+
+    READ TABLE gt_bdc_me12_mat INTO gi_bdc_me12_mat WITH KEY matnr = gi_pr_list-matnr
+                                                  werks = gi_pr_list-werks BINARY SEARCH.
+
+    IF sy-subrc = 0.
+      gi_result-msg1 = gi_bdc_me12_mat-msg1.
+      gi_result-msg2 = gi_bdc_me12_mat-msg2.
+      gi_result-msg3 = gi_bdc_me12_mat-msg3.
+      gi_result-lifnr = gi_bdc_me12_mat-lifnr.
+
+    ENDIF.
+
+
+    READ TABLE gt_netpr_equal INTO gi_netpr_equal WITH KEY matnr = gi_pr_list-matnr
+                                                werks = gi_pr_list-werks BINARY SEARCH.
+
+    IF sy-subrc = 0.
+      gi_result-msg1 = gi_netpr_equal-msg1.
+      gi_result-msg2 = gi_netpr_equal-msg2.
+      gi_result-msg3 = gi_netpr_equal-msg3.
+      gi_result-lifnr = gi_netpr_equal-lifnr.
+
+    ENDIF.
+
+
+
+    READ TABLE gt_mess INTO gi_mess WITH  KEY matnr =  gi_pr_list-matnr.
+    IF sy-subrc = 0.
+      CONTINUE.
+    ELSE.
+
+      IF gt_mat_temp IS NOT INITIAL OR gt_mat_temp1 IS NOT INITIAL.
+        APPEND gi_result TO gt_result.
+      ENDIF.
+    ENDIF.
+
+    CLEAR : gi_result , gi_mat_temp , gi_pr_list,gi_bdc_me12_mat, gi_del_flag,gi_mess.
+
+  ENDLOOP.
+
+*   Below code populating ATS data while executing for Emax scenarios(Filtered data getting populated)
+  LOOP AT gt_mess INTO gi_mess.
+
+    READ TABLE gt_pr_list INTO gi_pr_list WITH KEY matnr = gi_mess-matnr.
+    IF sy-subrc = 0.
+      gi_result-banfn = gi_pr_list-banfn.
+      gi_result-bnfpo = gi_pr_list-bnfpo.
+      gi_result-vbeln = gi_pr_list-vbeln.
+      gi_result-vbelp = gi_pr_list-vbelp.
+      gi_result-matnr = gi_pr_list-matnr.
+      gi_result-werks =  gi_pr_list-werks.
+      gi_result-msg1 =  gi_mess-mes.
+
+      gi_result-aufnr      = gi_pr_list-aufnr.
+      gi_result-ps_psp_pnr = gi_pr_list-ps_psp_pnr.
+      gi_result-nplnr      = gi_pr_list-nplnr.
+      gi_result-vornr      = gi_pr_list-vornr.
+      gi_result-knttp      = gi_pr_list-knttp.
+
+      APPEND gi_result TO gt_result.
+    ENDIF.
+    CLEAR : gi_result , gi_mess , gi_pr_list.
+  ENDLOOP.
+
+ENDFORM.                    " BCD_ME11_ME01
+*&---------------------------------------------------------------------*
+*&      Form  DISPALY_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM dispaly_data .
+
+  IF NOT gt_result IS INITIAL.
+    TRY.
+**** prpearing alv for the final table
+        cl_salv_table=>factory( IMPORTING r_salv_table = gt_alv
+                           CHANGING  t_table   = gt_result ).
+      CATCH cx_salv_msg INTO gc_msg .
+    ENDTRY.
+
+
+    TRY.
+        go_function =    gt_alv->get_functions( ).
+        go_function->set_all( abap_true ).
+
+        go_cols = gt_alv->get_columns( ).
+        go_cols->set_optimize( 'X' ).
+        go_column ?= go_cols->get_column( 'MSG1' ).
+        go_column->set_long_text( 'PIR Status'(004) ).
+        go_column->set_medium_text( 'PIR Status'(004) ).
+        go_column ?= go_cols->get_column( 'MSG2' ).
+        go_column->set_long_text( 'SL Status'(003) ).
+        go_column->set_medium_text( 'SL Status'(003) ).
+        go_column ?= go_cols->get_column( 'MSG3' ).
+        go_column->set_long_text( 'Material Price Status'(023) ).
+
+      CATCH cx_salv_not_found.
+
+    ENDTRY.
+    gt_alv->display( ).  " calling alv to dispaly
+
+  ELSE.
+
+
+    MESSAGE 'No data found '(002) TYPE 'I'.
+
+  ENDIF.
+
+ENDFORM.                    " DISPALY_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  BDC_DYNPRO
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->PROGRAM    text
+*      -->DYNPRO     text
+*----------------------------------------------------------------------*
+FORM bdc_dynpro USING program TYPE bdc_prog
+                            dynpro  TYPE bdc_dynr.
+  CLEAR gi_bdcdata.
+  gi_bdcdata-program  = program.
+  gi_bdcdata-dynpro   = dynpro.
+  gi_bdcdata-dynbegin = 'X'.
+  APPEND gi_bdcdata TO gt_bdcdata.
+ENDFORM.                    "BDC_DYNPRO
+
+*&---------------------------------------------------------------------*
+*&      Form  BDC_FIELD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->FNAM       text
+*      -->FVAL       text
+*----------------------------------------------------------------------*
+FORM bdc_field USING fnam fval.
+  CLEAR gi_bdcdata.
+  gi_bdcdata-fnam = fnam.
+  gi_bdcdata-fval  = fval.
+  CONDENSE gi_bdcdata-fval.
+  APPEND gi_bdcdata TO gt_bdcdata.
+ENDFORM.                    "BDC_FIELD
+*&---------------------------------------------------------------------*
+*&      Form  f1002call_transaction
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM f1002call_transaction .
+
+  DATA : lw_option TYPE ctu_params,
+         lw_tcode(4),
+         lc_dismode VALUE 'N',      "Mode in which BDC runs
+         lc_updmode VALUE 'S'.     "Mode in which data loads into SAP
+  CONSTANTS : lc_me11 TYPE char4 VALUE 'ME11',
+              lc_me01 TYPE char4 VALUE 'ME01',
+              lc_mr21 TYPE char4 VALUE 'MR21'. "Added chnges on 09-SEP-2019 for  GECHG0588463 by 502277866
+
+  REFRESH gt_messtab.
+  CLEAR   gt_messtab.
+  IF gc_me11 EQ gc_x.
+    lw_tcode = lc_me11.
+
+  ELSE.
+
+    lw_tcode = lc_me01.
+  ENDIF.
+
+  IF gc_mr21 = 'X'. "Added chnges on 09-SEP-2019 for  GECHG0588463 by 502277866
+    lw_tcode = lc_mr21.
+
+  ENDIF.
+
+  lw_option-defsize = gc_x.
+  lw_option-dismode = lc_dismode.
+  lw_option-updmode = lc_updmode.
+  CALL TRANSACTION lw_tcode
+     USING gt_bdcdata
+     MESSAGES INTO gt_messtab
+     OPTIONS FROM lw_option.
+
+
+
+ENDFORM.                    "f1002call_transaction
+*&---------------------------------------------------------------------*
+*&      Form  GET_HARCODE_VALUES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_harcode_values .
+
+  gi_ztuhcd1_ds-name  = 'ZRMM_ETO_AUTO_PIR'.
+  APPEND gi_ztuhcd1_ds TO gt_ztuhcd1_ds.
+  CLEAR  gi_ztuhcd1_ds.
+*Note: This FM is used to Fecth the Entries from the table ZTUHCD1.
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1_ds
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc = 0.
+    SORT  gt_ztuhcd1_ds.
+    CLEAR gi_ztuhcd1_ds.
+  ENDIF.
+
+  READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name = 'ZRMM_ETO_AUTO_PIR'
+                                                    zkey  = gc_zkey3
+                                                    field = gc_field3.
+
+  IF sy-subrc EQ 0.
+
+    gw_capid = gi_ztuhcd1_ds-low.
+    gw_stlal = gi_ztuhcd1_ds-high.
+
+  ENDIF.
+**  Rama for ETO
+  LOOP AT gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WHERE high = 'ETO'.
+
+    gw_prdha3-sign = gc_i.
+    gw_prdha3-option = gc_eq.
+    gw_prdha3-low = gi_ztuhcd1_ds-low.
+
+    APPEND gw_prdha3 TO gr_prdha4.
+
+    CLEAR : gw_prdha3 , gi_ztuhcd1_ds.
+
+  ENDLOOP.
+
+
+ENDFORM.                    " GET_HARCODE_VALUES
+*&---------------------------------------------------------------------*
+*&      Form  EXCHANGE_RATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM exchange_rate USING p_gw_konwa1
+                              p_gi_lfm1_waers. " Added parameters on 09-SEP-2019 for  GECHG0588463 by 502277866
+
+  CONSTANTS:
+   BEGIN OF tcurr_type,
+                 usd   TYPE tcurr_curr VALUE 'USD',
+                 kurst TYPE kurst_curr VALUE 'M',
+    END   OF tcurr_type .
+
+
+  TYPES:
+     BEGIN OF type_tcurf,
+             kurst    TYPE kurst_curr,
+             fcurr   TYPE fcurr_curr,
+             tcurr    TYPE tcurr_curr,
+             gdatu    TYPE gdatu_invv,
+             gdatu10  TYPE char10,
+             ffact    TYPE ffact_curr,
+             tfact    TYPE tfact_curr,
+             abwct    TYPE abwkt_curr,
+             abwga    TYPE abwga_curr,
+            END OF type_tcurf .
+
+  TYPES:
+   tt_tcurf TYPE TABLE OF type_tcurf .
+
+  DATA : gt_tcurr_rate TYPE ftdf_tab_tcurr,
+         gt_tcurr_fact TYPE tt_tcurf.
+
+
+  DATA: gs_tcurr_rate TYPE tcurr.
+  DATA: gi_tcurr_fact TYPE type_tcurf.
+  DATA: gw_tcurr_fact TYPE REF TO type_tcurf.
+
+  SELECT * FROM tcurr INTO TABLE gt_tcurr_rate
+  WHERE  kurst = 'M' AND gdatu GE sy-datum.             "#EC CI_GENBUFF
+
+  IF sy-subrc = 0.
+    SORT gt_tcurr_rate BY fcurr tcurr gdatu ASCENDING.
+    SELECT * FROM tcurf INTO CORRESPONDING FIELDS OF TABLE gt_tcurr_fact
+      FOR ALL ENTRIES IN gt_tcurr_rate
+      WHERE kurst = gt_tcurr_rate-kurst
+        AND fcurr = gt_tcurr_rate-fcurr
+        AND tcurr = gt_tcurr_rate-tcurr
+        AND gdatu GE sy-datum.
+
+    IF sy-subrc = 0.
+      LOOP AT gt_tcurr_fact REFERENCE INTO gw_tcurr_fact.
+        CALL FUNCTION 'CONVERSION_EXIT_INVDT_OUTPUT'
+          EXPORTING
+            input  = gw_tcurr_fact->gdatu
+          IMPORTING
+            output = gw_tcurr_fact->gdatu10.
+      ENDLOOP.
+      SORT gt_tcurr_fact BY fcurr tcurr gdatu10 DESCENDING .
+    ENDIF.
+  ENDIF.
+
+  DATA : lw_fcurr TYPE  fcurr_curr.
+  DATA : lw_tcurr TYPE  fcurr_curr.
+
+  lw_fcurr = p_gw_konwa1.
+  lw_tcurr = p_gi_lfm1_waers.
+  IF lw_fcurr EQ lw_tcurr.
+    gw_erate = '1.00000'.
+  ELSEIF lw_fcurr NE lw_tcurr.
+    IF lw_fcurr NE tcurr_type-usd AND lw_tcurr = tcurr_type-usd. " 'USD'.
+
+      READ TABLE gt_tcurr_rate INTO gs_tcurr_rate WITH KEY
+                    fcurr = lw_fcurr tcurr = tcurr_type-usd. "'USD'.
+      IF sy-subrc = 0.
+        READ TABLE gt_tcurr_fact INTO gi_tcurr_fact WITH KEY
+                      fcurr = lw_fcurr tcurr = tcurr_type-usd. "'USD'.
+        IF sy-subrc = 0.
+          gw_erate = gs_tcurr_rate-ukurs / gi_tcurr_fact-ffact.
+        ENDIF.
+      ENDIF.
+    ELSEIF  lw_fcurr = tcurr_type-usd  AND  lw_tcurr <> tcurr_type-usd ."'USD'.
+
+      READ TABLE gt_tcurr_rate INTO gs_tcurr_rate WITH KEY
+                    fcurr = lw_tcurr   tcurr = lw_fcurr . "'USD'.
+      IF sy-subrc = 0.
+        READ TABLE gt_tcurr_fact INTO gi_tcurr_fact WITH KEY
+                      fcurr = lw_tcurr   tcurr = lw_fcurr . "'USD'.
+        IF sy-subrc = 0.
+
+          gw_erate = 1 / ( gs_tcurr_rate-ukurs / gi_tcurr_fact-ffact ).
+        ENDIF.
+      ENDIF.
+
+    ELSEIF lw_fcurr <> tcurr_type-usd AND  lw_tcurr <> tcurr_type-usd . " 'USD'.
+
+      READ TABLE gt_tcurr_rate INTO gs_tcurr_rate WITH KEY
+                    fcurr = lw_fcurr  tcurr =  tcurr_type-usd ."'USD'.
+
+      IF sy-subrc = 0.
+        READ TABLE gt_tcurr_fact INTO gi_tcurr_fact WITH KEY
+              fcurr = lw_fcurr  tcurr =  tcurr_type-usd ."'USD'.
+        IF sy-subrc = 0.
+          gw_erate = gs_tcurr_rate-ukurs / gi_tcurr_fact-ffact.
+        ENDIF.
+      ENDIF.
+
+      READ TABLE gt_tcurr_rate INTO gs_tcurr_rate WITH KEY
+                    fcurr = lw_tcurr  tcurr = tcurr_type-usd. "'USD'.
+      IF sy-subrc = 0.
+        READ TABLE gt_tcurr_fact INTO gi_tcurr_fact WITH KEY
+                      fcurr = lw_tcurr  tcurr = tcurr_type-usd. "'USD'.
+        IF sy-subrc = 0.
+          gw_erate = gw_erate * ( 1 / ( gs_tcurr_rate-ukurs / gi_tcurr_fact-ffact ) ).
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " EXCHANGE_RATE
+*&---------------------------------------------------------------------*
+*&      Form  MESSAGE_COLLECT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_GI_MAT_TEMP_MSG1  text
+*----------------------------------------------------------------------*
+FORM message_collect  CHANGING p_gi_mat_temp_msg1.
+
+  CALL FUNCTION 'FORMAT_MESSAGE'
+    EXPORTING
+      id        = gi_messtab-msgid
+      lang      = 'EN'
+      no        = gi_messtab-msgnr
+      v1        = gi_messtab-msgv1
+      v2        = gi_messtab-msgv2
+      v3        = gi_messtab-msgv3
+      v4        = gi_messtab-msgv4
+    IMPORTING
+      msg       = gw_mes
+    EXCEPTIONS
+      not_found = 1
+      OTHERS    = 2.
+  IF sy-subrc EQ 0.
+    p_gi_mat_temp_msg1  = gw_mes.
+
+  ENDIF.
+
+ENDFORM.                    " MESSAGE_COLLECT
+*&---------------------------------------------------------------------*
+*&      Form  EMAX_COMP_PRICE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM emax_comp_price .
+
+
+
+  LOOP  AT gt_fin_mat  INTO gi_fin_mat.
+
+    gw_fin_index =  sy-tabix.
+
+    PERFORM bom_components.
+
+    CLEAR gi_fin_mat.
+  ENDLOOP.
+
+  SORT gt_topmat BY matnr."Added on 17.07.2019 for  GECHG0532576 by 502277866
+  IF NOT gt_mara IS INITIAL.
+
+    SELECT matnr
+          werks
+          zeord
+          lifnr
+          ekorg FROM eord
+                INTO TABLE gt_eord1
+                FOR ALL ENTRIES IN gt_mara
+                WHERE matnr EQ gt_mara-bismt
+                 AND werks EQ s_werks-low
+                 AND vdatu LE sy-datum
+                 AND bdatu GE sy-datum
+                 AND flifn EQ 'X'.
+    IF sy-subrc EQ 0.
+      SORT gt_eord1 BY matnr werks ekorg.
+    ENDIF.
+  ENDIF.
+
+
+
+  IF NOT gt_eord1 IS INITIAL.
+
+    SELECT lifnr
+           loevm
+           sperm FROM lfa1 INTO TABLE gt_lfa1
+                       FOR ALL ENTRIES IN gt_eord1
+                       WHERE lifnr EQ gt_eord1-lifnr.
+    IF sy-subrc EQ 0.
+      SELECT lifnr
+             ekorg
+             sperm "chnaged  on 09-SEP-2019 for  GECHG0588463 by 502277866
+             loevm
+             waers  "Added  on 09-SEP-2019 for  GECHG0588463 by 502277866
+                       FROM lfm1 INTO TABLE gt_lfm11
+                         FOR ALL ENTRIES IN gt_eord1
+                         WHERE lifnr EQ gt_eord1-lifnr
+                          AND  ekorg  EQ gt_eord1-ekorg.
+      IF sy-subrc EQ 0.
+
+        SORT gt_lfa1 BY lifnr.
+        SORT gt_lfm11 BY lifnr ekorg.
+
+      ENDIF.
+
+    ENDIF.
+
+
+  ENDIF.
+
+
+  LOOP AT gt_fin_mat INTO gi_fin_mat.
+
+    READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_fin_mat-matnr BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+
+      READ TABLE gt_eord1 INTO gi_eord1 WITH KEY matnr = gi_mara-bismt
+                                                  werks = gi_fin_mat-werks
+                                                  ekorg = gi_fin_mat-ekorg BINARY SEARCH.
+
+      IF sy-subrc EQ 0.
+        DATA : gw_strw TYPE string.
+        READ TABLE gt_lfa1 INTO gi_lfa1 WITH KEY lifnr = gi_eord1-lifnr BINARY SEARCH.
+
+        IF gi_lfa1-loevm EQ 'X' OR gi_lfa1-sperm EQ 'X'.
+
+          IF gi_lfa1-loevm EQ 'X'.
+
+            gw_strw = 'Vendor is deleted'(012).
+
+          ELSE.
+            gw_strw = 'Vendor is blocked'(013).
+          ENDIF.
+
+          gi_mess-matnr = gi_mara-matnr.
+          gi_mess-bismt = gi_mara-bismt.
+          CONCATENATE gw_strw gi_eord1-lifnr INTO gi_mess-mes SEPARATED BY space..
+          APPEND gi_mess TO gt_mess.
+
+
+        ELSE.
+          READ TABLE gt_lfm11 INTO gi_lfm11 WITH KEY lifnr = gi_eord1-lifnr
+                                                   ekorg  = gi_eord1-ekorg BINARY SEARCH.
+          IF gi_lfm11-loevm EQ 'X' OR gi_lfm11-sperm EQ 'X'.
+
+            IF gi_lfm11-loevm EQ 'X'.
+
+              gw_strw = 'Vendor is deleted'(012).
+
+            ELSE.
+              gw_strw = 'Vendor is blocked'(013).
+            ENDIF.
+
+            gi_mess-matnr = gi_mara-matnr.
+            gi_mess-bismt = gi_mara-bismt.
+            CONCATENATE gw_strw gi_eord1-lifnr 'At Purchase org '(014) gi_eord1-ekorg INTO gi_mess-mes SEPARATED BY space.
+            APPEND gi_mess TO gt_mess.
+          ELSE.
+            gi_ven-m_matnr = gi_mara-matnr.
+            gi_ven-matnr = gi_eord1-matnr.
+            gi_ven-lifnr = gi_eord1-lifnr.
+            gi_ven-werks = gi_eord1-werks.
+            gi_ven-ekorg = gi_eord1-ekorg.
+
+            APPEND gi_ven TO gt_ven.
+
+          ENDIF.
+        ENDIF.
+
+      ELSE.
+
+        gi_mess-matnr = gi_mara-matnr.
+        gi_mess-bismt = gi_mara-bismt.
+        CONCATENATE 'No Vendor Exists for Template material'(015) gi_mara-bismt INTO gi_mess-mes SEPARATED BY space.
+        APPEND gi_mess TO gt_mess.
+      ENDIF.
+
+    ENDIF.
+
+    CLEAR : gi_fin_mat , gi_mara , gi_ven , gi_eord1 , gi_mess , gi_lfa1 , gi_lfm11.
+
+  ENDLOOP.
+
+  SORT gt_ven BY m_matnr werks ekorg.
+
+  LOOP AT gt_comp INTO gi_comp.
+    gi_comp1 = gi_comp.
+    AT NEW matnr.
+
+      READ TABLE gt_ven INTO gi_ven WITH KEY m_matnr = gi_comp-matnr
+                                             werks = gi_comp1-werks
+                                             ekorg = gi_comp1-ekorg BINARY SEARCH .
+      IF sy-subrc EQ 0.
+        gi_comp_ven-matnr  =  gi_comp-matnr.
+*        gi_comp_ven-comp  =  gi_comp-matnr.
+        gi_comp_ven-lifnr  = gi_ven-lifnr.
+        gi_comp_ven-werks  = gi_comp-werks.
+        gi_comp_ven-ekorg  = gi_comp-ekorg.
+        gi_comp_ven-flag   = 'X'.
+        READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_comp-matnr.
+        IF sy-subrc EQ 0.
+          gi_comp_ven-comp  =  gi_mara-bismt.
+          gi_comp_ven-bismt  =  gi_mara-bismt.
+        ENDIF.
+
+        APPEND gi_comp_ven TO gt_comp_ven.
+      ENDIF.
+    ENDAT.
+*    ENDIF.
+
+    CLEAR : gi_comp_ven.
+    READ TABLE gt_ven INTO gi_ven WITH KEY m_matnr = gi_comp-matnr
+                                             werks = gi_comp-werks
+                                             ekorg = gi_comp-ekorg BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      gi_comp_ven-matnr  =  gi_comp-matnr.
+      gi_comp_ven-comp  =  gi_comp-matnr1.
+      gi_comp_ven-mnglg = gi_comp-mnglg.          " added on 20/03/2020 for JE3K902966 by 503167886
+      gi_comp_ven-lifnr  = gi_ven-lifnr.
+      gi_comp_ven-werks  = gi_comp-werks.
+      gi_comp_ven-ekorg  = gi_comp-ekorg.
+      READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_comp-matnr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+*          gi_comp_ven-comp  =  gi_mara-bismt.
+        gi_comp_ven-bismt  =  gi_mara-bismt.
+      ENDIF.
+
+      APPEND gi_comp_ven TO gt_comp_ven.
+    ENDIF.
+    CLEAR : gi_comp , gi_comp_ven ,  gi_ven.
+
+  ENDLOOP.
+  SORT gt_comp_ven BY matnr.
+
+  IF NOT gt_comp_ven IS INITIAL.
+
+    SELECT infnr
+              matnr
+              lifnr
+              loekz FROM eina
+                    INTO TABLE gt_eina
+                    FOR ALL ENTRIES IN gt_comp_ven
+                    WHERE lifnr EQ gt_comp_ven-lifnr
+                      AND matnr EQ gt_comp_ven-comp
+                      AND  loekz NE gc_x.
+
+    IF sy-subrc EQ 0.
+
+      SELECT infnr
+             ekorg
+             esokz
+             werks
+             loekz
+             ekgrp
+             waers
+             minbm
+             norbm
+             mwskz
+             netpr
+             peinh
+             bprme
+             bstae FROM eine    "(+) Changes for CR#GECHG0626527/TR# DE3K994332/SAP ID#503119365
+                   INTO TABLE gt_eine
+                   FOR ALL ENTRIES IN gt_eina
+                   WHERE infnr EQ gt_eina-infnr
+                     AND werks EQ s_werks-low
+                     AND ekorg IN gr_ekorg
+                     AND  loekz NE gc_x.
+
+      IF sy-subrc EQ 0.
+
+        SORT gt_eine BY infnr.
+
+      ENDIF.
+
+    ENDIF.
+
+
+  ENDIF.
+
+  LOOP AT gt_eina INTO gi_eina.
+
+
+    READ TABLE gt_eine INTO gi_eine WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+      gi_info-infnr = gi_eina-infnr.
+      gi_info-matnr = gi_eina-matnr.
+      gi_info-lifnr = gi_eina-lifnr.
+      gi_info-ekgrp = gi_eine-ekgrp.
+      gi_info-ekorg = gi_eine-ekorg.
+      gi_info-werks = gi_eine-werks.
+      gi_info-minbm = gi_eine-minbm.
+      gi_info-norbm = gi_eine-norbm.
+      gi_info-mwskz = gi_eine-mwskz.
+      gi_info-netpr = gi_eine-netpr.
+      gi_info-peinh = gi_eine-peinh.
+      gi_info-waers = gi_eine-waers.
+      gi_info-bprme = gi_eine-bprme.
+      gi_info-bstae = gi_eine-bstae .           "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+      READ TABLE gt_info  INTO gi_info1 WITH KEY matnr = gi_eina-matnr
+                                                 werks = gi_eine-werks
+                                                 ekorg = gi_eine-ekorg.
+      IF sy-subrc EQ 0.
+        gi_info1-msg  = 'More than 1 Template PIR is existing'(009).
+        MODIFY gt_info FROM gi_info1 INDEX sy-tabix .
+      ELSE.
+        APPEND gi_info TO gt_info.
+      ENDIF.
+    ENDIF.
+
+    CLEAR : gi_info , gi_eine, gi_eina , gi_info1.
+  ENDLOOP.
+  SORT gt_info BY matnr werks ekorg lifnr.
+
+  LOOP AT gt_ven INTO gi_ven.
+
+    READ TABLE gt_info INTO gi_info WITH KEY     matnr = gi_ven-matnr
+                                                 werks = gi_ven-werks
+                                                 ekorg = gi_ven-ekorg
+                                                 lifnr = gi_ven-lifnr BINARY SEARCH.
+    IF sy-subrc NE 0.
+
+      DELETE gt_comp_ven WHERE bismt EQ gi_ven-matnr.
+
+      gi_mess-matnr = gi_ven-m_matnr.
+      gi_mess-bismt = gi_ven-matnr.
+
+      CONCATENATE 'No Info Rcord Exists for Tempalte Material '(016) gi_ven-matnr INTO gi_mess-mes SEPARATED BY space.
+
+      APPEND gi_mess TO gt_mess.
+
+    ENDIF.
+
+  ENDLOOP.
+
+  SORT gt_comp BY matnr matnr1 mnglg.      " added on 20/03/2020 for JE3K902966 by 503167886
+
+  DELETE gt_comp_ven WHERE flag EQ gc_x.
+
+
+
+
+  IF NOT gt_comp_ven IS INITIAL.
+
+    SELECT * FROM a017 INTO TABLE gt_a017
+                       FOR ALL ENTRIES IN gt_comp_ven
+                       WHERE kappl = 'M'
+                        AND  kschl = 'PB00'
+                        AND  lifnr = gt_comp_ven-lifnr
+                        AND  matnr = gt_comp_ven-comp
+                        AND  ekorg = gt_comp_ven-ekorg
+                        AND  werks = gt_comp_ven-werks
+                        AND datbi GE sy-datum
+                        AND datab LE sy-datum
+                       ORDER BY PRIMARY KEY.
+
+
+    IF sy-subrc EQ 0 .
+      SORT gt_a017 BY matnr lifnr ekorg werks.
+
+      SELECT knumh
+             kopos " Added on 19-Jul-2019 for GECHG0532576 by 502277866
+             kbetr
+             konwa
+             kpein
+             kmein
+             zaehk_ind   FROM konp INTO TABLE gt_konp3
+                         FOR ALL ENTRIES IN gt_a017
+                         WHERE knumh = gt_a017-knumh
+                           AND loevm_ko NE 'X'. " Added on 19-Jul-2019 for GECHG0532576 by 502277866
+      IF sy-subrc EQ 0.
+
+        SORT gt_konp3 BY knumh zaehk_ind DESCENDING. " Added on 19-Jul-2019 for GECHG0532576 by 502277866
+
+      ENDIF.
+
+    ENDIF.
+
+  ENDIF.
+
+  LOOP AT gt_comp_ven INTO gi_comp_ven.
+
+    gi_comp_ven1 = gi_comp_ven.
+
+    AT NEW matnr.
+      CLEAR : lw_wears, gi_info3.
+      READ TABLE gt_info INTO gi_info WITH KEY     matnr = gi_comp_ven1-bismt
+                                                werks = gi_comp_ven1-werks
+                                                ekorg = gi_comp_ven1-ekorg
+                                                lifnr = gi_comp_ven1-lifnr  BINARY SEARCH.
+
+      IF sy-subrc EQ 0.
+        lw_wears = gi_info-waers.
+        gi_info3 = gi_info.
+      ENDIF.
+      CLEAR : gi_comp_ven1.
+    ENDAT.
+    READ TABLE gt_comp INTO gi_comp WITH KEY   matnr = gi_comp_ven-matnr  "Added on 17.07.2019 for  GECHG0532576 by 502277866
+                                               matnr1  = gi_comp_ven-comp
+                                               mnglg = gi_comp_ven-mnglg BINARY SEARCH.    " added on 20/03/2020 for JE3K902966 by 503167886
+    IF sy-subrc EQ 0.
+
+      READ TABLE gt_info INTO gi_info WITH KEY     matnr = gi_comp_ven-comp
+                                                   werks = gi_comp_ven-werks
+                                                   ekorg = gi_comp_ven-ekorg
+                                                   lifnr = gi_comp_ven-lifnr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+
+        READ TABLE gt_a017 INTO gi_a017 WITH KEY matnr = gi_info-matnr
+                                                 lifnr = gi_comp_ven-lifnr
+                                                 ekorg = gi_comp_ven-ekorg
+                                                 werks = gi_comp_ven-werks  BINARY SEARCH .
+
+        IF sy-subrc EQ 0.
+          READ TABLE gt_konp3 INTO gi_konp3 WITH KEY knumh = gi_a017-knumh BINARY SEARCH.
+
+          IF sy-subrc EQ 0.
+
+            gw_kbetr1 = gi_konp3-kbetr.
+            gw_konwa1 = gi_konp3-konwa.
+            gw_kpein1 = gi_konp3-kpein.
+            gw_kmein1 = gi_konp3-kmein.
+
+          ENDIF.
+
+        ENDIF.
+
+        IF gw_kbetr1 IS NOT INITIAL.
+
+          IF  gi_comp-mmein NE  gw_kmein1.
+
+            gw_menge = 1.
+
+            CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+              EXPORTING
+                i_matnr              = gi_comp_ven-comp
+                i_in_me              = gw_kmein1
+                i_out_me             = gi_comp-mmein
+                i_menge              = gw_menge
+              IMPORTING
+                e_menge              = gw_menge1
+              EXCEPTIONS
+                error_in_application = 1
+                error                = 2
+                OTHERS               = 3.
+            IF sy-subrc EQ 0.
+
+*            gw_kbetr1 = gw_kbetr1 / gw_menge1."commented    on 17.07.2019 for  GECHG0532576 by 502277866
+              gw_kbetr1 = ( gi_comp-mnglg * ( gw_kbetr1 / gw_menge1 ) )."Added on 17.07.2019 for  GECHG0532576 by 502277866
+*           Begin of changes by ID#503119365/TR#DE3K994776/CR#GECHG0532576/DATE#23-11-2019
+              READ TABLE gt_lfm11 INTO gi_lfm11 WITH KEY lifnr = gi_comp_ven-lifnr BINARY SEARCH.
+              IF sy-subrc = 0.
+                PERFORM exchange_rate USING gi_konp3-konwa gi_lfm11-waers.
+                gw_kbetr1 = ( gw_kbetr1 / gi_konp3-kpein ) * gw_erate.
+              ENDIF.
+*           End   of changes by ID#503119365/TR#DE3K994776/CR#GECHG0532576/DATE#23-11-2019
+
+              lw_netpr = lw_netpr + gw_kbetr1.
+
+            ELSE.
+*           Begin of changes by ID#503119365/TR#DE3K995067/CR#GECHG0532576/DATE#04-12-2019
+              MESSAGE e118(zmm) WITH gi_comp_ven-comp.
+              EXIT.
+*           End   of changes by ID#503119365/TR#DE3K995067/CR#GECHG0532576/DATE#04-12-2019
+            ENDIF.
+
+
+          ELSE.
+
+            gw_kbetr1 = ( ( gi_comp-mnglg * ( gw_kbetr1 / gw_kpein1 ) ) )."Added on 17.07.2019 for  GECHG0532576 by 502277866
+*           Begin of changes by ID#503119365/TR#DE3K994776/CR#GECHG0532576/DATE#23-11-2019
+            READ TABLE gt_lfm11 INTO gi_lfm11 WITH KEY lifnr = gi_comp_ven-lifnr BINARY SEARCH.
+            IF sy-subrc = 0.
+              PERFORM exchange_rate USING gi_konp3-konwa gi_lfm11-waers.
+              gw_kbetr1 = gw_kbetr1 * gw_erate.
+            ENDIF.
+*           End   of changes by ID#503119365/TR#DE3K994776/CR#GECHG0532576/DATE#23-11-2019
+            lw_netpr = lw_netpr + gw_kbetr1.
+
+
+
+          ENDIF.
+
+        ELSE.
+          gw_np = 'X'.
+          gi_mess-matnr = gi_comp_ven-matnr.
+          CONCATENATE 'NO Price maintained for component'(017) gi_comp_ven-comp
+                       INTO gi_mess-mes SEPARATED BY space.
+          APPEND gi_mess TO gt_mess.
+
+        ENDIF.
+
+
+      ELSE.
+        gw_np = 'X'.
+
+        gi_mess-matnr = gi_comp_ven-matnr.
+        CONCATENATE 'No Info Record Exists for the BOM component '(018) gi_comp_ven-comp
+                     INTO gi_mess-mes SEPARATED BY space.
+        APPEND gi_mess TO gt_mess.
+      ENDIF.
+    ENDIF.
+
+    AT END OF matnr.
+*      lw_netpr = lw_netpr / 1000. " "Added on 17.07.2019 for  GECHG0532576 by 502277866   "(-) Changes for CR#GECHG0626527/TR# DE3K995123/SAP ID#503119365/Date#06-12-2019
+      IF gw_np IS INITIAL.
+*****start of chnages  on 17.07.2019 for  GECHG0532576 by 502277866
+
+        READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_comp_ven-matnr BINARY SEARCH.
+        IF sy-subrc EQ 0.
+          IF gi_mara-bstme IS NOT INITIAL.
+
+            IF gi_info3-bprme NE gi_mara-bstme.
+*              ***********************
+              gw_menge = 1.
+
+              CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+                EXPORTING
+                  i_matnr              = gi_comp_ven-matnr
+                  i_in_me              = gi_info3-bprme
+                  i_out_me             = gi_mara-bstme
+                  i_menge              = gw_menge
+                IMPORTING
+                  e_menge              = gw_menge1
+                EXCEPTIONS
+                  error_in_application = 1
+                  error                = 2
+                  OTHERS               = 3.
+              IF sy-subrc EQ 0.
+              ELSE.
+                gw_check = 'X'.
+              ENDIF.
+*              gw_check = 'X'.
+
+            ENDIF.
+*            gi_info3-bprme = gi_mara-bstme.
+          ELSE.
+            IF gi_info3-bprme NE gi_mara-meins.
+              gw_menge = 1.
+
+              CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+                EXPORTING
+                  i_matnr              = gi_comp_ven-matnr
+                  i_in_me              = gi_info3-bprme
+                  i_out_me             = gi_mara-meins
+                  i_menge              = gw_menge
+                IMPORTING
+                  e_menge              = gw_menge1
+                EXCEPTIONS
+                  error_in_application = 1
+                  error                = 2
+                  OTHERS               = 3.
+              IF sy-subrc EQ 0.
+*                lw_netpr = lw_netpr / gw_menge1.
+              ELSE.
+                gw_check = 'X'.
+              ENDIF.
+*              gw_check = 'X'.
+
+
+            ENDIF.
+*            gi_info3-bprme = gi_mara-meins.
+          ENDIF.
+
+        ENDIF.
+        IF gw_check IS INITIAL.
+
+          READ TABLE gt_topmat INTO gi_topmat WITH KEY matnr = gi_comp_ven-matnr BINARY SEARCH.
+
+          IF sy-subrc EQ 0.
+            IF gi_topmat-bmein NE gi_info3-bprme.
+
+              gw_menge = 1.
+
+              CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+                EXPORTING
+                  i_matnr              = gi_comp_ven-matnr
+                  i_in_me              = gi_topmat-bmein
+                  i_out_me             = gi_info3-bprme
+                  i_menge              = gw_menge
+                IMPORTING
+                  e_menge              = gw_menge1
+                EXCEPTIONS
+                  error_in_application = 1
+                  error                = 2
+                  OTHERS               = 3.
+              IF sy-subrc EQ 0.
+                lw_netpr = lw_netpr / gw_menge1.
+                lw_netpr = lw_netpr * gi_info3-peinh.      "(+) Changes for CR# /TR# /SAP ID#503167886 on 11.01.2021
+
+              ENDIF.
+            ELSE.
+******** Begin of changes by 503167886 on 03.03.2020 for GECHG0717071***************************
+*              v_string = lw_netpr.
+*              CONDENSE v_string NO-GAPS.
+*              lv_count = STRLEN( v_string ).
+*              if lv_count eq 11 and gi_info3-peinh ge 100 .
+*                gi_mess-matnr = gi_comp_ven-matnr.
+*                CONCATENATE 'Calculated Net PIR Price is too long for'(044) gi_comp_ven-matnr gi_info3-ekorg s_werks-low INTO gi_mess-mes SEPARATED BY space.
+*                APPEND gi_mess TO gt_mess.
+*                CLEAR : gi_mess.
+*                CONTINUE.
+*              ELSEIF lv_count eq 12 and gi_info3-peinh ge 10 .
+*                 gi_mess-matnr = gi_comp_ven-matnr.
+*                CONCATENATE 'Calculated Net PIR Price is too long for'(044) gi_comp_ven-matnr gi_info3-ekorg s_werks-low INTO gi_mess-mes SEPARATED BY space.
+*                APPEND gi_mess TO gt_mess.
+*                CLEAR : gi_mess.
+*                CONTINUE.
+*              ELSE.
+************** End of chnges by 503167886 on 03.03.2020 for GECHG0717071****************
+              lw_netpr = lw_netpr * gi_info3-peinh.
+*              endif.
+            ENDIF.
+          ENDIF.
+***end of chnages  on 17.07.2019 for  GECHG0532576 by 502277866
+*   To avoid rounding issues of the net PIR price
+          lw_netpr = lw_netpr / 1000.     "(+) Changes for CR#GECHG0626527/TR# DE3K995123/SAP ID#503119365/Date#06-12-2019
+          lw_netpr1 = lw_netpr.             "added as part of gen6 changes
+          gi_mat_temp-netpr = lw_netpr1.
+          gi_mat_temp-matnr = gi_comp_ven-matnr.
+          gi_mat_temp-werks = s_werks-low.
+          gi_mat_temp-lifnr = gi_info3-lifnr.
+          gi_mat_temp-ekgrp = gi_info3-ekgrp.
+          gi_mat_temp-infnr = gi_info3-infnr.
+          gi_mat_temp-minbm = gi_info3-minbm.
+          gi_mat_temp-norbm = gi_info3-norbm.
+          gi_mat_temp-mwskz = gi_info3-mwskz.
+          gi_mat_temp-peinh = gi_info3-peinh.
+          gi_mat_temp-ekorg = gi_info3-ekorg.
+          gi_mat_temp-bprme = gi_info3-bprme.
+          gi_mat_temp-bstae = gi_info3-bstae .          "(+) Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+          gi_mat_temp-bstme = gi_mara-bstme .             "(+) Changes for CR# /TR# /SAP ID#503167886 on 11.01.2021
+          gi_mat_temp-meins = gi_mara-meins .                 "(+) Changes for CR# /TR# /SAP ID#503167886 on 11.01.2021
+          APPEND gi_mat_temp TO gt_mat_temp.
+**start of chnages  on 17.07.2019 for  GECHG0532576 by 502277866
+        ELSE.
+          gi_mess-matnr = gi_comp_ven-matnr.
+          CONCATENATE 'There is no conversion factor for material'(045) gi_comp_ven-matnr 'and unit of measure'(046) INTO gi_mess-mes SEPARATED BY space.
+          APPEND gi_mess TO gt_mess.
+          CLEAR : gi_mess.
+**          gi_mess-matnr = gi_comp_ven-matnr.
+**          CONCATENATE 'Template PIR'(020) gi_info3-infnr 'Condition unit and Configurable breaker material Order unit are different'(021) INTO gi_mess-mes SEPARATED BY space.
+**          APPEND gi_mess TO gt_mess.
+**          CLEAR : gi_mess.
+        ENDIF.
+***End of chnages  on 17.07.2019 for  GECHG0532576 by 502277866
+      ENDIF.
+
+      CLEAR : lw_netpr , gi_mat_temp , gi_info3 , gw_np ,
+              gw_check."  Added on 16-SEP-2019 for GECHG0588463 by 502277866
+    ENDAT.
+
+    CLEAR : gi_ven , gi_comp_ven , gi_mess , gw_kbetr1 , gw_konwa1 , gw_kpein1 , gw_kmein1 .
+
+  ENDLOOP.
+
+*  *Begin of changes by 503167886 on 19.02.2020 for GECHG0717071.
+
+  IF gt_mat_temp IS NOT INITIAL.
+    gt_mat_temp1[] = gt_mat_temp[].
+    IF gt_mat_temp1 IS NOT INITIAL.
+      REFRESH gt_eina.
+      SELECT infnr
+             matnr
+             lifnr
+             loekz
+        INTO TABLE gt_eina
+        FROM eina
+        FOR ALL ENTRIES IN gt_mat_temp1
+        WHERE matnr = gt_mat_temp1-matnr.
+*              lifnr = gt_mat_temp1-lifnr.
+
+      IF sy-subrc = 0.
+        SORT gt_eina BY matnr.
+      ENDIF.
+*
+      REFRESH gt_eine.
+**
+      IF gt_eina IS NOT INITIAL.
+        SELECT infnr
+               ekorg
+               esokz
+               werks
+               loekz
+               ekgrp
+               waers
+               minbm
+               norbm
+               mwskz
+               netpr
+               peinh
+               bprme
+               bstae
+                     FROM eine
+                     INTO TABLE gt_eine1
+                     FOR ALL ENTRIES IN gt_eina
+                     WHERE infnr EQ gt_eina-infnr AND
+                           werks EQ s_werks-low AND
+                           ekorg IN gr_ekorg. "AND
+*                           loekz NE gc_x.
+
+        IF sy-subrc = 0.
+          SORT gt_eine1 BY infnr.
+        ENDIF.
+*
+        IF sy-subrc = 0.
+          SORT gt_eina BY matnr lifnr.
+        ENDIF.
+      ENDIF.
+      SELECT matnr
+            werks
+            zeord
+            lifnr
+            ekorg
+            flifn FROM eord
+                  INTO TABLE gt_eord2
+                  FOR ALL ENTRIES IN gt_mat_temp1
+                  WHERE matnr EQ gt_mat_temp1-matnr
+                   AND werks EQ s_werks-low
+                   AND flifn EQ 'X'.
+      "AND LIFNR EQ gt_mat_temp1-lifnr.
+
+      IF sy-subrc EQ 0.
+        SORT gt_eord2 BY matnr werks ekorg.
+      ENDIF.
+
+      SELECT    banfn
+                bnfpo
+                ekgrp
+                matnr
+                werks
+                knttp
+                flief
+                infnr FROM eban
+                      INTO TABLE gt_eban1
+                      FOR ALL ENTRIES IN gt_mat_temp1
+                      WHERE matnr = gt_mat_temp1-matnr AND
+                            werks = gt_mat_temp1-werks AND
+                            ekgrp = gt_mat_temp1-ekgrp AND
+*                            banfn IN s_banfn[] AND
+                            badat IN s_rdate[] AND
+*                            statu IN s_statu[] AND
+*                            knttp IN s_knttp[] AND
+                            loekz  NE 'X'      AND
+                            flief NE ' '.
+
+
+      IF sy-subrc = 0.
+        SORT gt_eban1 BY matnr.
+      ENDIF.
+
+      LOOP AT gt_mat_temp1 INTO gi_mat_temp1.
+        IF gi_mat_temp1-msg1 IS INITIAL.
+          READ TABLE gt_eban1 INTO gi_eban1 WITH KEY matnr = gi_mat_temp1-matnr.
+          IF sy-subrc = 0.
+            IF gi_eban1-flief = gi_mat_temp1-lifnr .
+
+              READ TABLE gt_eina INTO gi_eina WITH KEY matnr = gi_mat_temp1-matnr
+                                                       lifnr = gi_mat_temp1-lifnr BINARY SEARCH.
+
+              IF  sy-subrc = 0.
+                IF gi_eina-loekz = 'X'.
+                  gi_mess-matnr = gi_mat_temp1-matnr.
+                  CONCATENATE 'PIR'(038) gi_eina-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr  'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                  APPEND gi_mess TO gt_mess.
+
+                ELSE.
+                  READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+**
+                  IF sy-subrc = 0.
+                    IF gi_eine1-loekz = 'X'.
+                      gi_mess-matnr = gi_mat_temp1-matnr.
+                      CONCATENATE 'PIR'(038) gi_eine1-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr gi_eine1-werks gi_eine1-ekorg 'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                      APPEND gi_mess TO gt_mess.
+                    ELSE.
+                      gi_pir_exist-infnr = gi_eine1-infnr.
+                      gi_pir_exist-matnr = gi_mat_temp1-matnr.
+                      gi_pir_exist-lifnr = gi_mat_temp1-lifnr.
+                      APPEND gi_pir_exist TO gt_pir_exist.
+                    ENDIF.
+                  ENDIF.
+                ENDIF.
+              ENDIF.
+            ELSE.
+              gi_mess-matnr = gi_mat_temp1-matnr.
+              CONCATENATE 'Template vendor'(041) gi_mat_temp1-lifnr 'differs from PR vendor'(042) gi_eban1-flief  INTO gi_mess-mes SEPARATED BY space.
+              APPEND gi_mess TO gt_mess.
+            ENDIF.
+
+          ELSE.
+            READ TABLE gt_eord2 INTO gi_eord2 WITH KEY matnr = gi_mat_temp1-matnr BINARY SEARCH.
+            IF  sy-subrc = 0.
+              IF gi_eord2-lifnr = gi_mat_temp1-lifnr.
+
+                READ TABLE gt_eina INTO gi_eina WITH KEY matnr = gi_mat_temp1-matnr
+                                                         lifnr = gi_mat_temp1-lifnr BINARY SEARCH.
+                IF  sy-subrc = 0.
+                  IF gi_eina-loekz = 'X'.
+                    gi_mess-matnr = gi_mat_temp1-matnr.
+                    CONCATENATE 'PIR'(038) gi_eina-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr  'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                    APPEND gi_mess TO gt_mess.
+                  ELSE.
+                    READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+                    IF sy-subrc = 0.
+                      IF gi_eine1-loekz = 'X'.
+                        gi_mess-matnr = gi_mat_temp1-matnr.
+                        CONCATENATE 'PIR'(038) gi_eine1-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr gi_eine1-werks gi_eine1-ekorg 'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                        APPEND gi_mess TO gt_mess.
+                      ELSE.
+                        gi_pir_exist-infnr = gi_eine1-infnr.
+                        gi_pir_exist-matnr = gi_mat_temp1-matnr.
+                        gi_pir_exist-lifnr = gi_mat_temp1-lifnr.
+                        APPEND gi_pir_exist TO gt_pir_exist.
+                      ENDIF.
+                    ELSE.
+                      gi_pir_create-matnr = gi_mat_temp1-matnr.
+                      APPEND gi_pir_create TO gt_pir_create.
+                    ENDIF.
+                  ENDIF.
+                ELSE.
+                  gi_pir_create-matnr = gi_mat_temp1-matnr.
+                  APPEND gi_pir_create TO gt_pir_create.
+                ENDIF.
+
+              ELSE.
+                gi_mess-matnr = gi_mat_temp1-matnr.
+                CONCATENATE 'Template vendor'(041) gi_mat_temp1-lifnr 'differs from Config material vendor'(043) gi_eord2-lifnr INTO gi_mess-mes SEPARATED BY space.
+                APPEND gi_mess TO gt_mess.
+*                ‘Template Vendor <No.> differs with Config Vendor <No.>
+              ENDIF.
+            ELSE.
+              READ TABLE gt_eina INTO gi_eina WITH KEY matnr = gi_mat_temp1-matnr "BINARY SEARCH.
+                                                       lifnr = gi_mat_temp1-lifnr BINARY SEARCH.
+              IF  sy-subrc = 0.
+                IF gi_eina-loekz = 'X'.
+                  gi_mess-matnr = gi_mat_temp1-matnr.
+                  CONCATENATE 'PIR'(038) gi_eina-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr  'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                  APPEND gi_mess TO gt_mess.
+                ELSE.
+                  READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_eina-infnr BINARY SEARCH.
+                  IF sy-subrc = 0.
+                    IF gi_eine1-loekz = 'X'.
+                      gi_mess-matnr = gi_mat_temp1-matnr.
+                      CONCATENATE 'PIR'(038) gi_eine1-infnr 'for'(039) gi_mat_temp1-matnr gi_mat_temp1-lifnr gi_eine1-werks gi_eine1-ekorg 'is marked for deletion'(040) INTO gi_mess-mes SEPARATED BY space.
+                      APPEND gi_mess TO gt_mess.
+                    ELSE.
+                      gi_pir_exist-infnr = gi_eine1-infnr.
+                      gi_pir_exist-matnr = gi_mat_temp1-matnr.
+                      gi_pir_exist-lifnr = gi_mat_temp1-lifnr.
+                      APPEND gi_pir_exist TO gt_pir_exist.
+                    ENDIF.
+                  ELSE.
+                    gi_pir_create-matnr = gi_mat_temp1-matnr.
+                    APPEND gi_pir_create TO gt_pir_create.
+                  ENDIF.
+                ENDIF.
+              ELSE.
+                gi_pir_create-matnr = gi_mat_temp1-matnr.
+                APPEND gi_pir_create TO gt_pir_create.
+              ENDIF.
+
+
+            ENDIF.
+          ENDIF.
+          CLEAR : gi_mat_temp1, gi_eban1,gi_eine1,gi_eina,gi_pir_exist,gi_pir_create,gi_eord2.
+        ENDIF.
+      ENDLOOP.
+
+      SORT gt_pir_create BY matnr.
+
+      LOOP AT gt_mat_temp INTO gi_mat_temp.
+        READ TABLE gt_pir_create INTO gi_pir_create WITH KEY matnr = gi_mat_temp-matnr BINARY SEARCH.
+        IF sy-subrc = 0.
+          CONTINUE.
+        ELSE.
+          IF gi_mat_temp-msg1 IS INITIAL.
+            DELETE gt_mat_temp WHERE matnr = gi_mat_temp-matnr.
+          ENDIF.
+        ENDIF.
+        CLEAR : gi_mat_temp, gi_pir_create.
+      ENDLOOP.
+
+      REFRESH :gt_bdcdata,git_mess.
+      CLEAR  :gi_bdcdata,gi_mess1.
+
+      IF gt_pir_exist IS NOT INITIAL.
+
+        SELECT matnr
+               werks
+               zeord
+               lifnr
+               ekorg FROM eord
+                     INTO TABLE gt_eord3
+                     FOR ALL ENTRIES IN gt_pir_exist
+                     WHERE matnr EQ gt_pir_exist-matnr
+                      AND werks EQ s_werks-low
+                      AND lifnr EQ gt_pir_exist-lifnr
+                      AND flifn EQ 'X'.                        "changes by 503167886 on 04.03.2020 for GECHG0717071/ TR DE3K996267
+
+
+        IF sy-subrc EQ 0.
+          SORT gt_eord3 BY matnr werks ekorg.
+        ENDIF.
+        SORT gt_mat_temp1 BY matnr.
+
+        LOOP AT gt_pir_exist INTO gi_pir_exist.
+          READ TABLE gt_eord3 INTO gi_eord3  WITH KEY matnr = gi_pir_exist-matnr BINARY SEARCH.
+          IF sy-subrc = 0.
+            CONTINUE.
+          ENDIF.
+          READ TABLE gt_mat_temp1 INTO gi_mat_temp1 WITH  KEY matnr = gi_pir_exist-matnr BINARY SEARCH.
+          IF sy-subrc = 0.
+
+            PERFORM bdc_me01.
+
+          ENDIF.
+
+          CLEAR : gi_mess1,gi_pir_exist,gi_eord3,gi_mat_temp1.
+          REFRESH : git_mess, gt_bdcdata.
+        ENDLOOP.
+
+        SELECT matnr
+               werks
+               zeord
+               lifnr
+               ekorg FROM eord
+                     INTO TABLE gt_eord4
+                     FOR ALL ENTRIES IN gt_pir_exist
+                     WHERE matnr EQ gt_pir_exist-matnr
+                      AND werks EQ s_werks-low
+                      AND lifnr EQ gt_pir_exist-lifnr
+                      AND flifn EQ 'X'.                           "changes by 503167886 on 04.03.2020 for GECHG0717071/ TR DE3K996267
+
+        IF sy-subrc EQ 0.
+          SORT gt_eord4 BY matnr werks ekorg.
+        ENDIF.
+
+        LOOP AT gt_mat_temp1 INTO gi_mat_temp1.
+          IF gi_mat_temp1-msg1 IS INITIAL.
+
+            READ TABLE gt_pir_exist INTO gi_pir_exist WITH KEY matnr = gi_mat_temp1-matnr BINARY SEARCH.
+            IF sy-subrc = 0.
+
+              READ TABLE gt_eine1 INTO gi_eine1 WITH KEY infnr = gi_pir_exist-infnr BINARY SEARCH.
+
+              IF sy-subrc = 0.
+**
+**      if gi_pir_exist-waers = gi_mat_temp-waers and gi_pir_exist-bprme = gi_mat_temp-bprme.
+
+                IF gi_eine1-peinh = gi_mat_temp1-peinh.
+                ELSE.
+                  gi_mat_temp1-netpr = ( gi_mat_temp1-netpr * gi_eine1-peinh ) / gi_mat_temp1-peinh.   "added by 503167886/ TR DE3K996954/as part of gen6.
+
+                ENDIF.
+                IF gi_eine1-netpr = gi_mat_temp1-netpr.
+
+                  gi_netpr_equal-matnr = gi_mat_temp1-matnr.
+                  gi_netpr_equal-lifnr = gi_mat_temp1-lifnr.
+                  gi_netpr_equal-werks = gi_mat_temp1-werks.
+                  CONCATENATE 'Purchasing Info Record'(031) gi_eine1-infnr gi_eine1-ekorg gi_eine1-werks 'No change required'(029) INTO gi_netpr_equal-msg1 SEPARATED BY space.
+*           gi_netpr_equal-msg1  = 'No Changes Required in the PIR'(024).
+                  READ TABLE gt_eord3 INTO gi_eord3 WITH KEY matnr = gi_mat_temp1-matnr
+                                                           werks = gi_mat_temp1-werks BINARY SEARCH.
+                  IF sy-subrc = 0.
+                    gi_netpr_equal-msg2  = 'Source List already assigned'(006).
+                  ELSE.
+                    READ TABLE gt_eord4 INTO gi_eord4 WITH KEY matnr = gi_mat_temp1-matnr
+                                                             werks = gi_mat_temp1-werks BINARY SEARCH.
+                    IF sy-subrc = 0.
+                      gi_netpr_equal-msg2  = 'Source List is Created'(035).
+                    ELSE.
+                      gi_netpr_equal-msg2  = 'Source List is not found'(032).
+                    ENDIF.
+                  ENDIF.
+                  gi_netpr_equal-msg3  = ' Material Cost not updated'(022).
+
+                  APPEND gi_netpr_equal TO  gt_netpr_equal.
+                ELSE.
+                  gi_bdc_me12_mat-matnr = gi_mat_temp1-matnr.
+                  gi_bdc_me12_mat-netpr = gi_mat_temp1-netpr.
+                  gi_bdc_me12_mat-netpr1 = gi_eine1-netpr.
+                  gi_bdc_me12_mat-lifnr = gi_pir_exist-lifnr.
+                  gi_bdc_me12_mat-ekorg = gi_eine1-ekorg.
+                  gi_bdc_me12_mat-esokz = gi_eine1-esokz.
+                  gi_bdc_me12_mat-werks = gi_eine1-werks.
+                  gi_bdc_me12_mat-loekz = gi_eine1-loekz.
+                  gi_bdc_me12_mat-ekgrp = gi_eine1-ekgrp.
+                  gi_bdc_me12_mat-waers = gi_eine1-waers.
+                  gi_bdc_me12_mat-minbm = gi_eine1-minbm.
+                  gi_bdc_me12_mat-norbm = gi_eine1-norbm.
+                  gi_bdc_me12_mat-mwskz = gi_eine1-mwskz.
+                  gi_bdc_me12_mat-peinh = gi_eine1-peinh.
+                  gi_bdc_me12_mat-bprme = gi_eine1-bprme.
+                  gi_bdc_me12_mat-bstme = gi_mat_temp1-bstme.
+                  gi_bdc_me12_mat-meins = gi_mat_temp1-meins.
+                  APPEND gi_bdc_me12_mat TO gt_bdc_me12_mat.
+                ENDIF.
+**       else.
+**           if gi_pir_exist-bstaewaers NE gi_mat_temp-waers .
+**
+***         use of function module to change the currency.
+**           endif.
+**           if gi_pir_exist-bprme NE gi_mat_temp-bprme.
+**
+***             use of fm to change UOM.
+**           endif.
+**
+***      perform the net price calculation.
+**
+**            if gi_pir_exist-netpr = gi_mat_temp-netpr.
+**
+***             no update required.
+**           else.
+**             gi_bdc_me12_mat-matnr = gi_mat_temp-matnr.
+**             gi_bdc_me12_mat-netpr = gi_mat_temp-netpr.
+**             gi_bdc_me12_mat-netpr1 = gi_pir_exist-netpr.
+**
+**            append gi_bdc_me12_mat to gt_bdc_me12_mat.
+              ENDIF.
+
+
+
+            ENDIF.
+
+          ENDIF.
+          CLEAR : gi_mat_temp1, gi_pir_exist, gi_eine1,gi_bdc_me12_mat,gi_netpr_equal.
+**
+        ENDLOOP.
+
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+* End of changes by 503167886 on 19.02.2020 for GECHG0717071.
+
+
+
+ENDFORM.                    " EMAX_COMP_PRICE
+*&---------------------------------------------------------------------*
+*&      Form  BOM_COMPONENTS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM bom_components .
+
+
+  CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+    EXPORTING
+      capid                 = gw_capid
+      datuv                 = sy-datum
+      emeng                 = 1000
+      mktls                 = 'X'
+      mehrs                 = 'X'
+      mtnrv                 = gi_fin_mat-matnr
+      stlal                 = '01'
+      stlan                 = gw_stlal
+      werks                 = gi_fin_mat-werks
+      vrsvo                 = 'X'
+    IMPORTING
+      topmat                = gs_topmat
+    TABLES
+      stb                   = gt_stob
+      matcat                = gt_cscmat            " added on 30.03.2020 by 503167886 / TR DE3K996954/ for CR GECHG0791168
+    EXCEPTIONS
+      alt_not_found         = 1
+      call_invalid          = 2
+      material_not_found    = 3
+      missing_authorization = 4
+      no_bom_found          = 5
+      no_plant_data         = 6
+      no_suitable_bom_found = 7
+      conversion_error      = 8
+      OTHERS                = 9.
+
+  IF sy-subrc EQ 0.
+    SORT gt_cscmat BY matnr.                        " added on 30.03.2020 by 503167886 / TR DE3K996954 / for CR GECHG0791168
+*    DELETE gt_stob WHERE vwegx NE 0.
+
+    APPEND gs_topmat TO gt_topmat."Added on 17.07.2019 for  GECHG0532576 by 502277866
+
+    LOOP AT gt_stob INTO gs_stob.
+      READ TABLE gt_cscmat INTO gi_cscmat WITH KEY matnr = gs_stob-idnrk BINARY SEARCH.    " added on 30.03.2020 by 503167886 / TR DE3K996954 / for CR GECHG0791168
+      IF sy-subrc = 0.
+        CONTINUE.
+      ELSE.
+        gi_comp-matnr =  gi_fin_mat-matnr.
+        gi_comp-matnr1 = gs_stob-idnrk.
+        gi_comp-werks  = gi_fin_mat-werks.
+        gi_comp-ekorg  = gi_fin_mat-ekorg.
+        gi_comp-mnglg  = gs_stob-mnglg. "Added on 17.07.2019 for  GECHG0532576 by 502277866
+        gi_comp-mmein  = gs_stob-mmein. "Added on 17.07.2019 for  GECHG0532576 by 502277866
+        APPEND gi_comp TO gt_comp.
+
+        CLEAR : gi_comp , gs_stob,gi_cscmat.
+      ENDIF.
+    ENDLOOP.
+
+    FREE : gt_stob.
+    CLEAR : gi_fin_mat , gs_topmat.
+
+  ELSE.
+    DELETE gt_fin_mat  INDEX gw_fin_index.
+    gi_mess-matnr = gi_fin_mat-matnr.
+    gi_mess-bismt = gi_mara-bismt.
+    CONCATENATE 'BOM Not Found for PR material '(019) gi_fin_mat-matnr INTO gi_mess-mes SEPARATED BY space.
+    APPEND gi_mess TO gt_mess.
+    CLEAR : gi_mess.
+
+  ENDIF.
+
+
+
+ENDFORM.                    " BOM_COMPONENTS
+*** start of  changes  on 09-SEP-2019 for  GECHG0588463 by 502277866
+*&---------------------------------------------------------------------*
+*&      Form  MATERIAL_PRICE_UPDATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------**
+FORM material_price_update .
+
+  DATA : lw_wears4 TYPE waers.
+
+* (+) {Start of Insert 9X10070665 CHG0161322
+  TYPES: BEGIN OF lty_mat_led,
+          werks TYPE t001w-werks,
+          bwkey TYPE t001w-bwkey,
+          mlbwi TYPE ckmlv-mlbwi,
+          curtp TYPE ckmlct-curtp,
+          waers TYPE ckmlct-waers,
+          netpr LIKE gi_mat_temp-netpr,
+         END OF lty_mat_led.
+
+  DATA : lt_mat_led TYPE TABLE OF lty_mat_led.
+  DATA : lw_mat_led LIKE LINE  OF lt_mat_led.
+  DATA : lv_index   TYPE          sy-tabix.
+  DATA : lv_idx     TYPE          char1.
+  DATA : lv_field   TYPE          bdcdata-fnam.
+
+  DATA:lv_price TYPE lpreis.
+
+  SELECT a~werks a~bwkey b~mlbwi c~curtp c~waers       "#EC CI_BUFFJOIN
+    FROM t001w AS a
+    INNER JOIN ckmlv  AS b ON ( b~bwkey = a~bwkey )
+    INNER JOIN ckmlct AS c ON ( c~bwkey = a~bwkey )
+    INTO TABLE lt_mat_led
+   WHERE a~werks = gi_mat_temp-werks.
+  IF sy-subrc NE 0.
+    CLEAR: lt_mat_led.
+  ENDIF.
+* (+) } End of Insert 9X10070665 CHG0161322
+
+  READ TABLE gt_t001k INTO gi_t001k WITH KEY bwkey = gi_mat_temp-werks BINARY SEARCH .
+  IF sy-subrc EQ 0.
+    READ TABLE gt_t001 INTO gi_t001 WITH KEY bukrs = gi_t001k-bukrs BINARY SEARCH.
+    IF sy-subrc EQ 0 .
+      lw_wears4 = gi_t001-waers.
+    ENDIF.
+  ENDIF.
+
+*  IF gp_r1 EQ 'X'.
+*    READ TABLE gt_lfm1 INTO gi_lfm1 WITH KEY lifnr = gi_mat_temp-lifnr
+*                                                    ekorg = gi_mat_temp-ekorg BINARY SEARCH.
+*
+*    IF sy-subrc EQ 0.
+*
+*      gw_waers = gi_lfm1-waers.
+*
+*    ENDIF.
+*
+*  ELSE.
+  READ TABLE gt_lfm11 INTO gi_lfm11 WITH KEY lifnr = gi_mat_temp-lifnr
+                                                      ekorg = gi_mat_temp-ekorg BINARY SEARCH.
+
+  IF sy-subrc EQ 0.
+
+    gw_waers = gi_lfm11-waers.
+
+  ENDIF.
+
+*  ENDIF.
+
+  lv_price = gi_mat_temp-netpr.
+  IF gw_waers NE lw_wears4.
+    CLEAR  : gw_erate .
+    PERFORM exchange_rate USING gw_waers lw_wears4.
+    gi_mat_temp-netpr = gi_mat_temp-netpr * gw_erate.
+  ENDIF.
+
+
+
+  READ TABLE gt_mara INTO gi_mara WITH KEY matnr = gi_mat_temp-matnr BINARY SEARCH.
+  IF sy-subrc EQ 0.
+    IF gi_mara-bstme IS NOT INITIAL.
+
+      IF gi_mara-meins NE gi_mara-bstme.
+        CLEAR : gw_menge1 , gw_kbetr1.
+        gw_menge = 1.
+
+        CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+          EXPORTING
+            i_matnr              = gi_mat_temp-matnr
+            i_in_me              = gi_mara-bstme
+            i_out_me             = gi_mara-meins
+            i_menge              = gw_menge
+          IMPORTING
+            e_menge              = gw_menge1
+          EXCEPTIONS
+            error_in_application = 1
+            error                = 2
+            OTHERS               = 3.
+        IF sy-subrc EQ 0.
+
+*              gw_kbetr1 = gw_kbetr1 / gw_menge1.
+
+
+          gi_mat_temp-netpr = gi_mat_temp-netpr / gw_menge1.
+
+        ENDIF.
+
+      ENDIF.
+
+    ENDIF.
+
+  ENDIF.
+
+
+  READ TABLE gt_mbew INTO gi_mbew WITH KEY matnr = gi_mat_temp-matnr
+                                          bwkey  = gi_mat_temp-werks BINARY SEARCH.
+  IF sy-subrc EQ 0.
+
+    IF gi_mat_temp-peinh EQ gi_mbew-peinh.
+
+    ELSE.
+
+
+*      gi_mat_temp-netpr = gi_mat_temp-netpr * gi_mbew-peinh.                         "(-) SAPID#503119365/TR#DE3K994776//CR#GECHG0532576/DATE#23-11-2019
+      gi_mat_temp-netpr = ( gi_mat_temp-netpr * gi_mbew-peinh ) / gi_mat_temp-peinh.  "(+) SAPID#503119365/TR#DE3K994776//CR#GECHG0532576/DATE#23-11-2019
+    ENDIF.
+  ENDIF.
+*CONDENSE gw_netpr.
+* (+) {Start of Insert 9X10070665 CHG0161322
+  LOOP AT lt_mat_led INTO lw_mat_led.
+    lv_index = sy-tabix.
+    IF lw_mat_led-waers = lw_wears4.
+      lw_mat_led-netpr = gi_mat_temp-netpr.
+    ELSE.
+      CLEAR  : gw_erate .
+      PERFORM exchange_rate USING lw_wears4 lw_mat_led.
+      lw_mat_led-netpr = gi_mat_temp-netpr * gw_erate.
+    ENDIF.
+    MODIFY lt_mat_led FROM lw_mat_led INDEX lv_index TRANSPORTING netpr.
+  ENDLOOP.
+* (+) }End of Insert 9X10070665 CHG0161322
+
+***  CLEAR : gw_date2 , gw_databi.
+***  gw_date2 = sy-datum.
+***  WRITE  gw_date2 TO gw_databi.
+***  WRITE  gi_mat_temp-netpr TO gw_netpr.
+***  PERFORM bdc_dynpro      USING 'SAPRCKM_MR21' '0201'.
+***  PERFORM bdc_field       USING 'BDC_CURSOR'
+***                                'MR21HEAD-BUDAT'.
+***  PERFORM bdc_field       USING 'BDC_OKCODE'
+***                                '=ENTR'.
+***  PERFORM bdc_field       USING 'MR21HEAD-BUDAT'
+***                                 gw_databi.
+***  PERFORM bdc_field       USING 'MR21HEAD-BUKRS'
+***                                gi_t001-bukrs.
+***  PERFORM bdc_field       USING 'MR21HEAD-WERKS'
+***                                gi_mat_temp-werks.
+***  PERFORM bdc_field       USING 'MR21HEAD-XBLNR'
+***                                'ZMM016'.
+***  PERFORM bdc_field       USING 'MR21HEAD-SCREEN_VARIANT'
+***                                'MR21_LAGERMATERIAL_BWKEY_0250'.
+***  PERFORM bdc_dynpro      USING 'SAPRCKM_MR21' '0201'.
+***  PERFORM bdc_field       USING 'BDC_OKCODE'
+***                                '=ENTR'.
+***  PERFORM bdc_field       USING 'BDC_CURSOR'
+***                                'CKI_MR21_0250-MATNR(01)'.
+***  PERFORM bdc_field       USING 'MR21HEAD-SCREEN_VARIANT'
+***                                'MR21_LAGERMATERIAL_BWKEY_0250'.
+***  PERFORM bdc_field       USING 'CKI_MR21_0250-MATNR(01)'
+***                                gi_mat_temp-matnr.
+***  PERFORM bdc_field       USING 'CKI_MR21_0250-NEWVALPR(01)'
+***                                gw_netpr.
+**** (+) { Start of Insert 9X10070665 CHG0161322 Material Ledger
+***  CLEAR lv_index.
+***  LOOP AT lt_mat_led INTO lw_mat_led.
+***    lv_idx = lv_idx + 1.
+***    IF lw_mat_led-curtp EQ '10'.
+***      CONTINUE.
+***    ENDIF.
+***    CONDENSE lv_idx.
+***    CONCATENATE 'TAB' lv_idx INTO lv_field.
+***    PERFORM bdc_field       USING 'BDC_OKCODE'
+***                            lv_field.
+***
+***    PERFORM bdc_dynpro      USING 'SAPRCKM_MR21' '0201'.
+***    PERFORM bdc_field       USING 'BDC_CURSOR'
+***                                  'CKI_MR21_0250-NEWVALPR(01)'.
+***    PERFORM bdc_field       USING 'MR21HEAD-SCREEN_VARIANT'
+***                                  'MR21_LAGERMATERIAL_BWKEY_0250'.
+***    WRITE lw_mat_led-netpr TO gw_netpr.
+***    PERFORM bdc_field       USING 'CKI_MR21_0250-NEWVALPR(01)'
+***                                  gw_netpr.
+***  ENDLOOP.
+***  IF sy-subrc EQ 0.
+***    PERFORM bdc_field       USING 'BDC_OKCODE'
+***                                  '=SAVE'.
+***  ELSEIF sy-subrc NE 0.
+**** (+) } End of Insert 9X10070665 CHG0161322 Material Ledger
+***
+***    PERFORM bdc_dynpro      USING 'SAPRCKM_MR21' '0201'.
+***    PERFORM bdc_field       USING 'BDC_OKCODE'
+***                                  '=SAVE'.
+***    PERFORM bdc_field       USING 'BDC_CURSOR'
+***                                  'CKI_MR21_0250-NEWVALPR(01)'.
+***    PERFORM bdc_field       USING 'MR21HEAD-SCREEN_VARIANT'
+***                                  'MR21_LAGERMATERIAL_BWKEY_0250'.
+***    PERFORM bdc_field       USING 'CKI_MR21_0250-NEWVALPR(01)'
+***                                  gw_netpr.
+***  ENDIF.                                                                " (+) INS 9X10070665 CHG0161322 Material Ledger
+***
+***  gc_mr21 = 'X'.
+***  PERFORM f1002call_transaction .
+***
+*  DELETE gt_messtab WHERE  msgtyp = 'W'.
+*  READ TABLE gt_messtab INTO gi_messtab  INDEX 1.
+*  IF sy-subrc EQ 0.
+*    PERFORM message_collect CHANGING gi_mat_temp-msg3 .
+*  ENDIF.
+*  READ TABLE gt_messtab WITH KEY msgtyp = 'S'
+*                                  msgid = 'CKPRCH'
+*                                  msgnr = '019'  TRANSPORTING NO FIELDS.   " Added on 16/11/2020 # DE3K9A01V4 by 503167886.
+*  IF sy-subrc EQ 0.
+*    gw_prcupd = 'X'.
+*  ELSE.
+*    READ TABLE gt_messtab WITH KEY msgtyp = 'I'
+*                                   msgid = 'CKPRCH'
+*                                   msgnr = '019'   TRANSPORTING NO FIELDS. " Added on 16/11/2020 # DE3K9A01V4 by 503167886.
+*    IF sy-subrc EQ 0.
+*      gw_prcupd = 'X'.
+*    ENDIF.
+*  ENDIF.
+*
+*DATA:lv_mode TYPE char1 VALUE 'E',
+*    li_table_control_line TYPE rk70l,             "line of a unit costing
+*    li_input_data TYPE kkpi_transfer_data_line,   "unitcosting
+*    lt_input_data TYPE kkpi_transfer_data.        "table of unitcostings
+**    lv_price TYPE LPREIS.
+*
+*    li_input_data-klvar = 'ZPC1'.                     "costing variant
+*    li_input_data-matnr = gi_mat_temp-matnr.                  "material number
+*    li_input_data-werks = gi_mat_temp-werks.                  "plant
+*    li_input_data-tvers = '1'.                        "costing version
+*    li_input_data-kadat = sy-datum.                  "costing date from
+*    li_input_data-bidat = sy-datum. .                  "costing date to
+*    li_input_data-raw_material = ' '.
+*
+*MOVE gi_mat_temp-netpr to lv_price.
+*     CLEAR li_table_control_line.
+*    li_table_control_line-posnr = 1.                       "number of LI_table_control_line
+*    li_table_control_line-typps = 'M'.       "Unit costing item category
+*    li_table_control_line-lpreis =  lv_price.     "Price
+*    li_table_control_line-herk2 =  gi_mat_temp-matnr..     "Price
+*    li_table_control_line-herk3 =  gi_mat_temp-werks. .     "Price
+**    li_table_control_line-kstar = gi_input-kstar_l1.       "cost element
+*    li_table_control_line-menge = gi_mat_temp-peinh.       "Quantity
+*    APPEND li_table_control_line TO li_input_data-position.
+*    CLEAR li_table_control_line.
+*
+*    CLEAR: lv_price.
+*      lv_price = 10.
+*
+*    li_table_control_line-posnr = 2.                       "number of LI_table_control_line
+*    li_table_control_line-typps = 'V'.     "Unit costing item category
+*    li_table_control_line-lpreis = lv_price.     "Price
+*    li_table_control_line-kstar = '8000000020'.       "cost element
+*    li_table_control_line-menge = gi_mat_temp-peinh.       "Quantity
+*    APPEND li_table_control_line TO li_input_data-position.
+*    CLEAR li_table_control_line.
+*
+*
+**    * append whole unit costing
+*    APPEND li_input_data TO lt_input_data.
+*
+*  CALL FUNCTION 'KKPI_BDC_COSTING_CREATE'
+*        EXPORTING
+*          client           = sy-mandt
+*          user             = sy-uname
+*          mode             = lv_mode
+*          update           = 'S'
+*          it_transfer_data = lt_input_data
+*        EXCEPTIONS
+*          OTHERS           = 1.
+*      IF sy-subrc <> 0.
+*      ENDIF.
+ENDFORM.                    " MATERIAL_PRICE_UPDATE
+*** ENd of changes  on 09-SEP-2019 for  GECHG0588463 by 502277866
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_ACCOUNT_ASSIGNMENT
+*&---------------------------------------------------------------------*
+*     Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+*----------------------------------------------------------------------*
+*      -->P_0127   text
+*----------------------------------------------------------------------*
+FORM update_account_assignment  USING    value(p_knttp).
+
+*  s_knttp-sign = 'I'.
+*  s_knttp-option = 'EQ'.
+*  s_knttp-low = p_knttp.
+*  APPEND s_knttp.
+
+ENDFORM.                    " UPDATE_ACCOUNT_ASSIGNMENT
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_ACC_ASSIGN_SELECTION
+*&---------------------------------------------------------------------*
+*&     Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM update_acc_assign_selection .
+
+*  DATA: li_knttp   LIKE LINE OF s_knttp.
+*
+*  IF gp_r1 IS INITIAL.
+*    IF s_knttp[] IS NOT INITIAL.
+*      FREE li_knttp.
+*      READ TABLE s_knttp INTO li_knttp WITH KEY low = gc_aac_n. "'N'.
+*      IF sy-subrc <> 0.
+*        FREE s_nplnr[].  "Network
+*      ENDIF.
+*      FREE li_knttp.
+*      READ TABLE s_knttp INTO li_knttp WITH KEY low = gc_aac_q."'Q'.
+*      IF sy-subrc <> 0.
+*        FREE s_psext[].  "WBS
+*      ENDIF.
+*      FREE li_knttp.
+*      READ TABLE s_knttp INTO li_knttp WITH KEY low = gc_aac_x."'X'.
+*      IF sy-subrc <> 0.
+*        FREE li_knttp.
+*        READ TABLE s_knttp INTO li_knttp WITH KEY low = gc_aac_e."'E'.
+*        IF sy-subrc <> 0.
+*          FREE s_vbeln[].  "SO
+*        ENDIF.
+*        " Begin of  Changes for CR#GECHG0626527/TR# DE3K995123/SAP ID#503119365/Date#06-12-2-2019
+*        READ TABLE s_knttp INTO li_knttp WITH KEY low = gc_aac_m."'M'.
+*        IF sy-subrc <> 0.
+*          FREE s_vbeln[].  "SO
+*        ENDIF.
+*        " End   of  Changes for CR#GECHG0626527/TR# DE3K995123/SAP ID#503119365/Date#06-12-2-2019
+*        FREE s_vbeln[].  "SO
+*      ENDIF.
+*      FREE li_knttp.
+*      READ TABLE s_knttp INTO li_knttp WITH KEY low = gc_aac_f."'F'.
+*      IF sy-subrc <> 0.
+*        FREE s_aufnr[].  "Order
+*      ENDIF.
+*      FREE li_knttp.
+*    ENDIF.
+*
+*
+*    IF  s_knttp[] IS INITIAL AND
+*        s_aufnr[] IS INITIAL AND
+*        s_nplnr[] IS INITIAL AND
+*        s_vbeln[] IS INITIAL AND
+*        s_psext[] IS INITIAL.
+*
+*      PERFORM update_account_assignment USING gc_aac_e.       "'E'.
+*      PERFORM update_account_assignment USING gc_aac_q.       "'Q'.
+*      PERFORM update_account_assignment USING gc_aac_f.       "'F'.
+*      PERFORM update_account_assignment USING gc_aac_n.       "'N'.
+*      PERFORM update_account_assignment USING gc_aac_x.       "'X'.
+*      PERFORM update_account_assignment USING gc_aac_space.   "' '.
+*      PERFORM update_account_assignment USING gc_aac_m.       "'M'. "(+) Changes for CR#GECHG0626527/TR# DE3K995123/SAP ID#503119365/Date#06-12-2019
+*    ELSEIF s_knttp[] IS INITIAL AND
+*           s_aufnr[] IS INITIAL AND
+*           s_nplnr[] IS INITIAL AND
+*           s_vbeln[] IS INITIAL AND
+*           s_psext[] IS NOT INITIAL.
+*
+*      PERFORM conversion_konpr_input.
+*      PERFORM update_account_assignment USING gc_aac_q."'Q'.
+*
+*    ELSEIF s_knttp[] IS INITIAL AND
+*           s_aufnr[] IS INITIAL AND
+*           s_nplnr[] IS INITIAL AND
+*           s_vbeln[] IS NOT INITIAL AND
+*           s_psext[] IS INITIAL.
+*
+*      PERFORM update_account_assignment USING gc_aac_x."'X'.
+*      PERFORM update_account_assignment USING gc_aac_e."'E'.
+*      PERFORM update_account_assignment USING gc_aac_m."'M'.  "(+) Changes for CR#GECHG0626527/TR# DE3K995123/SAP ID#503119365/Date#06-12-2019
+*
+*    ELSEIF s_knttp[] IS INITIAL AND
+*           s_aufnr[] IS NOT INITIAL AND
+*           s_nplnr[] IS INITIAL AND
+*           s_vbeln[] IS INITIAL AND
+*           s_psext[] IS INITIAL.
+*
+*      PERFORM update_account_assignment USING gc_aac_f."'F'.
+*
+*    ELSEIF s_knttp[] IS INITIAL AND
+*           s_aufnr[] IS INITIAL AND
+*           s_nplnr[] IS NOT INITIAL AND
+*           s_vbeln[] IS INITIAL AND
+*           s_psext[] IS INITIAL.
+*
+*      PERFORM update_account_assignment USING gc_aac_n."'N'.
+*    ENDIF.
+*  ELSE.
+*    FREE : s_knttp[], "Account Assignment Category
+*           s_aufnr[], "Order
+*           s_nplnr[], "Network
+*           s_psext[], "WBS Element
+*           s_vornr[]. "Operation
+*    PERFORM update_account_assignment USING gc_aac_x."'X'.
+*    PERFORM update_account_assignment USING gc_aac_e."'E'.
+*  ENDIF.
+ENDFORM.                    " UPDATE_ACC_ASSIGN_SELECTION
+*&---------------------------------------------------------------------*
+*&      Form  CONVERSION_KONPR_INPUT
+*&---------------------------------------------------------------------*
+*   Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM conversion_konpr_input .
+
+*  FIELD-SYMBOLS : <fs> LIKE LINE OF s_psext[].
+*  LOOP AT s_psext ASSIGNING <fs>.
+*    CALL FUNCTION 'CONVERSION_EXIT_KONPR_INPUT'
+*      EXPORTING
+*        input  = <fs>-low
+*      IMPORTING
+*        output = <fs>-low.
+*  ENDLOOP.
+*  UNASSIGN <fs>.
+ENDFORM.                    " CONVERSION_KONPR_INPUT
+*&---------------------------------------------------------------------*
+*&      Form  MODIFY_SCREEN_ATS
+*&---------------------------------------------------------------------*
+*     Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM modify_screen_ats .
+
+ENDFORM.                    " MODIFY_SCREEN_ATS
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_KNTTP_F4
+*&---------------------------------------------------------------------*
+*    Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+*----------------------------------------------------------------------*
+*      -->P_0186   text
+*      -->P_0187   text
+*----------------------------------------------------------------------*
+FORM update_knttp_f4  USING    value(p_knttp)
+                               value(p_text).
+
+  FREE gi_knttp.
+  gi_knttp-knttp = p_knttp.
+  gi_knttp-text  = p_text.
+  APPEND gi_knttp TO gt_knttp.
+
+ENDFORM.                    " UPDATE_KNTTP_F4
+*&---------------------------------------------------------------------*
+*&      Form  POPULATE_KNTTP_F4
+*&---------------------------------------------------------------------*
+*    Changes for CR#GECHG0626527/TR# DE3K994056/SAP ID#503119365
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM populate_knttp_f4 .
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = gc_knttp    "'KNTTP'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = gc_s_knttp  "'S_KNTTP'
+      value_org       = gc_org_s    "'S'
+    TABLES
+      value_tab       = gt_knttp
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+
+ENDFORM.                    " POPULATE_KNTTP_F4
+*&---------------------------------------------------------------------*
+*&      Form  BDC_ME12_MAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM bdc_me12_mat .
+  DATA : bdcdata1 LIKE bdcdata OCCURS 0 WITH HEADER LINE,
+         messtab LIKE bdcmsgcoll OCCURS 0 WITH HEADER LINE,
+         lv_mode VALUE 'N',
+         lc_updmode1 VALUE 'S',
+         lw_option1 TYPE ctu_params,
+         e_date(10)," TYPE d.
+         c_date(10),
+         e1_date(10)," TYPE d.
+         c1_date(10),
+         f_date TYPE sy-datum." TYPE d.
+
+  lw_option1-defsize = 'X'.
+  lw_option1-dismode = lv_mode.
+  lw_option1-updmode = lc_updmode1.
+*  CLEAR: gw_yy, gw_mm, gw_dd,gw_datab1,gw_databi1,gw_databi.
+*          gw_yy = '9999'.
+*          gw_mm =  '12'.
+*          gw_dd = '31'.
+*          CONCATENATE gw_yy gw_mm gw_dd INTO gw_datab1.
+*          CLEAR: gw_yy, gw_mm, gw_dd.
+*          WRITE gw_datab1 TO gw_databi1.
+*
+*   CLEAR : gw_date2 , gw_databi.
+*     gw_date2 = sy-datum.
+*     WRITE  gw_date2 TO gw_databi.
+
+  REFRESH : gt_bdcdata,git_mess.
+  CLEAR gw_netpr.
+  SELECT lifnr
+         waers
+         ekorg
+    FROM lfm1 INTO TABLE gt_lfm12
+    FOR ALL ENTRIES IN gt_bdc_me12_mat
+    WHERE lifnr = gt_bdc_me12_mat-lifnr AND
+          ekorg = gt_bdc_me12_mat-ekorg.
+  IF sy-subrc = 0.
+    SORT gt_lfm12 BY lifnr.
+  ENDIF.
+*******begin of changes by 503167886 on 03.03.2020 for GECHG0717071/ TR JE3K902595 *************
+
+  CONCATENATE sy-datum(4) sy-datum+4(2)  sy-datum+6(2) INTO c1_date SEPARATED BY '.'.
+  CALL FUNCTION 'CY_CONVERT_DATE'
+    EXPORTING
+      date_string_imp = c1_date
+    IMPORTING
+      date_string_exp = c_date
+      date_exp        = f_date.
+
+  IF sy-subrc = 0.
+    CLEAR f_date.
+  ENDIF.
+
+  CONCATENATE  '9999' '12' '31'  INTO e1_date SEPARATED BY '.'.
+  CALL FUNCTION 'CY_CONVERT_DATE'
+    EXPORTING
+      date_string_imp = e1_date
+    IMPORTING
+      date_string_exp = e_date
+      date_exp        = f_date.
+
+
+  IF sy-subrc = 0.
+    CLEAR f_date.
+  ENDIF.
+
+*********End of changes by 503167886 on 03.03.2020 for GECHG0717071/TR JE3K902595 ***********
+
+  LOOP AT gt_bdc_me12_mat INTO gi_bdc_me12_mat.
+    READ TABLE gt_lfm12 INTO gi_lfm12 WITH KEY lifnr = gi_bdc_me12_mat-lifnr BINARY SEARCH.
+    PERFORM bdc_dynpro      USING 'SAPMM06I' '0100'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'           'EINA-INFNR'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'           '/00'.
+    PERFORM bdc_field       USING 'EINA-LIFNR'           gi_bdc_me12_mat-lifnr. "'108839105'.
+    PERFORM bdc_field       USING 'EINA-MATNR'           gi_bdc_me12_mat-matnr. "'EMAX2-CONFIG-08-FR'.
+    PERFORM bdc_field       USING 'EINE-EKORG'           gi_bdc_me12_mat-ekorg. "'USP1'.
+    PERFORM bdc_field       USING 'EINE-WERKS'           gi_bdc_me12_mat-werks. "'US14'.
+    PERFORM bdc_field       USING 'RM06I-NORMB'          'X'.
+    PERFORM bdc_dynpro      USING 'SAPMM06I' '0101'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'           'EINA-MAHN1'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'           '=KO'.
+    PERFORM bdc_field       USING 'EINA-MAHN1'           '10'.
+    PERFORM bdc_field       USING 'EINA-MAHN2'           '20'.
+    PERFORM bdc_field       USING 'EINA-MAHN3'           '30'.
+    PERFORM bdc_field       USING 'EINA-URZLA'           'IT'.
+    PERFORM bdc_field       USING 'EINA-TELF1'           '9198386892'.
+    PERFORM bdc_field       USING 'EINA-MEINS'           'EA'.
+    PERFORM bdc_field       USING 'EINA-UMREZ'           '1'.
+    PERFORM bdc_field       USING 'EINA-UMREN'           '1'.
+    PERFORM bdc_dynpro      USING 'SAPLV14A' '0102'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'           'VAKE-DATAB(01)'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'           '=NEWR'.
+    PERFORM bdc_dynpro      USING 'SAPMV13A' '0201'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'           'KONP-KBETR(01)'.
+    PERFORM bdc_field       USING 'BDC_OKCODE'           '/00'.
+*    PERFORM bdc_field       USING 'RV13A-DATAB'          '20200108'."'08.01.2020'.
+*    PERFORM bdc_field       USING 'RV13A-DATBI'          '99991231'."'31.12.9999'.
+
+    WRITE gi_bdc_me12_mat-netpr TO gw_netpr.
+
+    PERFORM bdc_field       USING 'KONP-KBETR(01)'       gw_netpr. "'81.00'.
+    PERFORM bdc_dynpro      USING 'SAPMV13A' '0201'.
+    PERFORM bdc_field       USING 'BDC_CURSOR'           'KONP-KBETR(01)'.
+    PERFORM bdc_field       USING 'KONP-KONWA(01)'       gi_lfm12-waers."'AED'.
+    PERFORM bdc_field       USING 'KONP-KPEIN(01)'       gi_bdc_me12_mat-peinh.
+    PERFORM bdc_field       USING 'BDC_OKCODE'           '=SICH'.
+
+*  CONCATENATE sy-datum(4) sy-datum+4(2)  sy-datum+6(2) INTO c_date SEPARATED BY '.'.
+    PERFORM bdc_field       USING 'RV13A-DATAB'          c_date. "'08.01.2020'.
+*  CONCATENATE  '9999' '12' '31'  INTO e_date SEPARATED BY '.'.
+    PERFORM bdc_field       USING 'RV13A-DATBI'          e_date. "'31.12.9999'.
+
+*    --------------------------------------------------------------------------------------------------------
+
+***    perform bdc_dynpro      using 'SAPMM06I' '0100'.
+***perform bdc_field       using 'BDC_CURSOR'
+***                              'EINA-LIFNR'.
+***perform bdc_field       using 'BDC_OKCODE'
+***                              '/00'.
+***perform bdc_field       using 'EINA-LIFNR'
+***                              '229907123'.
+***perform bdc_field       using 'EINA-MATNR'
+***                              'EMAX2TEMPLATEAF2SE'.
+***perform bdc_field       using 'EINE-EKORG'
+***                              'USP1'.
+***perform bdc_field       using 'EINE-WERKS'
+***                              'US14'.
+***perform bdc_field       using 'RM06I-NORMB'
+***                              'X'.
+***perform bdc_dynpro      using 'SAPMM06I' '0101'.
+***perform bdc_field       using 'BDC_CURSOR'
+***                              'EINA-MAHN1'.
+***perform bdc_field       using 'BDC_OKCODE'
+***                              '=KO'.
+***perform bdc_field       using 'EINA-MAHN1'
+***                              '10'.
+***perform bdc_field       using 'EINA-MAHN2'
+***                              '20'.
+***perform bdc_field       using 'EINA-MAHN3'
+***                              '30'.
+***perform bdc_field       using 'EINA-URZLA'
+***                              'IT'.
+***perform bdc_field       using 'EINA-TELF1'
+***                              '8643536885'.
+***perform bdc_field       using 'EINA-MEINS'
+***                              'EA'.
+***perform bdc_field       using 'EINA-UMREZ'
+***                              '1'.
+***perform bdc_field       using 'EINA-UMREN'
+***                              '1'.
+***perform bdc_dynpro      using 'SAPLV14A' '0102'.
+***perform bdc_field       using 'BDC_CURSOR'
+***                              'VAKE-DATAB(01)'.
+***perform bdc_field       using 'BDC_OKCODE'
+***                              '=NEWR'.
+***perform bdc_dynpro      using 'SAPMV13A' '0201'.
+***perform bdc_field       using 'BDC_CURSOR'
+***                              'KONP-KBETR(01)'.
+***perform bdc_field       using 'BDC_OKCODE'
+***                              '=SICH'.
+***perform bdc_field       using 'RV13A-DATAB'
+***                              '19.03.2021'.
+***perform bdc_field       using 'RV13A-DATBI'
+***                              '31.12.9999'.
+***perform bdc_field       using 'KONP-KBETR(01)'
+***                              '           1234'.
+*---------------------------------------------------------------------------------------------------------------*
+    CALL TRANSACTION 'ME12'
+             USING gt_bdcdata "bdcdata1
+*             MODE lv_mode
+*             UPDATE lc_updmode1
+             MESSAGES INTO git_mess
+             OPTIONS FROM lw_option1.
+
+    DELETE git_mess WHERE  msgtyp = 'W'.
+    READ TABLE git_mess INTO gi_mess1 INDEX 1.
+    IF sy-subrc EQ 0.
+      PERFORM message_collect1 CHANGING gi_bdc_me12_mat-msg1.
+    ENDIF.
+
+    READ TABLE gt_eord3 INTO gi_eord3 WITH KEY matnr = gi_bdc_me12_mat-matnr
+                                              werks = gi_bdc_me12_mat-werks BINARY SEARCH.
+
+    IF sy-subrc EQ 0.
+      gi_bdc_me12_mat-msg2  = 'Source List already assigned'(006).
+    ELSE.
+
+      READ TABLE gt_eord4 INTO gi_eord4 WITH KEY matnr = gi_bdc_me12_mat-matnr
+                                                werks = gi_bdc_me12_mat-werks BINARY SEARCH.
+      IF sy-subrc EQ 0.
+
+        gi_bdc_me12_mat-msg2  = 'Source List is created'(035).
+      ELSE.
+        gi_bdc_me12_mat-msg2  = 'Source List is not found'(032).
+      ENDIF.
+    ENDIF.
+    gi_bdc_me12_mat-msg3 = ' Material Cost not updated'(022).
+
+    REFRESH : git_mess, gt_bdcdata.
+
+*       PERFORM material_price_update1.
+
+
+    MODIFY gt_bdc_me12_mat FROM gi_bdc_me12_mat.
+
+    CLEAR : gi_mess1,gw_mes1,gi_eord , gi_bdc_me12_mat,gw_netpr,gi_lfm12.
+    REFRESH : git_mess, gt_bdcdata.
+
+  ENDLOOP.
+
+ENDFORM.                    " BDC_ME12_MAT
+*&---------------------------------------------------------------------*
+*&      Form  MESSAGE_COLLECT1
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_GI_BDC_ME12_MAT_MSG1  text
+*----------------------------------------------------------------------*
+FORM message_collect1  CHANGING p_gi_bdc_me12_mat_msg1.
+  CALL FUNCTION 'FORMAT_MESSAGE'
+    EXPORTING
+      id        = gi_mess1-msgid
+      lang      = 'EN'
+      no        = gi_mess1-msgnr
+      v1        = gi_mess1-msgv1
+      v2        = gi_mess1-msgv2
+      v3        = gi_mess1-msgv3
+      v4        = gi_mess1-msgv4
+    IMPORTING
+      msg       = gw_mes1
+    EXCEPTIONS
+      not_found = 1
+      OTHERS    = 2.
+  IF sy-subrc EQ 0.
+    p_gi_bdc_me12_mat_msg1  = gw_mes1.
+
+  ENDIF.
+
+ENDFORM.                    " MESSAGE_COLLECT1
+*&---------------------------------------------------------------------*
+*&      Form  BDC_ME01
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM bdc_me01 .
+  DATA : lv_mode1 VALUE 'N',
+         lc_updmode2 VALUE 'S',
+         lw_option2 TYPE ctu_params.
+
+  lw_option2-defsize = 'X'.
+  lw_option2-dismode = lv_mode1.
+  lw_option2-updmode = lc_updmode2.
+
+  gw_date2 = sy-datum - gw_days.
+  WRITE  gw_date2 TO gw_databi.
+
+  gw_yy = '9999'.
+  gw_mm =  '12'.
+  gw_dd = '31'.
+  CONCATENATE gw_yy gw_mm gw_dd INTO gw_datab1.
+  CLEAR: gw_yy, gw_mm, gw_dd.
+  WRITE gw_datab1 TO gw_databi1.
+
+
+  PERFORM bdc_dynpro      USING 'SAPLMEOR' '0200'.
+  PERFORM bdc_field       USING 'BDC_CURSOR'
+                                'EORD-WERKS'.
+  PERFORM bdc_field       USING 'BDC_OKCODE'
+                                '/00'.
+  PERFORM bdc_field       USING 'EORD-MATNR'
+                                gi_mat_temp1-matnr.
+  PERFORM bdc_field       USING 'EORD-WERKS'
+                                gi_mat_temp1-werks.
+  PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+  PERFORM bdc_field       USING 'BDC_CURSOR'
+                                'EORD-AUTET(01)'.
+  PERFORM bdc_field       USING 'BDC_OKCODE'
+                                '/00'.
+  PERFORM bdc_field       USING 'EORD-VDATU(01)'
+                                 gw_databi.
+  PERFORM bdc_field       USING 'EORD-BDATU(01)'
+                                 gw_databi1.
+  PERFORM bdc_field       USING 'EORD-LIFNR(01)'
+                                gi_mat_temp1-lifnr.
+  PERFORM bdc_field       USING 'EORD-EKORG(01)'
+                                gi_mat_temp1-ekorg.
+  PERFORM bdc_field       USING 'RM06W-FESKZ(01)'
+                                 'X'.
+  PERFORM bdc_field       USING 'EORD-AUTET(01)'
+                                '1'.
+  PERFORM bdc_dynpro      USING 'SAPLMEOR' '0205'.
+  PERFORM bdc_field       USING 'BDC_CURSOR'
+                                'EORD-AUTET(01)'.
+  PERFORM bdc_field       USING 'BDC_OKCODE'
+                                '=BU'.
+  CALL TRANSACTION 'ME01'
+        USING gt_bdcdata "bdcdata1
+*        MODE 'N'
+*        UPDATE 'S'
+        MESSAGES INTO git_mess
+        OPTIONS FROM lw_option2.
+
+  DELETE git_mess WHERE  msgtyp = 'W'.
+*    READ TABLE git_mess INTO gi_mess1 INDEX 1.
+
+ENDFORM.                    " BDC_ME01
+*&---------------------------------------------------------------------*
+*&      Form  MATERIAL_STATUS_UPDATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM material_status_update .
+
+  DATA : gi_headdata TYPE bapimathead,
+         gi_clientdata TYPE bapi_mara,
+         gi_clientdatax TYPE bapi_marax,
+         gi_plantdata TYPE bapi_marc,
+         gi_plantdatax TYPE bapi_marcx,
+         gi_valutiondata  TYPE bapi_mbew,
+         gi_valutiondatax TYPE bapi_mbewx,
+
+         gi_return1 TYPE  bapiret2,
+         gi_return2 TYPE  bapiret2.
+
+***** populate the structure*********************
+
+  gi_headdata-material = gi_mat_temp-matnr.
+*  gi_headdata-purchase_view = 'X'.
+  gi_headdata-cost_view = 'X'.
+*         gi_headdata-SALES_VIEW = 'X'.
+*         gi_headdata-MRP_VIEW = 'X'.
+*         gi_headdata-COST_VIEW = 'X'.
+
+*  gi_plantdata-plant = gi_mat_temp-werks.
+*  gi_plantdata-pur_status = ' '.
+*  gi_plantdata-pvalidfrom = '00000000'.
+*
+*  gi_plantdatax-plant = gi_mat_temp-werks.
+*  gi_plantdatax-pur_status = 'X'.
+*  gi_plantdatax-pvalidfrom = 'X'.
+
+  gi_valutiondata-val_area = gi_mat_temp-werks.
+  gi_valutiondata-plndprice1 = gi_mat_temp-netpr.
+  gi_valutiondata-plndprdate1 = sy-datum.
+
+
+
+  gi_valutiondatax-val_area = gi_mat_temp-werks.
+  gi_valutiondatax-plndprice1 = 'X'.
+  gi_valutiondatax-plndprdate1 = 'X'.
+
+  CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+    EXPORTING
+      headdata                   = gi_headdata
+*     CLIENTDATA                 =
+*     CLIENTDATAX                =
+      plantdata                  = gi_plantdata
+      plantdatax                 = gi_plantdatax
+      valuationdata              = gi_valutiondata
+      valuationdatax              = gi_valutiondatax
+*
+   IMPORTING
+      return                     = gi_return1.
+
+  IF  gi_return1-type = 'S' OR gi_return1-type = 'I' OR gi_return1-type = 'W'.
+
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+      EXPORTING
+        wait   = 'X'
+      IMPORTING
+        return = gi_return2.
+
+
+
+  ENDIF.
+
+ENDFORM.                    " MATERIAL_STATUS_UPDATE
+*&---------------------------------------------------------------------*
+*&      Form  MAT_COST_UPDATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM mat_cost_update .
+  DATA: lt_mat TYPE TABLE OF /abbspex/matcostest_criteria,
+        li_mat LIKE LINE OF lt_mat,
+        lt_ret TYPE bapirettab,
+        lt_est_det TYPE /abbspex/tt_matcostest_dtl,
+        lt_est_sumr TYPE /abbspex/tt_matcostest_sumry.
+  li_mat-matnr = gi_mat_temp-matnr.
+  li_mat-werks = gi_mat_temp-werks.
+  APPEND li_mat TO lt_mat.
+  CLEAR gw_costupd.
+
+  CALL FUNCTION '/ABBSPEX/MATERIAL_COST_EST'
+    EXPORTING
+      material_imp     = lt_mat
+    IMPORTING
+      return_exp       = lt_ret
+      cost_est_detail  = lt_est_det
+      cost_est_summary = lt_est_sumr.
+  IF lt_ret IS NOT INITIAL.
+    READ TABLE lt_ret WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+    IF sy-subrc EQ 0.
+      gi_mat_temp-msg3 = ' Material Cost not updated'(022).
+      gw_costupd = 'X'.
+    ELSE.
+      gi_mat_temp-msg3 = ' Material Cost updated'(111).
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " MAT_COST_UPDATE
+*&---------------------------------------------------------------------*
+*&      Form  MATERIAL_COST_RELEASE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM material_cost_release .
+
+  DATA: t_out_list_vo TYPE STANDARD TABLE OF bapimarkingoutlist WITH HEADER LINE,
+        t_return_vo TYPE STANDARD TABLE OF bapiret2 WITH HEADER LINE,
+        t_out_list_fr TYPE STANDARD TABLE OF bapireleasingoutlist WITH HEADER LINE,
+        t_return_fr TYPE STANDARD TABLE OF bapiret2 WITH HEADER LINE,
+        lv_gjahr TYPE ck_pdatz,
+        lv_buper TYPE ck_pprdz,
+        f_valuation TYPE bapivaluation,
+        lr_werks TYPE RANGE OF werks_d,
+        li_werks LIKE LINE OF lr_werks,
+        lr_bukrs TYPE RANGE OF bukrs,
+        li_bukrs LIKE LINE OF lr_bukrs,
+        gi_t001k LIKE LINE OF gt_t001k.
+
+
+  f_valuation-legal = 'X'.
+  f_valuation-profitcenter = 'X'.
+
+
+  DATA: f_matnr TYPE bapimaterial,
+   t_matnr TYPE TABLE OF bapimaterial.
+  MOVE gi_mat_temp-matnr TO f_matnr-low.
+  f_matnr-sign = 'I'.
+  f_matnr-option = 'EQ'.
+  APPEND f_matnr TO t_matnr.
+
+  lv_gjahr = sy-datum+0(4).
+  lv_buper = sy-datum+4(2).
+
+  li_werks-low = gi_mat_temp-werks.
+  li_werks-sign = 'I'.
+  li_werks-option = 'EQ'.
+  APPEND li_werks TO lr_werks.
+
+  READ TABLE gt_t001k INTO gi_t001k WITH KEY bwkey = gi_mat_temp-werks.
+  IF sy-subrc EQ 0.
+    li_bukrs-sign = 'I'.
+    li_bukrs-option = 'EQ'.
+    li_bukrs-low = gi_t001k-bukrs.
+    APPEND li_bukrs TO lr_bukrs.
+  ENDIF.
+
+  CALL FUNCTION 'BAPI_COSTESTIMATE_MARKING'
+    EXPORTING
+      posting_year    = lv_gjahr
+      posting_period  = lv_buper
+      valuation_view  = f_valuation
+*     COSTINGRUN      =
+*     COSTINGRUN_DATE =
+*     TESTRUN         = P_TEST
+    TABLES
+      return          = t_return_vo
+      out_list        = t_out_list_vo
+      in_material     = t_matnr
+      in_plant        = lr_werks
+      in_comp_code    = lr_bukrs.
+
+  READ TABLE t_return_vo WITH KEY type = 'E'.
+  IF sy-subrc NE 0.
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+       EXPORTING
+         wait          = 'X'
+*     IMPORTING
+*       RETURN        =
+               .
+  ELSE.
+    CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'
+*     IMPORTING
+*       RETURN        =
+           .
+  ENDIF.
+
+  REFRESH t_out_list_fr.
+  REFRESH t_return_fr.
+
+  CALL FUNCTION 'BAPI_COSTESTIMATE_RELEASING'
+    EXPORTING
+      posting_year          = lv_gjahr
+      posting_period        = lv_buper
+*     COSTINGRUN            =
+*     COSTINGRUN_DATE       =
+*     NO_OF_MAT_IN_POST_DOC = 400
+*     TESTRUN               = P_TEST
+    TABLES
+      return                = t_return_fr
+      out_list              = t_out_list_fr
+      in_material           = t_matnr
+      in_plant              = lr_werks
+      in_comp_code          = lr_bukrs.
+  .
+
+  READ TABLE t_return_fr WITH KEY type = 'E'.
+  IF sy-subrc NE 0.
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+       EXPORTING
+         wait          = 'X'
+*     IMPORTING
+*       RETURN        =
+               .
+    READ TABLE t_return_fr WITH  KEY
+                                  id = 'CKPRCH'
+                                  number = '019'  TRANSPORTING NO FIELDS.
+    IF sy-subrc EQ 0.
+      PERFORM material_status_removal.
+    ENDIF.
+  ELSE.
+    CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'
+*     IMPORTING
+*       RETURN        =
+           .
+  ENDIF.
+
+
+
+ENDFORM.                    " MATERIAL_COST_RELEASE
+*&---------------------------------------------------------------------*
+*&      Form  MATERIAL_STATUS_REMOVAL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM MATERIAL_STATUS_REMOVAL .
+DATA : gi_headdata TYPE bapimathead,
+         gi_clientdata TYPE bapi_mara,
+         gi_clientdatax TYPE bapi_marax,
+         gi_plantdata TYPE bapi_marc,
+         gi_plantdatax TYPE bapi_marcx,
+         gi_return1 TYPE  bapiret2,
+         gi_return2 TYPE  bapiret2.
+
+***** populate the structure*********************
+
+  gi_headdata-material = gi_mat_temp-matnr.
+  gi_headdata-purchase_view = 'X'.
+*         gi_headdata-SALES_VIEW = 'X'.
+*         gi_headdata-MRP_VIEW = 'X'.
+*         gi_headdata-COST_VIEW = 'X'.
+
+  gi_plantdata-plant = gi_mat_temp-werks.
+  gi_plantdata-pur_status = ' '.
+  gi_plantdata-pvalidfrom = '00000000'.         "Changes done by 503167886 #TR # DE3K9A01D5 on 02.11.2020
+
+  gi_plantdatax-plant = gi_mat_temp-werks.
+  gi_plantdatax-pur_status = 'X'.
+  gi_plantdatax-pvalidfrom = 'X'.
+
+  CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+    EXPORTING
+      headdata                   = gi_headdata
+*     CLIENTDATA                 =
+*     CLIENTDATAX                =
+      plantdata                  = gi_plantdata
+      plantdatax                 = gi_plantdatax
+*
+   IMPORTING
+      return                     = gi_return1.
+
+  IF  gi_return1-type = 'S' OR gi_return1-type = 'I' OR gi_return1-type = 'W'.
+
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+      EXPORTING
+        wait   = 'X'
+      IMPORTING
+        return = gi_return2.
+
+
+
+  ENDIF.
+ENDFORM.                    " MATERIAL_STATUS_REMOVAL
+

@@ -1,0 +1,105 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMM_INBOUND_PURGE_CLASS
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+*       CLASS lcl_event_handler DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+CLASS lcl_event_handler DEFINITION.
+  PUBLIC SECTION.
+
+    CLASS-METHODS:
+    handle_toolbar
+          FOR EVENT toolbar OF cl_gui_alv_grid
+              IMPORTING e_object e_interactive,
+
+     handle_data_changed
+           FOR EVENT data_changed OF cl_gui_alv_grid
+              IMPORTING  er_data_changed,
+
+    handle_user_command
+          FOR EVENT user_command OF cl_gui_alv_grid
+              IMPORTING e_ucomm.
+
+ENDCLASS.                    "lcl_event_handler DEFINITION
+
+*----------------------------------------------------------------------*
+*       CLASS lcl_event_receiver IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+CLASS lcl_event_handler IMPLEMENTATION.
+  METHOD handle_toolbar.
+    CLEAR gs_toolbar.
+    MOVE 'SEL' TO gs_toolbar-function.
+    MOVE icon_select_all TO gs_toolbar-icon.
+    MOVE text-002 TO gs_toolbar-quickinfo.
+    MOVE space TO gs_toolbar-disabled.
+    APPEND gs_toolbar TO e_object->mt_toolbar.
+
+    CLEAR gs_toolbar.
+    MOVE 'DSEL' TO gs_toolbar-function.
+    MOVE icon_deselect_all TO gs_toolbar-icon.
+    MOVE text-003 TO gs_toolbar-quickinfo.
+    MOVE space TO gs_toolbar-disabled.
+    APPEND gs_toolbar TO e_object->mt_toolbar.
+
+    CLEAR gs_toolbar.
+    MOVE 'PURGE' TO gs_toolbar-function.
+    MOVE text-004 TO gs_toolbar-quickinfo.
+    MOVE text-004 TO gs_toolbar-text.
+    MOVE space TO gs_toolbar-disabled.
+    APPEND gs_toolbar TO e_object->mt_toolbar.
+  ENDMETHOD.                    "handle_toolbar
+
+  METHOD handle_data_changed.
+    DATA: ls_good TYPE lvc_s_modi.
+    FIELD-SYMBOLS: <fs_final> TYPE ty_final.
+    LOOP AT er_data_changed->mt_good_cells INTO ls_good.
+      READ TABLE gt_final ASSIGNING <fs_final> INDEX ls_good-row_id.
+      IF <fs_final> IS ASSIGNED.
+        <fs_final>-purge = ls_good-value.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.                    "handle_data_changed
+
+  METHOD handle_user_command.
+    CASE e_ucomm.
+      WHEN 'PURGE'.
+        PERFORM goods_mvmt.
+        CALL METHOD gr_alvgrid->refresh_table_display
+          EXPORTING
+            i_soft_refresh = 'X'
+          EXCEPTIONS
+            finished       = 1
+            OTHERS         = 2.
+        IF sy-subrc IS NOT INITIAL.
+
+        ENDIF.
+      WHEN 'SEL'.
+        PERFORM select_all_entries.
+        CALL METHOD gr_alvgrid->refresh_table_display
+          EXPORTING
+            i_soft_refresh = 'X'
+          EXCEPTIONS
+            finished       = 1
+            OTHERS         = 2.
+        IF sy-subrc IS NOT INITIAL.
+
+        ENDIF.
+      WHEN 'DSEL'.
+        PERFORM deselect_all_entries.
+        CALL METHOD gr_alvgrid->refresh_table_display
+          EXPORTING
+            i_soft_refresh = 'X'
+          EXCEPTIONS
+            finished       = 1
+            OTHERS         = 2.
+        IF sy-subrc IS NOT INITIAL.
+
+        ENDIF.
+    ENDCASE.
+  ENDMETHOD.                    "handle_user_command
+ENDCLASS.                    "lcl_event_receiver IMPLEMENTATION
+

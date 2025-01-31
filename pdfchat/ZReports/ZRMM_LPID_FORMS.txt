@@ -1,0 +1,496 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZRMM_LPID_FORMS .
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  F1000_SCREEN_INITIAL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f1000_screen_initial .
+  REFRESH: t_ucomm[].
+  CLEAR: sscrfields,
+         g_mod.
+  APPEND :  c_prin TO t_ucomm,
+            c_spos TO t_ucomm,
+            c_onli TO t_ucomm.
+  CALL FUNCTION 'RS_SET_SELSCREEN_STATUS'
+    EXPORTING
+      p_status  = sy-pfkey
+    TABLES
+      p_exclude = t_ucomm.
+  WRITE: icon_execute_object        AS ICON TO sscrfields-functxt_01,
+         icon_list                  AS ICON TO sscrfields-functxt_02,
+         icon_insert_multiple_lines AS ICON TO sscrfields-functxt_03.
+  CONCATENATE sscrfields-functxt_01
+              text-006
+         INTO sscrfields-functxt_01.
+  CONCATENATE sscrfields-functxt_02
+              text-005
+         INTO sscrfields-functxt_02.
+  CONCATENATE sscrfields-functxt_03
+              text-007
+         INTO sscrfields-functxt_03.
+  LOOP AT SCREEN.
+    CASE screen-group1.
+      WHEN space.
+*      WHEN 'PLT'.
+*        screen-input = 0.
+*        MODIFY SCREEN.
+      WHEN OTHERS.
+        MOVE screen-group1  TO g_mod.
+        IF g_mod LE p_count.
+          screen-active = 1.
+          MODIFY SCREEN.
+        ELSE.
+          screen-active = 0.
+          MODIFY SCREEN.
+        ENDIF.
+    ENDCASE.
+  ENDLOOP.
+ENDFORM.                    " F1000_SCREEN_INITIAL
+*&---------------------------------------------------------------------*
+*&      Form  F1100_SCREEN_CHECK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f1100_screen_check .
+  DATA: g_matnr     LIKE mara-matnr,
+        g_index(2)  TYPE n,
+        g_matfield  LIKE dd03l-fieldname,
+        g_qtyfield  LIKE dd03l-fieldname.
+  DATA: t_rsparams  LIKE STANDARD TABLE OF rsparams,
+        w_rsparams  LIKE rsparams.
+
+  REFRESH t_search[].
+  DO p_count TIMES.
+    CLEAR w_search.
+    g_index = sy-index.
+    CONCATENATE: c_matfld g_index INTO g_matfield,
+                 c_qtyfld g_index INTO g_qtyfield.
+    CALL FUNCTION 'RS_REFRESH_FROM_SELECTOPTIONS'
+      EXPORTING
+        curr_report     = sy-repid
+      TABLES
+        selection_table = t_rsparams.
+    READ TABLE t_rsparams INTO w_rsparams WITH KEY selname = g_matfield
+                                                   kind = c_kind_p.
+    IF sy-subrc EQ 0.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+        EXPORTING
+          input  = w_rsparams-low
+        IMPORTING
+          output = g_matnr.
+      MOVE: g_matnr        TO w_search-matnr.
+    ENDIF.
+    READ TABLE t_rsparams INTO w_rsparams WITH KEY selname = g_qtyfield
+                                                   kind = c_kind_p.
+    IF sy-subrc EQ 0.
+      MOVE w_rsparams-low TO w_search-qty.
+    ENDIF.
+    IF w_search-matnr IS NOT INITIAL.
+      IF w_search-qty IS INITIAL.
+*        MESSAGE s056(zmm) DISPLAY LIKE c_msg_e WITH w_search-matnr.
+        MESSAGE e056(zmm) WITH w_search-matnr.
+*        LEAVE LIST-PROCESSING.
+      ELSE.
+        APPEND w_search TO t_search.
+      ENDIF.
+    ENDIF.
+  ENDDO.
+  IF t_search[] IS INITIAL.
+*    MESSAGE s057(zmm) DISPLAY LIKE c_msg_e.
+    MESSAGE e057(zmm).
+*    LEAVE LIST-PROCESSING.
+  ENDIF.
+ENDFORM.                    " F1100_SCREEN_CHECK
+*&---------------------------------------------------------------------*
+*&      Form  F2000_GET_BASED_UNIT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2000_get_based_unit .
+  IF t_search[] IS NOT INITIAL.
+    SELECT matnr
+      INTO CORRESPONDING FIELDS OF TABLE t_baseunit
+      FROM ztlpid
+      FOR ALL ENTRIES IN t_search
+     WHERE matnr EQ t_search-matnr.
+    IF sy-subrc EQ 0.
+      CLEAR g_line.
+      writeout text-009.
+      LOOP AT t_baseunit
+        INTO w_baseunit.
+        CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+          EXPORTING
+            input  = w_baseunit-matnr
+          IMPORTING
+            output = w_baseunit-matnr.
+        IF g_line IS INITIAL.
+          g_line = w_baseunit-matnr.
+        ELSE.
+          CONCATENATE g_line
+                      w_baseunit-matnr
+                 INTO g_line SEPARATED BY c_sign1.
+        ENDIF.
+      ENDLOOP.
+      writeout g_line.
+    ELSE.
+      CLEAR g_line.
+      WRITE text-013  TO g_line.
+      writeout g_line.
+      STOP.
+*      MESSAGE s057(zmm) DISPLAY LIKE c_msg_e.
+*      LEAVE TO LIST-PROCESSING.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " F2000_GET_BASED_UNIT
+*&---------------------------------------------------------------------*
+*&      Form  F2100_GET_BOM_USED
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2100_get_bom_used .
+  DATA: t_wultb   LIKE STANDARD TABLE OF stpov,
+        t_equicat LIKE STANDARD TABLE OF cscequi,
+        t_kndcat  LIKE STANDARD TABLE OF cscknd,
+        t_matcat  LIKE STANDARD TABLE OF cscmat,
+        t_stdcat  LIKE STANDARD TABLE OF cscstd,
+        t_tplcat  LIKE STANDARD TABLE OF csctpl.
+  DATA: w_wultb   LIKE stpov.
+  DATA: g_firsttime(1)      TYPE c.
+  LOOP AT t_search
+    INTO w_search.
+    REFRESH: t_wultb[],
+             t_equicat[],
+             t_kndcat[],
+             t_matcat[],
+             t_stdcat[],
+             t_tplcat[].
+    CALL FUNCTION 'CS_WHERE_USED_MAT'
+      EXPORTING
+        datub                      = '00000000'
+        datuv                      = sy-datum
+        matnr                      = w_search-matnr
+        werks                      = p_werks
+        stltp                      = 'M'
+      TABLES
+        wultb                      = t_wultb
+        equicat                    = t_equicat
+        kndcat                     = t_kndcat
+        matcat                     = t_matcat
+        stdcat                     = t_stdcat
+        tplcat                     = t_tplcat
+      EXCEPTIONS
+        call_invalid               = 1
+        material_not_found         = 2
+        no_where_used_rec_found    = 3
+        no_where_used_rec_selected = 4
+        no_where_used_rec_valid    = 5
+        OTHERS                     = 6.
+    IF  t_bomlist[] IS INITIAL.
+      IF g_firsttime NE c_x.
+        g_firsttime = c_x.
+        LOOP AT t_wultb
+          INTO w_wultb WHERE idnrk EQ w_search-matnr
+                         AND menge EQ w_search-qty.
+          CLEAR w_bomlist.
+          w_bomlist-zbom = w_wultb-matnr.
+*          w_bomlist-zcom = w_wultb-idnrk.
+          APPEND w_bomlist  TO t_bomlist.
+        ENDLOOP.
+      ELSE.
+        " No same Bom has been done before
+        EXIT.
+      ENDIF.
+    ELSE.
+      LOOP AT t_bomlist
+        INTO w_bomlist.
+        g_index = sy-tabix.
+        READ TABLE t_wultb INTO w_wultb WITH KEY matnr = w_bomlist-zbom
+                                                 idnrk = w_search-matnr
+                                                 menge = w_search-qty.
+        IF sy-subrc NE 0.
+          DELETE t_bomlist INDEX g_index.
+*          DELETE t_bomlist FROM w_bomlist.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+    IF t_bomlist[] IS INITIAL.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+*CHG0131268  Modification Start
+*  IF t_bomlist[] IS INITIAL.
+*    " No same Bom has been done before
+*    writeout: space,
+*              space.
+*    writeout text-010.
+*  ENDIF.
+*CHG0131268 Modification End
+ENDFORM.                    " F2100_GET_BOM_USED
+*&---------------------------------------------------------------------*
+*&      Form  F2000_MATERIAL_EXISTING_CHECK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2000_material_existing_check .
+  IF t_search[] IS NOT INITIAL.
+    SELECT mara~matnr
+      INTO CORRESPONDING FIELDS OF TABLE t_mara
+      FROM mara
+      INNER JOIN marc
+      ON mara~matnr EQ marc~matnr
+      FOR ALL ENTRIES IN t_search
+     WHERE mara~matnr EQ t_search-matnr
+       AND marc~werks EQ p_werks.
+    IF sy-subrc EQ 0.
+    ENDIF.
+    LOOP AT t_search
+      INTO w_search.
+      CLEAR w_mara.
+      READ TABLE t_mara INTO w_mara WITH KEY matnr = w_search-matnr TRANSPORTING NO FIELDS.
+      IF sy-subrc NE 0.
+        MESSAGE s058(zmm) DISPLAY LIKE c_msg_e WITH w_search-matnr p_werks.
+        LEAVE LIST-PROCESSING.
+      ENDIF.
+    ENDLOOP.
+    SELECT matnr
+           maktx
+      INTO CORRESPONDING FIELDS OF TABLE t_makt
+      FROM makt
+      FOR ALL ENTRIES IN t_search
+     WHERE matnr EQ t_search-matnr.
+    IF sy-subrc EQ 0.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " F2000_MATERIAL_EXISTING_CHECK
+*&---------------------------------------------------------------------*
+*&      Form  F2200_GET_BOM_COMPENENTS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2200_get_bom_compenents .
+  IF t_bomlist[] IS NOT INITIAL.
+    DATA: t_stb           LIKE STANDARD TABLE OF stpox,
+          w_stb           LIKE stpox,
+          g_notexist(1)   TYPE c,
+          g_qty(4)        TYPE c.
+    REFRESH t_bomlist_temp[].
+    MOVE t_bomlist[]  TO t_bomlist_temp[].
+    SORT t_bomlist_temp BY zbom.
+    DELETE ADJACENT DUPLICATES FROM t_bomlist_temp COMPARING zbom.
+    LOOP AT t_bomlist_temp
+      INTO w_bomlist_temp.
+      REFRESH t_search_tmp[].
+      CLEAR g_notexist.
+      MOVE t_search[] TO t_search_tmp[].
+      g_index = sy-tabix.
+      CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+        EXPORTING
+          capid                 = 'PP01'
+          datuv                 = sy-datum
+          emeng                 = 1
+* CHG0131230 Modification Start
+*         mehrs                 = c_x
+          mehrs                 = ''
+* CHG0131230 Modification Start
+          mtnrv                 = w_bomlist_temp-zbom
+          werks                 = p_werks
+        TABLES
+          stb                   = t_stb
+        EXCEPTIONS
+          alt_not_found         = 1
+          call_invalid          = 2
+          material_not_found    = 3
+          missing_authorization = 4
+          no_bom_found          = 5
+          no_plant_data         = 6
+          no_suitable_bom_found = 7
+          conversion_error      = 8
+          OTHERS                = 9.
+      LOOP AT t_stb
+        INTO w_stb WHERE stufe EQ 1.
+*        CLEAR w_bomlist.
+*        READ TABLE t_bomlist INTO w_bomlist WITH KEY zbom = w_bomlist_temp-zbom.
+        READ TABLE t_search_tmp ASSIGNING <fs_search> WITH KEY matnr = w_stb-idnrk
+                                                               qty = w_stb-menge
+                                                               flag = space.
+        IF sy-subrc NE 0.
+          g_notexist = c_x.
+          EXIT.
+        ELSE.
+          <fs_search>-flag = c_x.
+*          READ TABLE t_search_tmp INTO w_search_tmp WITH KEY matnr = w_search-matnr
+*                                                             qty = w_search-qty.
+*          IF sy-subrc EQ 0.
+*            g_notexist = c_x.
+*            EXIT.
+*          ELSE.
+*            CLEAR w_search_tmp.
+*            MOVE-CORRESPONDING w_search TO w_search_tmp.
+*            APPEND w_search_tmp TO t_search_tmp.
+*          ENDIF.
+        ENDIF.
+      ENDLOOP.
+*CHG0131268 Modification start
+      IF g_notexist NE c_x.
+*CHG0131268 Modification end
+        LOOP AT t_search_tmp
+          INTO w_search WHERE flag EQ SPACE.
+          g_notexist = c_x.
+          EXIT.
+        ENDLOOP.
+*CHG0131268 Modification start
+      ENDIF.
+*CHG0131268 Modification end
+      IF g_notexist EQ c_x.
+        DELETE t_bomlist_temp INDEX g_index.
+*        DELETE t_bomlist_temp FROM w_bomlist_temp.
+      ELSE.
+        CLEAR g_notexist.
+      ENDIF.
+    ENDLOOP.
+    IF t_bomlist_temp[] IS INITIAL.
+      "recommend the BOM.
+*CHG0131268 modification Start
+*    " No same Bom has been done before
+      writeout: space,
+                space.
+      writeout text-010.
+*CHG0131268 modification End
+      PERFORM f2210_recommend_bom.
+    ELSE.
+      writeout text-011.
+      CLEAR g_line.
+      LOOP AT t_bomlist_temp
+        INTO w_bomlist_temp.
+        CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+          EXPORTING
+            input  = w_bomlist_temp-zbom
+          IMPORTING
+            output = w_bomlist_temp-zbom.
+
+        IF g_line IS INITIAL.
+          g_line = w_bomlist_temp-zbom.
+        ELSE.
+          CONCATENATE g_line
+                      w_bomlist_temp-zbom
+                 INTO g_line SEPARATED BY c_sign1.
+        ENDIF.
+      ENDLOOP.
+      writeout g_line.
+      writeout space.
+      LOOP AT t_search
+        INTO w_search.
+        CLEAR: g_line,
+               g_qty,
+               w_makt.
+        CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+          EXPORTING
+            input  = w_search-matnr
+          IMPORTING
+            output = g_line.
+        g_qty = w_search-qty.
+        CONCATENATE g_line
+                    g_qty
+               INTO g_line SEPARATED BY c_sign2.
+        READ TABLE t_makt INTO w_makt WITH KEY matnr = w_search-matnr.
+        IF sy-subrc EQ 0.
+          CONCATENATE g_line
+                      w_makt-maktx
+                 INTO g_line SEPARATED BY c_sign2.
+          writeout g_line.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+  ELSE.
+    "recommend the BOM.
+*CHG0131268 modification Start
+*    " No same Bom has been done before
+    writeout: space,
+              space.
+    writeout text-010.
+*CHG0131268 modification End
+    PERFORM f2210_recommend_bom.
+  ENDIF.
+ENDFORM.                    " F2200_GET_BOM_COMPENENTS
+*&---------------------------------------------------------------------*
+*&      Form  F2210_RECOMMEND_BOM
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f2210_recommend_bom .
+  DATA: g_matnr1(18) TYPE n,
+        g_matnr      LIKE mara-matnr.
+* CHG0131230 Modification Start
+  DATA: g_matnr_like TYPE char18.
+*CHG0131268 Modification start
+  READ TABLE t_baseunit INTO w_baseunit INDEX 1.
+  CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+    EXPORTING
+      input         = w_baseunit-matnr
+    IMPORTING
+      OUTPUT        = w_baseunit-matnr.
+*  CONCATENATE '00000000' g_line '%' INTO g_matnr_like.
+  CONCATENATE '00000000'
+              w_baseunit-matnr
+              '%' INTO g_matnr_like.
+* CHG0131268 Modification End
+* CHG0131230 Modification End
+  REFRESH t_mara1[].
+  SELECT matnr
+    INTO CORRESPONDING FIELDS OF TABLE t_mara1
+    FROM mara
+* CHG0131230 Modification Start
+*  WHERE matnr LIKE '0000000043%'.
+   WHERE matnr LIKE g_matnr_like.
+* CHG0131230 Modification End
+  IF sy-subrc EQ 0.
+    SORT t_mara1 BY matnr DESCENDING.
+    CLEAR w_mara1.
+    READ TABLE t_mara1 INTO w_mara1 INDEX 1.
+    IF sy-subrc EQ 0.
+      MOVE w_mara1-matnr TO g_matnr1.
+      g_matnr1 = g_matnr1 + 1.
+      MOVE g_matnr1 TO g_matnr.
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_OUTPUT'
+        EXPORTING
+          input  = g_matnr
+        IMPORTING
+          output = g_matnr.
+      writeout text-012.
+      CLEAR g_line.
+      WRITE g_matnr TO g_line.
+      writeout g_line.
+    ENDIF.
+  ELSE.
+    writeout text-012.
+    CLEAR g_line.
+*    WRITE '4300000001'  TO g_line.
+    CONCATENATE w_baseunit-matnr
+                '0001' INTO g_line.
+    writeout g_line.
+  ENDIF.
+ENDFORM.                    " F2210_RECOMMEND_BOM
+

@@ -1,0 +1,64 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_SEND_IDOC_STATUS_ACK
+*&
+*&---------------------------------------------------------------------*
+*======================================================================*
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --*
+* Program Documentation
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - *
+*** Name             : ZRMM_SEND_IDOC_STATUS_ACK                       *
+*** Created by       : Jagadish.B , 503162060                          *
+*** Transport Request: DE3K9A08VY                                      *
+*** RICEF Object No  : RICEF2416                                       *
+*** Transaction code : ZMM_IDOC_STATUS_ACK                             *
+*** Change request No: CHG0181553                                      *
+*** Description      : IDOC Status Message for ACK- Message Type       *
+*                      ORDSP/DESADV.                                   *
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - *
+************************************************************************
+* DATE      | CR No.    | CHANGED BY | DESCRIPTION OF CHANGE
+************************************************************************
+*27/07/2021 | CHG0181553| 503162060  | Initial program.
+*             DE3K9A08VY
+*10/08/2021 | DE3K9A0907 | 503162060 | Logic is added for failed case.
+*17/08/2021 | DE3K9A098E | 503162060 | Added selection screen Text Elements.
+*18/08/2021 | DE3K9A0997 | 503162060 | Added check box in the selection screen.
+*23/08/2021 | DE3K9A09AK | 503162060 | Added check box in the selection screen.
+*24/08/2021 | DE3K9A06UD | USBABEG   | Filling of job creation date and creation
+*                                    | time range
+*01/09/2021 | DE3K9A09F8 |USSACHI4   | On click of Manual run data
+*                                      to be displayed in ALV
+*06/09/2021 | DE3K9A09HG |USSACHI4   | Changed the receiver
+*                                      Partner, partner type and
+*                                      port values for IDOC
+*16/09/2021 |DE3K9A09NH  |USSACHI4   |Added STATUS field in segment
+*17/09/2021 |DE3K9A09OH  |USBABEG    |Change logic for partner idoc filling
+************************************************************************
+*12/11/2021 |DE3K9A0AIA  |USSACHI4   |Change logic for date value
+*            CHG0181553               custom table.
+************************************************************************
+
+REPORT  zrmm_send_idoc_status_ack.
+
+***Types & Data Declarations
+INCLUDE znmm_send_idoc_status_ack_top.
+***Selection Screen
+INCLUDE znmm_send_idoc_status_ack_sel.
+***Subroutines - Data fetching & Output Display
+INCLUDE znmm_send_idoc_status_ack_sub.
+
+
+INITIALIZATION.
+***Fetching the Ztable data to populate the date & Time
+  PERFORM status_temp.
+
+START-OF-SELECTION.
+***Fetching the Hard Code Entries
+  PERFORM get_ztuhcd1.
+***Fetching the Data from the EDIDC,EDIDS & EDID4 tables
+  PERFORM get_idoc_data.
+***Preparing the data for sending the IDOC
+  PERFORM send_idoc.
+***Update the IDOC status to the Z table (ZTMM_STATUS_IDOC)
+  PERFORM update_table.
+

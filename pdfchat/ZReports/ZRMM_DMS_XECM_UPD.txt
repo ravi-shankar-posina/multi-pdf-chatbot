@@ -1,0 +1,627 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_DMS_XECM_UPD
+*&
+*&---------------------------------------------------------------------*
+****------------------------------------------------------------------***
+*** Created by            : Devesh Modi(9X10112895)
+*** Creation Date         : 03/01/2020
+*** Transport Request     : DE3K996301
+*** RICEF Object No       : RICEF851
+*** Description           : xECM Archiving Functionality
+*** CR Created            : GECHG0708352
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+***------------------------------------------------------------------***
+* DATE       | CR No.       |CHANGED BY    |DESCRIPTION OF CHANGE
+*-------------------------------------------------------------------------
+* 06.05.2020 | GECHG0798883 |9X10112895    |Changes for Error Handling
+*------------------------------------------------------------------------
+* 25.05.2020 | GECHG0823039 |9X10112895    |Changes for Error Handling
+*------------------------------------------------------------------------
+* 03.06.2020 | GECHG0834449 |9X10112895    |Error Handling
+**********************************************************************
+REPORT  zrmm_dms_xecm_upd.
+* Begin of changes by 9X10112895 GECHG0834449
+*TABLES : nast, tnapr, toa01, vbak.
+*
+*TYPES : BEGIN OF ty_alv,
+*          icon   TYPE c,
+*          objky  TYPE char10,
+*          objty  TYPE char20,
+*          status TYPE char20,
+*        END OF ty_alv.
+*
+*DATA : gt_dmslog        TYPE TABLE OF ztu_dmslog,
+*       gi_dmslog        TYPE ztu_dmslog,
+*       gt_nast          TYPE TABLE OF nast,
+***  Begin of changes GECHG0823039 by 9X10112895
+**       gt_tnapr         TYPE TABLE OF tnapr,
+*       gt_tsp01         TYPE TABLE OF tsp01,
+***  End of changes GECHG0823039 by 9X10112895
+*       gt_alv           TYPE TABLE OF ty_alv,
+*       gi_alv_ds        TYPE ty_alv,
+*       return_code      TYPE sy-subrc,
+*       us_screen        TYPE c,
+*       gt_fieldcat      TYPE slis_t_fieldcat_alv,
+*       gi_fieldcat_ds   TYPE slis_fieldcat_alv,
+*       gi_layout_ds     TYPE slis_layout_alv.
+*
+*DATA: lv_dms_eh_file TYPE char40.
+*
+*SELECTION-SCREEN : BEGIN OF BLOCK b1.
+*SELECT-OPTIONS   : s_objky FOR vbak-vbeln NO INTERVALS,
+*                   s_kschl FOR nast-kschl NO INTERVALS,
+*                   s_nacha FOR nast-nacha NO INTERVALS,
+*                   s_date  FOR nast-erdat.
+*SELECTION-SCREEN : END OF BLOCK b1.
+*
+*START-OF-SELECTION.
+***  Begin of changes GECHG0798883 by 9X10112895
+** Check Content server conectivity
+*  CALL FUNCTION 'SCMS_HTTP_PING'
+*    EXPORTING
+*      crep_id    = 'D3'
+*    EXCEPTIONS
+*      error_http = 1
+*      OTHERS     = 2.
+*  IF sy-subrc NE 0.
+*    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+*    EXIT.
+*  ENDIF.
+***  End of changes GECHG0798883 by 9X10112895
+*  SELECT *
+*    FROM ztu_dmslog
+*    INTO TABLE gt_dmslog
+*    WHERE objky  IN s_objky
+*      AND kschl  IN s_kschl
+*      AND nacha  IN s_nacha
+*      AND erdat  IN s_date
+*      AND status = 'FAIL'.
+*  IF gt_dmslog[] IS NOT INITIAL.
+***  Begin of changes GECHG0823039 by 9X10112895
+*    SORT gt_dmslog BY erdat ASCENDING
+*                      eruhr ASCENDING.
+*    SELECT *
+*      FROM nast
+*      INTO TABLE gt_nast
+*      FOR ALL ENTRIES IN gt_dmslog
+*      WHERE objky = gt_dmslog-objky
+*        AND kschl = gt_dmslog-kschl
+**        AND spras = gt_dmslog-spras
+*        AND parnr = gt_dmslog-parnr
+*        AND parvw = gt_dmslog-parvw
+*        AND erdat = gt_dmslog-erdat.
+**        AND eruhr = gt_dmslog-eruhr
+**        AND nacha = gt_dmslog-nacha.
+*
+*    SELECT *
+*      FROM tsp01
+*      INTO TABLE gt_tsp01
+*      FOR ALL ENTRIES IN gt_dmslog
+*      WHERE rqident = gt_dmslog-spool.
+*
+**    SELECT *
+**      FROM tnapr
+**      INTO TABLE gt_tnapr
+**      FOR ALL ENTRIES IN gt_dmslog
+**      WHERE kschl = gt_dmslog-kschl
+**        AND nacha = gt_dmslog-nacha.
+***  End of changes GECHG0823039 by 9X10112895
+***  Begin of changes GECHG0798883 by 9X10112895
+*  ELSE.
+*    MESSAGE 'No Entries found in DMS log Table (ZTU_DMSLOG)'(001) TYPE 'S'.
+***  End of changes GECHG0798883 by 9X10112895
+*  ENDIF.
+*
+*  LOOP AT gt_dmslog INTO gi_dmslog.
+***  Begin of changes GECHG0823039 by 9X10112895
+*    READ TABLE gt_tsp01 TRANSPORTING NO FIELDS WITH KEY rqident = gi_dmslog-spool.
+*    IF sy-subrc = 0.
+*      READ TABLE gt_nast INTO nast WITH KEY objky = gi_dmslog-objky
+*                                            kschl = gi_dmslog-kschl
+**                                            spras = gi_dmslog-spras
+*                                            parnr = gi_dmslog-parnr
+*                                            parvw = gi_dmslog-parvw
+*                                            erdat = gi_dmslog-erdat.
+**                                            nacha = gi_dmslog-nacha.
+*      IF sy-subrc = 0.
+**        READ TABLE gt_tnapr INTO tnapr WITH KEY kschl = gi_dmslog-kschl
+**                                                nacha = gi_dmslog-nacha.
+**        IF sy-subrc = 0.
+***  End of changes GECHG0823039 by 9X10112895
+*        nast-pfld1 = gi_dmslog-spool.
+*        return_code = 999.
+***  Begin of changes GECHG0798883 by 9X10112895
+*        CALL FUNCTION 'ZMM_DMS_XECM_FM'
+*          EXPORTING
+*            nast  = nast
+*            spool = gi_dmslog-spool.
+*
+**        PERFORM (tnapr-ronam) IN PROGRAM (tnapr-pgnam) IF FOUND USING return_code us_screen.
+***  End of changes GECHG0798883 by 9X10112895
+*        IF sy-subrc = 0.
+*          COMMIT WORK.
+*
+*          gi_dmslog-status = 'SUCCESS'.
+*          gi_alv_ds-icon     = 3.
+*          gi_alv_ds-objky  = gi_dmslog-objky.
+*
+*          IF gi_dmslog-objtype = 'BUS2012'.
+*            gi_alv_ds-objty = 'Purchase Order'.
+*          ELSEIF gi_dmslog-objtype = 'BUS2031'.
+*            gi_alv_ds-objty = 'Quotation'.
+*          ELSEIF gi_dmslog-objtype = 'BUS2032'.
+*            gi_alv_ds-objty = 'Sales Order'.
+*          ELSEIF gi_dmslog-objtype = 'VBRK'.
+*            gi_alv_ds-objty = 'Invoice'.
+*          ELSE.
+*            gi_alv_ds-objty = gi_dmslog-objtype.
+*          ENDIF.
+*
+*          gi_alv_ds-status = 'Updated Successful'.
+*          APPEND gi_alv_ds TO gt_alv.
+*          CLEAR gi_alv_ds.
+*
+*          MODIFY ztu_dmslog FROM gi_dmslog .
+*
+*        ELSE.
+*          gi_alv_ds-icon     = 1.
+*          gi_alv_ds-objky  = gi_dmslog-objky.
+*
+*          IF gi_dmslog-objtype = 'BUS2012'.
+*            gi_alv_ds-objty = 'Purchase Order'.
+*          ELSEIF gi_dmslog-objtype = 'BUS2031'.
+*            gi_alv_ds-objty = 'Quotation'.
+*          ELSEIF gi_dmslog-objtype = 'BUS2032'.
+*            gi_alv_ds-objty = 'Sales Order'.
+*          ELSEIF gi_dmslog-objtype = 'VBRK'.
+*            gi_alv_ds-objty = 'Invoice'.
+*          ELSE.
+*            gi_alv_ds-objty = gi_dmslog-objtype.
+*          ENDIF.
+*
+*          gi_alv_ds-status = 'Updation Failed'.
+*          APPEND gi_alv_ds TO gt_alv.
+*          CLEAR gi_alv_ds.
+*
+*        ENDIF.
+*      ENDIF.
+**      ENDIF.
+*    ENDIF.  "Changes GECHG0823039 by 9X10112895
+*  ENDLOOP.
+*
+*END-OF-SELECTION.
+*
+*  gi_layout_ds-lights_fieldname  = 'ICON'.
+*  gi_layout_ds-colwidth_optimize = 'X'.
+*
+*  gi_fieldcat_ds-tabname       = 'GT_ALV'.
+*  gi_fieldcat_ds-fieldname     = 'OBJKY'.
+*  gi_fieldcat_ds-seltext_l     = 'Document Number'.
+*  APPEND gi_fieldcat_ds TO gt_fieldcat.
+*  CLEAR: gi_fieldcat_ds.
+*
+*  gi_fieldcat_ds-tabname       = 'GT_ALV'.
+*  gi_fieldcat_ds-fieldname     = 'OBJTY'.
+*  gi_fieldcat_ds-seltext_l     = 'Document type'.
+*  APPEND gi_fieldcat_ds TO gt_fieldcat.
+*  CLEAR: gi_fieldcat_ds.
+*
+*  gi_fieldcat_ds-tabname       = 'GT_ALV'.
+*  gi_fieldcat_ds-fieldname     = 'STATUS'.
+*  gi_fieldcat_ds-seltext_l     = 'Status'.
+*  APPEND gi_fieldcat_ds TO gt_fieldcat.
+*  CLEAR: gi_fieldcat_ds.
+*
+*  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+*    EXPORTING
+*      i_callback_program = sy-repid
+*      is_layout          = gi_layout_ds
+*      it_fieldcat        = gt_fieldcat
+*    TABLES
+*      t_outtab           = gt_alv
+*    EXCEPTIONS
+*      program_error      = 1
+*      OTHERS             = 2.
+*  IF sy-subrc <> 0.
+** Implement suitable error handling here
+*  ENDIF.
+
+**  New Approach
+
+*--------------------------------------------------------------------*
+* Data Declaration
+*--------------------------------------------------------------------*
+DATA : gt_ztuhcd1_ds        TYPE TABLE OF ztuhcd1,
+       gi_ztuhcd1_ds        TYPE ztuhcd1,
+       gt_dms_log           TYPE TABLE OF ztu_dmslog,
+       gi_dms_log           TYPE ztu_dmslog,
+       gi_toaom_ds          TYPE toaom,
+       gt_order_ds          TYPE TABLE OF zsmm_xecm_err,
+       gi_order_ds          TYPE zsmm_xecm_err,
+       gt_dir_list_ds       TYPE STANDARD TABLE OF epsfili, "Files Table
+       gi_dir_list_ds       TYPE epsfili,
+       gw_dir_name_nm       TYPE epsf-epsdirnam, "Directory Name <SOURCE>
+       gw_path_tx           TYPE char30,
+       gw_first1_tx         TYPE string,
+       gw_second1_tx        TYPE string,
+       gw_file_name_nm      TYPE string,
+       gw_dsn_nm            TYPE string,
+       gw_region_tx         TYPE string,
+       gw_module_tx         TYPE string,
+       gw_doctype_tx        TYPE string,
+       gw_doc_id_tx         TYPE string,
+       gw_version_tx        TYPE string,
+       gw_date_tx           TYPE string,
+       gw_arc_doc_id_tx     TYPE toav0-arc_doc_id,
+       gw_sap_object_tx     TYPE toaom-sap_object,
+       lv_objid             TYPE sapb-sapobjid,
+       lv_path              TYPE sapb-sappfad,
+       gw_reason_tx         TYPE string,
+       gw_message_tx        TYPE string,
+       lv_filename          TYPE toaat-filename,
+       gt_fieldcat          TYPE slis_t_fieldcat_alv,
+       gi_fieldcat_ds       TYPE slis_fieldcat_alv,
+       gi_layout_ds         TYPE slis_layout_alv,
+       gw_connectivity_fg   TYPE c.
+
+
+CONSTANTS : gc_name1_tx   TYPE char30           VALUE 'DMS_SYSTEM',
+            gc_field1_tx  TYPE char30           VALUE 'FILE_PATH_ER',
+            gc_cr_tx      TYPE char8            VALUE 'D3',"Content repository
+            gc_yes_tx     TYPE c                VALUE 'Y',
+            gc_no_tx      TYPE c                VALUE 'N',
+            gc_x_tx       TYPE c                VALUE 'X',
+            gc_success_tx TYPE char8            VALUE 'SUCCESS',
+            gc_fail_tx    TYPE char4            VALUE 'FAIL',
+            gc_po_tx      TYPE char4            VALUE 'PO',
+            gc_so_tx      TYPE char4            VALUE 'SO',
+            gc_quo_tx     TYPE char4            VALUE 'QUO',
+            gc_inv_tx     TYPE char4            VALUE 'INV',
+            gc_bus2012_tx TYPE char8            VALUE 'BUS2012',
+            gc_bus2031_tx TYPE char8            VALUE 'BUS2031',
+            gc_bus2032_tx TYPE char8            VALUE 'BUS2032',
+            gc_vbrk_tx    TYPE char8            VALUE 'VBRK',
+            gc_pdf_tx     TYPE toadd-doc_type   VALUE 'PDF'.
+
+
+START-OF-SELECTION.
+
+  PERFORM hard_coding.
+
+  PERFORM check_connection.
+
+  PERFORM process_data.
+
+  IF gt_dir_list_ds[] IS NOT INITIAL OR gw_connectivity_fg = gc_no_tx.
+    CALL FUNCTION 'ZMM_DMS_XECM_EMAIL_FM'
+      EXPORTING
+        connection     = gw_connectivity_fg
+        message        = gw_message_tx
+      TABLES
+        tb_err_records = gt_order_ds.
+  ENDIF.
+
+  PERFORM alv_display.
+
+*&---------------------------------------------------------------------*
+*&      Form  HARD_CODING
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM hard_coding .
+
+  CLEAR gi_ztuhcd1_ds.
+  gi_ztuhcd1_ds-name = gc_name1_tx.
+  APPEND gi_ztuhcd1_ds TO gt_ztuhcd1_ds.
+
+  CALL FUNCTION 'Z_UHARD_CODE_VALUE'
+    TABLES
+      t_ztuhcd1     = gt_ztuhcd1_ds
+    EXCEPTIONS
+      no_data_found = 1
+      OTHERS        = 2.
+  IF sy-subrc IS INITIAL.
+* getting Directory Path for Error Handling
+    CLEAR: gi_ztuhcd1_ds, gw_path_tx, gw_dir_name_nm.
+    READ TABLE gt_ztuhcd1_ds INTO gi_ztuhcd1_ds WITH KEY name  = gc_name1_tx
+                                                         field = gc_field1_tx
+                                                         zkey  = sy-sysid.
+    IF sy-subrc IS INITIAL.
+      gw_path_tx = gi_ztuhcd1_ds-low.
+    ENDIF.
+  ENDIF.
+
+  gw_dir_name_nm = gw_path_tx.
+ENDFORM.                    " HARD_CODING
+
+*&---------------------------------------------------------------------*
+*&      Form  CHECK_CONNECTION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM check_connection .
+
+* Check Content server conectivity
+  CALL FUNCTION 'SCMS_HTTP_PING'
+    EXPORTING
+      crep_id    = gc_cr_tx
+    EXCEPTIONS
+      error_http = 1
+      OTHERS     = 2.
+  IF sy-subrc NE 0.
+    CLEAR gw_message_tx.
+    MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno INTO gw_message_tx
+          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4 .
+    gw_connectivity_fg = gc_no_tx.
+  ELSE.
+    gw_connectivity_fg = gc_yes_tx.
+  ENDIF.
+
+ENDFORM.                    " CHECK_CONNECTION
+
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM process_data .
+
+  CALL FUNCTION 'EPS_GET_DIRECTORY_LISTING'
+    EXPORTING
+      dir_name               = gw_dir_name_nm
+    TABLES
+      dir_list               = gt_dir_list_ds
+    EXCEPTIONS
+      invalid_eps_subdir     = 1
+      sapgparam_failed       = 2
+      build_directory_failed = 3
+      no_authorization       = 4
+      read_directory_failed  = 5
+      too_many_read_errors   = 6
+      empty_directory_list   = 7
+      OTHERS                 = 8.
+*This is display the system message automatically when ever exp are hit
+  IF sy-subrc <> 0.
+*  message if no files in directory
+    MESSAGE i090(zmm) WITH text-002.
+  ENDIF.
+
+  IF gw_connectivity_fg = gc_no_tx.
+
+    LOOP AT gt_dir_list_ds INTO gi_dir_list_ds.
+
+      SPLIT gi_dir_list_ds-name AT '.' INTO gw_first1_tx
+                                            gw_second1_tx.
+
+      SPLIT gw_first1_tx AT '_' INTO gw_region_tx
+                                     gw_module_tx
+                                     gw_doctype_tx
+                                     gw_doc_id_tx
+                                     gw_version_tx
+                                     gw_date_tx.
+
+      gi_order_ds-doc_type = gw_doctype_tx.
+      gi_order_ds-doc_num  = gw_doc_id_tx.
+      gi_order_ds-version  = gw_version_tx.
+      gi_order_ds-flag     = gc_no_tx.
+      gi_order_ds-reason   = gw_message_tx.
+      APPEND gi_order_ds TO gt_order_ds.
+      CLEAR gi_order_ds.
+    ENDLOOP.
+  ELSE.
+    IF gt_dir_list_ds IS NOT INITIAL.
+      SELECT *
+        FROM ztu_dmslog
+        INTO TABLE gt_dms_log
+        FOR ALL ENTRIES IN gt_dir_list_ds
+        WHERE filename = gt_dir_list_ds-name
+          AND status   = gc_fail_tx.
+**   Reading the Inbound directory for Text Files and Reading the data inside it.
+      PERFORM post_pdf.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " PROCESS_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  POST_PDF
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM post_pdf .
+
+  SORT gt_dir_list_ds BY name ASCENDING.
+
+  LOOP AT gt_dir_list_ds INTO gi_dir_list_ds.
+
+    gw_file_name_nm = gi_dir_list_ds-name.
+
+    CONCATENATE gw_dir_name_nm '/' gw_file_name_nm INTO gw_dsn_nm.
+
+    SPLIT gw_file_name_nm AT '.' INTO gw_first1_tx
+                                      gw_second1_tx.
+
+    SPLIT gw_first1_tx AT '_' INTO gw_region_tx
+                                   gw_module_tx
+                                   gw_doctype_tx
+                                   gw_doc_id_tx
+                                   gw_version_tx
+                                   gw_date_tx.
+
+    IF gw_doctype_tx = gc_po_tx.
+      gw_sap_object_tx = gc_bus2012_tx.
+    ELSEIF gw_doctype_tx = gc_so_tx.
+      gw_sap_object_tx = gc_bus2032_tx.
+    ELSEIF gw_doctype_tx = gc_quo_tx.
+      gw_sap_object_tx = gc_bus2031_tx.
+    ELSEIF gw_doctype_tx = gc_inv_tx.
+      gw_sap_object_tx = gc_vbrk_tx.
+    ENDIF.
+
+    SELECT SINGLE *
+        FROM toaom
+        INTO gi_toaom_ds
+        WHERE sap_object = gw_sap_object_tx
+          AND ar_object  LIKE '%ZD3%'
+          AND ar_status  = gc_x_tx
+          AND archiv_id  = gc_cr_tx.
+
+    lv_path = gw_dsn_nm.
+    CALL FUNCTION 'ARCHIVOBJECT_CREATE_FILE'
+      EXPORTING
+        archiv_id                = gi_toaom_ds-archiv_id
+        document_type            = gc_pdf_tx
+        path                     = lv_path
+*       VSCAN_PROFILE            = '/SCMS/KPRO_CREATE'
+      IMPORTING
+        archiv_doc_id            = gw_arc_doc_id_tx
+      EXCEPTIONS
+        error_archiv             = 1
+        error_communicationtable = 2
+        error_upload             = 3
+        error_kernel             = 4
+*       others                   = 5
+        blocked_by_policy        = 6
+        OTHERS                   = 7.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+      MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno INTO gw_reason_tx
+      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4 .
+
+      gi_order_ds-doc_type = gw_doctype_tx.
+      gi_order_ds-doc_num  = gw_doc_id_tx.
+      gi_order_ds-version  = gw_version_tx.
+      gi_order_ds-flag     = gc_no_tx.
+      gi_order_ds-reason   = gw_reason_tx.
+      APPEND gi_order_ds TO gt_order_ds.
+      CLEAR gi_order_ds.
+
+      CONTINUE.
+    ELSE.
+
+      lv_objid    = gw_doc_id_tx.
+      lv_filename = gw_file_name_nm.
+      CALL FUNCTION 'ARCHIV_CONNECTION_INSERT'
+        EXPORTING
+          archiv_id             = gi_toaom_ds-archiv_id
+          arc_doc_id            = gw_arc_doc_id_tx
+*         AR_DATE               = ' '
+          ar_object             = gi_toaom_ds-ar_object
+*         DEL_DATE              = ' '
+*         MANDANT               = ' '
+          object_id             = lv_objid
+          sap_object            = gi_toaom_ds-sap_object
+*         DOC_TYPE              = ' '
+*         BARCODE               = ' '
+          filename              = lv_filename
+*         DESCR                 = ' '
+*         CREATOR               = ' '
+        EXCEPTIONS
+          error_connectiontable = 1
+          OTHERS                = 2.
+      IF sy-subrc <> 0.
+        CLEAR gw_reason_tx.
+        MESSAGE ID sy-msgid TYPE 'I' NUMBER sy-msgno INTO gw_reason_tx
+          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4 .
+
+        gi_order_ds-doc_type = gw_doctype_tx.
+        gi_order_ds-doc_num  = gw_doc_id_tx.
+        gi_order_ds-version  = gw_version_tx.
+        gi_order_ds-flag     = gc_no_tx.
+        gi_order_ds-reason   = gw_reason_tx.
+        APPEND gi_order_ds TO gt_order_ds.
+        CLEAR gi_order_ds.
+
+        CONTINUE.
+      ELSE.
+        DELETE DATASET gw_dsn_nm.
+
+        READ TABLE gt_dms_log INTO gi_dms_log WITH KEY objky    = gw_doc_id_tx
+                                                       objtype  = gw_sap_object_tx
+                                                       filename = gw_file_name_nm.
+        IF sy-subrc = 0.
+          gi_dms_log-status = gc_success_tx.
+          MODIFY ztu_dmslog FROM gi_dms_log .
+        ENDIF.
+
+        gi_order_ds-doc_type = gw_doctype_tx.
+        gi_order_ds-doc_num  = gw_doc_id_tx.
+        gi_order_ds-version  = gw_version_tx.
+        gi_order_ds-flag     = gc_yes_tx.
+        gi_order_ds-reason   = 'Successful'.
+
+        APPEND gi_order_ds TO gt_order_ds.
+        CLEAR gi_order_ds.
+
+      ENDIF.
+
+    ENDIF.
+
+  ENDLOOP.
+ENDFORM.                    " POST_PDF
+
+*&---------------------------------------------------------------------*
+*&      Form  ALV_DISPLAY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM alv_display .
+
+  gi_layout_ds-colwidth_optimize = gc_x_tx.
+
+  gi_fieldcat_ds-tabname       = 'GT_ORDER_DS'.
+  gi_fieldcat_ds-fieldname     = 'DOC_TYPE'.
+  gi_fieldcat_ds-seltext_l     = 'Document type'.
+  APPEND gi_fieldcat_ds TO gt_fieldcat.
+  CLEAR: gi_fieldcat_ds.
+
+  gi_fieldcat_ds-tabname       = 'GT_ORDER_DS'.
+  gi_fieldcat_ds-fieldname     = 'DOC_NUM'.
+  gi_fieldcat_ds-seltext_l     = 'Document Number'.
+  APPEND gi_fieldcat_ds TO gt_fieldcat.
+  CLEAR: gi_fieldcat_ds.
+
+  gi_fieldcat_ds-tabname       = 'GT_ORDER_DS'.
+  gi_fieldcat_ds-fieldname     = 'VERSION'.
+  gi_fieldcat_ds-seltext_l     = 'Version'.
+  APPEND gi_fieldcat_ds TO gt_fieldcat.
+  CLEAR: gi_fieldcat_ds.
+
+  gi_fieldcat_ds-tabname       = 'GT_ORDER_DS'.
+  gi_fieldcat_ds-fieldname     = 'REASON'.
+  gi_fieldcat_ds-seltext_l     = 'Status'.
+  APPEND gi_fieldcat_ds TO gt_fieldcat.
+  CLEAR: gi_fieldcat_ds.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-repid
+      is_layout          = gi_layout_ds
+      it_fieldcat        = gt_fieldcat
+    TABLES
+      t_outtab           = gt_order_ds
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+ENDFORM.                    " ALV_DISPLAY
+* End of changes by 9X10112895 GECHG0834449
+

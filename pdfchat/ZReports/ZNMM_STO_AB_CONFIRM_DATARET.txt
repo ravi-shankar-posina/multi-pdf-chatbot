@@ -1,0 +1,123 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_STO_AB_CONFIRM_DATARET
+*&---------------------------------------------------------------------*
+ CLEAR gv_date.
+*** deleting the records up to date.
+ DELETE FROM ztmm_abconf WHERE zdate GT gv_date.
+ REFRESH it_cdhdr.
+**** selecting the records from ekko based on selection screen
+ SELECT ebeln
+        reswk        FROM   ekko INTO TABLE it_cdhdr
+                     WHERE ebeln IN s_ponum
+                     AND   bsart IN s_bsart
+                     AND   bedat IN s_aedat
+                     AND   reswk IN s_plant.
+
+ REFRESH gt_cdhdr_tmp.
+***** retriving the  header records from change table cdhdr
+ SELECT * FROM cdhdr INTO TABLE gt_cdhdr_tmp
+                            WHERE objectclas = 'EINKBELEG'
+                            AND   objectid   IN s_ponum"
+                            AND   udate      IN s_aedat.
+
+ REFRESH gt_cdpos_tmp.
+***** retriving the  item records from change table cdhdr
+ IF gt_cdhdr_tmp[] IS NOT INITIAL.
+   SELECT * FROM cdpos INTO TABLE gt_cdpos_tmp
+                              FOR ALL ENTRIES IN gt_cdhdr_tmp
+                              WHERE objectclas = 'EINKBELEG'
+                              AND   objectid   = gt_cdhdr_tmp-objectid
+                              AND   changenr   = gt_cdhdr_tmp-changenr
+                              AND   tabname    = 'EKET'.
+ ENDIF.
+***** combining both header and item values
+
+ LOOP AT gt_cdpos_tmp INTO gs_cdpos_tmp.
+* LOOP AT gt_cdhdr_tmp INTO gs_cdhdr_tmp.
+   READ TABLE gt_cdhdr_tmp  INTO gs_cdhdr_tmp WITH KEY objectclas = 'EINKBELEG'
+                                                     objectid = gs_cdpos_tmp-objectid
+                                                     changenr = gs_cdpos_tmp-changenr.
+*                                                     tabname  = 'EKET'.
+
+   IF sy-subrc EQ 0.
+     gs_cdpos-ebeln = gs_cdhdr_tmp-objectid.
+     gs_cdpos-ebelp = gs_cdpos_tmp-tabkey+13(05).
+     APPEND gs_cdpos TO gt_cdpos.
+   ENDIF.
+   CLEAR : gs_cdpos , gs_cdhdr_tmp , gs_cdpos_tmp.
+ ENDLOOP.
+ SORT gt_cdpos BY ebeln ebelp.
+ DELETE ADJACENT DUPLICATES FROM gt_cdpos COMPARING ALL FIELDS.
+ IF NOT gt_cdpos IS INITIAL.
+   SELECT ebeln
+          reswk FROM ekko INTO TABLE gt_ebeln
+                          FOR ALL ENTRIES IN gt_cdpos
+                          WHERE ebeln EQ gt_cdpos-ebeln
+                          AND bsart IN s_bsart
+                           AND  reswk IN s_plant.
+   IF sy-subrc EQ 0.
+     SORT gt_ebeln BY ebeln.
+   ENDIF.
+ ENDIF.
+ LOOP AT gt_cdpos INTO gs_cdpos.
+   READ TABLE gt_ebeln INTO gs_ebeln WITH KEY ebeln = gs_cdpos-ebeln.
+   IF sy-subrc EQ 0.
+     gs_cdhdr1-ebeln = gs_cdpos-ebeln.
+     gs_cdhdr1-ebelp = gs_cdpos-ebelp.
+     gs_cdhdr1-reswk = gs_ebeln-reswk.
+     APPEND gs_cdhdr1 TO gt_cdhdr1.
+     CLEAR : gs_cdhdr1.
+   ENDIF.
+ ENDLOOP.
+ LOOP AT it_cdhdr INTO wa_cdhdr.
+   READ TABLE gt_cdhdr1 INTO gs_cdhdr1 WITH KEY ebeln = wa_cdhdr-ebeln.
+   IF sy-subrc NE 0.
+     gs_cdhdr1-ebeln = wa_cdhdr-ebeln.
+     gs_cdhdr1-reswk = wa_cdhdr-werks.
+     APPEND gs_cdhdr1 TO gt_cdhdr1.
+   ENDIF.
+ ENDLOOP.
+ DELETE ADJACENT DUPLICATES FROM it_cdhdr .
+ DELETE it_cdhdr  WHERE werks IS INITIAL.
+**** Retriving threshold value form ztmm_threshold based on supplying plant.
+ IF gt_cdhdr1 IS NOT INITIAL.
+   SELECT reswk
+             threshold
+             FROM ztmm_threshold
+             INTO TABLE gt_threshold
+             FOR ALL ENTRIES IN gt_cdhdr1
+             WHERE reswk EQ gt_cdhdr1-reswk.
+   IF sy-subrc EQ 0.
+     SORT gt_threshold BY reswk.
+   ENDIF.
+ ENDIF.
+****Retriving all schedulelines data
+ IF NOT gt_cdhdr1 IS INITIAL.
+   SELECT ebeln
+          ebelp
+          etens
+          ebtyp
+          eindt
+          MENGE
+          DABMG
+          charg
+          erdat FROM ekes INTO TABLE gt_ekes
+                          FOR ALL ENTRIES IN gt_cdhdr1
+                          WHERE ebeln EQ gt_cdhdr1-ebeln.
+   IF sy-subrc EQ 0.
+     SORT gt_ekes BY ebeln ebelp.
+   ENDIF.
+
+   SELECT ebeln
+          ebelp
+          etenr
+          menge
+          wamng FROM eket INTO TABLE gt_eket2  "changes by 502277866 on 10.12.2014 for CHG0479283/DE3K956548
+                          FOR ALL ENTRIES IN gt_cdhdr1
+                          WHERE ebeln EQ gt_cdhdr1-ebeln.
+   IF sy-subrc EQ 0.
+     SORT gt_eket2 BY ebeln ebelp.
+   ENDIF.
+
+ ENDIF.
+

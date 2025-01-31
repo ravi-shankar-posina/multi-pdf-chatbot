@@ -1,0 +1,105 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_MM_KG
+*==========================================================================================
+*= Copyright ©  2000 GE ENERGY                                                            =
+*= ALL RIGHTS RESERVED                                                                    =
+*==========================================================================================
+*==========================================================================================
+* PROGRAM DOCUMENTATION                                                                   *
+*==========================================================================================
+*Created by             : Dachepalli Sreelatha                                             *
+*Creation Date          : 06-JAN-2015
+*CR number              : CHG0995226                                                              *
+*Transport Request #    : DE3K957872                                                       *
+*RICEF Object No #      : RICEF1454
+*T-code                 : ZPP1454                                                          *
+*Description            : Extracting the Material Master ( REF: Z_MM_KG Query)             *
+*==========================================================================================
+* MODIFICATION LOG
+*---------------------------------------------------------------------------------------
+* Date        |CR number | TR Desc    |Changed By  |Description of change
+************************************************************************************
+*06-JAN-2015  | CHG0995226 |  DE3K957872 | RITM3672113 | 502347739 | Initial Version
+************************************************************************************
+************************************************************************************
+*19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739 | Radio Buttons options for ALV,PC download, Application Server
+************************************************************************************
+************************************************************************************
+*22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739 | Same sequence of fields as in SQ01 and sending proxy through queues
+************************************************************************************
+************************************************************************************
+*03-FEB-2015  | CHG0995226 | DE3K958991  | RITM3672113 | 502347739 | For FTP File Standard Price values should be with comma delimiter
+************************************************************************************
+************************************************************************************
+*06-FEB-2015  | CHG0995226 | DE3K959145  | RITM3672113 | 502347739 | For FTP File safety stock,min. lot size,rounding val.,Reorder point
+*                                                                    values should be with comma delimiter
+************************************************************************************
+* 21-Sep-2015       | CHG1459249      |502209589  | Time stamp incorporated to the proxy file name
+******************************************************************************************************
+* 06-jan-2016      | CHG1691559    |502277866 | Added wait statement while sending files to proxy
+* 18-jan-2016      | CHG1726986    |502277866 | removed sy-uzeit in file name
+************************************************************************************
+* 22-Jan-2018      |GECHG0088976   |502683007 | Added Seven new fields to the existing Report
+******************************************************************************************************
+* 23-Jan-2020      |GECHG0704170   |502765654  | Added PRCTR new field to the existing Report
+******************************************************************************************************
+* 10-Dec-2020      |CHG0162798   |502225516 | Added  AL11  FOLDER
+******************************************************************************************************
+* 19-Jan-2021      |CHG0165181   |502765654 |Added Four new fields to the existing Report
+*************************************************************************************************************
+* 17-Feb-2021      |CHG0165181   |502765654 |Added Price Determination and Moving Avatage/PUP in text Elements
+**************************************************************************************************************
+REPORT  zrmm_mm_kg
+        NO STANDARD PAGE HEADING
+        LINE-SIZE 500
+        LINE-COUNT 65(0)
+        MESSAGE-ID zcc_c.
+*Begin of changes by 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+*&----------------------------------------------------------------------*
+*&  INCLUDE PROGRAMS
+*&----------------------------------------------------------------------*
+INCLUDE znmm_mm_kg_top.
+INCLUDE znmm_mm_kg_selscr.
+*End of changes by 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+*Begin of changes 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+INITIALIZATION.
+** Changes begin by rajesh kumar regonda on 10 dec 2020 CR# CHG0162798 DE3K9A02OQ
+*  CONCATENATE gc_rep_name sy-sysid gc_rep_name1 gc_fname sy-datum gc_fname1 sy-uzeit gc_fname2 INTO p_fname.
+*  CONCATENATE gc_rep_name sy-sysid gc_rep_name1 p_fname sy-datum gc_fname1 sy-uzeit gc_fname2 INTO p_fname.
+** Changes end by rajesh kumar regonda on 10 dec 2020 CR# CHG0162798 DE3K9A02OQ
+*End of changes 22-JAN-2015  | CHG0995226 | DE3K958504  | RITM3672113 | 502347739
+*&---------------------------------------------------------------------*
+*&  START-OF-SELECTION
+*&---------------------------------------------------------------------*
+START-OF-SELECTION.
+  PERFORM get_data.
+  PERFORM fieldcat.
+
+*&----------------------------------------------------------------------*
+*& END OF  S E L E C T I O N
+*&----------------------------------------------------------------------*
+END-OF-SELECTION.
+  PERFORM process_data.
+*Begin of changes 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+  IF p_excel EQ 'X'.
+    PERFORM f_excel_download.
+  ELSEIF p_appl EQ 'X'.
+** Changes begin by rajesh kumar regonda on 10 dec 2020 CR# CHG0162798 DE3K9A02OQ
+    CONCATENATE gc_rep_name sy-sysid gc_rep_name1 p_fname '_' sy-datum gc_fname1 sy-uzeit gc_fname2 INTO p_fname.
+** Changes end by rajesh kumar regonda on 10 dec 2020 CR# CHG0162798 DE3K9A02OQ
+    PERFORM f_appserver_download.
+  ENDIF.
+  IF p_alv EQ gc_x .
+    PERFORM display_output.
+  ELSEIF  p_ftp EQ gc_x.
+    PERFORM proxy_send_data.
+  ENDIF.
+*End of changes 19-JAN-2015  | CHG0995226 | DE3K958347  | RITM3672113 | 502347739
+*  MESSAGE s000(zcc_c) WITH text-056.
+*&----------------------------------------------------------------------*
+*&  INCLUDE PROGRAMS
+*&----------------------------------------------------------------------*
+*  INCLUDE znmm_mm_kg_top.
+*  INCLUDE znmm_mm_kg_selscr.
+  INCLUDE znmm_mm_kg_forms.
+

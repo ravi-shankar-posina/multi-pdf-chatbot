@@ -1,0 +1,30 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_MARC_GR_PROCESS_SEL
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-076.
+PARAMETERS: p_delta RADIOBUTTON GROUP g1 USER-COMMAND u1 DEFAULT 'X',
+            p_repr RADIOBUTTON GROUP g1.
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-077.
+PARAMETERS: p_ccode TYPE zcomp_code OBLIGATORY.
+SELECT-OPTIONS: s_tran  FOR gi_gr_rech-tran_seq_no NO INTERVALS.
+PARAMETERS: p_file TYPE localfile MODIF ID m3,
+            p_data TYPE zdata_type DEFAULT 'RCIC' MODIF ID m2,
+            p_bgname TYPE btcjob NO-DISPLAY,
+            p_bgno   TYPE btcjobcnt NO-DISPLAY,
+            p_prnt   TYPE char1 AS CHECKBOX DEFAULT 'X',
+            p_email  TYPE char1 AS CHECKBOX DEFAULT 'X' USER-COMMAND u2,
+            p_mailid TYPE adr6-smtp_addr MODIF ID m4.
+SELECTION-SCREEN END OF BLOCK b2.
+
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-078.
+SELECT-OPTIONS: "s_rectyp FOR gi_gr_rech-rec_type NO INTERVALS MODIF ID m1,
+*                s_po      FOR gi_gr_rech-po_no NO INTERVALS MODIF ID m1,
+                s_poseq   FOR gi_gr_rech-rech_seq NO INTERVALS MODIF ID m1,
+                s_msgid   FOR gi_gr_recl-message_id_num NO INTERVALS MODIF ID m1.
+*                s_poline  FOR gi_gr_recl-po_line_no NO INTERVALS MODIF ID m1,
+*                s_mat     FOR gi_gr_recl-sku NO INTERVALS MODIF ID m1,
+*                s_msg     FOR gi_gr_recl-message_id_num NO INTERVALS MODIF ID m1.
+SELECTION-SCREEN END OF BLOCK b3.
+

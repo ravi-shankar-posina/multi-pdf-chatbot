@@ -1,0 +1,61 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_SELECTION_SCREEN
+*&---------------------------------------------------------------------*
+***----------------------------------------------------------------------------
+*---selection-screen.
+***----------------------------------------------------------------------------
+SELECTION-SCREEN BEGIN OF BLOCK a WITH FRAME TITLE text-bka.
+**** CHG0479115 DE3K942601 modification starts by 502237354 11/07/2014
+PARAMETERS     : p_werks TYPE t001w-werks   OBLIGATORY.
+**** CHG0479115 DE3K942601 modification ends by 502237354 11/07/2014
+SELECT-OPTIONS : s_vkorg FOR gv_vkorg. "OBLIGATORY .
+SELECTION-SCREEN END OF BLOCK a.
+SELECTION-SCREEN BEGIN OF BLOCK b WITH FRAME TITLE text-bkb.
+SELECT-OPTIONS: s_cust  FOR gv_kunnr,
+                s_vstel FOR gv_vstel,
+                s_stype FOR gv_vsart,
+                s_vbeln FOR gv_vbeln,
+                s_kostk FOR gv_kostk,
+                s_wbstk FOR gv_wbstk.
+*PARAMETERS:p_pstat TYPE kostk,
+*           p_gstat TYPE wbstk.
+SELECTION-SCREEN END OF BLOCK b.
+SELECTION-SCREEN BEGIN OF BLOCK c WITH FRAME TITLE text-bkc.
+PARAMETERS: p_resum AS CHECKBOX DEFAULT 'X',
+            p_sap_wm AS CHECKBOX .
+SELECTION-SCREEN END OF BLOCK c.
+SELECTION-SCREEN BEGIN OF BLOCK d WITH FRAME TITLE text-bkd.
+PARAMETERS: p_pick  AS CHECKBOX,
+            p_sortd RADIOBUTTON GROUP clas,
+            p_sortv RADIOBUTTON GROUP clas,
+            p_sortc RADIOBUTTON GROUP clas.
+SELECTION-SCREEN END OF BLOCK d.
+****************At Selection Screen
+AT SELECTION-SCREEN.
+*---- Validation: p_resum and p_export
+  IF ( p_resum = 'X' AND p_sap_wm = 'X' ).
+    MESSAGE text-032 TYPE 'E'.
+  ENDIF.
+
+AT SELECTION-SCREEN OUTPUT.
+  PERFORM currency.
+  IF p_waers = space.
+    p_waers = gv_l_waers.
+  ENDIF.
+  LOOP AT SCREEN.
+    CHECK screen-group1 = 'INT'.
+    screen-intensified = '1'.
+    MODIFY SCREEN.
+  ENDLOOP.
+********top-of-page
+TOP-OF-PAGE.
+  IF p_resum = 'X'.
+    MOVE text-400 TO gv_w_text_400.
+    FORMAT COLOR COL_HEADING.
+    WRITE: / gw_sociedad_tx, 31 sy-repid, 53 sy-title,
+      123 text-001, 130(3) sy-pagno NO-SIGN,
+      / sy-uname, 29 gv_w_text_400, 53 text-ffr, 123 sy-datum,
+      /.
+    FORMAT COLOR OFF.
+  ENDIF.
+

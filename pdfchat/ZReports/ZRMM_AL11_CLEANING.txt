@@ -1,0 +1,129 @@
+*&---------------------------------------------------------------------------------------------------*
+*& Report  ZRMM_AL11_CLEANING
+*&
+*&---------------------------------------------------------------------------------------------------*
+***------------------------------------------------------------------------------------------------***
+*** Created by            : SreeLatha Dachepalli,502347739
+*** Creation Date         : 03-Nov-2014
+*** Transport Request #   : DE3K954041
+*** RICEF Object No #     : RICEF863
+*** Description           : AL11 file Cleaning Program
+***------------------------------------------------------------------------------------------------***
+*** Change History                                                                                 ***
+***------------------------------------------------------------------------------------------------***
+***------------------------------------------------------------------------------------------------***
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+* MODIFICATION LOG
+*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+******************************************************************************************************
+* TR #       | DATE         | CHANGED BY         |Incident Number / CR Number | DESCRIPTION OF CHANGE
+******************************************************************************************************
+* DE3K954041 |03-Nov-2014  | Sreelatha Dachepalli| INC5296861    | Object Created
+*            |             |      502347739      | CHG0479115    |
+******************************************************************************************************
+
+REPORT  zrmm_al11_cleaning.
+* This Program is designed to delete the files older than a week for the ZETO_BOM folder
+CONSTANTS: gc_file_name  TYPE /sdf/file-name VALUE '*',
+           gc_name1(15) VALUE '/INTERFACES/',
+           gc_name2(10) VALUE '/ETO_BOM'.
+DATA: gv_dir_name TYPE epsf-epsdirnam,
+      gt_dir_list       TYPE TABLE OF /sdf/file,
+      wa_dir_list       TYPE /sdf/file,
+      gv_file_path      TYPE epsf-epspath,
+      gv_long_file_path TYPE eps2path,
+      gv_days           TYPE vtbbewe-atage,
+      gv_day            TYPE vtbbewe-atage,
+      gv_curr_date           TYPE d,
+      gv_prev_date           TYPE d,
+      gv_file_name      TYPE eps2filnam.
+
+PARAMETERS: p_dir TYPE /sdf/file-name,
+            p_days TYPE i.
+
+INITIALIZATION.
+
+  CONCATENATE gc_name1 sy-sysid gc_name2 INTO p_dir  .
+  p_days = text-007.
+
+START-OF-SELECTION.
+  gv_dir_name = p_dir.
+  gv_curr_date = sy-datum.
+  gv_prev_date = gv_prev_date + gv_curr_date - p_days.
+  CALL FUNCTION 'HR_SGPBS_YRS_MTHS_DAYS'
+    EXPORTING
+      beg_da        = gv_prev_date
+      end_da        = gv_curr_date
+    IMPORTING
+      no_day        = gv_days
+    EXCEPTIONS
+      dateint_error = 1
+      OTHERS        = 2.
+
+* TO GET THE LIST OF FILES IN THE DIRECTORY
+  CALL FUNCTION '/SDF/GET_FILE_INFO'
+    EXPORTING
+      dir_name                  = p_dir
+      file_name                 = gc_file_name
+    TABLES
+      dir_list                  = gt_dir_list
+    EXCEPTIONS
+      no_authority              = 1
+      activity_unknown          = 2
+      not_a_directory           = 3
+      no_media_in_drive         = 4
+      too_many_errors           = 5
+      too_many_files            = 6
+      bracket_error_in_filename = 7
+      no_such_parameter         = 8
+      OTHERS                    = 9.
+
+  IF sy-subrc <> 0.
+    WRITE:/ text-001.
+  ENDIF.
+
+
+  LOOP AT gt_dir_list INTO wa_dir_list.
+
+* To calculate the days between last changed and current date
+    CALL FUNCTION 'FIMA_DAYS_AND_MONTHS_AND_YEARS'
+      EXPORTING
+        i_date_from = wa_dir_list-mod_date
+        i_date_to   = sy-datum
+      IMPORTING
+        e_days      = gv_day.
+
+    IF sy-subrc = 0.
+      IF gv_day > gv_days OR p_days = text-008.
+        CLEAR: gv_file_name.
+        gv_file_name = wa_dir_list-name.
+
+        IF gv_file_name NE text-005 AND gv_file_name NE text-006.
+* TO DELETE THE FILE IN APPLICATION SERVER
+          CALL FUNCTION 'EPS_DELETE_FILE'
+            EXPORTING
+              iv_long_file_name      = gv_file_name
+              dir_name               = gv_dir_name
+            IMPORTING
+              file_path              = gv_file_path
+              ev_long_file_path      = gv_long_file_path
+            EXCEPTIONS
+              invalid_eps_subdir     = 1
+              sapgparam_failed       = 2
+              build_directory_failed = 3
+              no_authorization       = 4
+              build_path_failed      = 5
+              delete_failed          = 6
+              OTHERS                 = 7.
+
+          IF sy-subrc <> 0.
+            WRITE:/ wa_dir_list-name, text-002.
+          ELSE.
+            WRITE:/ wa_dir_list-name, text-003.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+  ENDLOOP.
+

@@ -1,0 +1,437 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRMM_DMS_XECM_MIGRATION
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+****------------------------------------------------------------------***
+*** Created by            : Devesh Modi(9X10112895)
+*** Creation Date         : 03/01/2020
+*** Transport Request     : DE3K996301
+*** RICEF Object No       : RICEF2080
+*** Description           : Delete old achive link
+*** CR Created            : GECHG0708352
+***------------------------------------------------------------------***
+***------------------------------------------------------------------***
+* MODIFICATION LOG
+***------------------------------------------------------------------***
+* DATE       | CR No.       |CHANGED BY    |DESCRIPTION OF CHANGE
+*-------------------------------------------------------------------------
+* 19.06.2020 | GECHG0834449 |9X10112895    |Changes for background processing
+*------------------------------------------------------------------------
+REPORT  zrmm_dms_xecm_migration.
+* Begin of change GECHG0834449
+*TYPES : BEGIN OF ty_data,
+*          number     TYPE sapb-sapobjid,
+*          obj_type   TYPE toaom-sap_object,
+*          doc_type   TYPE toaom-ar_object,
+*          filename   TYPE toaat-filename,
+*          arch_id    TYPE sapb-sapadokid,
+*          arch_by    TYPE toaat-creator,
+*          arch_on    TYPE toav0-ar_date,
+*          path       TYPE sapb-sappfad,
+*        END OF ty_data,
+*
+*        BEGIN OF ty_output,
+*          icon      TYPE c,
+*          number    TYPE sapb-sapobjid,
+*          obj_type  TYPE toaom-sap_object,
+*          remark    TYPE string,
+*        END OF ty_output.
+*
+*DATA : gt_data          TYPE TABLE OF ty_data,
+*       gi_data_ds       TYPE ty_data,
+*       gt_output        TYPE TABLE OF ty_output,
+*       gi_output_ds     TYPE ty_output,
+*       lw_arc_doc_id_tx TYPE sapb-sapadokid,
+*       gi_raw_ds        TYPE truxs_t_text_data,
+*       gw_count_nb(6)   TYPE n,
+*       gw_lines_nb(6)   TYPE n,
+*       gw_text_tx       TYPE string,
+*       gt_fieldcat      TYPE slis_t_fieldcat_alv,
+*       gi_fieldcat_ds   TYPE slis_fieldcat_alv,
+*       gi_layout_ds     TYPE slis_layout_alv.
+*
+*CONSTANTS : gc_bus2012_tx TYPE toa_dara-sap_object  VALUE 'BUS2012',
+*            gc_vbak_tx    TYPE toa_dara-sap_object  VALUE 'VBAK',
+*            gc_doc_typ_tx TYPE arc_params-doc_type  VALUE 'PDF',
+*            gc_arc_id_tx  TYPE arc_params-archiv_id VALUE 'D3',
+*            gc_true_tx    TYPE c                    VALUE 'X'.
+*
+*SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+*PARAMETERS: p_file TYPE rlgrap-filename.
+*SELECTION-SCREEN END OF BLOCK b1.
+*
+*PARAMETERS: ch_upd AS CHECKBOX.
+*PARAMETERS: ch_del AS CHECKBOX.
+*
+*AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+*  CALL FUNCTION 'F4_FILENAME'
+*    EXPORTING
+*      field_name = 'P_FILE'
+*    IMPORTING
+*      file_name  = p_file.
+*
+*START-OF-SELECTION.
+*
+*  CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+*    EXPORTING
+*      i_line_header        = gc_true_tx
+*      i_tab_raw_data       = gi_raw_ds
+*      i_filename           = p_file
+*    TABLES
+*      i_tab_converted_data = gt_data
+*    EXCEPTIONS
+*      conversion_failed    = 1
+*      OTHERS               = 2.
+*  IF sy-subrc <> 0.
+** Implement suitable error handling here
+*  ENDIF.
+*
+*  DESCRIBE TABLE gt_data LINES gw_lines_nb.
+*
+*  LOOP AT gt_data INTO gi_data_ds.
+*
+*    IF ch_upd IS NOT INITIAL.
+*
+*      CALL FUNCTION 'ARCHIVOBJECT_CREATE_FILE'
+*        EXPORTING
+*          archiv_id                = gc_arc_id_tx
+*          document_type            = gc_doc_typ_tx
+*          path                     = gi_data_ds-path
+*        IMPORTING
+*          archiv_doc_id            = lw_arc_doc_id_tx
+*        EXCEPTIONS
+*          error_archiv             = 1
+*          error_communicationtable = 2
+*          error_upload             = 3
+*          error_kernel             = 4
+**         others                   = 5
+*          blocked_by_policy        = 6
+*          OTHERS                   = 7.
+*      IF sy-subrc <> 0.
+** Implement suitable error handling here
+*      ENDIF.
+*
+*      CALL FUNCTION 'ARCHIV_CONNECTION_INSERT'
+*        EXPORTING
+*          archiv_id             = gc_arc_id_tx
+*          arc_doc_id            = lw_arc_doc_id_tx
+*          ar_date               = gi_data_ds-arch_on
+*          ar_object             = gi_data_ds-doc_type
+*          object_id             = gi_data_ds-number
+*          sap_object            = gi_data_ds-obj_type
+*          doc_type              = gc_doc_typ_tx
+*          filename              = gi_data_ds-filename
+*          creator               = gi_data_ds-arch_by
+*        EXCEPTIONS
+*          error_connectiontable = 1
+*          OTHERS                = 2.
+*      IF sy-subrc <> 0.
+*        gi_output_ds-icon     = 1.
+*        gi_output_ds-number   = gi_data_ds-number.
+*        gi_output_ds-obj_type = gi_data_ds-obj_type.
+*        gi_output_ds-remark   = 'Archiving Failed'(002).
+*        APPEND gi_output_ds TO gt_output.
+*        CLEAR gi_output_ds.
+*      ELSE.
+*        gi_output_ds-icon     = 3.
+*        gi_output_ds-number   = gi_data_ds-number.
+*        gi_output_ds-obj_type = gi_data_ds-obj_type.
+*        gi_output_ds-remark   = 'Archived Successfully'(003).
+*
+*        APPEND gi_output_ds TO gt_output.
+*        CLEAR gi_output_ds.
+*      ENDIF.
+*    ENDIF.
+*
+*    IF ch_del IS NOT INITIAL.
+*      CALL FUNCTION 'ARCHIV_DELETE_META'
+*        EXPORTING
+*          archiv_id                = 'IS'
+*          arc_doc_id               = gi_data_ds-arch_id
+*          ar_object                = gi_data_ds-doc_type
+*          delete_flag              = 2
+*          object_id                = gi_data_ds-number
+*          sap_object               = gi_data_ds-obj_type
+*          single_entry             = 'X'
+*        EXCEPTIONS
+*          error_connectiontable    = 1
+*          error_parameter          = 2
+*          error_archiv             = 3
+*          error_kernel             = 4
+*          error_communicationtable = 5
+*          error_authority          = 6
+*          OTHERS                   = 7.
+*      IF sy-subrc <> 0.
+*        gi_output_ds-icon     = 1.
+*        gi_output_ds-number   = gi_data_ds-number.
+*        gi_output_ds-obj_type = gi_data_ds-obj_type.
+*        gi_output_ds-remark   = 'Deletion Failed'(007).
+*        APPEND gi_output_ds TO gt_output.
+*        CLEAR gi_output_ds.
+*      ELSE.
+*        gi_output_ds-icon     = 3.
+*        gi_output_ds-number   = gi_data_ds-number.
+*        gi_output_ds-obj_type = gi_data_ds-obj_type.
+*        gi_output_ds-remark   = 'Document deleted'(008).
+*
+*        APPEND gi_output_ds TO gt_output.
+*        CLEAR gi_output_ds.
+*      ENDIF.
+*    ENDIF.
+*
+*    gw_count_nb = gw_count_nb + 1.
+*    CONCATENATE 'Processing data ' gw_count_nb '/' gw_lines_nb
+*          INTO gw_text_tx.
+*    CONDENSE gw_count_nb.
+*
+*    CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+*      EXPORTING
+*        text = gw_text_tx.
+*
+*  ENDLOOP.
+*  gi_layout_ds-lights_fieldname  = 'ICON'.
+*  gi_layout_ds-colwidth_optimize = 'X'.
+*
+*  CLEAR : gi_fieldcat_ds, gt_fieldcat[].
+*  gi_fieldcat_ds-tabname       = 'GT_OUTPUT'.
+*  gi_fieldcat_ds-fieldname     = 'NUMBER'.
+*  gi_fieldcat_ds-seltext_l     = 'Document Number'(004).
+*  APPEND gi_fieldcat_ds TO gt_fieldcat.
+*  CLEAR: gi_fieldcat_ds.
+*
+*  gi_fieldcat_ds-tabname       = 'GT_OUTPUT'.
+*  gi_fieldcat_ds-fieldname     = 'OBJ_TYP'.
+*  gi_fieldcat_ds-seltext_l     = 'Business Object'(005).
+*  APPEND gi_fieldcat_ds TO gt_fieldcat.
+*  CLEAR: gi_fieldcat_ds.
+*
+*  gi_fieldcat_ds-tabname       = 'GT_OUTPUT'.
+*  gi_fieldcat_ds-fieldname     = 'REMARK'.
+*  gi_fieldcat_ds-seltext_l     = 'Remark'(006).
+*  APPEND gi_fieldcat_ds TO gt_fieldcat.
+*  CLEAR: gi_fieldcat_ds.
+*
+*  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+*    EXPORTING
+*      i_callback_program = sy-repid
+*      is_layout          = gi_layout_ds
+*      it_fieldcat        = gt_fieldcat
+*    TABLES
+*      t_outtab           = gt_output
+*    EXCEPTIONS
+*      program_error      = 1
+*      OTHERS             = 2.
+*  IF sy-subrc <> 0.
+** Implement suitable error handling here
+*  ENDIF.
+
+TABLES : toa01.
+
+TYPES : BEGIN OF ty_objky,
+          objky TYPE toa01-object_id,
+        END OF ty_objky,
+
+        BEGIN OF ty_output,
+          icon      TYPE c,
+          number    TYPE sapb-sapobjid,
+          obj_type  TYPE toaom-sap_object,
+          remark    TYPE string,
+        END OF ty_output.
+
+DATA : gt_objky_ds      TYPE TABLE OF ty_objky,
+       gt_objky_temp_ds TYPE TABLE OF ty_objky,
+       gi_objky_ds      TYPE ty_objky,
+       gi_objky_temp_ds TYPE ty_objky,
+       gt_toa01_ds      TYPE TABLE OF toa01,
+       gi_toa01_ds      TYPE toa01,
+       gt_output        TYPE TABLE OF ty_output,
+       gi_output_ds     TYPE ty_output,
+       gt_fieldcat      TYPE slis_t_fieldcat_alv,
+       gi_fieldcat_ds   TYPE slis_fieldcat_alv,
+       gi_layout_ds     TYPE slis_layout_alv.
+
+SELECTION-SCREEN : BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+SELECT-OPTIONS : s_objty FOR toa01-sap_object NO-EXTENSION NO INTERVALS OBLIGATORY,
+                 s_objky FOR toa01-object_id OBLIGATORY.
+SELECTION-SCREEN : END OF BLOCK b1.
+
+START-OF-SELECTION.
+
+  IF s_objty-low = 'BUS2012'.
+    SELECT ebeln
+      FROM ekko
+      INTO TABLE gt_objky_ds
+      WHERE ebeln IN s_objky.
+    IF sy-subrc = 0.
+      gt_objky_temp_ds[] = gt_objky_ds[].
+      CLEAR gt_objky_ds[].
+
+      LOOP AT gt_objky_temp_ds INTO gi_objky_temp_ds.
+        CONCATENATE gi_objky_temp_ds-objky '%' INTO gi_objky_ds-objky .
+        APPEND gi_objky_ds TO gt_objky_ds.
+        CLEAR: gi_objky_ds, gi_objky_temp_ds.
+      ENDLOOP.
+    ELSE.
+      MESSAGE 'Please Enter correct Document Number'(013) TYPE 'S' DISPLAY LIKE 'E'.
+    ENDIF.
+
+  ELSEIF s_objty-low = 'BUS2031' OR
+         s_objty-low = 'BUS2032' OR
+         s_objty-low = 'VBAK' .
+
+    SELECT vbeln
+      FROM vbak
+      INTO TABLE gt_objky_ds
+      WHERE vbeln IN s_objky.
+    IF sy-subrc = 0.
+      gt_objky_temp_ds[] = gt_objky_ds[].
+      CLEAR gt_objky_ds[].
+
+      LOOP AT gt_objky_temp_ds INTO gi_objky_temp_ds.
+        CONCATENATE gi_objky_temp_ds-objky '%' INTO gi_objky_ds-objky.
+        APPEND gi_objky_ds TO gt_objky_ds.
+        CLEAR: gi_objky_ds, gi_objky_temp_ds.
+      ENDLOOP.
+    ELSE.
+      MESSAGE 'Please Enter correct Document Number'(013) TYPE 'S' DISPLAY LIKE 'E'.
+    ENDIF.
+
+  ELSEIF s_objty-low = 'VBRK'.
+
+    SELECT vbeln
+      FROM vbrk
+      INTO TABLE gt_objky_ds
+      WHERE vbeln IN s_objky.
+    IF sy-subrc = 0.
+      gt_objky_temp_ds[] = gt_objky_ds[].
+      CLEAR gt_objky_ds[].
+
+      LOOP AT gt_objky_temp_ds INTO gi_objky_temp_ds.
+        CONCATENATE gi_objky_temp_ds-objky '%' INTO gi_objky_ds-objky.
+        APPEND gi_objky_ds TO gt_objky_ds.
+        CLEAR: gi_objky_ds, gi_objky_temp_ds.
+      ENDLOOP.
+    ELSE.
+      MESSAGE 'Please Enter correct Document Number'(013) TYPE 'S' DISPLAY LIKE 'E'.
+    ENDIF.
+  ENDIF.
+
+  LOOP AT gt_objky_ds INTO gi_objky_ds.
+
+    SELECT *
+      FROM toa01
+      INTO TABLE gt_toa01_ds
+      WHERE sap_object = s_objty-low
+        AND object_id  LIKE gi_objky_ds-objky
+        AND archiv_id  = 'IS'.
+    IF sy-subrc <> 0.
+
+      CLEAR gi_output_ds.
+      gi_output_ds-icon     = 3.
+      gi_output_ds-number   = gi_objky_ds-objky+0(10).
+      gi_output_ds-obj_type = s_objty-low.
+      gi_output_ds-remark   = 'No entries found'(012).
+      APPEND gi_output_ds TO gt_output.
+      CLEAR gi_output_ds.
+      CONTINUE.
+
+    ELSE.
+
+      LOOP AT gt_toa01_ds INTO gi_toa01_ds.
+
+        CALL FUNCTION 'ARCHIV_DELETE_META'
+          EXPORTING
+            archiv_id                = 'IS'
+            arc_doc_id               = gi_toa01_ds-arc_doc_id
+            ar_object                = gi_toa01_ds-ar_object
+            delete_flag              = 2
+            object_id                = gi_toa01_ds-object_id
+            sap_object               = gi_toa01_ds-sap_object
+            single_entry             = 'X'
+          EXCEPTIONS
+            error_connectiontable    = 1
+            error_parameter          = 2
+            error_archiv             = 3
+            error_kernel             = 4
+            error_communicationtable = 5
+            error_authority          = 6
+            OTHERS                   = 7.
+        IF sy-subrc <> 0.
+          IF sy-subrc NE 3.
+            gi_output_ds-icon     = 1.
+            gi_output_ds-number   = gi_toa01_ds-object_id.
+            gi_output_ds-obj_type = gi_toa01_ds-sap_object.
+            gi_output_ds-remark   = 'Deletion Failed'(007).
+            APPEND gi_output_ds TO gt_output.
+            CLEAR gi_output_ds.
+          ELSE.
+            gi_output_ds-icon     = 3.
+            gi_output_ds-number   = gi_toa01_ds-object_id.
+            gi_output_ds-obj_type = gi_toa01_ds-sap_object.
+            gi_output_ds-remark   = 'Document deleted'(008).
+            APPEND gi_output_ds TO gt_output.
+            CLEAR gi_output_ds.
+          ENDIF.
+        ELSE.
+          gi_output_ds-icon     = 3.
+          gi_output_ds-number   = gi_toa01_ds-object_id.
+          gi_output_ds-obj_type = gi_toa01_ds-sap_object.
+          gi_output_ds-remark   = 'Document deleted'(008).
+          APPEND gi_output_ds TO gt_output.
+          CLEAR gi_output_ds.
+        ENDIF.
+
+        CLEAR : gi_toa01_ds.
+      ENDLOOP.
+    ENDIF.
+    CLEAR: gi_objky_ds, gt_toa01_ds[].
+  ENDLOOP.
+
+END-OF-SELECTION.
+
+  IF gt_output IS NOT INITIAL.
+
+    gi_layout_ds-lights_fieldname  = 'ICON'.
+    gi_layout_ds-colwidth_optimize = 'X'.
+
+    gi_fieldcat_ds-tabname       = 'GT_OUTPUT'.
+    gi_fieldcat_ds-fieldname     = 'OBJ_TYPE'.
+    gi_fieldcat_ds-seltext_l     = 'Business Object'(005).
+    APPEND gi_fieldcat_ds TO gt_fieldcat.
+    CLEAR: gi_fieldcat_ds.
+
+    CLEAR : gi_fieldcat_ds, gt_fieldcat[].
+    gi_fieldcat_ds-tabname       = 'GT_OUTPUT'.
+    gi_fieldcat_ds-fieldname     = 'NUMBER'.
+    gi_fieldcat_ds-seltext_l     = 'Document Number'(004).
+    APPEND gi_fieldcat_ds TO gt_fieldcat.
+    CLEAR: gi_fieldcat_ds.
+
+    gi_fieldcat_ds-tabname       = 'GT_OUTPUT'.
+    gi_fieldcat_ds-fieldname     = 'REMARK'.
+    gi_fieldcat_ds-seltext_l     = 'Remark'(006).
+    APPEND gi_fieldcat_ds TO gt_fieldcat.
+    CLEAR: gi_fieldcat_ds.
+
+
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+        i_callback_program = sy-repid
+        is_layout          = gi_layout_ds
+        it_fieldcat        = gt_fieldcat
+      TABLES
+        t_outtab           = gt_output
+      EXCEPTIONS
+        program_error      = 1
+        OTHERS             = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+  ELSE.
+    MESSAGE 'No Entries' TYPE 'S' DISPLAY LIKE 'E'.
+  ENDIF.
+* End of change GECHG0834449
+

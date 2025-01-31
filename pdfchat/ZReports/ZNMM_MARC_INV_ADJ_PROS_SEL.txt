@@ -1,0 +1,26 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_MARC_INV_ADJ_PROS_SEL
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-002.
+PARAMETERS: p_new RADIOBUTTON GROUP r1 USER-COMMAND rb DEFAULT 'X',
+            p_error RADIOBUTTON GROUP r1 MODIF ID sc1.
+SELECTION-SCREEN END OF BLOCK b2.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+PARAMETERS:     p_code   TYPE zcomp_code OBLIGATORY MODIF ID bbb.
+PARAMETERS:     p_seq   TYPE ztran_seq_no NO-DISPLAY.
+SELECT-OPTIONS: s_tseq   FOR gw_trans_seq_no_tab NO INTERVALS MODIF ID bbb,
+                s_file   FOR gi_marc_inv_da-file_name NO INTERVALS NO-EXTENSION MODIF ID bbb.
+PARAMETERS:     p_file   TYPE localfile NO-DISPLAY,
+                p_type   TYPE zdata_type  MODIF ID bbb DEFAULT  'INVC'.
+PARAMETERS:     p_bgname TYPE btcjob MODIF ID m3 NO-DISPLAY,
+                p_bgno   TYPE btcjobcnt MODIF ID m3 NO-DISPLAY,
+                p_print   TYPE char1 AS CHECKBOX DEFAULT 'X',
+                p_mail    TYPE char1 AS CHECKBOX DEFAULT 'X' USER-COMMAND u1,
+                p_mailid  TYPE adr6-smtp_addr MODIF ID ccc..
+SELECTION-SCREEN END OF BLOCK b1.
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-003.
+SELECT-OPTIONS: s_poseq   FOR gi_marc_inv_da-rec_seq NO INTERVALS MODIF ID aaa,
+                s_msg    FOR gw_msg_id_num NO INTERVALS MODIF ID aaa,
+                s_sku    FOR gi_marc_inv_da-sku NO INTERVALS MODIF ID aaa.
+SELECTION-SCREEN END OF BLOCK b3.
+

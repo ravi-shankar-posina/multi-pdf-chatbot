@@ -1,0 +1,294 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRFID_LABEL_SCAN_TOP.
+**&---------------------------------------------------------------------*
+*
+*** Created by            : Abhishek Khandelwal (502412886)
+***                         Shashiprabha Shetty (502565482)
+*** Creation Date         : 18/07/2016
+*** Transport Request #   : DE3K973169
+*** RICEF Object No #     : RICEF1752
+*** Change request No     : CHG2219524
+*** Transaction code      : ZMM733N
+*** Description           : The program has screen interface for creating
+*                           Shipment which could be opened through RFID Scanner PDA.
+*                           The program has 5 screens for scanning delivery, Packaging
+*                           Material, 2D barcode SSCC Label, display scanned data,
+*                           display create shipment log. The program calls
+*                           BAPI_CREATE_SHIPMENT to create Shipment and store
+*                           the label data to table ZTMM_EDF_LABEL and
+*                           update existing tables ZTMM_EDFSHIP, ZTMM_EDFLABEL.
+*                           This program is called through tcode ZMM733N which is called
+*                           through ITS service and hence can be opened
+*                           on RFID Scanner PDA through generated url.
+*****************************************************************************************
+*TYPES DECLARATION
+TYPES: BEGIN OF ty_pack_matnr,
+        hu    TYPE char3,
+        vhilm TYPE vhilm,
+       END OF ty_pack_matnr,
+
+       BEGIN OF ty_final1,
+        hu       TYPE char3,
+        sscc     TYPE char30,
+        matnr    TYPE matnr,
+        delivery TYPE vbeln_vl,
+        item     TYPE posnr_vl,
+        qty      TYPE char10,
+       END OF ty_final1.
+
+TYPES: BEGIN OF ty_lips,
+        vbeln TYPE vbeln_vl,
+        posnr TYPE posnr_vl,
+        matnr TYPE matnr,
+        lfimg TYPE lfimg,
+       END OF ty_lips,
+
+       BEGIN OF ty_vbpa,
+        vbeln TYPE vbeln,
+        kunnr TYPE kunnr,
+       END OF ty_vbpa,
+
+       BEGIN OF ty_vbuk,
+        vbeln TYPE vbeln,
+        lfgsk TYPE lkgsk,
+       END OF ty_vbuk.
+
+TYPES: BEGIN OF ty_zlabel_scan2.
+        INCLUDE STRUCTURE ztmm_edf_label.
+TYPES: hu TYPE char3.
+TYPES: END OF ty_zlabel_scan2.
+
+TYPES :BEGIN OF ty_vttp1,
+       tknum TYPE tknum,
+       vbeln TYPE vbeln,
+       END OF ty_vttp1,
+
+       BEGIN OF ty_ship,
+       shipment(20),
+       END OF ty_ship,
+
+       BEGIN OF ty_vekp,
+       venum TYPE venum,
+       exidv TYPE exidv,
+       END OF ty_vekp,
+
+       BEGIN OF ty_vepo,
+       venum TYPE venum,
+       vepos TYPE vepos,
+       vbeln TYPE vbeln,
+       posnr TYPE posnr,
+       hu    TYPE char3,
+       END OF ty_vepo,
+
+       BEGIN OF ty_lips2,
+       vbeln TYPE vbeln,
+       posnr TYPE posnr,
+       END OF ty_lips2.
+
+TYPES: BEGIN OF ty_likp,
+       vbeln TYPE vbeln,
+       vstel TYPE vstel,
+       END OF ty_likp.
+
+TYPES: BEGIN OF ty_ztmm_edf_delv,
+       vbeln TYPE vbeln_vl,
+       posnr TYPE posnr_vl,
+       kunnr TYPE kunwe,
+       matnr TYPE matnr,
+       lfimg TYPE lfimg,
+       pikmg TYPE pikmg,
+       END OF ty_ztmm_edf_delv.
+
+
+*CONSTANTS DECLARATION
+CONSTANTS: c_line_length TYPE i VALUE '100'.
+CONSTANTS: c_huhe    TYPE tplst VALUE 'HUHE',
+           c_geedf   TYPE char7 VALUE '<GEEDF>',
+           c_geedf1  TYPE char8 VALUE '</GEEDF>',
+           c_sscc    TYPE char7 VALUE '</SSCC>',
+           c_ean     TYPE char6 VALUE '</EAN>',
+           c_matnr   TYPE char8 VALUE '</MATNR>',
+           c_sn      TYPE char5 VALUE '</SN>',
+           c_sscc_a  TYPE char4 VALUE 'SSCC',
+           c_ean_a   TYPE char3 VALUE 'EAN',
+           c_sn_a    TYPE char2 VALUE 'SN',
+           c_matnr_a TYPE char5 VALUE 'MATNR',
+           c_geedf_a TYPE char5 VALUE 'GEEDF',
+           c_lt      TYPE char1 VALUE '<',
+           c_gt      TYPE char2 VALUE '>',
+           c_slash   TYPE char2 VALUE '</',
+           c_x       TYPE char1 VALUE 'X',
+           c_tabix_1 TYPE sy-tabix VALUE '1',
+           c_1  TYPE char1 VALUE '1',
+           c_2  TYPE char1 VALUE '2',
+           c_3  TYPE char1 VALUE '3',
+           c_4  TYPE char1 VALUE '4',
+           c_5  TYPE char1 VALUE '5',
+           c_6  TYPE char1 VALUE '6',
+           c_7  TYPE char1 VALUE '7',
+           c_8  TYPE char1 VALUE '8',
+           c_9  TYPE char1 VALUE '9',
+           c_10 TYPE char2 VALUE '10',
+           c_11 TYPE char2 VALUE '11',
+           c_we TYPE vbpa-parvw VALUE 'WE',
+           c_0001   TYPE bapishipmentheader-shipment_type VALUE '0001',
+           c_000    TYPE char3 VALUE '000',
+           c_000001 TYPE edi_psgnum VALUE '000001',
+           c_s      TYPE bapiret2-type   VALUE 'S',
+           c_vw     TYPE bapiret2-id     VALUE 'VW',
+           c_488    TYPE bapiret2-number VALUE '488',
+           c_$      TYPE char1           VALUE '$'.
+
+CONSTANTS : c_line(3)     TYPE c VALUE '---',
+            c_line1(5)    TYPE c VALUE '-----',
+            c_line2(9)    TYPE c VALUE '---------'.
+
+
+*DATA DECLARATION
+DATA:  it_lips  TYPE TABLE OF ty_lips,
+       wa_lips  TYPE ty_lips,
+       wa_vbpa  TYPE ty_vbpa,
+       wa_vbuk  TYPE ty_vbuk,
+       it_likp  TYPE TABLE OF ty_likp,
+       wa_likp  TYPE ty_likp,
+       wa_likp1 TYPE ty_likp.
+
+DATA:  g_ship_diff  TYPE char1,
+       g_tplst      TYPE ttds-tplst,
+       g_diff_vstel TYPE char1,
+       g_hu1        TYPE char3,
+       g_message    TYPE string,
+       g_open       TYPE char1,
+       g_openqty    TYPE lips-lfimg,
+       g_beg        TYPE i,
+       g_end        TYPE i,
+       g_len        TYPE i,
+       g_value      TYPE char30,
+       g_value1     TYPE char30,
+       g_snoqty     TYPE i,
+       g_tabix      TYPE sy-tabix,
+       g_openqty1   TYPE char10,
+       g_matnr      TYPE mara-matnr,
+       g_lin        TYPE i,
+       g_flag1      TYPE char1,
+       g_flag2      TYPE char1,
+       g_out        TYPE char1,
+       g_delivery   TYPE vbeln,
+       g_pmaterial  TYPE matnr,
+       g1_material  TYPE matnr,
+       g_hu         TYPE char3,
+       g_trp_point  TYPE tplst,
+       g_success    TYPE char1.
+
+DATA: it_zmm_delv_scan TYPE TABLE OF ty_ztmm_edf_delv,
+      wa_zmm_delv_scan TYPE ty_ztmm_edf_delv,
+      it_pack_matnr    TYPE TABLE OF ty_pack_matnr,
+      wa_pack_matnr    TYPE ty_pack_matnr,
+      it_final1        TYPE TABLE OF ty_final1,
+      wa_final1        TYPE ty_final1,
+      it_zlabel_scan   TYPE TABLE OF ztmm_edf_label,
+      wa_zlabel_scan   TYPE ztmm_edf_label,
+      wa_zlabel_scan1  TYPE ztmm_edf_label.
+
+*DELIVERY
+DATA: g_repid TYPE sy-repid,
+*   reference to wrapper class of control
+      g_editor1 TYPE REF TO cl_gui_textedit,
+      g_editor2 TYPE REF TO cl_gui_textedit,
+      g_editor3 TYPE REF TO cl_gui_textedit,
+      g_editor4 TYPE REF TO cl_gui_textedit,
+      g_editor5 TYPE REF TO cl_gui_textedit,
+*   reference to custom container: necessary to bind TextEdit Control
+      g_editor_container1 TYPE REF TO cl_gui_custom_container,
+      g_editor_container2 TYPE REF TO cl_gui_custom_container,
+      g_editor_container3 TYPE REF TO cl_gui_custom_container,
+      g_editor_container4 TYPE REF TO cl_gui_custom_container,
+      g_editor_container5 TYPE REF TO cl_gui_custom_container,
+      g_relink1  TYPE c,               " to manage relinking
+      g_relink2  TYPE c,               " to manage relinking
+      g_relink3  TYPE c,               " to manage relinking
+      g_relink4  TYPE c,               " to manage relinking
+      g_relink5  TYPE c,               " to manage relinking
+      g_mycontainer1(30)  TYPE c,      " string for the containers
+      g_mycontainer2(30)  TYPE c,      " string for the containers
+      g_mycontainer3(30)  TYPE c,      " string for the containers
+      g_mycontainer4(30)  TYPE c,      " string for the containers
+      g_mycontainer5(30)  TYPE c,      " string for the containers
+      g_container_linked1 TYPE i,                           "#EC NEEDED
+      g_container_linked2 TYPE i,                           "#EC NEEDED
+      g_container_linked3 TYPE i,                           "#EC NEEDED
+      g_container_linked4 TYPE i,                           "#EC NEEDED
+      g_container_linked5 TYPE i,                           "#EC NEEDED
+      g_ok_code1 TYPE sy-ucomm,       " return code from screen
+      g_ok_code2 TYPE sy-ucomm,       " return code from screen
+      g_ok_code3 TYPE sy-ucomm,       " return code from screen
+      g_ok_code4 TYPE sy-ucomm,       " return code from screen
+      g_ok_code5 TYPE sy-ucomm,       " return code from screen
+      g_ok_code6 TYPE sy-ucomm,
+      it_delv_editor(c_line_length)  TYPE c OCCURS 0,
+      it_pack_editor(c_line_length)  TYPE c OCCURS 0,
+      it_label_editor(c_line_length) TYPE c OCCURS 0,
+      it_label_editor1(c_line_length) TYPE c OCCURS 0,
+      it_final_editor(c_line_length) TYPE c OCCURS 0,
+      it_log_editor(c_line_length)   TYPE c OCCURS 0,
+      wa_table_editor  LIKE LINE OF it_delv_editor,
+      wa_label_editor  LIKE LINE OF it_label_editor,
+      wa_label_editor1  LIKE LINE OF it_label_editor,
+      wa_log_editor    LIKE LINE OF it_log_editor.
+
+
+*BAPI data declarations
+DATA: wa_headerdata     TYPE bapishipmentheader,
+      it_itemdata       TYPE TABLE OF bapishipmentitem,
+      wa_itemdata       TYPE bapishipmentitem,
+      it_hdunheader     TYPE TABLE OF bapishipmenthdunheader,
+      wa_hdunheader     TYPE bapishipmenthdunheader,
+      it_hdunitem       TYPE TABLE OF bapishipmenthdunitem,
+      wa_hdunitem       TYPE bapishipmenthdunitem,
+      it_return         TYPE TABLE OF bapiret2,
+      wa_return         TYPE bapiret2.
+
+DATA: wa_vttp1          TYPE ty_vttp1,
+      it_vttp1          TYPE TABLE OF ty_vttp1,
+      it_ship           TYPE TABLE OF ty_ship,
+      wa_ship           TYPE ty_ship,
+      it_vekp           TYPE TABLE OF ty_vekp,
+      wa_vepo           TYPE ty_vepo,
+      it_vepo           TYPE TABLE OF ty_vepo,
+      wa_lips2          TYPE ty_lips2,
+      it_lips2          TYPE TABLE OF ty_lips2,
+      wa_zedfship       TYPE ztmm_edfship,
+      it_edfship        TYPE TABLE OF ztmm_edfship,
+      wa_zedfpallet     TYPE ztmm_edfpallet,
+      it_edfpallet      TYPE TABLE OF ztmm_edfpallet.
+
+
+DATA : g_tknum     TYPE vttp-tknum,
+       g_venum     TYPE vekp-venum,
+       g_vbeln1    TYPE vepo-vbeln,
+       g_del       TYPE c,
+       g_hln       TYPE i VALUE '1',
+       g_lpi       TYPE i VALUE '2',
+       g_ship_unit TYPE vepo-venum,
+       g_sscc(30),
+       g_hdl_unit_exid TYPE bapishipmenthdunheader-hdl_unit_exid.
+
+DATA: it_zlabel_scan1 TYPE TABLE OF ztmm_edf_label.
+DATA: it_zlabel_scan2 TYPE TABLE OF ty_zlabel_scan2,
+      wa_zlabel_scan2 TYPE ty_zlabel_scan2.
+
+DATA: g_pallet   TYPE char3,
+      g_vbeln    TYPE likp-vbeln,
+      g_last     TYPE char1,
+      g_packqty  TYPE bapishipmenthdunitem-pack_qty,
+      g_newtabix TYPE sy-tabix,
+      g_val(4)   TYPE n,
+      g_hucal    TYPE i,
+      g_from_sno TYPE ztmm_edf_sno,
+      g_to_sno   TYPE ztmm_edf_sno,
+      g_shipment TYPE vttp-tknum,
+      g_string   TYPE char200,
+      g_string1  TYPE char200,
+      g_off      TYPE i,
+      g_var      TYPE char10.
+

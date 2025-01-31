@@ -1,0 +1,359 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_BILLING_BLOCK_REM_FORMS
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  F_INITIALIZATION
+*&---------------------------------------------------------------------*
+FORM f_initialization.
+
+  CLEAR gt_marc_asn_fl.
+  CLEAR gt_final.
+  CLEAR gt_lips.
+
+ENDFORM.                    " F_INITIALIZATION
+*&---------------------------------------------------------------------*
+*&      Form  F_SELSCREEN_VALIDATIONS
+*&---------------------------------------------------------------------*
+FORM f_selscreen_validations.
+  TYPES: BEGIN OF ty_likp,
+    vbeln TYPE vbeln_vl,
+    END OF ty_likp.
+  DATA: lt_likp TYPE STANDARD TABLE OF ty_likp,
+        li_del_no LIKE LINE OF s_del_no,
+        lv_faksp TYPE faksp.
+* Validating Input Deliveries
+  IF NOT s_del_no IS INITIAL.
+    SELECT vbeln
+      FROM likp INTO TABLE lt_likp
+      WHERE vbeln IN s_del_no
+      ORDER BY PRIMARY KEY.
+    IF sy-subrc IS INITIAL.
+      LOOP AT s_del_no INTO li_del_no.
+        READ TABLE lt_likp TRANSPORTING NO FIELDS
+        WITH KEY vbeln = li_del_no-low BINARY SEARCH.
+        IF NOT sy-subrc IS INITIAL.
+          " Invalid delivery number
+          MESSAGE e999 WITH text-e04 li_del_no-low.
+        ENDIF.
+      ENDLOOP.
+    ELSE.
+      " Invalid delivery number
+      MESSAGE e999 WITH text-e04.
+    ENDIF.
+  ENDIF.
+* Validating Input Block
+  IF NOT p_faksk IS INITIAL.
+    SELECT SINGLE faksp
+      FROM tvfs INTO lv_faksp
+      WHERE faksp EQ p_faksk.
+    IF NOT sy-subrc IS INITIAL.
+      " Invalid Billing Block
+      MESSAGE e999 WITH text-e05.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " F_SELSCREEN_VALIDATIONS
+*&---------------------------------------------------------------------*
+*&      Form  F_FETCH_DATA
+*&---------------------------------------------------------------------*
+FORM f_fetch_data.
+
+  TYPES: BEGIN OF ty_vbuk,
+          vbeln TYPE vbeln,
+          wbstk TYPE wbstk,
+        END OF ty_vbuk.
+
+  DATA: lt_marc_asn_fl      TYPE STANDARD TABLE OF gty_marc_asn_fl,
+        lt_marc_asn_fl_temp TYPE STANDARD TABLE OF gty_marc_asn_fl,
+        lt_vbuk             TYPE STANDARD TABLE OF ty_vbuk.
+
+  FIELD-SYMBOLS: <fs_marc_asn_fl> TYPE gty_marc_asn_fl,
+                 <fs_vbuk>        TYPE ty_vbuk.
+
+  CONSTANTS: lc_complete TYPE c VALUE 'C'.
+  CLEAR lt_marc_asn_fl.
+* To Get Parent Deliveries From ZTSD_MARC_ASN_FL
+  SELECT file_name
+         tran_seq_no
+         seq_no
+         data_type
+         comp_code
+         del_no
+         split_del_no
+         collective_shipment
+         direct_leg_shipment
+         record_date
+    FROM ztsd_marc_asn_fl INTO TABLE lt_marc_asn_fl
+    WHERE comp_code   IN s_bukrs
+     AND  del_no      IN s_del_no
+     AND  del_no      NE space
+     AND  record_date IN s_recdat
+     AND  tran_seq_no IN s_trxseq
+    ORDER BY PRIMARY KEY.
+  IF sy-subrc IS INITIAL.
+    CLEAR lt_marc_asn_fl_temp.
+    lt_marc_asn_fl_temp = lt_marc_asn_fl.
+    SORT lt_marc_asn_fl_temp BY del_no.
+    DELETE ADJACENT DUPLICATES FROM lt_marc_asn_fl_temp COMPARING del_no.
+* Fetching Data From VBUK To Check If PGI is Done
+    SELECT vbeln
+           wbstk
+      FROM vbuk INTO TABLE lt_vbuk
+      FOR ALL ENTRIES IN lt_marc_asn_fl_temp
+      WHERE vbeln EQ lt_marc_asn_fl_temp-del_no
+      ORDER BY PRIMARY KEY.
+    IF sy-subrc IS INITIAL.
+* To Ignore The Records if PGI is Not Done
+      LOOP AT lt_marc_asn_fl_temp ASSIGNING <fs_marc_asn_fl>.
+        READ TABLE lt_vbuk ASSIGNING <fs_vbuk>
+        WITH KEY vbeln = <fs_marc_asn_fl>-del_no BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          IF <fs_vbuk>-wbstk NE lc_complete. " C
+            CLEAR <fs_marc_asn_fl>-del_no.
+          ENDIF.
+        ENDIF.
+      ENDLOOP.
+      DELETE lt_marc_asn_fl_temp WHERE del_no IS INITIAL.
+
+      IF NOT lt_marc_asn_fl_temp IS INITIAL.
+* To Fetch Split Deliveries With Billing Block '02'
+        SELECT a~file_name
+               a~tran_seq_no
+               a~seq_no
+               a~data_type
+               a~comp_code
+               a~del_no
+               a~split_del_no
+               a~collective_shipment
+               a~direct_leg_shipment
+               a~record_date
+               b~vbeln
+               b~faksk
+      FROM ztsd_marc_asn_fl AS a
+      INNER JOIN likp AS b ON b~vbeln = a~split_del_no
+      INTO TABLE gt_marc_asn_fl
+      FOR ALL ENTRIES IN lt_marc_asn_fl_temp
+      WHERE a~comp_code   EQ lt_marc_asn_fl_temp-comp_code
+        AND a~del_no      EQ lt_marc_asn_fl_temp-del_no
+        AND a~record_date IN s_recdat[]
+        AND a~tran_seq_no IN s_trxseq
+        AND b~faksk       EQ p_faksk.
+        IF NOT gt_marc_asn_fl IS INITIAL.
+          SORT gt_marc_asn_fl BY del_no split_del_no.
+          DELETE ADJACENT DUPLICATES FROM gt_marc_asn_fl COMPARING del_no split_del_no.
+          CLEAR lt_marc_asn_fl.
+          lt_marc_asn_fl = gt_marc_asn_fl.
+          SORT lt_marc_asn_fl BY del_no.
+          DELETE ADJACENT DUPLICATES FROM lt_marc_asn_fl COMPARING del_no.
+* To Get Reference Sales Order of The Delivery
+          SELECT vbeln
+                 posnr
+                 vgbel
+            FROM lips INTO TABLE gt_lips
+            FOR ALL ENTRIES IN lt_marc_asn_fl
+            WHERE vbeln = lt_marc_asn_fl-del_no
+            ORDER BY PRIMARY KEY.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " F_FETCH_DATA
+*&---------------------------------------------------------------------*
+*&      Form  F_REMOVE_BILLING_BLOCK
+*&---------------------------------------------------------------------*
+FORM f_remove_billing_block.
+
+  DATA: li_header         TYPE bapiobdlvhdrchg,
+        li_header_control TYPE bapiobdlvhdrctrlchg,
+        lv_vbeln          TYPE bapiobdlvhdrchg-deliv_numb,
+        lv_main_deli      TYPE vbelv,
+        lt_return         TYPE TABLE OF bapiret2,
+        lw_flag           VALUE 'X',
+        li_return         TYPE bapiret2,
+        lv_sales_order    TYPE vbeln_va,
+        lv_locked         TYPE c,
+        lv_entries        TYPE i,
+        lv_index          TYPE i,
+        li_marc_asn_fl    TYPE gty_marc_asn_fl,
+        li_final          TYPE zsmm_billing_block_removal_alv.
+
+  FIELD-SYMBOLS: <fs_marc_asn_fl> TYPE gty_marc_asn_fl,
+                 <fs_lips>        TYPE gty_lips.
+
+  FREE MEMORY ID  'ZPPP_DELV_COMP'.
+  FREE MEMORY ID  'ZPPP_DELV_COMP_MAIN_DELI'.
+
+  CLEAR lw_flag.
+  lw_flag = abap_true.
+
+  LOOP AT gt_marc_asn_fl INTO li_marc_asn_fl.
+* Considering Random index to avoid continuos locking of same sales order
+* multiple times
+    CLEAR lv_entries.
+    DESCRIBE TABLE gt_marc_asn_fl LINES lv_entries.
+    CLEAR lv_index.
+    CALL FUNCTION 'GENERAL_GET_RANDOM_INT'
+      EXPORTING
+        range  = lv_entries
+      IMPORTING
+        random = lv_index.
+
+    READ TABLE gt_marc_asn_fl ASSIGNING <fs_marc_asn_fl> INDEX lv_index.
+    IF sy-subrc IS INITIAL.
+      CLEAR li_header.
+      li_header-deliv_numb         = <fs_marc_asn_fl>-split_del_no.
+      CLEAR li_header_control.
+      li_header_control-deliv_numb = <fs_marc_asn_fl>-split_del_no.
+      CLEAR lv_vbeln.
+      lv_vbeln                     = <fs_marc_asn_fl>-split_del_no.
+
+      CLEAR:lv_main_deli.
+      lv_main_deli = <fs_marc_asn_fl>-del_no.
+* Reading Respective Sales Order Based On the Delviery
+      READ TABLE gt_lips ASSIGNING <fs_lips> WITH KEY vbeln = <fs_marc_asn_fl>-del_no BINARY SEARCH.
+      IF sy-subrc IS INITIAL.
+        CLEAR lv_sales_order.
+        lv_sales_order = <fs_lips>-vgbel.
+        CLEAR lv_locked.
+        lv_locked = abap_true.
+* To Validate The Document is Not Locked Before Proceeding For The Change
+        DO 10 TIMES.
+          CALL FUNCTION 'ENQUEUE_EVVBAKE'
+            EXPORTING
+              vbeln          = lv_sales_order
+            EXCEPTIONS
+              foreign_lock   = 1
+              system_failure = 2
+              OTHERS         = 3.
+          IF sy-subrc EQ 0.
+            CALL FUNCTION 'DEQUEUE_EVVBAKE'
+              EXPORTING
+                vbeln = lv_sales_order.
+            CLEAR lv_locked.
+            EXIT.
+          ELSE.
+* Waiting For the Document to get released
+            WAIT UP TO 1 SECONDS.
+          ENDIF.
+        ENDDO.
+      ENDIF.
+      DO 2 TIMES.
+        IF lv_locked IS NOT INITIAL.
+          WAIT UP TO 3 SECONDS.
+        ENDIF.
+* Exporting flag to ZNSD_DELIVERY_BILLING_BLK_UPD include in MV50AFZ1
+        EXPORT lw_flag FROM lw_flag TO MEMORY ID 'ZPPP_DELV_COMP'.
+        EXPORT lv_main_deli FROM lv_main_deli TO MEMORY ID 'ZPPP_DELV_COMP_MAIN_DELI'.
+        CLEAR lt_return.
+* Calling The BAPI to Trigger the Exit Containing the logic to remove billing block
+        CALL FUNCTION 'BAPI_OUTB_DELIVERY_CHANGE'
+          EXPORTING
+            header_data    = li_header
+            header_control = li_header_control
+            delivery       = lv_vbeln
+          TABLES
+            return         = lt_return.
+        CLEAR li_return.
+        READ TABLE lt_return INTO li_return WITH KEY type = 'E'.
+        IF sy-subrc <> 0.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'.
+          " Billing block removed successfully
+          li_final-message      = text-t02.
+          EXIT.
+        ELSE.
+* Incase of Error changes are rolled back
+          CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+* Reading the message text from message class to display in the output.
+          CALL FUNCTION 'FORMAT_MESSAGE'
+            EXPORTING
+              id        = li_return-id
+              lang      = sy-langu
+              no        = li_return-number
+              v1        = li_return-message_v1
+              v2        = li_return-message_v2
+              v3        = li_return-message_v3
+              v4        = li_return-message_v4
+            IMPORTING
+              msg       = li_final-message
+            EXCEPTIONS
+              not_found = 1
+              OTHERS    = 2.
+          IF sy-subrc <> 0.
+            " Error removing billing block
+            li_final-message      = text-t03.
+          ENDIF.
+        ENDIF.
+      ENDDO.
+* Data to be displayed in the output
+      li_final-comp_code    = <fs_marc_asn_fl>-comp_code.
+      li_final-del_no       = <fs_marc_asn_fl>-del_no.
+      li_final-split_del_no = <fs_marc_asn_fl>-split_del_no.
+      li_final-record_date  = <fs_marc_asn_fl>-record_date.
+      APPEND li_final TO gt_final.
+      CLEAR li_final.
+      DELETE gt_marc_asn_fl INDEX lv_index.
+    ENDIF.
+    CLEAR li_marc_asn_fl.
+  ENDLOOP.
+
+ENDFORM.                    " F_REMOVE_BILLING_BLOCK
+*&---------------------------------------------------------------------*
+*&      Form  F_DISPLAY_ALV
+*&---------------------------------------------------------------------*
+FORM f_display_alv.
+
+  DATA: lt_fieldcat TYPE slis_t_fieldcat_alv,
+        ls_layout TYPE slis_layout_alv.
+
+  IF NOT gt_final IS INITIAL.
+* Building Fieldcatalog
+    CLEAR lt_fieldcat.
+    PERFORM f_fieldcatlog CHANGING lt_fieldcat.
+
+    CLEAR ls_layout.
+    ls_layout-colwidth_optimize = abap_true.
+* Displaying ALV Output
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+        i_callback_program = sy-cprog
+        is_layout          = ls_layout
+        it_fieldcat        = lt_fieldcat
+      TABLES
+        t_outtab           = gt_final
+      EXCEPTIONS
+        program_error      = 1
+        OTHERS             = 2.
+    IF sy-subrc <> 0.
+* Error Displaying ALV Output
+      MESSAGE e086 WITH text-e02.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ELSE.
+* No Data Found For the Given Selection Criteria
+    MESSAGE e086 WITH text-e01.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+ENDFORM.                    " F_DISPLAY_ALV
+*&---------------------------------------------------------------------*
+*&      Form  F_FIELDCATLOG
+*&---------------------------------------------------------------------*
+FORM f_fieldcatlog  CHANGING ct_fieldcat TYPE slis_t_fieldcat_alv.
+* Fieldcatlog
+  CALL FUNCTION 'REUSE_ALV_FIELDCATALOG_MERGE'
+    EXPORTING
+      i_structure_name       = 'ZSMM_BILLING_BLOCK_REMOVAL_ALV'
+    CHANGING
+      ct_fieldcat            = ct_fieldcat
+    EXCEPTIONS
+      inconsistent_interface = 1
+      program_error          = 2
+      OTHERS                 = 3.
+  IF sy-subrc <> 0.
+* Error Builing Fieldcatalog
+    MESSAGE e086 WITH text-e03.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+ENDFORM.                    " F_FIELDCATLOG
+

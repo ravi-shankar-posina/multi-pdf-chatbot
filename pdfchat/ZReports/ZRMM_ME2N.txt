@@ -1,0 +1,95 @@
+*&--------------------------------------------------------------------------------*
+*& Report  ZRMM_ME2N                                                              *
+***-----------------------------------------------------------------------------***
+*** Created by            : Vijay Kumar N                                       ***
+*** Creation Date         : 20/10/2015                                          ***
+*** Transport Request #   : DE3K967256                                          ***
+*** RICEF Object No #     : RICEF1625                                           ***
+*** TCODE           #     : ZMMME2N                                             ***
+*** CR Number       #     : CHG2017708                                                                            ***
+*** Description           : This program is same like Purchasing Documents per  ***
+***                                          Document Number like ME2N Program  ***
+***-----------------------------------------------------------------------------***
+*** Change History                                                              ***
+***-----------------------------------------------------------------------------***
+***********************************************************************************
+* DATE              |CR            |TR No.     |CHANGED BY |DESCRIPTION OF CHANGE *
+***********************************************************************************
+* 27.04.2016        |CHG2017708    |DE3K971319 |Vijay Kumar|Added if condition to *
+*                                                           Still to be Delivered *
+*                                                           (Value) & Still to be *
+*                                                           Delivered (Value)     *
+*                                                           header based on Price *
+*                                                           Unit.                 *
+***********************************************************************************
+* 12.05.2016        |CHG2017708    |DE3K971407 |Vijay Kumar|Added missing fields  *
+*                                                           in Application server *
+*                                                           and path,Changed logic*
+*                                                           for OPEN selection    *
+*                                                           parameter conditions  *
+***********************************************************************************
+* 13.05.2016        |CHG2017708    |DE3K971665 |Vijay Kumar|Changed logic for Qty *
+*                                                           of goods receipt and  *
+*                                                           Added one new field   *
+*                                                           Qty of goods receipt  *
+*                                                           (Header)              *
+*&---------------------------------------------------------------------*
+* Modified by         : Arti Kothule                                   *
+* Modification Date   : 18/07/2022                                     *
+* RITM / APT Number   : RITM5237188                                    *
+* CR Number           : CHG0214269                                     *
+* Transport Request   : DE3K9A0ELW                                     *
+* Transaction Code    : ZMM_ME2N                                       *
+* Purpose             : Include Info record PO text and buyer          *
+*                       description                                    *
+*&---------------------------------------------------------------------*
+
+REPORT  zrmm_me2n.
+
+*Top include.
+INCLUDE znmm_me2n_top.
+*Selection screen
+INCLUDE znmm_me2n_selscreen.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_path.
+* Calling call function to store the file path
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+    IMPORTING
+      file_name     = p_path.
+
+AT SELECTION-SCREEN ON BLOCK settings.
+*----------------------------------------------------------------------*
+  CLEAR: g_display_variant.
+  g_display_variant-variant   = p_layout.
+  g_display_variant-report    = sy-repid.
+  PERFORM get_display_variant CHANGING g_display_variant.
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_layout.
+*----------------------------------------------------------------------*
+  PERFORM f4_display_var CHANGING g_display_variant.
+  p_layout = g_display_variant-variant.
+  varname = g_display_variant-text.
+
+START-OF-SELECTION.
+*Fetching the data
+  INCLUDE znmm_getdata.
+
+END-OF-SELECTION.
+  IF p_mod1 = 'X'.
+*To display ALV
+    INCLUDE znmm_display.
+  ENDIF.
+
+  IF p_mod2 = 'X'.
+*To download the data to Local PC
+    PERFORM gui_download.
+  ENDIF.
+
+  IF p_mod3 = 'X'.
+*To send data to application server.
+    INCLUDE znmm_me2n_app.
+  ENDIF.
+

@@ -1,0 +1,260 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZNMM_BATTERY_FORMS
+*&---------------------------------------------------------------------*
+FORM get_batt_data .
+  SELECT  kssk~objek
+          kssk~klart
+          kssk~clint
+          ausp~adzhl
+          ausp~atinn
+          klah~class
+          FROM klah AS klah
+          INNER JOIN kssk AS kssk
+          ON klah~clint = kssk~clint
+          INNER JOIN ausp AS ausp
+          ON kssk~objek = ausp~objek
+          INTO TABLE gt_marc_ausp_klah  "gt_class
+          WHERE ausp~objek IN s_sku
+          AND   klah~class IN s_class.
+
+  IF sy-subrc IS INITIAL.
+    SORT gt_marc_ausp_klah[] BY  atinn adzhl."matnr atinn adzhl.
+    DELETE ADJACENT DUPLICATES FROM gt_marc_ausp_klah COMPARING atinn adzhl.
+    IF s_atnam-low IS NOT INITIAL.
+      SELECT atinn
+             atnam
+        FROM cabn
+        INTO TABLE gt_cabn
+        FOR ALL ENTRIES IN  gt_marc_ausp_klah
+        WHERE atinn = gt_marc_ausp_klah-atinn
+        AND   atnam IN s_atnam.
+      IF sy-subrc = 0.
+        SORT gt_cabn BY atinn.
+        LOOP AT gt_marc_ausp_klah INTO gi_marc_ausp_klah_ds.
+          CLEAR gi_cabn_ds.
+          READ TABLE gt_cabn INTO gi_cabn_ds
+            WITH KEY atinn = gi_marc_ausp_klah_ds-atinn BINARY SEARCH.
+          IF sy-subrc NE 0.
+            DELETE TABLE gt_marc_ausp_klah FROM gi_marc_ausp_klah_ds.
+          ENDIF.
+        ENDLOOP.
+      ELSE.
+        MESSAGE 'No records found for given characterstic Name'(002) TYPE 'S'
+        DISPLAY LIKE 'E'.
+        LEAVE LIST-PROCESSING.
+      ENDIF.
+    ENDIF.
+  ELSE.
+    MESSAGE 'No Records found '(003) TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+**Fetch the matrial description(MAKTX) from MAKT based on gt_marc_ausp_klah internal table
+  IF gt_marc_ausp_klah[] IS NOT INITIAL.
+    SELECT matnr
+           maktx
+           FROM makt
+           INTO TABLE gt_makt
+           FOR ALL ENTRIES IN gt_marc_ausp_klah
+           WHERE matnr = gt_marc_ausp_klah-objek+0(18)"matnr
+           AND   spras = sy-langu.
+    IF sy-subrc EQ 0.
+      SORT gt_makt[] BY matnr.                         "rangareddy
+      DELETE ADJACENT DUPLICATES FROM gt_makt.
+    ENDIF.
+*fetch the Characteristic description(ATBEZ)from CABNT based on the gt_marc_ausp_klah internal table
+    SELECT atinn
+           spras
+           adzhl
+           atbez
+           FROM cabnt
+           INTO TABLE gt_cabnt
+           FOR ALL ENTRIES IN gt_marc_ausp_klah
+           WHERE atinn = gt_marc_ausp_klah-atinn
+           AND   adzhl = gt_marc_ausp_klah-adzhl.
+    IF sy-subrc IS INITIAL.
+      SORT gt_cabnt[] BY atinn adzhl.
+      DELETE ADJACENT DUPLICATES FROM  gt_cabnt.
+    ENDIF.
+*fetch the Characteristic Value(ATWRT)from CAWN based on the gt_marc_ausp_klah internal table
+    SELECT atinn
+           atzhl
+           adzhl
+           atwrt
+           FROM cawn
+           INTO TABLE gt_cawn
+           FOR ALL ENTRIES IN gt_marc_ausp_klah
+           WHERE atinn = gt_marc_ausp_klah-atinn
+           AND   adzhl = gt_marc_ausp_klah-adzhl.
+    IF sy-subrc IS INITIAL.
+      SORT gt_cawn[] BY atinn adzhl.
+      DELETE ADJACENT DUPLICATES FROM gt_cawn.
+    ENDIF.
+*fetch the Characteristic value description(ATWTB)from CAWNT based on the gt_marc_ausp_klah internal table
+    SELECT atinn
+           atzhl
+           spras
+           adzhl
+           atwtb
+           FROM cawnt
+           INTO TABLE gt_cawnt
+           FOR ALL ENTRIES IN gt_marc_ausp_klah
+           WHERE atinn = gt_marc_ausp_klah-atinn
+           AND   adzhl = gt_marc_ausp_klah-adzhl.
+    IF sy-subrc IS INITIAL.
+      SORT gt_cawnt[] BY atinn adzhl.
+      DELETE ADJACENT DUPLICATES FROM  gt_cawnt.
+    ENDIF.
+  ELSE.
+    MESSAGE 'No Records found '(003) TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+ENDFORM.                    " GET_BATT_DATA
+*&---------------------------------------------------------------------*
+*&      Form  GET_FINAL_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_final_data .
+  REFRESH: gt_final.
+  LOOP AT gt_marc_ausp_klah INTO gi_marc_ausp_klah_ds.
+    gi_final_ds-sku    = gi_marc_ausp_klah_ds-objek."matnr.
+    gi_final_ds-klart  = gi_marc_ausp_klah_ds-klart.
+    gi_final_ds-class  = gi_marc_ausp_klah_ds-class.
+    CLEAR gi_makt_ds.
+    READ TABLE gt_makt  INTO gi_makt_ds
+                        WITH KEY matnr = gi_marc_ausp_klah_ds-objek BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final_ds-sku_d  = gi_makt_ds-maktx.
+    ENDIF.
+    CLEAR gi_cabnt_ds.
+    READ TABLE gt_cabnt INTO gi_cabnt_ds
+                        WITH KEY atinn = gi_marc_ausp_klah_ds-atinn
+                                 adzhl = gi_marc_ausp_klah_ds-adzhl BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final_ds-atbez = gi_cabnt_ds-atbez.
+    ENDIF.
+    PERFORM class_desc USING gi_final_ds-klart
+                             gi_marc_ausp_klah_ds-objek.
+    CLEAR gi_val_char.
+    READ TABLE gt_val_char INTO gi_val_char
+                           WITH KEY smbez = gi_final_ds-atbez.
+    IF sy-subrc = 0.
+      gi_final_ds-atwtb = gi_val_char-ausp1.
+      gi_final_ds-atnam = gi_val_char-atnam.
+      IF sy-subrc = 0.
+        CLEAR gi_cawnt_ds.
+        READ TABLE gt_cawnt INTO gi_cawnt_ds
+                        WITH KEY   atinn = gi_marc_ausp_klah_ds-atinn
+                                   atwtb = gi_val_char-ausp1.
+        IF sy-subrc IS INITIAL.
+          CLEAR gi_cawn_ds.
+          READ TABLE gt_cawn  INTO gi_cawn_ds
+                                  WITH KEY  atinn = gi_marc_ausp_klah_ds-atinn
+                                            atzhl = gi_cawnt_ds-atzhl.
+          IF sy-subrc IS INITIAL.
+            gi_final_ds-atwrt = gi_cawn_ds-atwrt.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    CLEAR gi_classtruct_ds.
+    READ TABLE gt_classtruct INTO gi_classtruct_ds
+                             WITH KEY klart = gi_final_ds-klart BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      gi_final_ds-class_d = gi_classtruct_ds-klbez.
+    ENDIF.
+    APPEND gi_final_ds TO gt_final.
+    CLEAR gi_final_ds.
+  ENDLOOP.
+ENDFORM.                    " GET_FINAL_DATA
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+FORM build_field_catalog .
+  gi_fcat-fieldname   = c_sku.
+  gi_fcat-seltext_m   = text-004.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = c_sku_d.
+  gi_fcat-seltext_m   = text-005.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = c_klart.
+  gi_fcat-seltext_m   = text-007.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = c_class.
+  gi_fcat-seltext_m   = text-008.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = c_class_d.
+  gi_fcat-seltext_m   = text-013.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = c_atnam.
+  gi_fcat-seltext_m   = text-016.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = c_atbez.
+  gi_fcat-seltext_m   = text-009.
+  gi_fcat-seltext_l   = text-009.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = c_atwrt.
+  gi_fcat-seltext_m   = text-010.
+  gi_fcat-seltext_l   = text-010.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+  gi_fcat-fieldname   = c_atwtb.
+  gi_fcat-seltext_m   = text-011.
+  gi_fcat-seltext_l   = text-011.
+  APPEND gi_fcat TO gt_fcat.
+  CLEAR gi_fcat.
+ENDFORM.                    " BUILD_FIELD_CATALOG
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+FORM display_output .
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-repid
+      it_fieldcat        = gt_fcat
+    TABLES
+      t_outtab           = gt_final
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+ENDFORM.                    " DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+*&      Form  CLASS_DESC
+*&---------------------------------------------------------------------*
+FORM class_desc  USING    gi_final_ds_klart
+                         gi_marc_ausp_klah_ds_objek.
+  CALL FUNCTION 'CLAF_CLASSIFICATION_OF_OBJECTS'
+    EXPORTING
+      classtype          = gi_final_ds_klart
+      object             = gi_marc_ausp_klah_ds_objek
+    TABLES
+      t_class            = gt_classtruct
+      t_objectdata       = gt_val_char
+    EXCEPTIONS
+      no_classification  = 1
+      no_classtypes      = 2
+      invalid_class_type = 3
+      OTHERS             = 4.
+  IF sy-subrc <> 0.
+    MESSAGE 'No values found for Class number'(017) TYPE 'E' DISPLAY LIKE 'I'.
+    LEAVE LIST-PROCESSING.
+  ELSE.
+*  IF  sy-subrc = 0."#EC FB_NORC
+* Implement suitable error handling here
+    SORT gt_classtruct BY klart.
+  ENDIF.
+ENDFORM.                    " CLASS_DESC
+
