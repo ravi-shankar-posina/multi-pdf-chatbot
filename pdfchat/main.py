@@ -100,11 +100,11 @@ def load_pdf_vector_store(file_paths, vectordb_path):
     return vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
 # Initialize vector stores
-combined_csv_path = "./CombinedDataStore.csv"
-pd.concat([
-    pd.read_csv("./HowToDataStore.csv", encoding=encoding),
-    pd.read_csv("./Updated_HowToDataStore.csv", encoding=encoding)
-]).to_csv(combined_csv_path, index=False)
+combined_csv_path = "./Data dump of Service Requests.csv"
+# pd.concat([
+#     pd.read_csv("./Data dump of Service Requests.csv", encoding=encoding),
+#     pd.read_csv("./Updated_HowToDataStore.csv", encoding=encoding)
+# ]).to_csv(combined_csv_path, index=False)
 csv_retriever = load_csv_vector_store(combined_csv_path, "./StoreFAISSCSV")
 
 # pdf_files = [
@@ -335,7 +335,7 @@ def analyze_excel():
 
         # Initialize OpenAI and SmartDataframe
         llm = OpenAI(api_token=os.getenv("OPENAI_API_KEY"))
-        sdf = SmartDataframe('./Shutterfly_2024.csv', config={"llm": llm})
+        sdf = SmartDataframe('./Data dump of incidents.csv', config={"llm": llm})
 
         # Process the query using SmartDataframe with the prompt
         try:
