@@ -1,0 +1,930 @@
+Number,Opened,Short description,Assignment group,Created Month,Functional Area,IAC affected,OneERP Country / Entities Impacted
+INC0262076,2024-08-22 23:58:41,SAP: Supplier not receiving remittance advise even though email address is updated in supplier master,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Australia
+INC0261184,2024-08-12 23:32:05,Denmark Payment Failed for vendor ALM Brand Forsikring BDO Statoriseret,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Denmark
+INC0262666,2024-08-30 18:19:29,"Wave 5 SAP, EG, stock, destruction - discussion and action with Tim Harris",L2 - OneERP - Business Support,August 2024,Supply Chain,,France
+INC0259942,2024-08-02 06:36:45,OneERP w5 Hypercare FI Anaplan Central PO created on the wrong material,L2 - OneERP - Business Support,August 2024,Order to Cash,,Finland
+INC0260515,2024-08-07 18:15:13,IDoc: 0000000000782975 Status: Error passing data to port,L2 - OneERP - Business Support,August 2024,Procure to Pay,,France
+INC0260419,2024-08-07 01:53:15,While performing the COGS Submission i found the difference in SAP TB and the FND.,L2 - OneERP - Business Support,August 2024,Record to Report,,Norway
+INC0262646,2024-08-30 16:24:14,"Hi, as we have told in the meeting and to be aligned with movianto stock we need to move 9 units  of Pelmeg from storage location 1015 to storage location 1012 after Movianto send confirmation.",L2 - OneERP - Business Support,August 2024,Procure to Pay,,Spain
+INC0261811,2024-08-20 11:40:01,"SAP, Supply chain, handover to iNova 31 AUG: closing open orders NWA",L2 - OneERP - Business Support,August 2024,Supply Chain,,Multiple
+INC0262123,2024-08-23 16:12:00,SAP PO 4500006189,L2 - OneERP - Business Support,August 2024,Order to Cash,,Spain
+INC0260760,2024-08-09 15:48:25,W5 - Incorrect name of account 44007014 in QS4-600,L2 - OneERP - Business Support,August 2024,Record to Report,,Multiple
+INC0261541,2024-08-16 15:10:35,OneERP - Hypercare - PGI failed for Delivery (Sweden),L2 - OneERP - Business Support,August 2024,Supply Chain,,Sweden
+INC0261351,2024-08-14 10:35:40,Please cancel return orders 60013181 and 60013183,L2 - OneERP - Business Support,August 2024,Supply Chain,,Korea
+INC0259986,2024-08-02 17:45:52,"OneERP Wave 5 Hypercare MEA/MNE - Please cancel invoices 90141294, 90141295, 90141298 & 90141414",L2 - OneERP - Business Support,August 2024,Order to Cash,,UAE
+INC0260115,2024-08-03 22:34:23,"OneERP wave 5 Hypercare-CH06-Unable to post the JE, Kindly find the attached error details.",L2 - OneERP - Business Support,August 2024,Record to Report,,Switzerland
+INC0260355,2024-08-06 19:52:20,W5 - NL01 - Bank details mismatch,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Netherlands
+INC0262555,2024-08-29 15:04:36,W2_ONE ERP_SAP code de-activation from local,L2 - OneERP - Business Support,August 2024,Supply Chain,,Service Entities
+INC0260635,2024-08-08 15:35:42,"Post automatically only check box not ticked for GL 13600000 for Sweden, Norway, Netherlands ",L2 - OneERP - Business Support,August 2024,Supply Chain,,Sweden
+INC0262468,2024-08-28 15:40:36,SAP CN Billing Block,L2 - OneERP - Business Support,August 2024,Supply Chain,,Service Entities
+INC0260357,2024-08-06 19:56:54,W5 - NL01 - Bank details mismatch,L2 - OneERP - Business Support,August 2024,Record to Report,,Netherlands
+INC0262367,2024-08-27 14:13:47,"W2 ANZ OneERP - New GL 11001900 set up in wrong currency, needs to be AUD",L2 - OneERP - Business Support,August 2024,Record to Report,,Australia
+INC0262385,2024-08-27 17:20:18,Reprint of SAP Customer Credit Note,L2 - OneERP - Business Support,August 2024,Order to Cash,,South Africa
+INC0262469,2024-08-28 15:42:54,ERP SAP - aligment Rezzayo stock code on SAP,L2 - OneERP - Business Support,August 2024,Supply Chain,,Italy
+INC0260256,2024-08-05 23:46:33,Sweden - Sales account not matching with SAP vs FND,L2 - OneERP - Business Support,August 2024,Record to Report,,Sweden
+INC0260509,2024-08-07 17:37:08,Change cost centre owner,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Netherlands
+INC0260652,2024-08-08 17:35:37,"ERP - SAP Reported Inventory Balance To CH06 ""MEA GMBH""",L2 - OneERP - Business Support,August 2024,Record to Report,,Saudi Arabia
+INC0261121,2024-08-12 16:29:20,W5 OneERP Brazil - Purchase Order Goods Receipt failure because of problem with G/L account number. See attached email,L2 - OneERP - Business Support,August 2024,Record to Report,,Brazil
+INC0260590,2024-08-08 02:51:49,Wave 5 - Brazil - Problem to issue outgoing Nota fiscal - OTC,L2 - OneERP - Business Support,August 2024,"Supply Chain, Order to Cash",,Brazil
+INC0260502,2024-08-07 17:13:12,One ERP Wave5 Hypercare - NL & IE. Prior Year balances for Ireland and Netherlands not uploaded,L2 - OneERP - Business Support,August 2024,Record to Report,,Netherlands
+INC0260529,2024-08-07 19:55:09,Denmark_E&Y LLP Invoice Error,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Denmark
+INC0259874,2024-08-01 21:30:48,W5 - Brazil - Cadastro NCM (Missing NCM Registration),L2 - OneERP - Business Support,August 2024,Procure to Pay,,Brazil
+INC0260500,2024-08-07 17:02:23,"One ERP Wave 5 Hypercare - BE. NAV GL code migrated to wrong SAP GL, meaning errors in Foundation COGS/stock write offs",L2 - OneERP - Business Support,August 2024,Record to Report,,Belgium
+INC0262113,2024-08-23 15:10:44,"SAP, MEA, NWA, FR9C plant: link material document and delivery",L2 - OneERP - Business Support,August 2024,Supply Chain,,Multiple
+INC0260236,2024-08-05 21:38:40,SAP link is not working.,L2 - OneERP - Business Support,August 2024,Technical,,Germany
+INC0259888,2024-08-01 22:14:13,"kindly Provide Esker access for BE01, NL01 and FI01",L2 - OneERP - Business Support,August 2024,Procure to Pay,,Multiple
+INC0260483,2024-08-07 15:29:55,1. Expired Volumes Missing 2. Sales Weith Negative Volume. - Norway 101006-NO01,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Norway
+INC0259983,2024-08-02 17:35:10,ENABLE TO CHANGE DATE FOR PRICE CONDITION IN SAP,L2 - OneERP - Business Support,August 2024,Supply Chain,,France
+INC0260218,2024-08-05 19:38:23,R2R Assistance to reclassify CX discounts,L2 - OneERP - Business Support,August 2024,Record to Report,,South Africa
+INC0261920,2024-08-21 15:23:45,OneERP wave 5 Hypercare – SA,L2 - OneERP - Business Support,August 2024,Supply Chain,,Service Entities
+INC0260247,2024-08-05 22:57:30,OneERP - Hypercare - S/4 HANA - O2C - NL - House bank difference,L2 - OneERP - Business Support,August 2024,Record to Report,,Netherlands
+INC0262560,2024-08-29 15:53:19,SAP Team,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Service Entities
+INC0260693,2024-08-08 23:01:03,W5 OneERP Brazil - Change status of failed SHPCON iDocs from status 51 to status 68 NO FURTHER PROCESSING,L2 - OneERP - Business Support,August 2024,Order to Cash,,Brazil
+INC0261394,2024-08-14 19:36:47,Japan SAP : Amend Order Quantity - PO#4500009731,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Japan
+INC0259821,2024-08-01 15:36:37,Intentory,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Italy
+INC0261998,2024-08-22 15:31:28,OneERP wave 5 Hypercare – SA (EURO invoice),L2 - OneERP - Business Support,August 2024,Order to Cash,,Saudi Arabia
+INC0261324,2024-08-13 22:02:08,ONE ERP - Revaluation For CH06 & CH09,L2 - OneERP - Business Support,August 2024,Record to Report,,UAE
+INC0260782,2024-08-09 17:30:57,Batch expiry date missing for Brazil stock line in SAP - Please assign to Mahesh Kalane or Tim Harris,L2 - OneERP - Business Support,August 2024,Supply Chain,,Brazil
+INC0261906,2024-08-21 11:22:41,OneERP wave 5 Hypercare – AE,L2 - OneERP - Business Support,August 2024,Supply Chain,,South Africa
+INC0260254,2024-08-05 23:39:46,COGS is not matching with SAP TB - NO01 101006,L2 - OneERP - Business Support,August 2024,Record to Report,,Norway
+INC0262073,2024-08-22 23:34:16,IDoc Error IDOC: 0000000000801141,L2 - OneERP - Business Support,August 2024,Supply Chain,,Brazil
+INC0262160,2024-08-23 21:26:09,WAVE 5 One ERP - CH06 -Mundipharma Pharmaceuticals Ltd  (10011065) Tax Issue,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Multiple
+INC0260631,2024-08-08 15:06:32,"Hi, we have a problem with an order and we dont know which is the problem, the details in the attacment. Movianto said they have pending this order and it is not by credit limits.",L2 - OneERP - Business Support,August 2024,Order to Cash,,Spain
+INC0261314,2024-08-13 20:25:06,Sales orders need to be cancelled,L2 - OneERP - Business Support,August 2024,Supply Chain,,Austria
+INC0262481,2024-08-28 17:20:08,While parking the journal getting the error message,L2 - OneERP - Business Support,August 2024,Record to Report,,Denmark
+INC0261413,2024-08-14 22:33:39,Please open P06 and can't able post journal in some GL account in Netherlands- SAP,L2 - OneERP - Business Support,August 2024,Record to Report,,Netherlands
+INC0262000,2024-08-22 15:45:51,ERP SAP - ISSUE WITH MATERIAL 2000003248,L2 - OneERP - Business Support,August 2024,Order to Cash,,Italy
+INC0262651,2024-08-30 16:43:37,Invoice not generated / Sales orders,L2 - OneERP - Business Support,August 2024,Order to Cash,,France
+INC0261323,2024-08-13 21:47:30,"Hi Tim, we need to discount 720 units from Oxycontin 20 and add 864 units to Sevredol tablet 10 to match the stock salable with Movianto. Emails with the information.",L2 - OneERP - Business Support,August 2024,Procure to Pay,,Spain
+INC0262052,2024-08-22 20:52:11,ONE ERP - Need to cancel material doc 5000022981 as it has the wrong profit centre,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Saudi Arabia
+INC0262410,2024-08-27 22:58:29,OneERP - HYpercare (Norway) - The approver can't view the request,L2 - OneERP - Business Support,August 2024,Supply Chain,,Service Entities
+INC0260557,2024-08-07 21:49:16,SAP-Journal issue on Inventory,L2 - OneERP - Business Support,August 2024,Record to Report,,Norway
+INC0262389,2024-08-27 17:52:34,GL 12100000 in DE02 cannot be directly posted,L2 - OneERP - Business Support,August 2024,"Procure to Pay, Order to Cash",,Germany
+INC0260426,2024-08-07 02:23:23,Unable post journal in SAP  BE,L2 - OneERP - Business Support,August 2024,Record to Report,,Belgium
+INC0261354,2024-08-14 13:10:13,OneERP wave 5 Hypercare – AE/QA,L2 - OneERP - Business Support,August 2024,Supply Chain,,UAE
+INC0260224,2024-08-05 20:34:40,one RP from NL. I could not find the PO number.,L2 - OneERP - Business Support,August 2024,Procure to Pay,,France
+INC0259837,2024-08-01 16:33:28,ONEERP - W5 - BR01 Migrated value for Santander has been assigned to BH2 it should be HB1,L2 - OneERP - Business Support,August 2024,Record to Report,,Brazil
+INC0262038,2024-08-22 19:04:29,Sweden (SE01) - Facing error while posting the Journal in SAP,L2 - OneERP - Business Support,August 2024,Record to Report,,Sweden
+INC0260017,2024-08-02 21:27:09,W5 - NEC - Intrastat declarations do not produce output although intra-Community acquisitions from the NL were posted,L2 - OneERP - Business Support,August 2024,Procure to Pay,,Sweden
+INC0260206,2024-08-05 18:15:29,sap customer  to update with customer group,L2 - OneERP - Business Support,August 2024,"Supply Chain, Order to Cash",,France
+INC0257205,2024-07-05 23:59:08,Anaplan Phase 4 Requirement - SAP Target Field Mapping for additional reference fields + Special Stock data from SAP into consolidator Field,L2 - OneERP - Business Support,July 2024,Technical,,Australia
+INC0258570,2024-07-19 19:46:56,SPAIN_SHPCON IDoc Failures,L2 - OneERP - Business Support,July 2024,Order to Cash,,Spain
+INC0257167,2024-07-05 19:27:15,idoc 741917,L2 - OneERP - Business Support,July 2024,Supply Chain,,France
+INC0258038,2024-07-15 22:13:48,Items are missing form INSERT signal,L2 - OneERP - Business Support,July 2024,Supply Chain,,Service Entities
+INC0257972,2024-07-15 15:58:27,FAO supply chain business systems support- incorrect BARD order placement,L2 - OneERP - Business Support,July 2024,Order to Cash,,Service Entities
+INC0258989,2024-07-24 16:46:30,W2_ONE ERP_KR TP change request_posted PO4500006796,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Korea
+INC0259685,2024-07-31 15:12:40,SAP Debot balance clearing request for JE #2200011906,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Korea
+INC0258432,2024-07-18 18:47:23,ONE ERP - ESKER _ GOODS RECEIPT ISSUE,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Ireland
+INC0259608,2024-07-30 21:01:23,OneERP wave 5 Hypercare - MNE - GL A/c error in JV upload,L2 - OneERP - Business Support,July 2024,Record to Report,,UAE
+INC0256680,2024-07-02 16:25:04,delete an article code in sap,L2 - OneERP - Business Support,July 2024,Procure to Pay,,France
+INC0257310,2024-07-08 17:01:26,SAP stock adjustments -SALEABLE STOCK-,L2 - OneERP - Business Support,July 2024,Order to Cash,,Spain
+INC0256951,2024-07-04 09:11:39,How to add order qty on SAP report,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Australia
+INC0259498,2024-07-29 21:20:42,Need help in SAP log in,L2 - OneERP - Business Support,July 2024,Technical,,Germany
+INC0256677,2024-07-02 16:02:58,Getting Error in SAP,L2 - OneERP - Business Support,July 2024,Record to Report,,Service Entities
+INC0259753,2024-07-31 22:54:58,In SAP when i'm trying to post the journals I am getting the error,L2 - OneERP - Business Support,July 2024,Record to Report,,Denmark
+INC0257163,2024-07-05 19:22:38,IDOC 717190,L2 - OneERP - Business Support,July 2024,Supply Chain,,France
+INC0259599,2024-07-30 19:10:43,"OneERP wave 5 Hypercare - IE - workflow is incorrect , it is checking AE01.Please correct.",L2 - OneERP - Business Support,July 2024,Record to Report,,Ireland
+INC0258289,2024-07-17 20:12:00,Define a cost element category for account 50300000 (controlling area A000),L2 - OneERP - Business Support,July 2024,Record to Report,,Belgium
+INC0259746,2024-07-31 21:42:29,Duplicate Sales Order Processed,L2 - OneERP - Business Support,July 2024,Supply Chain,,South Africa
+INC0258988,2024-07-24 16:44:38,W2_ONE ERP_KR TP change request_PO4500006791,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Korea
+INC0259221,2024-07-26 17:49:42,BP role - Issue,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Canada
+INC0256571,2024-07-01 18:15:49,Unable to reverse - 1900012113 Doc,L2 - OneERP - Business Support,July 2024,Record to Report,,Service Entities
+INC0257812,2024-07-12 16:19:58,ONE ERP wave2 Korea SAP Payment_Bank file is not generated.,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Korea
+INC0257933,2024-07-14 23:17:36,OneERP w5 Hypercare - ZA - Missing cost element category for GL50300000,L2 - OneERP - Business Support,July 2024,Record to Report,,South Africa
+INC0258339,2024-07-18 09:30:48,SAP - 3PL Stock Reconciliation Report / Date Indication Error,L2 - OneERP - Business Support,July 2024,Order to Cash,,Korea
+INC0257130,2024-07-05 14:42:50,"ES SAP - Due to an error, I selected the wrong profit centre in the bank statement which I cannot change and which prevents me from posting.",L2 - OneERP - Business Support,July 2024,Record to Report,,Spain
+INC0259572,2024-07-30 16:17:48,SAP - SE01 Journal posting blocking error for Migration entry,L2 - OneERP - Business Support,July 2024,Record to Report,,Sweden
+INC0259714,2024-07-31 18:00:54,OneERP: SAP Account 41000000 Credit Note Units,L2 - OneERP - Business Support,July 2024,Order to Cash,,Korea
+INC0258963,2024-07-24 14:42:38,W2_ONE ERP_KR TP change in SAP for the PO4500009243,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Korea
+INC0259222,2024-07-26 17:56:55,"OneERP wave 5 Hypercare-CH06-Unable to post the JE, Please find the error message.",L2 - OneERP - Business Support,July 2024,Record to Report,,UAE
+INC0256754,2024-07-02 21:57:37,"Unable to access SAP app ""Change Purchase Order""",L2 - OneERP - Business Support,July 2024,Procure to Pay,,Australia
+INC0259246,2024-07-26 21:24:20,Unable to log in to One ERP for user RPA11,L2 - OneERP - Business Support,July 2024,"Record to Report, Procure to Pay, Order to Cash",,UAE
+INC0259490,2024-07-29 20:43:28,OneERP wave 5 Hypercare - IE - Journals are posted without approvals - Commercial Entities,L2 - OneERP - Business Support,July 2024,Record to Report,,Ireland
+INC0259573,2024-07-30 16:36:00,"Hi Tim can you please change this price of PT01 of this material and Batch for info record? Material  2000000108- Price correct : 13, 08 €",L2 - OneERP - Business Support,July 2024,Supply Chain,,Portugal
+INC0259731,2024-07-31 19:50:45,In SAP while posting journal wrongly mis updated the currency instead of DKK mentioned has EUR.,L2 - OneERP - Business Support,July 2024,Record to Report,,Denmark
+INC0256733,2024-07-02 20:12:07,ERP - SAP - incorrect bank account matching in SAP when generating foreign supplier payments,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Italy
+INC0257284,2024-07-08 14:38:55,ONE ERP: Plese stop the automatic sending for remittance advice for Italy,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Italy
+INC0258403,2024-07-18 17:24:30,"Shipping, Warehousing, Distribution & Freight in Local PL in FND",L2 - OneERP - Business Support,July 2024,Record to Report,,Japan
+INC0258964,2024-07-24 14:44:53,W2_ONE ERP_KR TP change for the PO4500009245,L2 - OneERP - Business Support,July 2024,Procure to Pay,,Korea
+INC0257419,2024-07-09 16:21:01,Trying to adjust stock via MI07. System error message: G/L account 52001000 blocked for posting in company code IT01,L2 - OneERP - Business Support,July 2024,Record to Report,,Italy
+INC0257164,2024-07-05 19:25:00,idoc 745209,L2 - OneERP - Business Support,July 2024,Supply Chain,,France
+INC0258129,2024-07-16 17:55:48,Unable to release held order in oracle,L2 - OneERP - Business Support,July 2024,Supply Chain,,Germany
+INC0254011,2024-06-04 23:00:11,delegation for PO subcontracting approvals and changes to the register,L2 - OneERP - Business Support,June 2024,Procure to Pay,,Italy
+INC0255464,2024-06-19 16:43:45,Master data request_Korea new employee Bank details request in SAP,L2 - OneERP - Business Support,June 2024,Procure to Pay,,Korea
+INC0255398,2024-06-19 01:59:43,Wave 2 - Canada - SAP - Daily Reconciliation report from SAP shows a discrepancy  not related to 3PL operations.,L2 - OneERP - Business Support,June 2024,Supply Chain,,Canada
+INC0254077,2024-06-05 12:34:44,Vendor creation,L2 - OneERP - Business Support,June 2024,Procure to Pay,,Korea
+INC0254295,2024-06-06 22:16:12,SPAIN SAP - Due to an error I have posted a line from a bank statement with the wrong profit centre.,L2 - OneERP - Business Support,June 2024,Order to Cash,,Spain
+INC0255469,2024-06-19 17:43:03,issue with concur du to workday id,L2 - OneERP - Business Support,June 2024,Procure to Pay,,France
+INC0256075,2024-06-26 03:01:42,I did ERP assigned training but the status is not changed to completed,L2 - OneERP - Business Support,June 2024,Procure to Pay,,Service Entities
+INC0254646,2024-06-11 21:30:30,MMCO payment run error for payment method T INC0252887 wave 3,L2 - OneERP - Business Support,June 2024,Procure to Pay,,Multiple
+INC0255893,2024-06-24 18:13:42,I need to create a PO from PT01 of MBL and I cannot created because I have diffferent price in MBL pd the material 2000000097. Can you change the price as we have in MDC?,L2 - OneERP - Business Support,June 2024,Supply Chain,,Portugal
+INC0254142,2024-06-05 21:05:38,"Goods receipted under wrong PO number, needs to be changed to new PO number",L2 - OneERP - Business Support,June 2024,Procure to Pay,,Austria
+INC0253946,2024-06-04 16:34:31,W2_ONE ERP_KR PO4500006624 return,L2 - OneERP - Business Support,June 2024,Supply Chain,,Korea
+INC0254249,2024-06-06 18:11:26,ERP daily stock reconciliation discrepancies,L2 - OneERP - Business Support,June 2024,Supply Chain,,Italy
+INC0255627,2024-06-20 23:36:24,NL-MDC VAT Number to be stated as customer VAT number on MITS UK AR invoice (SAP S4 Hana),L2 - OneERP - Business Support,June 2024,Record to Report,,Service Entities
+INC0254890,2024-06-13 16:44:35,"In PT01 we cannot do the local PO because in the PIR is not updated to the correct price we have in MMR, please can you update the PIR price with the list we have sent in the email?",L2 - OneERP - Business Support,June 2024,Procure to Pay,,Portugal
+INC0254397,2024-06-07 22:44:38,blocked invoice,L2 - OneERP - Business Support,June 2024,Supply Chain,,France
+INC0254399,2024-06-07 23:03:08,order PH1088923 in COM status,L2 - OneERP - Business Support,June 2024,Supply Chain,,France
+INC0254935,2024-06-13 22:45:32,ERP - SAP - inserting supplier iban - supplier name  IMPRONTA ACTION SRL - code 10034568,L2 - OneERP - Business Support,June 2024,Procure to Pay,,Italy
+INC0255193,2024-06-17 14:59:10,ONE ERP: Sales Volume - Flexible Analysis report vs Customers,L2 - OneERP - Business Support,June 2024,Order to Cash,,Italy
+INC0255345,2024-06-18 18:08:34,regarding idoc : 695304,L2 - OneERP - Business Support,June 2024,Supply Chain,,France
+INC0254931,2024-06-13 22:11:46,Journal approval access,L2 - OneERP - Business Support,June 2024,Record to Report,,Canada
+INC0254464,2024-06-10 09:43:55,W2_ONE ERP_TP change request_posted PO4500008535,L2 - OneERP - Business Support,June 2024,Procure to Pay,,Korea
+INC0254182,2024-06-06 00:00:20,SAP - NO EMPLOYEE IBAN - PAYMENT CANNOT BE MADE,L2 - OneERP - Business Support,June 2024,Procure to Pay,,Italy
+INC0255707,2024-06-21 17:15:21,ONE ERP W4 ITALY - WRONG PRICE ON PO 450009745 - 4500011094,L2 - OneERP - Business Support,June 2024,Supply Chain,,Italy
+INC0255353,2024-06-18 19:10:29,automatic posting in GL 399120000,L2 - OneERP - Business Support,June 2024,Supply Chain,,France
+INC0254680,2024-06-11 23:43:37,Missing PO´s,L2 - OneERP - Business Support,June 2024,Supply Chain,,Service Entities
+INC0254876,2024-06-13 15:04:53,Direct debit issues with customers (10034615 & 10032656),L2 - OneERP - Business Support,June 2024,Order to Cash,,Germany
+INC0255312,2024-06-18 14:09:15,1. It is necessary to restore the quantity increased in stock due to the input error during the inventory movement operation. 2. It is impossible to move due to an error in the inventory movement manu,L2 - OneERP - Business Support,June 2024,Procure to Pay,,Korea
+INC0253991,2024-06-04 20:53:02,ONE ERP: Customer settings URGENT,L2 - OneERP - Business Support,June 2024,"Order to Cash, Supply Chain",,Italy
+INC0254366,2024-06-07 18:41:06,"Kevin Chow left business and SAP PO approver needs to be adjusted to alternative , (Behl, Sumeet (External) Sumeet.Behl.external@mundipharma.com),",L2 - OneERP - Business Support,June 2024,Procure to Pay,,Australia
+INC0252600,2024-05-17 18:38:54,ERP SAP error with hospital order,L2 - OneERP - Business Support,May 2024,Supply Chain,,Italy
+INC0253045,2024-05-22 21:10:57,Wave 3- one ERP - please set up commodity codes,L2 - OneERP - Business Support,May 2024,Supply Chain,,Germany
+INC0252630,2024-05-17 23:54:53,Change Procurement Approvers in Esker,L2 - OneERP - Business Support,May 2024,"Order to Cash, Procure to Pay",,Multiple
+INC0252999,2024-05-22 15:39:01,Can not apply to MDG due to Bank account,L2 - OneERP - Business Support,May 2024,Order to Cash,,Japan
+INC0253715,2024-05-31 21:00:12,ES SAP - We have created new customer which need the maintenance of conditions records.,L2 - OneERP - Business Support,May 2024,"Supply Chain, Order to Cash",,Spain
+INC0253125,2024-05-23 19:26:44,We are not able to  open Tagetik excel,L2 - OneERP - Business Support,May 2024,Technical,,Service Entities
+INC0253620,2024-05-30 21:31:07,unable to access SAP,L2 - OneERP - Business Support,May 2024,Technical,,Canada
+INC0252626,2024-05-17 22:38:24,Stock file generated from SAP from Germany missing available stock - F/O Mahesh Kalane or Tim Harris,L2 - OneERP - Business Support,May 2024,Procure to Pay,,Germany
+INC0253285,2024-05-27 13:35:56,W2_ONE ERP_KR PO TP change request_PO4500006623,L2 - OneERP - Business Support,May 2024,Supply Chain,,Korea
+INC0253687,2024-05-31 16:18:32,"Add branch name to MDG, Please asign this to Danny Ziannis.",L2 - OneERP - Business Support,May 2024,Procure to Pay,,Japan
+INC0251896,2024-05-10 19:17:11,ERP - GENERATION OF FILES FOR AUTOMATIC PAYMENTS OF FOREIGN INVOICES INTERCOMPANY - CREATION OF THE PROPOSAL,L2 - OneERP - Business Support,May 2024,Order to Cash,,Italy
+INC0252246,2024-05-14 22:19:47,SAP: Action required // today's orders do not generate delivery,L2 - OneERP - Business Support,May 2024,Supply Chain,,Spain
+INC0252881,2024-05-21 16:33:55,SAP error message,L2 - OneERP - Business Support,May 2024,Technical,,Service Entities
+INC0252759,2024-05-20 19:51:05,"I have checked inventory of Spain and I have several discrepancies in salable stock between SAP and Movianto files, I have discrepancies too in destruction 1015 storage location.",L2 - OneERP - Business Support,May 2024,Supply Chain,,Spain
+INC0252235,2024-05-14 21:02:28,SAP,L2 - OneERP - Business Support,May 2024,Order to Cash,,Italy
+INC0252028,2024-05-13 16:08:00,One ERP - W3 | PZN number switch in material substitution table,L2 - OneERP - Business Support,May 2024,Supply Chain,,Germany
+INC0252615,2024-05-17 20:15:00,One ERP - Wave 3 - please reverse 4900189454,L2 - OneERP - Business Support,May 2024,Supply Chain,,Germany
+INC0253286,2024-05-27 13:39:17,W2_ONE ERP_KR PO TP change request_KR PO4500006621,L2 - OneERP - Business Support,May 2024,Supply Chain,,Korea
+INC0252073,2024-05-13 21:06:31,W4 ERP SAP SHIP TO CREATED NOT WORKS - VILLA MARAINI CLIENT 10034745 SHIP TO 60006764,L2 - OneERP - Business Support,May 2024,Supply Chain,,Italy
+INC0252222,2024-05-14 19:33:15,SAP S/4 Production system. Company Code JP01 has scrapped some materials using Movement Type 551 posting to GL 54053000 Cost Centre JP01004. incorrect cost centre used. Need to reverse the movements.,L2 - OneERP - Business Support,May 2024,"Procure to Pay, Record to Report",,Japan
+INC0253283,2024-05-27 13:30:54,W2_ONE ERP_KR TP change request_PO4500006622,L2 - OneERP - Business Support,May 2024,Supply Chain,,Korea
+INC0251409,2024-05-06 15:59:58,PO in SAP not uploaded.,L2 - OneERP - Business Support,May 2024,Procure to Pay,,Spain
+INC0251422,2024-05-06 21:16:30,ONE ERP W4 ITALY - ISSUE ON PRIFIT CENTER,L2 - OneERP - Business Support,May 2024,Record to Report,,Italy
+INC0252042,2024-05-13 17:12:42,POs in SAP not loaded,L2 - OneERP - Business Support,May 2024,Supply Chain,,Spain
+INC0251842,2024-05-10 12:19:08,Journal Entries for Japan's P4,L2 - OneERP - Business Support,May 2024,Record to Report,,Japan
+INC0253282,2024-05-27 13:03:20,W2_ONE ERP_KR TP change request_PO4500006624,L2 - OneERP - Business Support,May 2024,Procure to Pay,,Korea
+INC0252515,2024-05-16 22:52:31,BOE account is coming blank without any profit center in EBS,L2 - OneERP - Business Support,May 2024,Record to Report,,Service Entities
+INC0252144,2024-05-14 13:33:58,"Since the inventory is inconsistent, 21 inventory quantities must be deducted from the inventory adjustment manual. Please let me know how to deduct it. Please refer to the attached file.",L2 - OneERP - Business Support,May 2024,Procure to Pay,,Korea
+INC0253548,2024-05-30 11:03:08,W2_ONE ERP_KR TP CHANGE REQUEST_PO4500006623,L2 - OneERP - Business Support,May 2024,Procure to Pay,,Korea
+INC0251517,2024-05-07 18:32:32,ONE ERP - ITALY -  FAILURE TO GENERATE XML FILE FOR AUTOMATIC PAYMENTS,L2 - OneERP - Business Support,May 2024,Procure to Pay,,Italy
+INC0251474,2024-05-07 14:34:34,One ERP SAP ANZ - Amend product desc & profit center,L2 - OneERP - Business Support,May 2024,Procure to Pay,,Australia
+INC0252897,2024-05-21 17:32:42,W2_ONE ERP_URGENT_Need to check return process for local PO,L2 - OneERP - Business Support,May 2024,Supply Chain,,Korea
+INC0252096,2024-05-13 22:08:36,One ERP - W3 - please switch PZN codes in material substitution table,L2 - OneERP - Business Support,May 2024,Procure to Pay,,Germany
+INC0253047,2024-05-22 21:22:29,SAP BAU Team - Tim Harris,L2 - OneERP - Business Support,May 2024,Supply Chain,,Canada
+INC0251412,2024-05-06 17:03:25,SAE ERP issue with MS Contin 30mg stock,L2 - OneERP - Business Support,May 2024,Order to Cash,,Italy
+INC0268742,2024-11-01 15:24:43,Wave 5 - NL01 - 3PL Data load error - Netherlands,L2 - OneERP - Business Support,November 2024,Supply Chain,,Netherlands
+INC0269292,2024-11-07 15:08:14,W2_ONE ERP_KR_PO4500010088 is missing in 3PL site.,L2 - OneERP - Business Support,November 2024,,,
+INC0269159,2024-11-06 03:06:43,Wave 5 - Brazil - Tax Code issue with GL accounts,L2 - OneERP - Business Support,November 2024,Record to Report,,Brazil
+INC0269239,2024-11-06 23:04:30,SAP: price setting for customer 10034260,L2 - OneERP - Business Support,November 2024,,,
+INC0269323,2024-11-07 18:56:31,URGENT POSTING P10,L2 - OneERP - Business Support,November 2024,,,
+INC0269281,2024-11-07 10:41:47,Delivery number connection,L2 - OneERP - Business Support,November 2024,,,
+INC0269286,2024-11-07 13:36:46,Wave 5 -Belgium- 3PL data load error,L2 - OneERP - Business Support,November 2024,,,
+INC0269295,2024-11-07 15:13:01,Wave 5 -Denmark- 3PL data load error,L2 - OneERP - Business Support,November 2024,,,
+INC0269289,2024-11-07 13:43:54,"This product is a new product, and sample order has not been processed to see if there is a problem with the product setting. Please set it up so that I can process the order and let me know the manua",L2 - OneERP - Business Support,November 2024,,,
+INC0269113,2024-11-05 21:11:56,OneERP wave 5 Hypercare-AE01 - FX valuation error,L2 - OneERP - Business Support,November 2024,Record to Report,,Canada
+INC0269050,2024-11-05 13:53:49,Wave 5 -Sweden- 3PL data load error,L2 - OneERP - Business Support,November 2024,Supply Chain,,Sweden
+INC0269326,2024-11-07 19:19:07,payment file out of SAP not possible to import into the bank,L2 - OneERP - Business Support,November 2024,,,
+INC0269291,2024-11-07 15:05:49,W2_ONE ERP_KR_PO missing in 3PL site.,L2 - OneERP - Business Support,November 2024,,,
+INC0269319,2024-11-07 18:41:30,"OneERP wave 5 Hypercare-CH06 & CH09- We are unable to post the JE with the GL account-21302000, asking the trading partners. Kindly help",L2 - OneERP - Business Support,November 2024,,,
+INC0269321,2024-11-07 18:49:19,Unable to load Custom declaration - Norway,L2 - OneERP - Business Support,November 2024,Record to Report,,Norway
+INC0269091,2024-11-05 18:27:25,SAP: Sales October Impact,L2 - OneERP - Business Support,November 2024,Order to Cash,,Italy
+INC0267262,2024-10-14 17:58:13,change approver request type and in comments mention temporary and validity date and i will setup in SAP,L2 - OneERP - Business Support,October 2024,Order to Cash,,France
+INC0267882,2024-10-21 18:44:33,Diretc Debit file doesn't take customer MEZEGEL repartition,L2 - OneERP - Business Support,October 2024,Order to Cash,,France
+INC0267966,2024-10-22 18:16:39,Wave 5 - MDC - MNE - Need to change the PO Currency,L2 - OneERP - Business Support,October 2024,Procure to Pay,,UAE
+INC0268130,2024-10-24 12:39:48,3PL data load error - Netherlands,L2 - OneERP - Business Support,October 2024,Supply Chain,,Netherlands
+INC0268548,2024-10-30 13:42:27,3pl Data load error -Sweden,L2 - OneERP - Business Support,October 2024,Supply Chain,,Sweden
+INC0266035,2024-10-03 17:48:30,"OneERP SAP s/4 PROD - allocate incident to David Brookes. Project Fusion requires address changes in OneERP SAP s/4 Production client for the following Mundipharma Entities - MRL, MINT, MITO, MITS",L2 - OneERP - Business Support,October 2024,Supply Chain,,Multiple
+INC0268350,2024-10-28 14:04:58,Wave 5 -Ireland - 3PL data load error ,L2 - OneERP - Business Support,October 2024,Supply Chain,,Ireland
+INC0268392,2024-10-28 18:48:21,Incorrect mapping between ORACLE and SAP for FINLAND Materials ORACLE 08938 and 08937,L2 - OneERP - Business Support,October 2024,Supply Chain,,Finland
+INC0266731,2024-10-09 21:53:26,SAP Team - Order not updated from Anaplan,L2 - OneERP - Business Support,October 2024,Procure to Pay,,France
+INC0265928,2024-10-02 22:12:39,OneERP SAP MEA - Manual PO creation of Reference Standard,L2 - OneERP - Business Support,October 2024,Procure to Pay,,Saudi Arabia
+INC0267581,2024-10-17 13:53:56,Supplier bank account error.,L2 - OneERP - Business Support,October 2024,Procure to Pay,,Korea
+INC0265770,2024-10-01 20:44:26,Give Demo to JiYea  on SAP Good Receipt process for Korea Local orders (ZINL),L2 - OneERP - Business Support,October 2024,Procure to Pay,,Korea
+INC0268486,2024-10-29 21:50:35,Wave 5 - BE01 - SAP ERP Daily Stock Reconciliation Report Query,L2 - OneERP - Business Support,October 2024,Supply Chain,,Belgium
+INC0267980,2024-10-22 19:22:14,Wave 6 - Corporate Entities - i dont have 'my  inbox' in SAP so cant approve anything,L2 - OneERP - Business Support,October 2024,Procure to Pay,,Multiple
+INC0268282,2024-10-25 19:30:59,Wave 2 - Canada - Vendor type in master data in SAP incorrect,L2 - OneERP - Business Support,October 2024,Procure to Pay,,Canada
+INC0267510,2024-10-16 18:56:15,SAP: Posting of Credit Note IAC,L2 - OneERP - Business Support,October 2024,Order to Cash,,Italy
+INC0267988,2024-10-22 20:45:59,"INC0254142-> unfortunately not fixed, please be so kind and support with it",L2 - OneERP - Business Support,October 2024,Supply Chain,,Austria
+INC0266670,2024-10-09 16:03:55,Unable to upload Accrual journal,L2 - OneERP - Business Support,October 2024,Record to Report,,Norway
+INC0268193,2024-10-24 22:19:11,CANADA - SAP - Please update the 2025 Statutory Holidays calendar in SAP,L2 - OneERP - Business Support,October 2024,Order to Cash,,Canada
+INC0266034,2024-10-03 17:45:31,WAVE 5 One ERP - CH06 & CH09 -Mundipharma Pharmaceuticals Ltd (10011065) need to be update correct payment terms,L2 - OneERP - Business Support,October 2024,Procure to Pay,,UAE
+INC0266186,2024-10-04 19:59:27,Black book report was not migrated to SAP,L2 - OneERP - Business Support,October 2024,Procure to Pay,,Brazil
+INC0266887,2024-10-11 10:57:51,Payment error due to no valid payment method found,L2 - OneERP - Business Support,October 2024,Procure to Pay,,Korea
+INC0268005,2024-10-22 22:40:27,Wave 5 - MEA - Unable to goods receipt PO 4500013772,L2 - OneERP - Business Support,October 2024,Supply Chain,,UAE
+INC0268199,2024-10-24 22:30:06,SAP/ POs missed ES 180668310 - Roosendaal NL to Toledo ES  - Delivering 22/10 at 15:00,L2 - OneERP - Business Support,October 2024,Supply Chain,,Spain
+INC0266677,2024-10-09 16:25:18,Change tax code in optional SAP,L2 - OneERP - Business Support,October 2024,Record to Report,,Netherlands
+INC0265933,2024-10-02 22:51:18,SAP  Shipment order 4500012134,L2 - OneERP - Business Support,October 2024,Order to Cash,,Spain
+INC0267693,2024-10-18 17:49:36,Asset creation error,L2 - OneERP - Business Support,October 2024,Technical,,UAE
+INC0266618,2024-10-09 03:13:39,Journal Posting Error in SAP-NO01-Norway,L2 - OneERP - Business Support,October 2024,Record to Report,,Norway
+INC0265899,2024-10-02 19:23:08,orders blocked,L2 - OneERP - Business Support,October 2024,Order to Cash,,France
+INC0266557,2024-10-08 18:13:04,SAP CBAR transactions posting to storage location 1010 instead of 1013.,L2 - OneERP - Business Support,October 2024,Procure to Pay,,South Africa
+INC0266562,2024-10-08 18:34:07,SAP SE01 Company code - We unable to post reversal entry,L2 - OneERP - Business Support,October 2024,Record to Report,,Sweden
+INC0268673,2024-10-31 21:11:09,W2 - Canada - Incorrect PO Price on PO's  (4500016361 & 4500012385),L2 - OneERP - Business Support,October 2024,Supply Chain,,Canada
+INC0267696,2024-10-18 18:11:03,Belgium Goods Receipt Enquiry,L2 - OneERP - Business Support,October 2024,Procure to Pay,,South Africa
+INC0268173,2024-10-24 18:27:17,"Payment method Chage - Direct debit vendor -Nederland, Belgium",L2 - OneERP - Business Support,October 2024,Procure to Pay,,Multiple
+INC0263028,2024-09-03 21:39:20,Reopen incident INC0259821,L2 - OneERP - Business Support,September 2024,"Procure to Pay, Record to Report",,Italy
+INC0263344,2024-09-06 06:00:47,Error message when using G/L account 25030000,L2 - OneERP - Business Support,September 2024,Record to Report,,Brazil
+INC0263993,2024-09-12 18:18:39,OneERP - Hypercare (Issue in daily sales order upload for Belgium),L2 - OneERP - Business Support,September 2024,Order to Cash,,Belgium
+INC0263989,2024-09-12 18:12:59,"SAP, Supply chain and finance, MEA region, Egypt: good receipted to reverse due to PO at wrong price",L2 - OneERP - Business Support,September 2024,Procure to Pay,,Saudi Arabia
+INC0264532,2024-09-19 11:09:09,BS balance doesn't match to GL balance in SAP JP01,L2 - OneERP - Business Support,September 2024,Record to Report,,Japan
+INC0264587,2024-09-19 19:04:44,Wave 5 - ZA01 - Stock Material Valuation Price Misalignment,L2 - OneERP - Business Support,September 2024,Procure to Pay,,South Africa
+INC0265592,2024-09-30 17:50:51,Wave 5 - AE01 - Please check to see why PO's 4500013715 & 4500013717 (MDC SO's 2084822/ 2085954) didnt close before transition period.,L2 - OneERP - Business Support,September 2024,Procure to Pay,,UAE
+INC0263281,2024-09-05 21:13:06,SHIP TO NUMBER UPDATE,L2 - OneERP - Business Support,September 2024,Order to Cash,,South Africa
+INC0263056,2024-09-04 01:52:26,OneERP Hyper care - Norway,L2 - OneERP - Business Support,September 2024,Order to Cash,,Norway
+INC0263037,2024-09-03 22:21:47,INVOICE PROBLEM,L2 - OneERP - Business Support,September 2024,Order to Cash,,France
+INC0263467,2024-09-07 00:20:13,Error when using G/L account 25030000 for bank clearing,L2 - OneERP - Business Support,September 2024,Order to Cash,,Brazil
+INC0264635,2024-09-19 23:28:20,Wave 5 - Denmark - While parking the journal i am getting the error message for profitability segment,L2 - OneERP - Business Support,September 2024,Record to Report,,Denmark
+INC0263407,2024-09-06 18:06:25,W1 - France - Sales Order - Cust Reference 24007252,L2 - OneERP - Business Support,September 2024,Order to Cash,,France
+INC0263102,2024-09-04 15:51:09,W1 - France - Update SOLD TO in iDoc,L2 - OneERP - Business Support,September 2024,Order to Cash,,France
+INC0263770,2024-09-10 20:14:38,Wave 3 - Germany - Please delete PO 4500011126,L2 - OneERP - Business Support,September 2024,Procure to Pay,,Germany
+INC0263896,2024-09-11 19:25:56,ONE ERP  W4 ITALY - ENABLE TO THE RUNNING OF PAYMENTS FOR THE EMPLOYEES CATEGORY,L2 - OneERP - Business Support,September 2024,Procure to Pay,,Italy
+INC0263377,2024-09-06 15:39:22,sold to,L2 - OneERP - Business Support,September 2024,Supply Chain,,France
+INC0263345,2024-09-06 06:04:48,Error message when using G/L account 21530002,L2 - OneERP - Business Support,September 2024,Record to Report,,Brazil
+INC0262973,2024-09-03 18:07:00,Netherland P06 reopen,L2 - OneERP - Business Support,September 2024,Record to Report,,Netherlands
+INC0263712,2024-09-10 14:41:51,One ERP - W3 - PZN 9101501 code switch from material 2000001000 to 20001000044 in material substitution table,L2 - OneERP - Business Support,September 2024,Supply Chain,,Germany
+INC0264580,2024-09-19 18:36:22,"ES SAP -  Access for the app ""eDocument Cockpit - ES01 - Display Access""",L2 - OneERP - Business Support,September 2024,Order to Cash,,Spain
+INC0263959,2024-09-12 15:13:02,Timesheet login issue,L2 - OneERP - Business Support,September 2024,Procure to Pay,,Service Entities
+INC0264491,2024-09-18 22:03:33,"W5 - SE01, DK01 & NO01 - Customer information from SAP",L2 - OneERP - Business Support,September 2024,Order to Cash,,Multiple
+INC0264002,2024-09-12 19:12:01,Cost Center Master data in SAP wrong,L2 - OneERP - Business Support,September 2024,Procure to Pay,,South Africa
+INC0265235,2024-09-26 03:35:10,Wave 2 - Canada - Vendor # ICCA0100- Bank info is incorrect,L2 - OneERP - Business Support,September 2024,Procure to Pay,,Canada
+INC0264009,2024-09-12 19:42:44,One ERP - W3 - please move PZN code (9276123) from material 2000000921 to 2000001362 in material substitution table,L2 - OneERP - Business Support,September 2024,Supply Chain,,Germany
+INC0263129,2024-09-04 17:45:53,One ERP - ESKER Cost center- Routing,L2 - OneERP - Business Support,September 2024,Procure to Pay,,UAE
+INC0265424,2024-09-27 21:46:31,W5 - Norway - Billing Document not released to accounting,L2 - OneERP - Business Support,September 2024,Record to Report,,Norway
+INC0264763,2024-09-20 22:42:14,OneERP - Finland (needs to change bank details in SAP),L2 - OneERP - Business Support,September 2024,Procure to Pay,,Finland
+INC0265071,2024-09-24 19:42:31,W1 - France - SAP MDG - Need to know proper Grouping for Customer Creation in MDG,L2 - OneERP - Business Support,September 2024,Order to Cash,,France
+INC0263098,2024-09-04 15:22:10,W1 - France - Update SOLD TO in iDoc,L2 - OneERP - Business Support,September 2024,Order to Cash,,France
+INC0262852,2024-09-02 18:20:23,Spain SAP -  Error in the output of new clients to send invoices by SERES,L2 - OneERP - Business Support,September 2024,Order to Cash,,Spain
+INC0265236,2024-09-26 04:03:01,Canada Wave 2 - Error when entering pricing for new product,L2 - OneERP - Business Support,September 2024,Supply Chain,,Canada
+INC0263831,2024-09-11 09:31:40,Urgent_Korea Payment to Employee error _due to payment method not found,L2 - OneERP - Business Support,September 2024,Procure to Pay,,Korea
+INC0253917,2024-06-04 09:55:05,SAP Foundation Extract - late DB update,L2 - OneERP - EDW / BI,June 2024,Record to Report,,Korea
+INC0266058,2024-10-03 20:03:21,Wave 5 - MEA -  Differences in MEA(104033) with Foundation that doenst match with SAP,L2 - OneERP - EDW / BI,October 2024,Record to Report,,UAE
+INC0262634,2024-08-30 14:49:17,ZA SAP Export Customer loading to be completed. Swaziland not defined as a country in SAP.,L2 - OneERP - MDG,August 2024,Order to Cash,,South Africa
+INC0261984,2024-08-22 12:00:53,MDG change request draft was locked so that I need the help,L2 - OneERP - MDG,August 2024,Procure to Pay,,Japan
+INC0257747,2024-07-11 22:13:39,CR 7970 is not completed,L2 - OneERP - MDG,July 2024,Order to Cash,,UAE
+INC0259485,2024-07-29 20:11:30,With Holding Tax - Error,L2 - OneERP - MDG,July 2024,Cross Functional,,Italy
+INC0256582,2024-07-01 20:51:15,Creation a new Customer. Error : Field Tax Jurisdiction is missing. But I cannot enter any information. Field is grey,L2 - OneERP - MDG,July 2024,Record to Report,,Germany
+INC0254797,2024-06-12 19:53:46,Remove CRs 6705 & 6742 as the user raised them incorrectly as DIrect supplier.,L2 - OneERP - MDG,June 2024,Procure to Pay,,Austria
+INC0256169,2024-06-26 18:56:54,We have detected a problem in the way to created a vendo with the new process.,L2 - OneERP - MDG,June 2024,Procure to Pay,,Spain
+INC0254889,2024-06-13 16:32:27,ONE ERP: Customer to be update,L2 - OneERP - MDG,June 2024,Procure to Pay,,Service Entities
+INC0255573,2024-06-20 17:10:15,TPRM ID field not reflected in MDG,L2 - OneERP - MDG,June 2024,Order to Cash,,Canada
+INC0254469,2024-06-10 11:33:41,W2 - KR - MDG_change TPRM,L2 - OneERP - MDG,June 2024,Procure to Pay,,Korea
+INC0254666,2024-06-11 22:01:47,ERP - I NEED TO CHANGE BANK DETAILS FOR A SUPPLIER,L2 - OneERP - MDG,June 2024,Procure to Pay,,Italy
+INC0256312,2024-06-27 20:58:31,APPROVAL OF CUSTOMER ADDRESS CHANGE REQUEST,L2 - OneERP - MDG,June 2024,Order to Cash,,Italy
+INC0254281,2024-06-06 21:04:26,blocking error creating customer master not found,L2 - OneERP - MDG,June 2024,Procure to Pay,,Italy
+INC0255968,2024-06-25 12:52:13,CR golden path missing,L2 - OneERP - MDG,June 2024,Order to Cash,,Korea
+INC0255575,2024-06-20 17:13:36,Please delete below MDG CRs for vendors.,L2 - OneERP - MDG,June 2024,Procure to Pay,,Service Entities
+INC0253144,2024-05-23 21:49:43,Workflow for CR1979 is stuck as the system didnt send the WF to the final approver.,L2 - OneERP - MDG,May 2024,Procure to Pay,,Canada
+INC0251680,2024-05-08 23:38:32,ONE ERP_Creation of Ship to,L2 - OneERP - MDG,May 2024,Order to Cash,,Italy
+INC0253711,2024-05-31 19:12:54,Delete MDG CRs for Indirect vendors,L2 - OneERP - MDG,May 2024,Procure to Pay,,Canada
+INC0253141,2024-05-23 21:42:48,TPRM field no appearing in MDG when Country/Region USA is selected.,L2 - OneERP - MDG,May 2024,Procure to Pay,,Service Entities
+INC0252338,2024-05-15 18:55:29,CR7365 hasnt triggered final approver WF,L2 - OneERP - MDG,May 2024,Procure to Pay,,Germany
+INC0252209,2024-05-14 18:16:55,Please remove CR2021 from MDG.,L2 - OneERP - MDG,May 2024,Procure to Pay,,Australia
+INC0267421,2024-10-15 21:37:10,Delete Workflow - MDG update - Customer 10000736,L2 - OneERP - MDG,October 2024,Order to Cash,,Netherlands
+INC0265778,2024-10-01 21:46:30,Account block,L2 - OneERP - MDG,October 2024,Order to Cash,,France
+INC0267713,2024-10-18 20:55:29,[EXTERNAL]Fw: FIN0009123 - Create/Amend Vendor Request - New - SAP - Lisa Brown,L2 - OneERP - MDG,October 2024,Procure to Pay,,Canada
+INC0267391,2024-10-15 17:53:59,Cancel Change Request 9483,L2 - OneERP - MDG,October 2024,Order to Cash,,Netherlands
+INC0267953,2024-10-22 17:01:30,SAP MDG ZA Export Customer Workflow Issue,L2 - OneERP - MDG,October 2024,Order to Cash,,South Africa
+INC0265003,2024-09-24 08:50:40,no errors but stuck and nothing Workflow Log for Change Request 8997,L2 - OneERP - MDG,September 2024,Order to Cash,,Korea
+INC0263230,2024-09-05 17:00:49,Workflow Log in a Change Request is empty,L2 - OneERP - MDG,September 2024,Procure to Pay,,Netherlands
+INC0264438,2024-09-18 13:39:22,Request to delete MDG Customer Change Request 8872,L2 - OneERP - MDG,September 2024,Order to Cash,,South Africa
+INC0263036,2024-09-03 21:54:32,SAP MDG ZA Export Customer Workflow Issue,L2 - OneERP - MDG,September 2024,Order to Cash,,South Africa
+INC0265100,2024-09-25 00:59:22,Remove CRs that are no longer required,L2 - OneERP - MDG,September 2024,"Order to Cash, Procure to Pay",,Multiple
+INC0265624,2024-09-30 22:23:38,Wave 4 - Itally - Association ship to party error,L2 - OneERP - MDG,September 2024,Order to Cash,,Italy
+INC0263468,2024-09-07 00:21:09,Wave 5 - Brazil - No option to select the correct Tax Jurisdiction code on vendor creation in MDG as it is in SAP GUI.,L2 - OneERP - MDG,September 2024,Order to Cash,,Brazil
+INC0262338,2024-08-26 20:07:13,Error when running a payment with withholding taxes,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Procure to Pay,,Brazil
+INC0260802,2024-08-09 19:12:22,SAP - pagamenti - richiesta FILE XML per pagamenti tipologia (giroconti/girofondi) fornitori intercompany in valuta euro.,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,Italy
+INC0260234,2024-08-05 21:33:56,While posting the journal getting the error message,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,,,
+INC0261762,2024-08-19 19:18:58,OneERP wave 5 Hypercare - CH06-Kindly add the GL account 51600000  & 44003600 to raise the credit note.,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Order to Cash,,Saudi Arabia
+INC0259993,2024-08-02 18:16:08,OneERP - Hypercare - Sweden invoice cancelling (document no 90141301),L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Supply Chain,,Sweden
+INC0260584,2024-08-08 01:57:29,I am facing issue on Wave 5 migration- When I am trying to Post P6 COGS adjustment reclass entry in P7 for the entity Denmark,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,Denmark
+INC0261498,2024-08-15 22:22:42,W5 - ONEErp - Customers missing payment method,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Order to Cash,,Brazil
+INC0260662,2024-08-08 18:29:07,Unable to post the journal in SAP due to the error attached- NO01 Norway,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,Norway
+INC0260761,2024-08-09 15:59:47,"Need help to post adjustment entry for GL 13602000 - Sweden, Belgium, NL and Finland",L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,Denmark
+INC0260020,2024-08-02 21:42:38,Wave 5- Sweden (SE01)- Tamro AB -61686580,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Procure to Pay,,Sweden
+INC0261198,2024-08-13 04:02:12,W5 - Brazil - Please eliminate spece in the field Number address number of a Customer and/or the Supplier.,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,Brazil
+INC0261798,2024-08-20 04:48:00,FFID Access for Wave 5 Support,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,UAE
+INC0260010,2024-08-02 20:57:13,OneERP wave 5 Hypercare CH09 GL Tax code Error,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Tax,,UAE
+INC0262325,2024-08-26 16:45:48,order MSP 826988 is blocked in SAP,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Supply Chain,,Service Entities
+INC0261895,2024-08-21 03:17:54,W5 - Brazil - Change employee's payment method,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Order to Cash,,Brazil
+INC0261870,2024-08-20 20:35:10,Incorrect commissions value on AR invoice,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Order to Cash,,South Africa
+INC0259864,2024-08-01 20:41:15,ZROB returnings need to be revert/cancelled,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Order to Cash,,Austria
+INC0259981,2024-08-02 17:24:42,OneERP - Hypercare - Debit Memo cancellation for Belgium,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Supply Chain,,Sweden
+INC0262473,2024-08-28 16:10:11,"OneERP wave 5 Hypercare - CH06-when we are trying to check in the GL report, the customer names are not showing on the GL for the raised credit note.  Can you please check and advice",L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Order to Cash,,Saudi Arabia
+INC0262455,2024-08-28 11:59:45,SAP – QA SO 170432 (CI 90142850) billing error,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Supply Chain,,Service Entities
+INC0261776,2024-08-19 21:09:56,I can't run a payment by boleto,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Procure to Pay,,Brazil
+INC0262153,2024-08-23 19:41:07,While posting the journal i am getting the error message,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,Netherlands
+INC0262563,2024-08-29 16:13:11,"OneERP wave 5 Hypercare - CH06-Kindly add the GL account 44002100 in SAP to raise the AR credit note, to maintain account in SAP for printing invoices.",L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Order to Cash,,Saudi Arabia
+INC0261502,2024-08-15 23:05:45,AU01 - No remittance generated,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Procure to Pay,,Australia
+INC0259968,2024-08-02 15:25:46,OneERP w5 Hypercare - SE- need to activate loss exch.rate.difference GL,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,Sweden
+INC0262139,2024-08-23 18:12:37,Journal Posting Error - tax code (Finland - 101005),L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,Finland
+INC0261739,2024-08-19 16:14:49,OneERP Hypercare - Finland (Required VAT GL account number),L2 - OneERP - S/4 HANA - CFS BAU,August 2024,Record to Report,,Finland
+INC0260476,2024-08-07 14:50:56,Prior Year balances for Ireland and Netherlands not uploaded,L2 - OneERP - S/4 HANA - CFS BAU,August 2024,,,
+INC0259596,2024-07-30 18:56:32,Cannot able to post the journals 12300000.,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Finland
+INC0258573,2024-07-19 20:15:46,One ERP Wave 5 Hyper Care MEA - Please delete invoice no 90138017 as it has the wrong ship to/sold to,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Supply Chain,,Service Entities
+INC0258749,2024-07-22 16:56:35,Daily reconciliation report. Manually adjustment,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,Italy
+INC0258427,2024-07-18 18:32:39,Urgent - Batch expiry date is incorrect for KR matches in SAP - Please assign to member of SAP team such as Tim Harris,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Supply Chain,,Korea
+INC0259273,2024-07-26 23:31:19,OneERP wave 5 Hypercare - BR,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Brazil
+INC0259603,2024-07-30 20:03:11,OneERP wave 5 Hypercare - DK - Error while posting journals ,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Denmark
+INC0258234,2024-07-17 15:53:06,Unable to run open items report for Germany in Create Correspondence,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Order to Cash,,Germany
+INC0259524,2024-07-30 01:46:19,OneERP wave 5 Hypercare – Denmark – While posting the journal we are getting the error messages attached the screenshot for easy reference.,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Denmark
+INC0258099,2024-07-16 15:23:26,JP SAP - Support to process Returns and Write Off,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Order to Cash,,Japan
+INC0257563,2024-07-10 18:23:24,Exchange rates for 09.07.2024 missing in SAP,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Australia
+INC0259618,2024-07-30 22:15:47,Accelerated return credit memo reversal  - Billing Document 90138980,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Supply Chain,,South Africa
+INC0259207,2024-07-26 15:18:57,"OneERP wave 5 Hypercare - BR -  Unable to post to General Ledger accounts due to the accounts requiring a tax code, and one account requires currency",L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Brazil
+INC0257737,2024-07-11 21:04:42,One ERP - W5 - please fill in Vendor master data for 10035598,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,Canada
+INC0258001,2024-07-15 17:10:39,SAP - Invoice does not reflect batch details,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Supply Chain,,Service Entities
+INC0259233,2024-07-26 20:09:51,Esker Approver change,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,Japan
+INC0257705,2024-07-11 17:48:17,CSP Failed IDocs status of 26.06.2024,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Order to Cash,,France
+INC0256742,2024-07-02 20:55:37,Need access to the SAles report - VA05 in PS4.400 System,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Technical,,Multiple
+INC0259217,2024-07-26 16:55:04,OneERP Wave 5 Hypercare QA - please cancel Invoice 90139520,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Order to Cash,,UAE
+INC0259633,2024-07-30 23:08:46,SAP BAU Support on raising PO in SAP,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Supply Chain,,Austria
+INC0259054,2024-07-25 00:39:16,LANGUAGE FIELD - VENDORS MASS UPLOAD,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,Multiple
+INC0258033,2024-07-15 21:45:29,W5 Brazil - Mass Upload for Customer Credit Limits,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Order to Cash,,Brazil
+INC0258187,2024-07-16 23:22:15,Wave 5 A/c 61320000 requires a revenue-based account assignment relevant to cost acctng,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Brazil
+INC0259705,2024-07-31 17:10:45,Sort Code - Error,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Japan
+INC0259503,2024-07-29 22:04:41,Required GL extend for entity Norway - MO01 GL- 13603000 Inventory Provision Allowance - Local Gaap Bal Sh,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Norway
+INC0258244,2024-07-17 16:30:47,OneERP wave 5 Hypercare - BR - Defect 2070 to be reviewed as the ISENTO word is missing in the vendor master data.,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,Brazil
+INC0258976,2024-07-24 16:22:23,Payment runs on 23.07.2024  failures at Remittance step due to missing Language in master data.,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,Germany
+INC0259053,2024-07-25 00:05:09,Email addresses mass upload for DACH entities,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,Austria
+INC0258150,2024-07-16 19:48:20,SAP - FR01 - 10007930 - ERNST & YOUNG LLP - WHT error,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,France
+INC0257657,2024-07-11 12:55:08,Can not apply to MDG due to Bank account,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,Japan
+INC0258119,2024-07-16 17:05:47,IDocs need to retrigger for SAP PO output (Z3PL),L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,France
+INC0257474,2024-07-09 22:43:20,Credit notes not pulling to DD run,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Order to Cash,,Germany
+INC0258180,2024-07-16 22:46:37,OneERP w5 Hypercare - ZA - SAP duplicate sales orders uploaded,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Supply Chain,,South Africa
+INC0258004,2024-07-15 17:38:44,Need access to ''Manage Automatic payments'',L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Procure to Pay,,Netherlands
+INC0259177,2024-07-26 01:02:28,OneERP wave 5 Hypercare - BR - GL Account 25030000 has postings from Data migration that require journaling to another account,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Brazil
+INC0259586,2024-07-30 18:13:24,OneERP wave 5 Hypercare – NL – Error when posting journal ,L2 - OneERP - S/4 HANA - CFS BAU,July 2024,Record to Report,,Netherlands
+INC0256304,2024-06-27 20:24:03,SPAIN SAP -We have created new customer which need the maintenance of conditions records,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Order to Cash,,Spain
+INC0255029,2024-06-14 20:46:03,"SPAIN SAP - We have this new customer: 110034815, CENTRO PENITENCIARIO DE MALAGA that needs to update the conditions records",L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Order to Cash,,Spain
+INC0255999,2024-06-25 16:39:49,Unable to create PO in PT,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Procure to Pay,,Portugal
+INC0255705,2024-06-21 16:59:43,One ERP - Wave 3 - please perform PZN switch in material substitution table PZN 8516418 to be erased from 2000000877 to 2000001325,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Procure to Pay,,Poland
+INC0256136,2024-06-26 15:44:55,Posted Journal Entry Issue,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Record to Report,,Service Entities
+INC0254590,2024-06-11 15:56:05,Daily reconciliation report doesn't match with IDocs failures,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Order to Cash,,Italy
+INC0255902,2024-06-24 18:59:08,Ireland -change SAP address,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Record to Report,,Australia
+INC0256260,2024-06-27 16:11:37,ONE ERP: Reopen RITM0181643,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Record to Report,,Multiple
+INC0254380,2024-06-07 20:25:57,Idocs failure,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Procure to Pay,,Multiple
+INC0253849,2024-06-03 16:30:17,Journal Reversal,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Record to Report,,Service Entities
+INC0255677,2024-06-21 13:24:33,Credit Memo not reflected in general ledger after credit memo completion,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Record to Report,,Korea
+INC0253863,2024-06-03 17:56:16,"SAP Journal Entry_""Failed"" after approval",L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Record to Report,,Japan
+INC0255588,2024-06-20 18:24:16,ONE ERP: ACCOUNT TO BE MAPP IN ALTERNATIVE ACCOUNT AND TO BE UNBLOCK,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Record to Report,,Italy
+INC0254357,2024-06-07 17:23:14,we are not getting statements into SAP through EBS.,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Order to Cash,,Germany
+INC0254148,2024-06-05 21:57:52,AT01 Employee ALEKSANDR VASILEV PR AGENCIJA ZA KONSALTING -WAVE 3,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Procure to Pay,,Austria
+INC0256314,2024-06-27 21:09:38,Mapping for SKUs into Brands in Foundation wrong,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Record to Report,,Austria
+INC0256293,2024-06-27 18:59:58,INC0254142 - still have an issue here - wrong posting on BS Initial account,L2 - OneERP - S/4 HANA - CFS BAU,June 2024,Record to Report,,Austria
+INC0253380,2024-05-28 20:35:19,One ERP - W3 - please set up commodity code,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Technical,,Australia
+INC0252154,2024-05-14 14:30:04,Can not apply to MDG due to Bank account,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Procure to Pay,,Japan
+INC0252696,2024-05-20 08:56:58,OneERP W2 ANZ - IAC AR invoices not posted to GL 12300000 Receivable IAC,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Record to Report,,Australia
+INC0253384,2024-05-28 20:58:59,Regarding net-off loan and invoice in services entity,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Record to Report,,Service Entities
+INC0251894,2024-05-10 19:11:32,ERP - problem matching invoices and customer payments,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Record to Report,,Italy
+INC0252846,2024-05-21 13:00:46,Unable to apply for MDG as bank branch is not registered,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Procure to Pay,,Japan
+INC0251638,2024-05-08 19:21:18,Bank details not in SAP,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Record to Report,,Service Entities
+INC0251229,2024-05-02 23:53:40,ONE ERP -  21120000 for manual posting,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Record to Report,,Italy
+INC0253169,2024-05-24 10:25:37,The registration of the following three request tickets to MDG is incomplete. Please respond as soon as possible.,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Procure to Pay,,Japan
+INC0253010,2024-05-22 16:37:06,"I cannot pay Tatiana Vilchez Quino as in SAP is not appearing the swift code, please can you complete it?",L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Procure to Pay,,Spain
+INC0251324,2024-05-03 23:03:20,ONE ERP: Alternative account to be mapp,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Record to Report,,Italy
+INC0252602,2024-05-17 18:44:27,SAP: ORDER DELIVERED AND NOT INVOICED,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Supply Chain,,Italy
+INC0253181,2024-05-24 15:10:51,JP01_SAP_delete and reversal the Payment Run,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,Record to Report,,Japan
+INC0251758,2024-05-09 16:58:49,JP SAP - To complete financial transactions after reversal of PR/PO,L2 - OneERP - S/4 HANA - CFS BAU,May 2024,"Procure to Pay, Record to Report",,Japan
+INC0269135,2024-11-05 23:55:00,URGENT POSTING IN SAP FOR SALES SUBMISSION,L2 - OneERP - S/4 HANA - CFS BAU,November 2024,,,
+INC0267702,2024-10-18 19:25:14,SPAIN SAP - new customer 10036407 HNAS HOSP SAGRADO CORAZON DE JESUS / 08760 MARTORE -Conditions records need to be kept up to date,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Order to Cash,,Spain
+INC0267582,2024-10-17 14:17:16,Request for Ticket Processing Regarding Change of Approval Authority_SAP Credit memo,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Order to Cash,,Korea
+INC0265926,2024-10-02 22:00:14,OneERP Hyper care - Netherland (Material out of stock) & pricing,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Order to Cash,,Netherlands
+INC0266827,2024-10-10 18:20:32,"While uploading the journal i am getting error for Quantity, could you please help me to resolve this issue.",L2 - OneERP - S/4 HANA - CFS BAU,October 2024,,,
+INC0268156,2024-10-24 16:27:20,Company Code NL06 is not defined,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,,,
+INC0266718,2024-10-09 20:31:39,SAP BAU Team - cancel PO,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Procure to Pay,,Switzerland
+INC0268467,2024-10-29 19:17:14,Concur expense is booked under disable supplier code,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Procure to Pay,,Japan
+INC0265760,2024-10-01 19:33:27,Kindly provide your assistance to close the journal,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Norway
+INC0266052,2024-10-03 19:22:06,Unable to upload Inventory provision journal,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Norway
+INC0266421,2024-10-07 20:42:24,W5 - Finland Journal Error - Finland Entity (F01),L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Finland
+INC0266144,2024-10-04 16:11:12,OneERP wave 5 Hypercare  CH06 and CH09 GL Error,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Saudi Arabia
+INC0265736,2024-10-01 17:06:09,"OneERP wave 5 Hypercare - CH06-we have loaded the AR invoice template into SAP however the output PDF file is blank no description and the value, Kindly assist.",L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,UAE
+INC0266412,2024-10-07 19:25:30,Wave 5 - Norway - Unable to update custom declaration journal in SAP.,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Norway
+INC0265681,2024-10-01 14:33:26,OneERP - W3 - please perform the PZN (9276123) switch in material substitution table from material 2000000921 to 2000001362,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Order to Cash,,Poland
+INC0266737,2024-10-09 22:08:34,W5 - Brazil - New Cost Centre for BR01 Request ,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Brazil
+INC0266603,2024-10-08 23:58:10,Sweden - Reverse the Entry without SKU which we posted in P6 during Migration,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Sweden
+INC0265741,2024-10-01 17:44:43,CH04 entity - 25010000 GRNI A/c Clearance error,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,,,
+INC0266545,2024-10-08 17:40:11,SAP: We need to issue a credit note and a new invoice,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Technical,,Belgium
+INC0268154,2024-10-24 16:23:09,Balancing profit center issue for Tax lines which are derived automatically.,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,France
+INC0267548,2024-10-16 22:45:30,Payment method for vendor # 10036363 iNova,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Procure to Pay,,Canada
+INC0266077,2024-10-03 21:57:13,Journal Error - Finland Entity (F01),L2 - OneERP - S/4 HANA - CFS BAU,October 2024,,,
+INC0266204,2024-10-04 23:37:52,W1 - France - Email update for Direct Debit statement,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Order to Cash,,France
+INC0266544,2024-10-08 17:31:50,"While uploading the journal i am getting error for Tax code, could you please help me to resolve this issue",L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Multiple
+INC0265930,2024-10-02 22:24:41,Hypercare - OneERP - Denmark (60014851 - Request is approved but still error showing penidng with approval),L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Order to Cash,,Denmark
+INC0267987,2024-10-22 20:05:43,SAP migration accounts need to be blocked,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Multiple
+INC0266573,2024-10-08 19:59:17,Journal posting -error,L2 - OneERP - S/4 HANA - CFS BAU,October 2024,Record to Report,,Finland
+INC0264943,2024-09-23 20:43:45,MMCO - AT01 Credit note not picking in the payment run,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Procure to Pay,,Switzerland
+INC0263138,2024-09-04 18:55:42,OneERP wave 5 Hypercare - Gulf - FOC quantities appearing correctly in invoice but not in GL reports,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Order to Cash,,Saudi Arabia
+INC0263883,2024-09-11 18:39:11,NL inventory Volume not reflected in SAP GL account,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Supply Chain,,Belgium
+INC0265341,2024-09-26 22:52:16,Missing Trading Partner codes from Supplier identifiers,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,,,
+INC0264950,2024-09-23 22:14:22,Wave 5 - Brazil - Error when running a payment - vendor 10035365,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Procure to Pay,,Brazil
+INC0265390,2024-09-27 16:06:37,PO GL 16014000  blocked error in Esker while creating PO,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Procure to Pay,,Italy
+INC0263683,2024-09-10 04:00:01,Wave 5 - Brazil - Journal Entry Item Text,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Record to Report,,Brazil
+INC0263034,2024-09-03 21:46:44,Need immediate correction on TAX code - CH MEA Aug'24 (CH06),L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Record to Report,,Switzerland
+INC0265045,2024-09-24 17:08:50,Denmark_Tax Code Error,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Procure to Pay,,Denmark
+INC0263012,2024-09-03 20:30:26,SOLD TO,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Order to Cash,,Multiple
+INC0263221,2024-09-05 16:44:56,MNE CH09 Invoice Value Mismatch,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Supply Chain,,Service Entities
+INC0264778,2024-09-21 02:37:29,W5 Brazil - Invoice (Danfe) not accounted for in July/2024,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Order to Cash,,Brazil
+INC0262826,2024-09-02 16:07:32,idoc 810702,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Order to Cash,,France
+INC0262953,2024-09-03 15:40:33,Finland Banks Statements are missing from 27/08/2024 - 31/08/2024,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Order to Cash,,Finland
+INC0263734,2024-09-10 16:36:38,FW: FIN0008141 - Create/Amend Vendor Request - New - SAP - Graham Hodge,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Record to Report,,Ireland
+INC0264091,2024-09-13 17:04:14,MDG Vendor - Change mail adress,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Procure to Pay,,Italy
+INC0263133,2024-09-04 18:33:06,"ESKER, CH04 Unable to open VAT declaration needed for invoices related to custom- vendor 10031399",L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Procure to Pay,,Switzerland
+INC0264576,2024-09-19 17:54:21,Wave 5 -  Norway - ONERP - PGI Issue with Deliveries,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Order to Cash,,Norway
+INC0264760,2024-09-20 21:45:38,DK01_ Item category Requisition,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Procure to Pay,,Denmark
+INC0263132,2024-09-04 18:29:50,Unable to upload the journal tempate in SAP-DE02 & DE03,L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Record to Report,,Germany
+INC0262896,2024-09-02 22:51:20,"In Sweden, Audit Fees GL (65302000) we need to post accrual without Tax code",L2 - OneERP - S/4 HANA - CFS BAU,September 2024,Record to Report,,Sweden
+INC0262042,2024-08-22 19:26:51,"In our daily monitoring we have observed that "" DD1511_SHPORD_NEXTPHARMA "" Interface is failing with Authorization Issue.",L2 - OneERP - S/4 HANA - Interfaces and CPI,August 2024,Technical,,Germany
+INC0261117,2024-08-12 16:19:10,Expense approved in Concur has not been posted into SAP/New employees vendor have not set up correctly,L2 - OneERP - S/4 HANA - Interfaces and CPI,August 2024,Procure to Pay,,Japan
+INC0259976,2024-08-02 16:51:13,DD5201 interface was failed in CPI level,L2 - OneERP - S/4 HANA - Interfaces and CPI,August 2024,Technical,,Japan
+INC0262147,2024-08-23 18:43:21,Financial posting failed - AE01,L2 - OneERP - S/4 HANA - Interfaces and CPI,August 2024,Procure to Pay,,UAE
+INC0259852,2024-08-01 18:21:22,Germany bank statement to loaded in SAP,L2 - OneERP - S/4 HANA - Interfaces and CPI,August 2024,Order to Cash,,Germany
+INC0261945,2024-08-21 18:53:41,Recieved an email saying my expenses hasnt gone through - moved companies,L2 - OneERP - S/4 HANA - Interfaces and CPI,August 2024,Procure to Pay,,Service Entities
+INC0259960,2024-08-02 14:58:46,Need to add FX Rates in SAP - Sweden and Denmark,L2 - OneERP - S/4 HANA - Interfaces and CPI,August 2024,Record to Report,,Denmark
+INC0261759,2024-08-19 18:49:51,Missing bank details for employees in SA.,L2 - OneERP - S/4 HANA - Interfaces and CPI,August 2024,Technical,,South Africa
+INC0261768,2024-08-19 20:38:10,SAP Employee Vendor has not been generated,L2 - OneERP - S/4 HANA - Interfaces and CPI,August 2024,Procure to Pay,,Japan
+INC0257589,2024-07-10 21:26:33,SAP Failed Idoc number# 751566 ___ EXCHANGE_RATE,L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Technical,,Italy
+INC0257869,2024-07-13 03:25:17,"The Spanish and French 3PL warehouse company is currently affected by ransomware; please confirm all connectivity details to IT Security (Steve Twinn, Catherine Moore)",L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Order to Cash,,Spain
+INC0257845,2024-07-12 20:08:45,Concur/SAP,L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Procure to Pay,,Germany
+INC0257145,2024-07-05 17:19:50,DD5201_WorkDay_To_SAP_S4HANA_Employee_Mini_Master_HRMS_Integration_Change_MassLoad,L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Technical,,Australia
+INC0256986,2024-07-04 17:15:54,DD5202_WorkDay_To_SAP_S4HANA_Employee_Mini_Master_HRMS_Integration_Change_MassLoad,L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Technical,,France
+INC0257075,2024-07-05 01:57:28,Update bank details in SAP system to initiate payment of expenses,L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Record to Report,,Canada
+INC0258406,2024-07-18 17:43:02,DD5201 interface was failed in CPI level,L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Technical,,Austria
+INC0257137,2024-07-05 15:47:20,Electronic bank statements not loaded,L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Order to Cash,,Germany
+INC0258402,2024-07-18 16:44:04,Bank file on 16072024 unprocessed in SAP due to missing 888 code for Germany TM5.,L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Technical,,Germany
+INC0257498,2024-07-10 02:40:14,Wave 2 Canada - Manually resend EDI 810 invoices - 9217003321 & 9217003323,L2 - OneERP - S/4 HANA - Interfaces and CPI,July 2024,Order to Cash,,Canada
+INC0256012,2024-06-25 17:28:25,DD5202_WorkDay_To_SAP S4HANA_Employee Mini Master HRMS Integration_Change_MassLoad - Interface failed in CPI,L2 - OneERP - S/4 HANA - Interfaces and CPI,June 2024,Technical,,Multiple
+INC0256335,2024-06-28 00:27:32,In our monitoring we have Identified the DD4424 Interface was failing in production syetm.,L2 - OneERP - S/4 HANA - Interfaces and CPI,June 2024,Technical,,Austria
+INC0254790,2024-06-12 19:16:54,ES01 - SPAIN - Employee accounts with no bank details,L2 - OneERP - S/4 HANA - Interfaces and CPI,June 2024,Procure to Pay,,Spain
+INC0254245,2024-06-06 17:23:58,DD5202_WorkDay_To_SAP S4HANA_Employee Mini Master HRMS Integration_Change_MassLoad - its failed in CPI.,L2 - OneERP - S/4 HANA - Interfaces and CPI,June 2024,Technical,,France
+INC0254592,2024-06-11 16:00:23,DD5202 interface was failed in CPI level.,L2 - OneERP - S/4 HANA - Interfaces and CPI,June 2024,Technical,,Italy
+INC0254362,2024-06-07 18:08:05,DD5202_WorkDay_To_SAP S4HANA_Employee Mini Master HRMS Integration_Change_MassLoad,L2 - OneERP - S/4 HANA - Interfaces and CPI,June 2024,Technical,,Germany
+INC0252473,2024-05-16 16:31:44,DD5202 interface was failed in CPI level.,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Technical,,Germany
+INC0251293,2024-05-03 18:57:16,ES SAP - IA NEW MAPPING IS NEEDED IN THE EDICOM DOCUMENT TO MAKE IT CORRECT FOR THE CLIENT.,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Technical,,France
+INC0253318,2024-05-27 21:09:57,CANADA SAP - Orders not received by Lynden (Canada 3PL) on May 24,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,"3rd Party Logistics, Order to Cash",,Canada
+INC0253012,2024-05-22 16:37:48, DD0828 interface was failed in CPI level.,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Technical,,Australia
+INC0253096,2024-05-23 15:30:12,1486 3PL IDocs got failed on 22.05.2024,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Order to Cash,,Multiple
+INC0252303,2024-05-15 16:28:45,DD0227 Interface was failed in CPI,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Technical,,Australia
+INC0252528,2024-05-17 00:57:43,Wave 2 Canada - EDI940 files are not being received by our 3PL for orders with 3 text lines,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Technical,,Canada
+INC0253188,2024-05-24 15:47:26,erp - concur -payment of employee expense reports - bank details are missing - it is not possible to do payment,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Record to Report,,Italy
+INC0251763,2024-05-09 17:31:34,In our daily monitoring we have identifed that some of the Idocs are failed.,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Technical,,Austria
+INC0251488,2024-05-07 16:00:50,Tax invoice error,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Order to Cash,,Korea
+INC0251864,2024-05-10 16:26:53,In Our daily monitoring we abbsorved that DD3783 interface was failed in CPI level.,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Technical,,Italy
+INC0252571,2024-05-17 15:49:49,DD5202 interface was failed in CPI level.,L2 - OneERP - S/4 HANA - Interfaces and CPI,May 2024,Technical,,Canada
+INC0268761,2024-11-01 18:13:43,"The Employee has not been created in SAP for the Work Day ID - 1002229 - P-1002229  , 1004746 - P-54386, 1004754 - P-52428, 1004763 - P-54949",L2 - OneERP - S/4 HANA - Interfaces and CPI,November 2024,Technical,,Multiple
+INC0268982,2024-11-05 00:19:02,Concur expense for Choonchu Kim,L2 - OneERP - S/4 HANA - Interfaces and CPI,November 2024,Technical,,Canada
+INC0267998,2024-10-22 21:57:11,Wave 4 - Italy - Expenses note blocked for posting,L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Record to Report,,Italy
+INC0267897,2024-10-21 22:20:15,Wave 1 - Spain - Priority 1-  we still unable to send invoices by EDICOm - Link to CR closed CR 704,L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Order to Cash,,Spain
+INC0268420,2024-10-29 01:33:28,"Wave 1 - FR01, ES01 & PT01 - To support an investigation, can example 3PL files going to and from the follwing 3PLs (France, Spain and Portugal) be shared",L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Supply Chain,,Multiple
+INC0267608,2024-10-17 18:02:24,RE: ES01 - Employee accounts without bank details,L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Technical,,France
+INC0268125,2024-10-24 10:04:17,Order Transmission Delay from E-order to SAP,L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Technical,,Korea
+INC0268137,2024-10-24 14:57:31,File creted with cpi_al11_user ownership in the usr/sap/INT/PS4/400/OUT/esker/deladrc,L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Technical,,Canada
+INC0268367,2024-10-28 16:56:30,"Bank Key details are not updated into SAP for this Workday id:- 1004373, P-53934",L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Technical,,Multiple
+INC0267412,2024-10-15 20:25:00,"The Employee has not been created in SAP for the Work Day ID - 1004761- P-54962  , 1004740 - P-1000295",L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Technical,,Multiple
+INC0265941,2024-10-02 23:59:13,"The Employee has not been created in SAP for the Work Day ID - 1000125, 1000286 -  1000518, 1001081 , 1001733 , 1003940, 1004257, 1004724 , 1001507 , 1004465 1004412 ",L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,"Record to Report, Technical",,Multiple
+INC0268268,2024-10-25 17:29:29,"The Employee has not been created in SAP for the Work Day ID 1000346, P-1000346 1001451, P-54097 1001027, P-54950 1001934, P-54840 1002111, P-54546",L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Technical,,Multiple
+INC0265796,2024-10-01 23:34:16,The Employee has not been created in SAP for the Work Day ID - 1004754 P-52428 / 1004744 P-54890  / 1004755 P-54952 / C9000726 P-1000989 / 1004753 P-54947 /  1004743- P-54898  / 1004747 P-54908,L2 - OneERP - S/4 HANA - Interfaces and CPI,October 2024,Technical,,Multiple
+INC0265221,2024-09-25 23:57:47,South Korea Get Supplier Tax Invoice from SmartBill - iFlow is getting failed in CPI Prod,L2 - OneERP - S/4 HANA - Interfaces and CPI,September 2024,Technical,,Korea
+INC0262839,2024-09-02 17:13:03,DD3877_SAPS4_To_TAGETIK_StockData_via_EDW,L2 - OneERP - S/4 HANA - Interfaces and CPI,September 2024,Technical,,Austria
+INC0264578,2024-09-19 18:08:54,"The Employee has not been created in SAP for the Work Day ID - 1004734,  P-54915",L2 - OneERP - S/4 HANA - Interfaces and CPI,September 2024,Technical,,Italy
+INC0264362,2024-09-17 16:51:56,DD4123_Create Sales Orders from Chiapparoli to SAP --> This Interface countinuously failing in CPI,L2 - OneERP - S/4 HANA - Interfaces and CPI,September 2024,Technical,,Italy
+INC0264024,2024-09-12 21:27:49,W2 - Canada - Retrieve EDI810 raw data for Billing/Invoice - 9217003741,L2 - OneERP - S/4 HANA - Interfaces and CPI,September 2024,Technical,,Canada
+INC0263735,2024-09-10 16:37:39,W3 CH SCM - SAP Quality client QS4 - 400 is not receiving any interface messages from ALLOGA_CH 3rd Party Logistics WMS system. I can't do UAT CR814. Please fix interface connection from ALLOGA_CH.,L2 - OneERP - S/4 HANA - Interfaces and CPI,September 2024,Technical,,Switzerland
+INC0263062,2024-09-04 02:56:07,W2 - Canada - EDI820 - FamiliPrix - Missing/Failed to Process,L2 - OneERP - S/4 HANA - Interfaces and CPI,September 2024,Technical,,Canada
+INC0264718,2024-09-20 17:24:07,Concour blocking posting,L2 - OneERP - S/4 HANA - Interfaces and CPI,September 2024,Record to Report,,Italy
+INC0264079,2024-09-13 15:24:35,OneERP & Oracle interface issue - Several Cosopt & Trusopt orders not sending closure signals between SAP & Oracle,L2 - OneERP - S/4 HANA - Interfaces and CPI,September 2024,Supply Chain,,Multiple
+INC0260328,2024-08-06 18:03:28,"OneERP - Hypercare - Failed to create Delivery /PGI  (NL, SE, BE, NO)",L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Netherlands
+INC0261833,2024-08-20 16:16:42,Please correct Customer Reference Field in Invoice Forms (see RITM0185739 ),L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Germany
+INC0262626,2024-08-30 12:55:53,OneERP Wave 2 ANZ - Availability Issue block Deliveries and Goods Issue Postings (Sama Kalyan),L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Australia
+INC0260545,2024-08-07 20:37:01,W5 - Brazil - NFe Monitor - Dist Log Error - There is no Recipient E-mail selected for this document,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Brazil
+INC0261326,2024-08-13 22:17:57,Invoices with quantity @ zero (0 units) are not automatically created in SAP (France),L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,France
+INC0261084,2024-08-12 13:56:29,BR8A invoice jobs are getting failed in PS4 system.,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Brazil
+INC0260374,2024-08-06 21:48:54,W5 - Brazil - Cannot release Sales Orders using SAP Credit Management,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Brazil
+INC0261928,2024-08-21 16:46:55,Several sales orders not invoiced,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Germany
+INC0261999,2024-08-22 15:37:52,"ZA SAP Customer Invoice, Credit Note & Debit Note Template Amendment Request",L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,South Africa
+INC0262483,2024-08-28 17:48:58,ABAP Dumps created continuously in the PS4 system with error BCD_ZERODIVIDE,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Germany
+INC0261443,2024-08-15 03:37:07,W5 - BR01 - The way batch split was set up is taking ICMS values only from first line of the splitted batch ignoring other lines,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Brazil
+INC0260501,2024-08-07 17:11:30,OneERP w5 Hypercare - ZA  - State pricing not being applied to Sales Order Uploads,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,South Africa
+INC0259812,2024-08-01 15:13:29,OneERP - Hypercare (Norway - Automated generate mail failed),L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Norway
+INC0261395,2024-08-14 19:41:25,One ERP - W3 - change in material substitution table for 3 SKUs,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Germany
+INC0261981,2024-08-22 10:36:55,W5 - Problems with FR Cx invoices issuance / re-issuance for MEA GmbH for June 2024 and other periods,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Multiple
+INC0260329,2024-08-06 18:08:24,"OneERP, Wave 5, MEA, MU: price condition ATX1 missing for SO 180499",L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,UAE
+INC0260287,2024-08-06 13:57:55,"OneERP, Wave 5, MEA, LB, Invoice stuck: Delivery 80185727 has goods issue problem",L2 - OneERP - S/4 HANA - O2C,August 2024,"Procure to Pay, Order to Cash",,Switzerland
+INC0262373,2024-08-27 15:42:56,ERP SAP - issue order 187884,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Italy
+INC0260854,2024-08-10 04:49:43,W5 - Brazil - Monthly Invoice Report for Brazil (ZOTC_BR_INVREP) not working correctly,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Brazil
+INC0261333,2024-08-14 00:37:59,W5 - Brazil - Samples to lab Nota fiscal rejected by Sefaz,L2 - OneERP - S/4 HANA - O2C,August 2024,Order to Cash,,Brazil
+INC0258700,2024-07-22 10:57:50,SAP issue,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Korea
+INC0258276,2024-07-17 18:37:14,order in status COM,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,France
+INC0257859,2024-07-12 22:28:34,Credit note triggered as Invoice via CEGEDIM,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,France
+INC0258561,2024-07-19 18:04:53,order 2442407-007085 blocked in SAP,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,France
+INC0258218,2024-07-17 09:45:17,Transaction connect error,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Korea
+INC0256682,2024-07-02 16:34:13,Settle sales commissions was done with incorrect gross sales,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Japan
+INC0256731,2024-07-02 19:42:11,Austrian fax number needs to be removed from created invoices,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Austria
+INC0256895,2024-07-03 20:20:38,ONE ERP - Bill to Customer 70000080 - wrong Country printed on Invoices,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Germany
+INC0259605,2024-07-30 20:09:14,OneERP wave 5 Hypercare - MEA/MNE - Change in commission rates for 539 products,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,UAE
+INC0258882,2024-07-23 18:29:00,price to change 2000003258 regione Puglia - to assign to Vishnu,L2 - OneERP - S/4 HANA - O2C,July 2024,Procure to Pay,,Italy
+INC0257805,2024-07-12 15:45:24,Wave 4 price list changed for a customer doesn't works,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Italy
+INC0258290,2024-07-17 20:31:50,No journal entry generated from created billing documents,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Austria
+INC0257015,2024-07-04 20:10:59,SAP Return 60011728,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Spain
+INC0257002,2024-07-04 18:32:17,ONE ERP: SAP we need to change the condition on ZTPR already existing,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Italy
+INC0259418,2024-07-29 13:25:50,W2 OneERP ANZ - O2C - Availability error resulting from iDoc,L2 - OneERP - S/4 HANA - O2C,July 2024,Procure to Pay,,Australia
+INC0256683,2024-07-02 16:36:10,settle sales commissions about 2Q,L2 - OneERP - S/4 HANA - O2C,July 2024,Order to Cash,,Japan
+INC0254193,2024-06-06 03:29:33,Wrong price appear on a customer invoice,L2 - OneERP - S/4 HANA - O2C,June 2024,Procure to Pay,,France
+INC0256268,2024-06-27 16:43:44,OneERP in OTC - IDoc Medis sales orders from 26th June are looking and numbered like Credit memo requests and ask for order reason when I need to proceed them,L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Austria
+INC0254289,2024-06-06 21:47:14,ONE ERP - W3 - The footer in e-mails send from SAP for Invoices/Credit Memos for DE02 is wrong - it is the footer of DE03 (Krugmann),L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Germany
+INC0254541,2024-06-10 22:42:20,issue with order 156925,L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Italy
+INC0254888,2024-06-13 16:28:29,ONE ERP: Invoice block in VF04,L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Italy
+INC0256393,2024-06-28 18:46:46,SAP ERP issue with order 163947,L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Italy
+INC0255481,2024-06-19 20:38:13,We have mismatched in salabe stock and we cannot reconciliate our stock with warehouse in ES01. Please can you check what is the problem on this?,L2 - OneERP - S/4 HANA - O2C,June 2024,"Order to Cash, Procure to Pay",,Spain
+INC0256279,2024-06-27 17:49:06,ONE ERP W4 ITALY - ISSUE ON XML  CUSTOMER INVOICE,L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Italy
+INC0255495,2024-06-19 21:53:10,SAP: Invoice Material Number not correct,L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Italy
+INC0255980,2024-06-25 14:35:01,ONE ERP: Invoice 0090124595_VA24019893 Università Sapienza 10034745,L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Italy
+INC0254759,2024-06-12 15:54:19,The following error message occurred while issuing sample order (ZBF1 – Marketing FOC). Please revise it so that it will be issued normally.,L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Korea
+INC0255977,2024-06-25 13:45:59,specific customer's order from E-Order can't interface now -,L2 - OneERP - S/4 HANA - O2C,June 2024,Order to Cash,,Korea
+INC0252598,2024-05-17 18:21:48,ERP SAP - COUMN OF THE ORDER EMPTY 150290,L2 - OneERP - S/4 HANA - O2C,May 2024,Technical,,Italy
+INC0253556,2024-05-30 14:43:52,ONE ERP SAP:  SALES INVOICE SETTING URGENT,L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,Italy
+INC0253631,2024-05-30 23:10:30,Wave 2 CANADA - Some credits are not going for approval.,L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,Canada
+INC0251690,2024-05-09 03:10:32,CANADA - SAP - Now seeing a repeat of the issue on INC0246007. ZRRC percentage not calculating correctly,L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,Canada
+INC0252987,2024-05-22 10:41:26,can not release asles order,L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,Korea
+INC0253221,2024-05-24 22:01:05,"JP01_Incorrect set-up in the place of VAT number in rebate payment letters of ""Information Provision Fee"".",L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,Japan
+INC0252576,2024-05-17 16:19:48,SAP: CREDIT NOTE 0084001668  NOT VISIBLE,L2 - OneERP - S/4 HANA - O2C,May 2024,Supply Chain,,Italy
+INC0253712,2024-05-31 19:19:53,OneERP - O2C - Medis Idoc 702717 move to “No Further processing” status 68,L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,Austria
+INC0251040,2024-05-01 15:14:27,SAP Production System Japan - Sales Order 145151 has been updated with manual PRICING CONDITION PMP0 but will not retain the price update when the sales order is saved.,L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,Japan
+INC0251892,2024-05-10 18:59:03,ABAP Dumps (run time error :BCD_ZERODIVIDE) created in the PS4 system,L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,Germany
+INC0251190,2024-05-02 18:28:00,WAVE 4 ONE ERP SAP - ISSUE WITH QUOTA QUANTITY FOR THE HOSPITALS,L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,Italy
+INC0251891,2024-05-10 18:54:05,"orders without ARL, in this case it’s impossible to create invoice",L2 - OneERP - S/4 HANA - O2C,May 2024,Order to Cash,,France
+INC0251196,2024-05-02 19:12:28,Incorrect Product name of Info. Provision Fee in Rebate Settlement Letter & Incorrect payment date,L2 - OneERP - S/4 HANA - O2C,May 2024,"Record to Report, Order to Cash",,Japan
+INC0253554,2024-05-30 13:41:44,W2 OneERP ANZ - B Journal entry not created (account determination error),L2 - OneERP - S/4 HANA - O2C,May 2024,Record to Report,,Australia
+INC0268800,2024-11-02 01:54:26,3PL-Sales -Sweden - Currency difference in SAP. it should be SEK instead of EUR.,L2 - OneERP - S/4 HANA - O2C,November 2024,Order to Cash,,Sweden
+INC0268942,2024-11-04 19:17:31,Wave 5 - Ireland (IE01) - Uploaded Sales Orders - Decimal Issue in Quantity,L2 - OneERP - S/4 HANA - O2C,November 2024,Order to Cash,,Ireland
+INC0268717,2024-11-01 05:04:39,Wave 2 OneERP OTC - Availability Check issues - iDoc 876010 Fails,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Australia
+INC0268488,2024-10-29 21:53:24,line ARL missing for invoice,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,France
+INC0267280,2024-10-14 19:57:20,W3 - Germany - SAP credit memo release request - no details visible,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Germany
+INC0267886,2024-10-21 20:30:03,SAP: Update price,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Italy
+INC0267872,2024-10-21 17:12:30,SAP: Credit note issue with CR,L2 - OneERP - S/4 HANA - O2C,October 2024,Record to Report,,Italy
+INC0267492,2024-10-16 16:50:39,REZZAYO PRODUCT,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,France
+INC0267227,2024-10-14 12:51:31,Check appover,L2 - OneERP - S/4 HANA - O2C,October 2024,Technical,,Korea
+INC0267684,2024-10-18 16:07:24,FR01 - Invoice not generated  - cust id 10000546,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,France
+INC0265903,2024-10-02 19:33:40,Profit centre not aligned with location,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Saudi Arabia
+INC0267700,2024-10-18 18:47:12,OneERP - Hypercare (Norway),L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Norway
+INC0266170,2024-10-04 18:18:48,OneERP - Hypercare - ZA01 Southafrica - Unable to process credit returns due to expired stock,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,South Africa
+INC0266198,2024-10-04 21:28:00,BUT000 export created for CR985 is not including updated records,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,France
+INC0267429,2024-10-15 22:32:36,OneERP - Hypercare - Southafrica - ZA01,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,South Africa
+INC0266501,2024-10-08 14:43:52,SAP: invoice and credit note,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Italy
+INC0265703,2024-10-01 15:58:07,OneERP Hyper care - Finland (Material out of stock),L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Finland
+INC0265711,2024-10-01 16:10:32,issue with shipping of material 2000003226,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Italy
+INC0265904,2024-10-02 19:39:35,Hypercare - OneERP - Denmark,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Denmark
+INC0266184,2024-10-04 19:52:17,Wave 5 - NL01 - Sold out party 10036332 is not added in the customer master data,L2 - OneERP - S/4 HANA - O2C,October 2024,Order to Cash,,Netherlands
+INC0263309,2024-09-05 23:54:32,credit memo,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,France
+INC0264108,2024-09-13 20:19:58,IDOC 825961,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,France
+INC0263912,2024-09-11 23:10:05,Wave 1 - France - Good issue not triggered,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,France
+INC0263825,2024-09-11 04:43:34,W5 - Brazil - Ship Confirmed (PGI) Deliveries not invoiced,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0264754,2024-09-20 20:31:12,invoice printout only reflects the second address line,L2 - OneERP - S/4 HANA - O2C,September 2024,Cross Functional,,Multiple
+INC0264643,2024-09-20 03:01:58,W5 - Brazil - NFe 1997 rejected because of customer setup,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0263302,2024-09-05 23:16:07,CANT GENERATE INVOICE,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,France
+INC0264486,2024-09-18 21:18:28,Wave 1 - Spain - SAP Commercial discount,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Spain
+INC0263008,2024-09-03 20:04:01,Sales order not generating invoice,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,France
+INC0263399,2024-09-06 17:39:24,OneERP SAP issue - Commission amount not updating on Saudi SO's,L2 - OneERP - S/4 HANA - O2C,September 2024,Supply Chain,,Service Entities
+INC0263166,2024-09-04 23:30:26,W5 - Finland - material availability issue,L2 - OneERP - S/4 HANA - O2C,September 2024,"Supply Chain, Record to Report",,Finland
+INC0265177,2024-09-25 19:58:01,Wave 5 - Brazil - Tax Jurisdiction code has not been configured for Postal code 40150-010 in Brazil,L2 - OneERP - S/4 HANA - O2C,September 2024,Procure to Pay,,Brazil
+INC0264592,2024-09-19 19:13:38,Wave 5 - Brazil - idoc errors,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0265054,2024-09-24 17:47:14,ES SAP - RETRIGGER THE IDocs IN SII WHICH WERE NOT SENT AT THE TIME,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Spain
+INC0264287,2024-09-16 21:15:15,VAT,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,France
+INC0264046,2024-09-13 03:22:16,W5 - Brazil - Update SP Tax Jurisdiction Code - Postal Code Range for BR - MG,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0264783,2024-09-21 06:40:45,W5 - Brazil - Journal Entry Item Text,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0263566,2024-09-09 10:33:27,W2 OneERP ANZ - Errors due to availability Checks,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Australia
+INC0263844,2024-09-11 15:49:37,URGENT - 194372 ORDER FOR REZZAYO NOT POSSIBLE TO PROCESS - is a life-saving medicine we need to ship it asap,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Italy
+INC0262960,2024-09-03 16:50:43,ES SAP - CHANGE IDOC STATUS FOR FAILURE 30/08/24,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Spain
+INC0263674,2024-09-10 01:57:56,Wave 5 - Brazil - Monthly Invoice Report (ZOTC_BR_INVREP) - Not showing correct Customer Number,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0263790,2024-09-10 22:25:40,W5 Brazil - Invoice transmission service for sefaz,L2 - OneERP - S/4 HANA - O2C,September 2024,Technical,,Brazil
+INC0264087,2024-09-13 16:25:33,Wave 1 Spain - SAP ORDER 195035,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Spain
+INC0265628,2024-09-30 22:45:26,OneERP - Hypercare - South Africa - Need to reverse the transactions linked to today,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,South Africa
+INC0263327,2024-09-06 04:54:08,W5 - Brazil - Update SP Tax Jurisdiction Code - Postal Code Range,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0263654,2024-09-09 21:24:40,Wave 5 - Brazil - Return Invoice has an error in the unit price.,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0263009,2024-09-03 20:09:03,OneERP - Hypercare (Wave 5 entities monthend billing issue),L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Sweden
+INC0264442,2024-09-18 14:43:09,SAP Credit Memo Requests Cancellation Required,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,South Africa
+INC0263682,2024-09-10 03:56:00,W5 - Brazil - Shipping ATNF(Send XML to DHL by sftp) Files to DHL,L2 - OneERP - S/4 HANA - O2C,September 2024,Technical,,Brazil
+INC0265632,2024-09-30 23:26:02,W5 Brazil - Sales Orders Discounts not working for Customers (CRKA8),L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0263303,2024-09-05 23:24:39,Sales figures are not matching with SAP TB- Norway 101006,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Norway
+INC0264747,2024-09-20 20:00:37,Wave 5 - Brazil - COD_SIT CORRECTION (CORREÇÂO COD_SIT),L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Brazil
+INC0265377,2024-09-27 13:21:31,Edoc submit tax invoice error,L2 - OneERP - S/4 HANA - O2C,September 2024,Record to Report,,Korea
+INC0265057,2024-09-24 17:58:05,OneERP SAP - Please cancel invoice 90145528,L2 - OneERP - S/4 HANA - O2C,September 2024,Order to Cash,,Saudi Arabia
+INC0261737,2024-08-19 15:55:09,"SAP PO interfaced with ambiguous due  date, causing Oracle Import process ending in error",L2 - OneERP - S/4 HANA - P2P,August 2024,Procure to Pay,,Japan
+INC0261777,2024-08-19 21:14:41,One ERP - W3 - please move idoc 795688 to no further processing status,L2 - OneERP - S/4 HANA - P2P,August 2024,Procure to Pay,,Germany
+INC0260837,2024-08-10 01:12:37,Invoice posting against blanket PO,L2 - OneERP - S/4 HANA - P2P,August 2024,Tax,,Brazil
+INC0261778,2024-08-19 21:24:21,One ERP - W3 - please move idoc 793666 to no further processing status,L2 - OneERP - S/4 HANA - P2P,August 2024,Procure to Pay,,Germany
+INC0261379,2024-08-14 17:09:40,OneERP W3 - please reprocess idoc 791164,L2 - OneERP - S/4 HANA - P2P,August 2024,Procure to Pay,,Germany
+INC0260162,2024-08-05 14:52:43,OneERP wave 5 Hypercare – SA,L2 - OneERP - S/4 HANA - P2P,August 2024,Supply Chain,,Saudi Arabia
+INC0262474,2024-08-28 16:16:29,SAP Team BAU - Order not created,L2 - OneERP - S/4 HANA - P2P,August 2024,Procure to Pay,,Switzerland
+INC0260756,2024-08-09 15:12:39,W3 one ERP - please move idoc 785844 to status 'no further processing',L2 - OneERP - S/4 HANA - P2P,August 2024,Procure to Pay,,Germany
+INC0260284,2024-08-06 13:41:12,"OneERP, Wave 5, MEA, France (FR9C), invoice stuck: unable to invoice delivery 80187546",L2 - OneERP - S/4 HANA - P2P,August 2024,Order to Cash,,Switzerland
+INC0261919,2024-08-21 15:16:57,W2-ONE ERP-TP change for posted PO4500009272,L2 - OneERP - S/4 HANA - P2P,August 2024,Procure to Pay,,Korea
+INC0261774,2024-08-19 21:03:51,one ERP - W3 - please move idoc 792377 to no further processing status,L2 - OneERP - S/4 HANA - P2P,August 2024,Procure to Pay,,Germany
+INC0260171,2024-08-05 16:11:48,Update Signals are ending in error due to wrong change sequences,L2 - OneERP - S/4 HANA - P2P,August 2024,Order to Cash,,Austria
+INC0261405,2024-08-14 21:40:05,"Cadastrar CST ICMS, CST PIS, CST COFINS e CST IPI para listagem anexa de CFOPs",L2 - OneERP - S/4 HANA - P2P,August 2024,Procure to Pay,,Brazil
+INC0258981,2024-07-24 16:39:30,W2_ONE ERP_KR TP change request_posted PO4500006793,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Korea
+INC0257794,2024-07-12 13:06:22,IDoc Archiving due to we are not sending any Infor oubound signal for Infor orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Australia
+INC0257396,2024-07-09 10:56:45,W2_ONE ERP_URGENT - Return PO : movement type check,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Korea
+INC0258696,2024-07-22 09:50:44,W2_ONE ERP_URGENT_KR PO missing in 3PL,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Korea
+INC0256756,2024-07-02 22:23:29,"SAP MM - FI - P6 2024 -  REZZAYO  material 200100134 -Transfert price 762,67  euro / unit different from PO  (4500012502) price of  524,11 euro/ unit",L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,France
+INC0256662,2024-07-02 14:31:23,IDoc Archiving needed - SAP GR to ANAPLAN Order close  signal is not required -  Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Germany
+INC0258009,2024-07-15 18:13:06,SAP Live Data Extract - SAP and ORacleERP Material mapping,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Multiple
+INC0258470,2024-07-18 23:01:11,BARD (Rx) - 5793 > order was not visible for BARD from placing the order in May 24 till 10th July 2024,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Austria
+INC0258513,2024-07-19 10:21:45,SAP /  Stock Multiple Materials - Export error,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Korea
+INC0258986,2024-07-24 16:42:47,W2_ONE ERP_KR TP change request_posted PO4500006792,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Korea
+INC0256653,2024-07-02 10:30:08,"In connection with INC0255607, I would like to request permission for not being able to move storage locations.",L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Korea
+INC0258827,2024-07-23 10:16:01,"Wave 5 SAP, P2P, purchase order creation (me21n): run time error window",L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,France
+INC0259711,2024-07-31 17:36:31,Anaplan PROD order AP_0001598  not created in SAP,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Multiple
+INC0258790,2024-07-22 21:28:29,W3 - One ERP - please move idocs: 764517; 764531 764722 to 'no further processing' status,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Austria
+INC0258586,2024-07-19 22:27:50,Incorrect Date format in SAP HANA,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Korea
+INC0257276,2024-07-08 12:59:32,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Canada
+INC0259558,2024-07-30 15:18:27,Anaplan Order not gone through from SAP to Oracle - Sned to SAP BAU Team,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Switzerland
+INC0257399,2024-07-09 11:58:27,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Switzerland
+INC0257530,2024-07-10 14:43:51,W2_ONE ERP_[URGENT] PO missing in 3PL_PO#4500006792,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Korea
+INC0257527,2024-07-10 14:42:06,W2_ONE ERP_[URGENT] PO missing in 3PL_PO#4500006791,L2 - OneERP - S/4 HANA - P2P,July 2024,Procure to Pay,,Korea
+INC0253842,2024-06-03 16:05:46,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Italy
+INC0255302,2024-06-18 11:41:19,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Germany
+INC0254332,2024-06-07 11:26:12,W2_ONE ERP_TP change request_PO4500011055,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Korea
+INC0255966,2024-06-25 11:43:41,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Switzerland
+INC0255428,2024-06-19 11:49:24,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Korea
+INC0254793,2024-06-12 19:35:31,"One ERP - W3 - please move idocs to 'no further processing' status: 714855 ,714856, 714857, 697896, 697906, 697908",L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Germany
+INC0256296,2024-06-27 19:16:46,One ERP - W3 - please move idoc 727628 t o'no further processing' status,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Germany
+INC0254856,2024-06-13 11:51:49,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Switzerland
+INC0256358,2024-06-28 11:36:14,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Australia
+INC0254335,2024-06-07 13:28:07,IDoc Archiving due to we are not sending any Infor outbound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Multiple
+INC0255702,2024-06-21 16:36:30,Supplier Name update for Japan Minophagen,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Japan
+INC0254904,2024-06-13 18:23:39,4500012534   SAP JAPAN order hold - Incorrect supplier,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Japan
+INC0254215,2024-06-06 12:29:26,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Germany
+INC0254471,2024-06-10 12:38:06,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Multiple
+INC0255864,2024-06-24 12:13:17,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Germany
+INC0254737,2024-06-12 12:00:28,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Spain
+INC0254573,2024-06-11 12:52:38,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Austria
+INC0254979,2024-06-14 12:07:43,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Multiple
+INC0255675,2024-06-21 12:25:00,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Multiple
+INC0255179,2024-06-17 11:51:34,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Spain
+INC0256239,2024-06-27 12:12:50,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,June 2024,Procure to Pay,,Germany
+INC0251084,2024-05-01 20:25:45,Testing Dropshipment orders from Anaplan to SAP for Anaplan Phase 3a ,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Service Entities
+INC0251029,2024-05-01 12:03:14,OneERP_W3_1 IDOC is failed on 30.04.2024,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Austria
+INC0253661,2024-05-31 12:09:36,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDoc to status 31 - No further processing,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Canada
+INC0253303,2024-05-27 16:32:58,SAP_POs not loaded,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Spain
+INC0253294,2024-05-27 15:02:41,Move below IDocs to 31 - Error No further processing - Due to we are not sending any outbound IDoc from SAP to Infor for ANAPLAN order,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Germany
+INC0253571,2024-05-30 16:20:25,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDocs 31 No further processing,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Austria
+INC0252339,2024-05-15 19:09:33,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDocs 31 No further processing,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Germany
+INC0253127,2024-05-23 19:33:35,SAP to Consolidator - Request to Include Special Stock,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Japan
+INC0253195,2024-05-24 16:39:12,Move below IDocs to 31 - Error No further processing - Due to we are not sending any outbound IDoc from SAP to Infor for ANAPLAN order,L2 - OneERP - S/4 HANA - P2P,May 2024,"Record to Report, Technical",,Multiple
+INC0253193,2024-05-24 16:27:42,One ERP - Wave 3 - please change idoc 694278 status to 'no further processing',L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Germany
+INC0252706,2024-05-20 13:44:48,IDoc Archiving due to we are not sending any Infor oubound signal for ANAPLAN orders - Moving IDocs 31 No further processing,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Italy
+INC0251720,2024-05-09 12:18:49,IDoc Archiving due to we are not sending any Infor oubound signal fro ANAPLAN orders - Moving IDocs 31 No further processing,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Multiple
+INC0251396,2024-05-06 11:31:20,OneERP SAP Hana - To Archive a Failed IDoc 0000000000669923,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Austria
+INC0253688,2024-05-31 16:57:48,Transfer pricing on SAP order PO # 4500012636 is incorrect,L2 - OneERP - S/4 HANA - P2P,May 2024,Procure to Pay,,Korea
+INC0268786,2024-11-01 23:22:20,W5 - Brazil - Black book Opioid Control report - Issues,L2 - OneERP - S/4 HANA - P2P,November 2024,Procure to Pay,,Brazil
+INC0268971,2024-11-04 23:27:42,W4 ONE ERP ITALY - WRONG PRICE ON PO 4500012297,L2 - OneERP - S/4 HANA - P2P,November 2024,Procure to Pay,,Italy
+INC0268461,2024-10-29 18:41:25,Batch expiry missing from daily SAP stock report from France - FAO Mahesh Kalane,L2 - OneERP - S/4 HANA - P2P,October 2024,Procure to Pay,,France
+INC0267601,2024-10-17 17:11:21,"Wave 2, 4- Japan, Korea and Australia - need report which will show me open purchase orders including Qty and value",L2 - OneERP - S/4 HANA - P2P,October 2024,Procure to Pay,,Multiple
+INC0266629,2024-10-09 05:38:07,Support to Process Purchase orders in SAP -Aanaplan P4  UAT -Japan and Korea market in QS4 600,L2 - OneERP - S/4 HANA - P2P,October 2024,Technical,,Japan
+INC0266779,2024-10-10 09:00:47,PO EDI message not being sent to 3PL,L2 - OneERP - S/4 HANA - P2P,October 2024,Procure to Pay,,Brazil
+INC0268393,2024-10-28 19:06:11,Wave 3 - one ERP - incorrect price on PO 4500015317 ; reversal not possible due to consumed stock,L2 - OneERP - S/4 HANA - P2P,October 2024,Procure to Pay,,Germany
+INC0267516,2024-10-16 19:47:03,I have checked inventory Movianto file againts SAP file and I have found a discrepancie in salable stock for 50 units. Can you check or send to Movianto if some IDOC has failed?,L2 - OneERP - S/4 HANA - P2P,October 2024,Procure to Pay,,Spain
+INC0267887,2024-10-21 20:34:08,SAP is sending Insert Signal for Existing Orders,L2 - OneERP - S/4 HANA - P2P,October 2024,Technical,,Multiple
+INC0267511,2024-10-16 18:56:21,Idoc failure ,L2 - OneERP - S/4 HANA - P2P,October 2024,Procure to Pay,,Austria
+INC0264309,2024-09-16 22:23:16,Aneram new semi FG SKU mapping in SAP  QS4 and prod system,L2 - OneERP - S/4 HANA - P2P,September 2024,Cross Functional,,Japan
+INC0264429,2024-09-18 11:04:04,PO 4500016033 issue with customer order number,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Switzerland
+INC0264636,2024-09-19 23:32:59,issue with sales orders 194007 and  193739,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Italy
+INC0264332,2024-09-17 06:02:48,SAP PO PRINT PDF option not working,L2 - OneERP - S/4 HANA - P2P,September 2024,Cross Functional,,Australia
+INC0264092,2024-09-13 17:12:05,W1 Spain iDOC failure - Mapping for Unit of Measure PC is incorrect between Movianto ES and MUNDI_ES,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Spain
+INC0262884,2024-09-02 20:53:31,"One ERP - W3 - please move idocs to no further processing status: 805582, 805586, 805587",L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Germany
+INC0262955,2024-09-03 15:54:33,ONE ERP W4 ITALY - WRONG PRICE ON PO 4500012111-4500012112-4500012107-4500012108,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Italy
+INC0263226,2024-09-05 16:51:34,Mis match of PO numbers between systems,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Netherlands
+INC0265125,2024-09-25 11:56:19,Wave 2 OneERP PTP iDoc Errors,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Australia
+INC0263692,2024-09-10 10:16:00,ONE-ERP_KR_2PO missing in 3PL,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Korea
+INC0263384,2024-09-06 16:32:38,One ERP - W3 - please reprocess idocs: 815744 & 815745,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Germany
+INC0264106,2024-09-13 19:58:46,"Anaplan/Oracle issue -AP_0002186, AP_0002187 & AP_0002188 have not processed",L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Germany
+INC0264313,2024-09-16 22:55:50,Anaplan orders are failing at SAP level,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Saudi Arabia
+INC0265397,2024-09-27 17:20:02,ORDER not PROCESSED from SAP in QS4600,L2 - OneERP - S/4 HANA - P2P,September 2024,Technical,,Multiple
+INC0264684,2024-09-20 14:51:22, resend insert signal for AP_0002414 - 4500016632,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Denmark
+INC0263725,2024-09-10 15:54:42,One ERP - W3 - please move idoc 817032 to no further processing status,L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Germany
+INC0262883,2024-09-02 20:52:48,"One ERP - W3 - please move idocs to no further processing status: 802647, 802648, 802670",L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Germany
+INC0264930,2024-09-23 19:17:16,"Esker, DE02 unable to process MDC invoices - vendor account ICNL0200",L2 - OneERP - S/4 HANA - P2P,September 2024,Procure to Pay,,Germany
+INC0261336,2024-08-14 01:28:27,SPED EFD ICMS not feeding in some records into the report,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0260359,2024-08-06 20:17:47,OneERP - HYpercare (Denmark),L2 - OneERP - S/4 HANA - R2R,August 2024,Procure to Pay,,Denmark
+INC0261511,2024-08-16 01:40:25,W5 - Brazil - COLLECTION BOLETO NOT WORKING ,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0262600,2024-08-29 23:01:39,"W5 - DK01 - Unable to run report, change report periodicity from monthly to quarterly",L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Denmark
+INC0261485,2024-08-15 19:28:58,ONE ERP - Netherland (Wave 5 ) - We could not be able to post because we are using tax code VP for intercompany.,L2 - OneERP - S/4 HANA - R2R,August 2024,Procure to Pay,,Netherlands
+INC0261458,2024-08-15 15:01:45,W2 – Canada - Payment incorrectly Posted,L2 - OneERP - S/4 HANA - R2R,August 2024,Procure to Pay,,Canada
+INC0260249,2024-08-05 23:05:16,Sweden - Journal posting blocking error,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Sweden
+INC0261201,2024-08-13 04:22:43,W5 - Brazil - SPED EFD (ICMS),L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0260235,2024-08-05 21:34:08,W5 - BR01 - Valor Total Liquido is incorrect for GO to GO sales using 5102/AA CFOP - uses reduced ICMS BC instead of Gross minus discount,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0261332,2024-08-13 23:30:47,W5 - Brazil - Vendor 10035383 doesn't have CNPJ as payment key for PIX payment,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0261470,2024-08-15 18:01:56,W5 - BE01 / NL01 - Replace details of Laura in DRC declarations header by details of Ivana Riegler for declarations submissions purposes,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Netherlands
+INC0261325,2024-08-13 22:06:18,ONE ERP - Issuance of Intercompany invoices in AE01,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,UAE
+INC0260395,2024-08-06 22:53:36,SAP Fiori TB layout is not in line i.e. GL balance is not showing against correct GL account,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Multiple
+INC0261108,2024-08-12 15:55:43,Missing AE Bank keys ,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,UAE
+INC0261200,2024-08-13 04:16:48,Wave 5 - Brazil - SPED PCO,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0260266,2024-08-06 02:58:02,W5 ONE ERP  - Bradesco House bank missing,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0261385,2024-08-14 17:52:49,OneERP wave 5 Hypercare - MNE - credit note error,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Switzerland
+INC0262602,2024-08-29 23:09:47,"W5 - NO Customer Line Item, NO Supplier Line Item and NO GL Line Item not appearing in Run Line Items in PS4 for NO01 / NO RPT ENT",L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Norway
+INC0261422,2024-08-14 22:57:57,"W5 - Brazil - SPED EFD is not displaying the ""Freight Type"" field",L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0260691,2024-08-08 22:43:04,Revaluation variant Request for CH06 & CH09,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Switzerland
+INC0261562,2024-08-16 17:04:05,AU01 - 20000774 - Remittance advises generating incorrectly,L2 - OneERP - S/4 HANA - R2R,August 2024,Procure to Pay,,Australia
+INC0261318,2024-08-13 21:18:42,Physical Inventory Adjustment for ES9A- Error KI235,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Spain
+INC0260554,2024-08-07 21:39:58,Hypercare Wave5 - Bank transactions on different lines in Trial Balance - P7 2024,L2 - OneERP - S/4 HANA - R2R,August 2024,Procure to Pay,,South Africa
+INC0260267,2024-08-06 03:24:16,W5 - ONEERP - Payment files posting directly to the house bank,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0260377,2024-08-06 21:56:55,While parking the Inventory Provision journal i am getting the error message as shown below in the attachment.,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Australia
+INC0260053,2024-08-03 04:57:50,CANADA - 103001 - Mismatch in Inventory Vs COGS as due interface issue between ETL and ERP.,L2 - OneERP - S/4 HANA - R2R,August 2024,Supply Chain,,Service Entities
+INC0261591,2024-08-17 01:21:48,W5 - BR01 - values of returns displayed in NFe Sales & Returns report should be negative to allow correct calculations,L2 - OneERP - S/4 HANA - R2R,August 2024,Technical,,Brazil
+INC0261514,2024-08-16 03:36:37,W5 ONE ERP - Brazil - Statement upload showing error,L2 - OneERP - S/4 HANA - R2R,August 2024,Procure to Pay,,Brazil
+INC0261505,2024-08-15 23:41:18,Wave 5  - Sweden - Payment issue,L2 - OneERP - S/4 HANA - R2R,August 2024,Procure to Pay,,Sweden
+INC0259941,2024-08-02 05:23:08,Missing currency pairs  for Denmark & Sweden,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Sweden
+INC0261959,2024-08-22 00:12:20,W5 - Brazil - NF-e Sales and Returns(Z_SALES_RETURN) - Not working when Doc Type is 6 - Returns,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0261583,2024-08-16 21:38:34,"Issue with payment run in UAE, Need fixed.",L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,UAE
+INC0260812,2024-08-09 20:45:27,Wave 5 - AE - Migration numbers between SAP and FND does not reconcile,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,UAE
+INC0261185,2024-08-12 23:35:16,Norway payment run Rejected.,L2 - OneERP - S/4 HANA - R2R,August 2024,Procure to Pay,,Norway
+INC0262604,2024-08-29 23:12:19,W5 - IE Annual Trading Report does not produce any output at all for IE01.,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Ireland
+INC0260824,2024-08-09 22:24:35,Missing quantities in FND for GL 54052010 in Foundation.,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0260192,2024-08-05 17:09:35,Sweden - Payroll Journal posting error,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Service Entities
+INC0260169,2024-08-05 16:05:08,OneERP wave 5 Hypercare CH09 GL Profitability segment error,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Switzerland
+INC0260470,2024-08-07 12:37:55,W2 - Korea - Change tax invoice's  representative name,L2 - OneERP - S/4 HANA - R2R,August 2024,Order to Cash,,Korea
+INC0260362,2024-08-06 20:22:01,W5 - Brazil - Registro de Saida – S_ALR_87012151 apresentou erro,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0261744,2024-08-19 17:03:14,"PT SAP -  When uploading the PT sales journal, the item text is not being copied to the client",L2 - OneERP - S/4 HANA - R2R,August 2024,Order to Cash,,Portugal
+INC0261197,2024-08-13 03:58:07,W5 - BR - Value of debits in the ICMS report minimally does not match expected value from NFe Sales and Returns report,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0261552,2024-08-16 16:28:51,OneERP wave 5 Hypercare - CH09_Credit note error,L2 - OneERP - S/4 HANA - R2R,August 2024,Technical,,Switzerland
+INC0261186,2024-08-12 23:41:25,Denmark payment run Rejected,L2 - OneERP - S/4 HANA - R2R,August 2024,Procure to Pay,,Denmark
+INC0260269,2024-08-06 04:14:14,W5 - Brazil - Different version of NFe Sales and Return report appearing in Portuguese language version,L2 - OneERP - S/4 HANA - R2R,August 2024,Record to Report,,Brazil
+INC0258927,2024-07-24 00:57:12,Account number field for Chinese bank doesnt allow more than 18 digits.,L2 - OneERP - S/4 HANA - R2R,July 2024,Procure to Pay,,Service Entities
+INC0257978,2024-07-15 16:21:42,Missing FX rates for 12.07.2024 in SAP.,L2 - OneERP - S/4 HANA - R2R,July 2024,Record to Report,,Multiple
+INC0258044,2024-07-15 22:36:47,ERP - foreign supplier payments with current account in euro,L2 - OneERP - S/4 HANA - R2R,July 2024,Record to Report,,Italy
+INC0258192,2024-07-16 23:51:38,"Open items list templates ZSAP8, ZSAP9 donot extract any data for German entities. Please help.",L2 - OneERP - S/4 HANA - R2R,July 2024,Cross Functional,,Italy
+INC0258325,2024-07-17 23:27:23,"Partial allocation, post incoming payments-customer",L2 - OneERP - S/4 HANA - R2R,July 2024,Record to Report,,Multiple
+INC0258759,2024-07-22 17:49:18,OnceERP - Incomplete Data sent from SAP,L2 - OneERP - S/4 HANA - R2R,July 2024,Record to Report,,Korea
+INC0258771,2024-07-22 19:01:03,We need help to delete two entries from production table for SEPA mandates.,L2 - OneERP - S/4 HANA - R2R,July 2024,Record to Report,,Multiple
+INC0259637,2024-07-30 23:27:30,Tax Calculation Error,L2 - OneERP - S/4 HANA - R2R,July 2024,Record to Report,,Service Entities
+INC0257523,2024-07-10 12:56:38,SAP payment access issue,L2 - OneERP - S/4 HANA - R2R,July 2024,"Record to Report, Technical",,Korea
+INC0259417,2024-07-29 12:15:36,PS4 ABAP Dump - CX_SADL_DUMP_APPL_MODEL_ERROR,L2 - OneERP - S/4 HANA - R2R,July 2024,Record to Report,,Multiple
+INC0254286,2024-06-06 21:32:57,one - erp - concur posting with tax code,L2 - OneERP - S/4 HANA - R2R,June 2024,Record to Report,,Italy
+INC0254256,2024-06-06 18:56:38,SAP: Manage Automatic Payments: Unable to run payment proposal,L2 - OneERP - S/4 HANA - R2R,June 2024,Technical,,Service Entities
+INC0255716,2024-06-21 19:05:16,"MMCO CH04 Alloga AG receipt for 2,524,793.12",L2 - OneERP - S/4 HANA - R2R,June 2024,Order to Cash,,Switzerland
+INC0254465,2024-06-10 10:00:27,Request : To solve error message in Esker in May.,L2 - OneERP - S/4 HANA - R2R,June 2024,Tax,,Japan
+INC0254750,2024-06-12 15:14:55,AT01 Halmed - Agency for Medical Product,L2 - OneERP - S/4 HANA - R2R,June 2024,Procure to Pay,,Austria
+INC0254187,2024-06-06 01:19:07,"ONE ERP  W4 ITALY - ISSUE ON VAT REGISTER ""AR""",L2 - OneERP - S/4 HANA - R2R,June 2024,Procure to Pay,,Italy
+INC0254895,2024-06-13 16:52:18,ERP - SAP - INTERCOMPANY PAYMENTS - incorrect iban and to be entered on suppliers,L2 - OneERP - S/4 HANA - R2R,June 2024,Procure to Pay,,Italy
+INC0255914,2024-06-24 21:02:17,TM5  - Open Payments,L2 - OneERP - S/4 HANA - R2R,June 2024,Record to Report,,Germany
+INC0255219,2024-06-17 17:39:59,Suppress warning message in France BP,L2 - OneERP - S/4 HANA - R2R,June 2024,Record to Report,,Multiple
+INC0256409,2024-06-28 21:52:35,Unable to post Credit memo through AR Template for Italy.,L2 - OneERP - S/4 HANA - R2R,June 2024,Order to Cash,,Italy
+INC0254279,2024-06-06 20:46:56,ONE ERP: RIBA MAPPING FOR REPORTING,L2 - OneERP - S/4 HANA - R2R,June 2024,Order to Cash,,Italy
+INC0254645,2024-06-11 21:28:00,"44003150 missing Item category this is an old GL approved during Wave 3, Please help as this is blocking Wave 5 Data load.",L2 - OneERP - S/4 HANA - R2R,June 2024,Record to Report,,Multiple
+INC0255901,2024-06-24 18:56:05,AR Invoice upload Interface fails to post Invoice with multiple lines for PT. AR template attached.,L2 - OneERP - S/4 HANA - R2R,June 2024,Record to Report,,Multiple
+INC0255374,2024-06-18 22:05:06,Unable to print invoice copy from SAP from FI Customer invoice print Tile/App,L2 - OneERP - S/4 HANA - R2R,June 2024,Tax,,Multiple
+INC0254731,2024-06-12 10:32:36,ONE ERP Wave2 Korea_SAP payment error supplier #20001316,L2 - OneERP - S/4 HANA - R2R,June 2024,Record to Report,,Korea
+INC0252243,2024-05-14 22:13:10,"ONE ERP - MMCO - Unable to post ""POR Reference Number is Invalid"".",L2 - OneERP - S/4 HANA - R2R,May 2024,"Record to Report, Supply Chain",,Service Entities
+INC0252629,2024-05-17 23:22:04,Qty missing from invoice posting line in GRNI-IAC GL 25020000,L2 - OneERP - S/4 HANA - R2R,May 2024,Record to Report,,Canada
+INC0253137,2024-05-23 21:18:37,Balance Sheet / Income Statement – Multidimensional app issue,L2 - OneERP - S/4 HANA - R2R,May 2024,Record to Report,,France
+INC0253043,2024-05-22 21:07:49,EBS not updating in SAP,L2 - OneERP - S/4 HANA - R2R,May 2024,Order to Cash,,Germany
+INC0252887,2024-05-21 17:14:13,MMCO payment run error for payment method T,L2 - OneERP - S/4 HANA - R2R,May 2024,Record to Report,,Service Entities
+INC0253232,2024-05-25 03:41:06,Inventory volume incorrect in foundation for raw material: product code - Rx (Ethical product),L2 - OneERP - S/4 HANA - R2R,May 2024,Record to Report,,Canada
+INC0251185,2024-05-02 18:08:21,Unable to process POST GOODS ISSUE for SAP Japan Sales Order Delivery 80154782.  SAP PROD client PS4 - 400,L2 - OneERP - S/4 HANA - R2R,May 2024,Order to Cash,,Japan
+INC0252805,2024-05-20 23:33:13,SAP Partial clearing - Short payment,L2 - OneERP - S/4 HANA - R2R,May 2024,Order to Cash,,FSS
+INC0253542,2024-05-30 09:48:03,Esker - Simulation error,L2 - OneERP - S/4 HANA - R2R,May 2024,Record to Report,,Service Entities
+INC0251436,2024-05-07 01:24:49,JP Sales Order Deliveries created in SAP Production client PS4 - 400 will not post goods issue.,L2 - OneERP - S/4 HANA - R2R,May 2024,"Order to Cash, Record to Report",,Japan
+INC0253138,2024-05-23 21:19:20,Due date and Rev GL clean up,L2 - OneERP - S/4 HANA - R2R,May 2024,Record to Report,,France
+INC0251827,2024-05-10 00:11:30,To correct the inventory on Foundation for P4,L2 - OneERP - S/4 HANA - R2R,May 2024,Record to Report,,Japan
+INC0251653,2024-05-08 21:03:01,SAP - Canada - FI Invoicing creating incorrect PDF invoice,L2 - OneERP - S/4 HANA - R2R,May 2024,Record to Report,,Canada
+INC0268905,2024-11-04 15:14:43,Wave 5 - CH06 Matching error: COGS profit center does not match sales profit center - WL Journal Entry type (Good receipt),L2 - OneERP - S/4 HANA - R2R,November 2024,Record to Report,,UAE
+INC0269222,2024-11-06 21:44:08,Open Orders feed EDW and Open Orders in SAP not identical,L2 - OneERP - S/4 HANA - R2R,November 2024,Order to Cash,,Italy
+INC0269325,2024-11-07 19:14:34,Wave 2 - Korea - COGS GL code -  configuration change,L2 - OneERP - S/4 HANA - R2R,November 2024,Record to Report,,Korea
+INC0268734,2024-11-01 12:51:31,Getting Profit centre error while doing On Account clearing in SAP,L2 - OneERP - S/4 HANA - R2R,November 2024,Record to Report,,Multiple
+INC0269112,2024-11-05 21:01:54,Wave 5 Brazil - JE Template Error -  GL Not allowed for Ledger Group ,L2 - OneERP - S/4 HANA - R2R,November 2024,Record to Report,,Brazil
+INC0269220,2024-11-06 20:31:03,ESKER - G/L Account wrong,L2 - OneERP - S/4 HANA - R2R,November 2024,Procure to Pay,,Service Entities
+INC0269127,2024-11-05 22:59:56,Wave 5 - NL01 - unable to post Journal In SAP,L2 - OneERP - S/4 HANA - R2R,November 2024,Record to Report,,Netherlands
+INC0268181,2024-10-24 19:46:36,Wave 5 - Denmark -  Payment run Failed,L2 - OneERP - S/4 HANA - R2R,October 2024,Procure to Pay,,Denmark
+INC0267356,2024-10-15 13:32:25,Payment file could not display Japanese character,L2 - OneERP - S/4 HANA - R2R,October 2024,Procure to Pay,,Japan
+INC0268457,2024-10-29 18:24:54,Wave 3 - AT01 - Austria Payment run Failure 16.10.2024,L2 - OneERP - S/4 HANA - R2R,October 2024,Procure to Pay,,Austria
+INC0268665,2024-10-31 19:07:29,Wave 5 - Sweden(SE01) - Not able to post the invoice ref#333136002601,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Sweden
+INC0268274,2024-10-25 18:39:47,Wave4 - Italy - SAP: Change default bank for payment,L2 - OneERP - S/4 HANA - R2R,October 2024,Procure to Pay,,Italy
+INC0268022,2024-10-23 04:10:23,W1 - Spain - AUTOMATIC STATEMENT OF ACCOUNT FOR THE CUSTOMER IS NOT WORKING,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Spain
+INC0267780,2024-10-19 05:07:57,Wave 2 - Canada - Payment media file - Incorrect Company Name,L2 - OneERP - S/4 HANA - R2R,October 2024,Procure to Pay,,Canada
+INC0267849,2024-10-21 14:36:45,Report DAS2 - WHT not working,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,France
+INC0267517,2024-10-16 19:48:43,payment order from Bank rejected,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Netherlands
+INC0268499,2024-10-29 22:52:09,Wave 1 - GB01 - SAP system was unable to identify the GL code-41000000,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Service Entities
+INC0268198,2024-10-24 22:28:32,Wave 5 - CH06 -MEA (Mundipharma Unable to post the JE with the GL account-44003600 asking the Cost Center while upload the JE,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,UAE
+INC0268712,2024-11-01 02:05:12,INC0255627 - NL-MDC VAT Number to be stated as customer VAT number (CRK52),L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Netherlands
+INC0267688,2024-10-18 17:03:02,SAP: VAT Declaration xml generated,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Italy
+INC0267687,2024-10-18 16:54:32,W2 - Canada - Credit Memo is Printing Invoice number - Canadian Revenue Agency is questioning this,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,FSS
+INC0266108,2024-10-04 09:17:06,Journal Entry Item Text,L2 - OneERP - S/4 HANA - R2R,October 2024,Order to Cash,,Multiple
+INC0266145,2024-10-04 16:12:51,PS4 EWA report anlysis on FI side effect notes,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Multiple
+INC0268557,2024-10-30 15:43:49,Wave 4 - Japan - Can't reverse AP open item in SAP,L2 - OneERP - S/4 HANA - R2R,October 2024,Procure to Pay,,Japan
+INC0268169,2024-10-24 18:03:50,"Shift the cost of Shipping, Warehousing, Distribution & Freight from Tech Ops PL to local PL.",L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Japan
+INC0268201,2024-10-24 22:49:50,reversal not possible for doc 5105627741,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Spain
+INC0266080,2024-10-03 22:28:08,"Hi Team, in MEA(CH06) SAP GL line details dont have cost center as RX001LB. However, in tagetik (104033)showig the unmapped CC for the same cost center, Kindly advise.",L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,UAE
+INC0268465,2024-10-29 19:11:42,Corporate Entities Hypercare SAP - LU01 - non assigned ledger  to statement version MPFS,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,UAE
+INC0266890,2024-10-11 12:12:39,EGP (Egyptian Pound) currency to be added in SAP for AE01 entity ( R2R),L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,UAE
+INC0267994,2024-10-22 21:13:14,W3 - AT01 - SAP bank posting in FX not correctly working,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Austria
+INC0268502,2024-10-29 23:08:08,Denmark payment run Failure Domestic,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Denmark
+INC0266909,2024-10-11 16:58:16,W3 - AT01 - SAP Austria invoices while input details are blank,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Austria
+INC0266483,2024-10-08 09:04:06,E-document tax invoice error,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Multiple
+INC0267725,2024-10-18 22:05:49,"Alt reference for reverse document types is not geenrated it is copying original document alt reference number, Please check in QS400",L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Italy
+INC0267398,2024-10-15 18:18:21,Exchange rates Idoc# 0000000000863538 failled,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Multiple
+INC0267848,2024-10-21 14:31:15,W5- NL01 - Bank account picking wrongly in Payment run,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Netherlands
+INC0267698,2024-10-18 18:20:31,Foreign currency valuation-adjustment accounts corrections.,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Multiple
+INC0268238,2024-10-25 09:09:04,"Wave 4 - Japan - I need to download txt file after I do payment run. When I download the payment file, I find two line is showed, but txt file information is the same.",L2 - OneERP - S/4 HANA - R2R,October 2024,Procure to Pay,,Japan
+INC0266082,2024-10-03 22:47:31,W5 - Norway - Journal # 1900012082 not reflecting in Approver's queue for entity NO01 in SAP,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Norway
+INC0265787,2024-10-01 22:51:29,Wave 4 Italy - SAP - Invoice 90150563 -Acct Determination Error ( blocked),L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Italy
+INC0266925,2024-10-11 19:14:47,Wave 5 - CH06 - MEA GMBH -Error in GL code,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,UAE
+INC0268500,2024-10-29 23:03:44,Unable to post P13 Journal,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Multiple
+INC0266378,2024-10-07 16:17:08,Wave 5  - MEA C - CH06 and CH09 FX run error,L2 - OneERP - S/4 HANA - R2R,October 2024,Record to Report,,Multiple
+INC0263774,2024-09-10 21:10:07,ESKER -  G/L Account wrong,L2 - OneERP - S/4 HANA - R2R,September 2024,Procure to Pay,,Service Entities
+INC0264719,2024-09-20 17:25:20,MMCO - Unable to raise payment from MMCO in payment method I for EUR payment,L2 - OneERP - S/4 HANA - R2R,September 2024,Procure to Pay,,Switzerland
+INC0263642,2024-09-09 20:33:45,Wave 5 - Brazil - order 4500015825 was not reopened 4500015825,L2 - OneERP - S/4 HANA - R2R,September 2024,Procure to Pay,,Brazil
+INC0263622,2024-09-09 19:17:33,Wave 5 - Finland Unable to post the journals due to Tax code - Finland(101005),L2 - OneERP - S/4 HANA - R2R,September 2024,Record to Report,,Finland
+INC0264033,2024-09-12 22:59:38,W5- NL01 - Bank account picking wrongly in Payment run,L2 - OneERP - S/4 HANA - R2R,September 2024,Procure to Pay,,Netherlands
+INC0263381,2024-09-06 16:22:25,COGS WE and WI entry types (Goods Receipt) are being mapped at default NA001CH Profit Centre,L2 - OneERP - S/4 HANA - R2R,September 2024,Procure to Pay,,Saudi Arabia
+INC0264398,2024-09-17 22:58:49,Denmark House bank change request ( For payment method F eur account should be the backup),L2 - OneERP - S/4 HANA - R2R,September 2024,Procure to Pay,,Denmark
+INC0265422,2024-09-27 21:44:00,Billing documents failing while releasing to account due to error Tax indicator not assigned to account and country/region YCOA 0021531000 BR SD,L2 - OneERP - S/4 HANA - R2R,September 2024,Record to Report,,Brazil
+INC0263885,2024-09-11 18:41:41,Split entry showing incorrectly in ledger level,L2 - OneERP - S/4 HANA - R2R,September 2024,Order to Cash,,Switzerland
+INC0263072,2024-09-04 05:26:22,"Registros/blocos: 0460, C195, C197, D190, D195 e D197",L2 - OneERP - S/4 HANA - R2R,September 2024,Record to Report,,Brazil
+INC0265043,2024-09-24 17:03:10,MITO - China - VAT issue,L2 - OneERP - S/4 HANA - R2R,September 2024,Record to Report,,Multiple
+INC0265388,2024-09-27 15:51:56,EDI820 - SDM - The Entry posted in SAP was incorrect.,L2 - OneERP - S/4 HANA - R2R,September 2024,Procure to Pay,,Canada
+INC0265178,2024-09-25 19:58:09,Conta Contábil INSS,L2 - OneERP - S/4 HANA - R2R,September 2024,Record to Report,,Brazil
+INC0265340,2024-09-26 22:49:19,Need VAT Number for the invoice #1800010173,L2 - OneERP - S/4 HANA - R2R,September 2024,Record to Report,,Multiple
+INC0263907,2024-09-11 22:03:25,Invoice date is not reflecting correctly in SAP,L2 - OneERP - S/4 HANA - R2R,September 2024,Order to Cash,,Multiple
+INC0263900,2024-09-11 20:35:43,MAG GRNI report mismatch,L2 - OneERP - S/4 HANA - R2R,September 2024,Record to Report,,Switzerland
+INC0263005,2024-09-03 19:39:07,SPED EFD (ICMS) IS NOT RECORDING ALL INVOICES,L2 - OneERP - S/4 HANA - R2R,September 2024,Order to Cash,,Brazil
+INC0265180,2024-09-25 20:01:33,Contas Contabéis,L2 - OneERP - S/4 HANA - R2R,September 2024,"Tax, Procure to Pay",,Brazil
+INC0263618,2024-09-09 18:51:14,ONE ERP W4 ITALY - ISSUE ON RUNNING PAYMENT PROPOSAL FOR VENDORS,L2 - OneERP - S/4 HANA - R2R,September 2024,"Order to Cash, Procure to Pay",,Italy
+INC0264361,2024-09-17 16:47:11,report DAS2 - WHT not working,L2 - OneERP - S/4 HANA - R2R,September 2024,Record to Report,,France
+INC0260458,2024-08-07 10:49:03,Access Error in SAP,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Technical,,Japan
+INC0261466,2024-08-15 17:31:55,App 125 - Call note search displaying Oracle error,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Technical,,Multiple
+INC0262397,2024-08-27 19:22:25,access to ME22N,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Procure to Pay,,Finland
+INC0260640,2024-08-08 15:53:05,W5 Brasil FFID,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Order to Cash,,Brazil
+INC0262374,2024-08-27 15:57:51,SAP issue,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Technical,,Australia
+INC0262379,2024-08-27 16:26:57,SAP O2C Purchase order access right,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Procure to Pay,,Finland
+INC0261316,2024-08-13 20:55:15,Robert is unable to access QS4-600,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Technical,,Multiple
+INC0260538,2024-08-07 20:24:57,QS4-400 Password reset,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Technical,,Service Entities
+INC0260315,2024-08-06 17:24:17,W5 ONEERP - FFID NEEDED,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Procure to Pay,,Belgium
+INC0260352,2024-08-06 19:45:48,OneERP W5 Brazil - Failed sales RETURNS interface SHPCON iDocs received from DHL_BR are missing material BATCH NUMBERS. DHL_BR unable to resend due to error at their end.,L2 - OneERP - S/4 HANA - Roles and Authorisations,August 2024,Supply Chain,,Brazil
+INC0257663,2024-07-11 14:20:44,SAP posting issue,L2 - OneERP - S/4 HANA - Roles and Authorisations,July 2024,Procure to Pay,,Korea
+INC0258974,2024-07-24 16:06:14,Please reset password in PS4,L2 - OneERP - S/4 HANA - Roles and Authorisations,July 2024,Record to Report,,Multiple
+INC0256559,2024-07-01 16:52:04,SAP Login Issue,L2 - OneERP - S/4 HANA - Roles and Authorisations,July 2024,Technical,,Multiple
+INC0254600,2024-06-11 16:43:54,INC0254148__AT01 Employee ALEKSANDR VASILEV PR AGENCIJA ZA KONSALTING -WAVE 3,L2 - OneERP - S/4 HANA - Roles and Authorisations,June 2024,,,
+INC0253954,2024-06-04 17:49:21,Need access to FFID for the below user in the PS4 400 system to Implement Compliant Account & Password Policy in SAP NetWeaver AS ABAP,L2 - OneERP - S/4 HANA - Roles and Authorisations,June 2024,Technical,,Multiple
+INC0254547,2024-06-10 23:45:22,Need access to all PO document Type in QS4-600 and PS4-600,L2 - OneERP - S/4 HANA - Roles and Authorisations,June 2024,Procure to Pay,,Australia
+INC0254805,2024-06-12 21:18:54,W2 - Canada - SAP PS4 Production - User ID is Locked for DANNYZ,L2 - OneERP - S/4 HANA - Roles and Authorisations,June 2024,Technical,,Canada
+INC0255607,2024-06-20 20:50:54,Location cannot be moved. Please activate all locations so that you can move.,L2 - OneERP - S/4 HANA - Roles and Authorisations,June 2024,Supply Chain,,Korea
+INC0253866,2024-06-03 18:31:45,No log on details for MDG and need to approve customer creation,L2 - OneERP - S/4 HANA - Roles and Authorisations,June 2024,Order to Cash,,Multiple
+INC0255720,2024-06-21 19:13:54,Password Reset SAP - PS4 400,L2 - OneERP - S/4 HANA - Roles and Authorisations,June 2024,,,
+INC0253947,2024-06-04 16:40:38,"As SAP suggested, need to be change the security parameters in the PS4 system.",L2 - OneERP - S/4 HANA - Roles and Authorisations,June 2024,Technical,,Multiple
+INC0253447,2024-05-29 14:43:26,"All users need to be lock except Basis and security in SS4 system, because SS4 will be decommissioning soon",L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Technical,,Multiple
+INC0251942,2024-05-10 23:18:28,Change request - With draw,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Procure to Pay,,Service Entities
+INC0253347,2024-05-28 14:01:42,I dint receive full Access for SAP which i have raised earlier RITM0175176. could you please mirror the access related to Parul (PSH12).,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Record to Report,,Australia
+INC0251166,2024-05-02 16:55:05,Need to extend the validity of the below user ID in the PS4 400 system until 7th May 2024,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Technical,,Multiple
+INC0252332,2024-05-15 18:16:24,SAP: Unable to login to SAP,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Procure to Pay,,Service Entities
+INC0252468,2024-05-16 16:20:48,SAP account was deactivated. Please reactivate ASAP,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Supply Chain,,Germany
+INC0253587,2024-05-30 17:06:12,Unable to login to SAP,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Technical,,Service Entities
+INC0252249,2024-05-14 22:41:43,Unable to login SAP,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Technical,,Multiple
+INC0252319,2024-05-15 17:29:05,authorisation error when MDG CR needs to be withdrawn,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Procure to Pay,,Service Entities
+INC0252296,2024-05-15 16:09:17,SAP Login,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Technical,,Germany
+INC0253343,2024-05-28 13:13:04,"Need to unlock and reset the password for DS4-(100,400),QS4-(400,500,600),SS4-(400,700),PS4-400 system for the below user ID",L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Technical,,Multiple
+INC0252903,2024-05-21 18:27:01,RIF. TICKET RITM0178588 - Descrizione: OneERP - Modifica utente : S/4 HANA & MDG - Patrizia Ferreri,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Order to Cash,,Italy
+INC0251046,2024-05-01 16:19:46,Need to extend the validity of the below user ID in the QS4 400 system for 7 days.,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Cross Functional,,Multiple
+INC0251233,2024-05-03 00:16:55,Password reset in QS4.400 system.,L2 - OneERP - S/4 HANA - Roles and Authorisations,May 2024,Record to Report,,Multiple
+INC0268993,2024-11-05 01:37:32,"Hello, I have forgotten my password to SAP ERP and cannot log in",L2 - OneERP - S/4 HANA - Roles and Authorisations,November 2024,Record to Report,,Service Entities
+INC0268927,2024-11-04 18:43:30,Wave 5 - Southafrica - ZA01 - Unable to Clear Transactions,L2 - OneERP - S/4 HANA - Roles and Authorisations,November 2024,Record to Report,,South Africa
+INC0267546,2024-10-16 22:31:23,Reset QS4-400,L2 - OneERP - S/4 HANA - Roles and Authorisations,October 2024,Record to Report,,Multiple
+INC0268384,2024-10-28 18:16:21,Please provide me FFI'd access to my user ,L2 - OneERP - S/4 HANA - Roles and Authorisations,October 2024,Record to Report,,Multiple
+INC0266754,2024-10-10 00:30:44,Reset password for QS4 400 - SAP GUI,L2 - OneERP - S/4 HANA - Roles and Authorisations,October 2024,Technical,,Multiple
+INC0266601,2024-10-08 23:24:23,Wave 1 - Sapin - Email addresses for Movianto (our Wharehouse) are experiencing issues in accessing to SAP System. ,L2 - OneERP - S/4 HANA - Roles and Authorisations,October 2024,Technical,,Spain
+INC0267277,2024-10-14 19:36:03,Required access to running Advance Tax Reports & DRC reports in PS4 system to proactively detect issues,L2 - OneERP - S/4 HANA - Roles and Authorisations,October 2024,Record to Report,,Multiple
+INC0263458,2024-09-06 23:28:39,FW: Fw: Extending Clement Okafo,L2 - OneERP - S/4 HANA - Roles and Authorisations,September 2024,Technical,,Multiple
+INC0265303,2024-09-26 18:08:04,Please reset password in QS4-600.,L2 - OneERP - S/4 HANA - Roles and Authorisations,September 2024,Technical,,Multiple
+INC0264490,2024-09-18 21:48:11,Reset QS4-600 for BGO02,L2 - OneERP - S/4 HANA - Roles and Authorisations,September 2024,Record to Report,,Multiple
+INC0262898,2024-09-02 23:03:42,OneERP_QS4-600_Cant login from today,L2 - OneERP - S/4 HANA - Roles and Authorisations,September 2024,Technical,,Multiple
+INC0263842,2024-09-11 15:40:11,Unable to log in to SAP,L2 - OneERP - S/4 HANA - Roles and Authorisations,September 2024,Technical,,UAE
+INC0264012,2024-09-12 20:21:11,Unable to log into SAP,L2 - OneERP - S/4 HANA - Roles and Authorisations,September 2024,Technical,,Multiple
+INC0265049,2024-09-24 17:27:44,Not able to logoin PS4 sytem please reset password,L2 - OneERP - S/4 HANA - Roles and Authorisations,September 2024,Technical,,Multiple
+INC0262891,2024-09-02 21:30:36,OneERP_Cant login in DS4-100 SAP client,L2 - OneERP - S/4 HANA - Roles and Authorisations,September 2024,Technical,,Multiple
+INC0261555,2024-08-16 16:45:28,ABAP Dumps created in the PS4 system on 15.08.2024 with ID BRREN09,L2 - OneERP - Technical,August 2024,Cross Functional,,Austria
+INC0257999,2024-07-15 17:05:26,Display supplier list not reflecting the correct posting block/purchasing block status once it is exported in excel,L2 - OneERP - Technical,July 2024,Supply Chain,,Service Entities
+INC0259206,2024-07-26 15:10:24,ERP - SAP error message,L2 - OneERP - Technical,July 2024,Order to Cash,,Germany
+INC0257283,2024-07-08 14:36:12,Z_OTC_ZOTCGL_CR337_CUSTINVOIC_W3 job got failed due to call function not found.,L2 - OneERP - Technical,July 2024,Order to Cash,,Multiple
+INC0259612,2024-07-30 21:49:38,ONE ERP: RIBA MAPPING FOR REPORTING,L2 - OneERP - Technical,July 2024,"Technical, Record to Report",,Italy
+INC0256595,2024-07-01 21:38:21,Daily stock files from SAP showing incorrect stock date - Please assign to OneERP team,L2 - OneERP - Technical,July 2024,Procure to Pay,,Service Entities
+INC0257540,2024-07-10 15:59:01,Z_OTC_DEL_RVV50R10C_CA8A_CA8C job getting failed from 09/07/2024 19:15UTC onwards.,L2 - OneERP - Technical,July 2024,"Order to Cash, Technical",,Canada
+INC0255883,2024-06-24 17:09:38,Some of the invoice Mails not sent from the PS4 system,L2 - OneERP - Technical,June 2024,Order to Cash,,Germany
+INC0255912,2024-06-24 20:34:14,SPO_NUM range increase in PS4 000 client,L2 - OneERP - Technical,June 2024,Technical,,Multiple
+INC0255620,2024-06-20 22:58:03,AU01 - CTM - No remittance advises generated,L2 - OneERP - Technical,June 2024,Record to Report,,Australia
+INC0256180,2024-06-26 20:50:46,W3 - Germany - SAP attaching MUNDI_LOGO.png to emails to customers,L2 - OneERP - Technical,June 2024,Order to Cash,,Germany
+INC0253697,2024-05-31 17:45:04,Workday ID and Concur/SAP,L2 - OneERP - Technical,May 2024,Record to Report,,Germany
+INC0253725,2024-05-31 22:44:33,Statement on Vulnerability in SAP NetWeaver AS ABAP and ABAP Platform,L2 - OneERP - Technical,May 2024,Technical,,Multiple
+INC0251051,2024-05-01 16:55:17,ABAP dumps created in the PS4 system due to Z_OTC_DEL_RVV50R10C_CA8A_CA8C job,L2 - OneERP - Technical,May 2024,"Order to Cash, Technical",,Canada
+INC0269308,2024-11-07 17:43:16,Inactive runtime objects exist for the ABAP Dictionary objects. ,L2 - OneERP - Technical,November 2024,Technical,,Tacca B.V.
+INC0268765,2024-11-01 18:47:09,Wave 5 - MEA  - CH06_Credit note error,L2 - OneERP - Technical,November 2024,Record to Report,,UAE
+INC0267649,2024-10-18 02:17:10,Wave 5 - Brazil - NFe doc Nbr - 2762- Cannot be sent to SEFAZ - Ceriticate Issue,L2 - OneERP - Technical,October 2024,Order to Cash,,Brazil
+INC0268460,2024-10-29 18:28:54,REINF October Month support ,L2 - OneERP - Technical,October 2024,Record to Report,,Brazil
+INC0265893,2024-10-02 18:45:09,"User is unable to post in Bank statement in production due to lock, This is affecting monthend close. Please help.",L2 - OneERP - Technical,October 2024,Record to Report,,UAE
+INC0265667,2024-10-01 12:31:53,REINF September Month support ,L2 - OneERP - Technical,October 2024,Record to Report,,Brazil
+INC0265855,2024-10-02 15:54:41,"SOA email initiated from SAP today morning 8AM IST, but we still did not receive in our email box.",L2 - OneERP - Technical,October 2024,Technical,,Multiple
+INC0264548,2024-09-19 15:05:10,Wave 5 - South Africa - SAP Stock Multiple Materials Report Error,L2 - OneERP - Technical,September 2024,Supply Chain,,South Africa
+INC0265416,2024-09-27 19:46:29,WTH tax code not updated for Invoices of self employed suppliers in France,L2 - OneERP - Technical,September 2024,Record to Report,,France
+INC0264124,2024-09-13 22:30:34,OneERP - PBI File does not contain data for W5,L2 - OneERP - Technical,September 2024,Technical,,Multiple
+INC0265289,2024-09-26 16:49:33,Please change posting date for document 9400001596 in debug mode to 02.09.2024 and period to 09.,L2 - OneERP - Technical,September 2024,Record to Report,,Brazil
+INC0265346,2024-09-27 00:04:23,"Files from SAP application server are not reaching EDW, Some issue at CPI connection, Please check.",L2 - OneERP - Technical,September 2024,Technical,,Brazil
+INC0264266,2024-09-16 19:28:54,REINF August Month support ,L2 - OneERP - Technical,September 2024,Record to Report,,Brazil
