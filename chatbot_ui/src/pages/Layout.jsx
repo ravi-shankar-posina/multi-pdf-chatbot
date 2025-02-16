@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
-import { FaCode, FaFilePdf, FaHeadset, FaUser } from "react-icons/fa";
-import { MdAccessAlarm } from "react-icons/md";
-import chatbotIntro from "../assets/ai.png";
+import React, { useEffect, useState } from "react";
+import { FaCode, FaFilePdf, FaHeadset, FaUser, FaChevronDown, FaChevronUp, FaBook, FaTools } from "react-icons/fa";
+import { MdSupportAgent, MdDeveloperMode, MdPassword } from "react-icons/md";
 import { TbDeviceDesktopAnalytics } from "react-icons/tb";
+import chatbotIntro from "../assets/ai.png";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
 const COLORS = {
@@ -11,116 +11,143 @@ const COLORS = {
   dark: "#073161",
 };
 
-const options = [
-  { label: "How To?", path: "/", api: "csv/query", icon: <FaHeadset /> },
+const navigatorSections = [
   {
-    label: "Incident Query",
-    path: "/incident-query",
-    api: "analyze",
-    icon: <FaCode />,
+    title: "Support Navigator",
+    icon: <MdSupportAgent size={16} />,
+    options: [
+      { label: "How To", path: "/", icon: <FaHeadset size={14} /> },
+      { label: "Incident Query", path: "/incident-query", icon: <FaCode size={14} /> },
+      { label: "Incident Analysis", path: "/incident-analysis", icon: <TbDeviceDesktopAnalytics size={14} /> },
+      { label: "Best Practices", path: "/best-practices", icon: <FaFilePdf size={14} /> },
+      { label: "Password Management", path: "/password-management", icon: <MdPassword size={14} /> },
+    ]
   },
   {
-    label: "Incident Analysis",
-    path: "/incident-analysis",
-    icon: <TbDeviceDesktopAnalytics />,
+    title: "Knowledge Navigator",
+    icon: <FaBook size={16} />,
+    options: [
+      {
+        label: "SOP Creation", path: "/sop-creation", icon: <FaFilePdf size={14} />,
+        subtitle: "Signavio + Process map + Create the document"
+      },
+      {
+        label: "KT Documents", path: "/kt-documents", icon: <FaFilePdf size={14} />,
+        subtitle: "Signavio"
+      },
+    ]
   },
   {
-    label: "Best Practices",
-    path: "/best-practices",
-    api: "pdf/query",
-    icon: <FaFilePdf />,
-  },
-  {
-    label: "ABAP Code Generator",
-    path: "/abap-code-generator",
-    api: "query",
-    icon: <FaCode />,
-  },
-  {
-    label: "Access Management",
-    path: "/access-management",
-    icon: <MdAccessAlarm />,
-  },
-  {
-    label: "Test Script Generator",
-    path: "/test-script-genarator",
-    icon: <FaUser />,
-  },
+    title: "Development Navigator",
+    icon: <MdDeveloperMode size={16} />,
+    options: [
+      { label: "ABAP Code Generator", path: "/abap-code-generator", icon: <FaCode size={14} /> },
+      { label: "Smart Connectors", path: "/smart-connectors", icon: <FaTools size={14} /> },
+      { label: "Test Script Generator", path: "/sap-test-case-genarator", icon: <FaUser size={14} /> },
+    ]
+  }
 ];
 
 const Layout = ({ onLogout }) => {
-  const [selectedLabel, setSelectedLabel] = React.useState(options[0].label);
+  const [selectedLabel, setSelectedLabel] = useState("");
+  const [openSections, setOpenSections] = useState({});
   const location = useLocation();
 
+  const toggleSection = (title) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [title]: !prev[title]
+    }));
+  };
+
   useEffect(() => {
-    const currentItem = options.find((item) => item.path === location.pathname);
-    setSelectedLabel(currentItem ? currentItem.label : "How To?");
+    const currentPath = location.pathname;
+    for (const section of navigatorSections) {
+      const foundOption = section.options.find(opt => opt.path === currentPath);
+      if (foundOption) {
+        setSelectedLabel(foundOption.label);
+        break;
+      }
+    }
   }, [location.pathname]);
 
   return (
     <div className="flex max-h-screen min-h-screen bg-white">
       <div
-        className="w-80 min-h-screen h-full rounded-r-2xl shadow-lg"
+        className="w-80 min-h-screen h-full rounded-r-2xl shadow-lg overflow-y-auto"
         style={{
           backgroundColor: COLORS.dark,
         }}
       >
         <div
-          className="flex justify-center p-6 border-b border-opacity-20"
+          className="flex justify-center p-4 border-b border-opacity-20"
           style={{ borderBottomColor: COLORS.secondary }}
         >
           <img
             src={chatbotIntro}
             alt="Chatbot Intro"
-            className="h-24 w-24 rounded-full object-contain border-4 bg-white"
+            className="h-16 w-16 rounded-full object-contain border-4 bg-white"
             style={{
               borderColor: COLORS.primary,
               boxShadow: `0 0 0 4px ${COLORS.secondary}`,
             }}
           />
         </div>
-        <div className="text-white pl-4 pr-4 mt-4">
-          <ul className="space-y-2">
-            {options.map((option, index) => (
-              <li key={index} className="flex items-center">
-                <Link
-                  to={option.path}
-                  className={`flex items-center p-3 w-full space-x-3 rounded-lg transition duration-300 group ${
-                    location.pathname === option.path
-                      ? "bg-white text-[#073161]"
-                      : "hover:bg-white/10"
+
+        <div className="text-white p-3">
+          {navigatorSections.map((section, sectionIndex) => (
+            <div key={sectionIndex} className="mb-2">
+              <button
+                onClick={() => toggleSection(section.title)}
+                className="flex items-center w-full p-2 space-x-2 rounded-lg transition duration-300 hover:bg-white/10"
+              >
+                <span className="text-white">
+                  {section.icon}
+                </span>
+                <span className="font-medium text-white text-sm">
+                  {section.title}
+                </span>
+                <span className="ml-auto text-white">
+                  {openSections[section.title] ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
+                </span>
+              </button>
+
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out pl-3 ${openSections[section.title] ? "max-h-screen opacity-100 mt-1" : "max-h-0 opacity-0"
                   }`}
-                  style={{
-                    backgroundColor:
-                      location.pathname === option.path
-                        ? COLORS.primary
-                        : "transparent",
-                  }}
-                >
-                  <span
-                    className={`text-lg ${
-                      location.pathname === option.path
-                        ? "text-[#073161]"
-                        : "text-white"
-                    }`}
-                  >
-                    {option.icon}
-                  </span>
-                  <span
-                    className={`font-medium ${
-                      location.pathname === option.path
-                        ? "text-[#073161]"
-                        : "text-white"
-                    }`}
-                  >
-                    {option.label}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+              >
+                <ul className="space-y-1">
+                  {section.options.map((option, optIndex) => (
+                    <li key={optIndex}>
+                      <Link
+                        to={option.path}
+                        className={`flex items-center p-2 w-full rounded-lg transition duration-300 ${location.pathname === option.path
+                          ? "bg-white text-[#073161]"
+                          : "text-white hover:bg-white/10"
+                          }`}
+                        onClick={() => setSelectedLabel(option.label)}
+                      >
+                        <span className="mr-2">
+                          {option.icon}
+                        </span>
+                        <div className="text-sm">
+                          <div className="font-medium">{option.label}</div>
+                          {option.subtitle && (
+                            <div className="text-xs opacity-70 mt-0.5">
+                              {option.subtitle}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
+
       <div className="flex flex-col w-full max-h-screen min-h-screen overflow-hidden">
         <header
           className="border-b p-4 flex justify-between items-center"

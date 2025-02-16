@@ -12,7 +12,10 @@ import SapTestCase from "./pages/SapTestCase";
 import TestScriptGenerator from "./pages/TestScriptGenerator";
 import IncidentAnalysis from "./pages/IncidentAnalysis";
 import LoginPage from "./pages/LoginPage";
-
+import SopCreation from "./components/SopCreation";
+import KtDoc from "./components/KtDoc";
+import PasswordManage from "./components/PasswordManage";
+import SmartConn from "./components/SmartConn";
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -75,6 +78,11 @@ function App() {
               element={<TestScriptGenerator />}
             />
             <Route path="/incident-analysis" element={<IncidentAnalysis />} />
+            <Route path="/sop-creation" element={<SopCreation />} />
+            <Route path="/kt-documents" element={<KtDoc />} />
+            <Route path="/smart-connectors" element={<SmartConn />} />
+            <Route path="/password-management" element={<PasswordManage />} />
+            <Route path="/smart-connectors" element={<SmartConn />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />
