@@ -43,7 +43,7 @@ const navigatorSections = [
     options: [
       { label: "ABAP Code Generator", path: "/abap-code-generator", icon: <FaCode size={14} /> },
       { label: "Smart Connectors", path: "/smart-connectors", icon: <FaTools size={14} /> },
-      { label: "Test Script Generator", path: "/sap-test-case-genarator", icon: <FaUser size={14} /> },
+      { label: "Test Script Generator", path: "/test-script-genarator", icon: <FaUser size={14} /> },
     ]
   }
 ];
