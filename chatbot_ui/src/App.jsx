@@ -14,7 +14,6 @@ import IncidentAnalysis from "./pages/IncidentAnalysis";
 import LoginPage from "./pages/LoginPage";
 import SopCreation from "./components/SopCreation";
 import KtDoc from "./components/KtDoc";
-import PasswordManage from "./components/PasswordManage";
 import SmartConn from "./components/SmartConn";
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
