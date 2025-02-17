@@ -71,7 +71,7 @@ function App() {
               path="/abap-code-generator"
               element={<Chat key="modify-abap" api="modify-abap" />}
             />
-            <Route path="/access-management" element={<Accessmanagement />} />
+            <Route path="/password-management" element={<Accessmanagement />} />
             <Route path="/sap-test-case-genarator" element={<SapTestCase />} />
             <Route
               path="/test-script-genarator"
@@ -81,7 +81,6 @@ function App() {
             <Route path="/sop-creation" element={<SopCreation />} />
             <Route path="/kt-documents" element={<KtDoc />} />
             <Route path="/smart-connectors" element={<SmartConn />} />
-            <Route path="/password-management" element={<PasswordManage />} />
             <Route path="/smart-connectors" element={<SmartConn />} />
           </Route>
         ) : (

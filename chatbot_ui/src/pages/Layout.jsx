@@ -29,7 +29,7 @@ const navigatorSections = [
     options: [
       {
         label: "SOP Creation", path: "/sop-creation", icon: <FaFilePdf size={14} />,
-        subtitle: "Signavio + Process map + Create the document"
+        subtitle: "Signavio + Process map "
       },
       {
         label: "KT Documents", path: "/kt-documents", icon: <FaFilePdf size={14} />,
