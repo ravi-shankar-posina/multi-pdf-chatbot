@@ -68,7 +68,7 @@ function App() {
             />
             <Route
               path="/abap-code-generator"
-              element={<Chat key="modify-abap" api="modify-abap" />}
+              element={<Chat key="modify-abap" api="query" />}
             />
             <Route path="/password-management" element={<Accessmanagement />} />
             <Route path="/sap-test-case-genarator" element={<SapTestCase />} />
