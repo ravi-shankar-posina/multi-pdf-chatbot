@@ -9,12 +9,15 @@ const COLORS = {
   primary: "#FFA500",
   secondary: "#00AECF",
   dark: "#073161",
+  labelColor: "#FFC876",
 };
 
 const navigatorSections = [
   {
     title: "Support Navigator",
     icon: <MdSupportAgent size={16} />,
+    titleColor: COLORS.labelColor,
+    iconColor: COLORS.labelColor,
     options: [
       { label: "How To", path: "/", icon: <FaHeadset size={14} /> },
       { label: "Incident Query", path: "/incident-query", icon: <FaCode size={14} /> },
@@ -26,6 +29,8 @@ const navigatorSections = [
   {
     title: "Knowledge Navigator",
     icon: <FaBook size={16} />,
+    titleColor: COLORS.labelColor,
+    iconColor: COLORS.labelColor,
     options: [
       {
         label: "SOP Creation", path: "/sop-creation", icon: <FaFilePdf size={14} />,
@@ -40,6 +45,8 @@ const navigatorSections = [
   {
     title: "Development Navigator",
     icon: <MdDeveloperMode size={16} />,
+    titleColor: COLORS.labelColor,
+    iconColor: COLORS.labelColor,
     options: [
       { label: "ABAP Code Generator", path: "/abap-code-generator", icon: <FaCode size={14} /> },
       { label: "Smart Connectors", path: "/smart-connectors", icon: <FaTools size={14} /> },
@@ -79,7 +86,7 @@ const Layout = ({ onLogout }) => {
           backgroundColor: COLORS.dark,
         }}
       >
-        <div
+        {/* <div
           className="flex justify-center p-4 border-b border-opacity-20"
           style={{ borderBottomColor: COLORS.secondary }}
         >
@@ -92,7 +99,7 @@ const Layout = ({ onLogout }) => {
               boxShadow: `0 0 0 4px ${COLORS.secondary}`,
             }}
           />
-        </div>
+        </div> */}
 
         <div className="text-white p-3">
           {navigatorSections.map((section, sectionIndex) => (
@@ -101,10 +108,13 @@ const Layout = ({ onLogout }) => {
                 onClick={() => toggleSection(section.title)}
                 className="flex items-center w-full p-2 space-x-2 rounded-lg transition duration-300 hover:bg-white/10"
               >
-                <span className="text-white">
+                <span style={{ color: section.iconColor }}>
                   {section.icon}
                 </span>
-                <span className="font-medium text-white text-sm">
+                <span
+                  className="font-bold text-sm"
+                  style={{ color: section.titleColor }}
+                >
                   {section.title}
                 </span>
                 <span className="ml-auto text-white">
