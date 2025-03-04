@@ -78,7 +78,7 @@ function App() {
             />
             <Route path="/incident-analysis" element={<IncidentAnalysis />} />
             <Route path="/sop-creation" element={<SopCreation />} />
-            <Route path="/kt-documents" element={<KtDoc />} />
+            <Route path="/kt-documents" element={<Chat key="kt/query" api="kt/query" />} />
             <Route path="/smart-connectors" element={<SmartConn />} />
             <Route path="/smart-connectors" element={<SmartConn />} />
           </Route>

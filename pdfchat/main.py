@@ -118,7 +118,11 @@ pdf_files = [
     "./Reference/Sales Monitoring and Analytics.pdf",
     "./Reference/Special Business Processes in Sales.pdf",
 ]
+kt_files = ["./Reference/ktFiles/E2E_ProcessKT_OfEmpowerRebate.pdf",
+            "./Reference/ktFiles/Fix_SuspendedInvoices_KTSession.pdf",
+            "./Reference/ktFiles/Knowledge_Transfer_documentNA_BOM_interfaceImpDetails.pdf"]
 pdf_retriever = load_pdf_vector_store(pdf_files, "./StoreFAISSPDF")
+kt_retriever =  load_pdf_vector_store(kt_files, "./StoreFAISSKT")
 
 # Helper Functions
 def serialize_document(doc):
@@ -281,6 +285,7 @@ QUESTION: {question}
 # Create retrieval chains
 csv_chain = create_chain(csv_retriever, csv_prompt)
 pdf_chain = create_chain(pdf_retriever, pdf_prompt)
+kt_chain = create_chain(kt_retriever, pdf_prompt)
 
 # Routes
 @app.route('/csv/query', methods=['POST'])
@@ -311,6 +316,19 @@ def query_pdf():
         "sources": serializable_sources
     })
 
+@app.route("/kt/query", methods=["POST"])
+def query_kt():
+    query = request.json.get("query", "")
+    if not query:
+        return jsonify({"error": "No query provided"}), 400
+
+    response = kt_chain.invoke({"query": query})
+    serializable_sources = [serialize_document(doc) for doc in response.get("source_documents", [])]
+
+    return jsonify({
+        "answer": response["result"],
+        "sources": serializable_sources
+    })
 @app.route("/analyze", methods=["POST"])
 def analyze_excel():
     try:
