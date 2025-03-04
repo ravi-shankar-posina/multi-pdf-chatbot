@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  Navigate,
+  Route,
   BrowserRouter as Router,
   Routes,
-  Route,
-  Navigate,
 } from "react-router-dom";
-import Layout from "./pages/Layout";
-import Chat from "./pages/Chat";
+import SmartConn from "./components/SmartConn";
+import SopCreation from "./components/SopCreation";
 import Accessmanagement from "./pages/Accessmanagement";
+import Chat from "./pages/Chat";
+import IncidentAnalysis from "./pages/IncidentAnalysis";
+import Layout from "./pages/Layout";
+import LoginPage from "./pages/LoginPage";
 import SapTestCase from "./pages/SapTestCase";
 import TestScriptGenerator from "./pages/TestScriptGenerator";
-import IncidentAnalysis from "./pages/IncidentAnalysis";
-import LoginPage from "./pages/LoginPage";
-import SopCreation from "./components/SopCreation";
-import KtDoc from "./components/KtDoc";
-import SmartConn from "./components/SmartConn";
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
