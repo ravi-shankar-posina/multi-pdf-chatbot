@@ -398,7 +398,6 @@ def modify_abap():
     
     result = modify_abap_code(file_query.strip(), modification_request.strip())
     return jsonify({"answer": str(result)})
-
 @app.route('/upload-file', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -458,8 +457,6 @@ def upload_file():
                 os.remove(file_path)
 
     return jsonify({'error': 'Invalid file type'}), 400
-
-
 @app.route('/upload-zip', methods=['POST'])
 def upload_zip():
     if 'file' not in request.files:
@@ -491,6 +488,24 @@ def upload_zip():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.json
+    chat_history = data.get("chat_history", [])
+    query = data.get("query", "")
 
+    if not query:
+        return jsonify({"error": "No query provided"}), 400
+
+    formatted_history = [{"role": msg["role"], "content": msg["content"]} for msg in chat_history]
+
+    try:
+        response = openai_model.invoke(formatted_history + [{"role": "user", "content": query}])
+        chat_history.append({"role": "user", "content": query})
+        chat_history.append({"role": "assistant", "content": response.content})
+
+        return jsonify({"answer": response.content, "chat_history": chat_history})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 if __name__ == '__main__':
     app.run(debug=True, port=8502, host="0.0.0.0")
