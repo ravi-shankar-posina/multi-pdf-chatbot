@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FaCode, FaFilePdf, FaHeadset, FaUser, FaChevronDown, FaChevronUp, FaBook, FaTools } from "react-icons/fa";
 import { MdSupportAgent, MdDeveloperMode, MdPassword } from "react-icons/md";
 import { TbDeviceDesktopAnalytics } from "react-icons/tb";
-import chatbotIntro from "../assets/ai.png";
+import chatbotIntro from "../assets/logo.png";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
 const COLORS = {
@@ -86,21 +86,20 @@ const Layout = ({ onLogout }) => {
           backgroundColor: COLORS.dark,
         }}
       >
-        {/* <div
+        <div
           className="flex justify-center p-4 border-b border-opacity-20"
-          style={{ borderBottomColor: COLORS.secondary }}
+          // style={{ borderBottomColor: COLORS.secondary }}
         >
           <img
             src={chatbotIntro}
             alt="Chatbot Intro"
-            className="h-16 w-16 rounded-full object-contain border-4 bg-white"
-            style={{
-              borderColor: COLORS.primary,
-              boxShadow: `0 0 0 4px ${COLORS.secondary}`,
-            }}
+            className="h-16 w-28 rounded-md object-contain bg-white"
+            // style={{
+            //   // borderColor: COLORS.primary,
+            //   boxShadow: `0 0 0 4px ${COLORS.secondary}`,
+            // }}
           />
-        </div> */}
-
+        </div>
         <div className="text-white p-3">
           {navigatorSections.map((section, sectionIndex) => (
             <div key={sectionIndex} className="mb-2">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { UserIcon, LockIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import chatbotIntro from "../assets/ai.png";
+import chatbotIntro from "../assets/logo.png";
 import { use } from "react";
 
 // Custom color palette
@@ -43,7 +43,7 @@ const LoginPage = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="flex item-center justify-center">
           <img src={chatbotIntro} alt="Chatbot Intro" className="h-28 " />
