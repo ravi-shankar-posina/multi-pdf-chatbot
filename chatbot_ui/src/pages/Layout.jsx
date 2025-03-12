@@ -80,24 +80,19 @@ const Layout = ({ onLogout }) => {
 
   return (
     <div className="flex max-h-screen min-h-screen bg-white">
-      <div
-        className="w-80 min-h-screen h-full rounded-r-2xl shadow-lg overflow-y-auto"
-        style={{
-          backgroundColor: COLORS.dark,
-        }}
-      >
+      <div className="flex flex-col w-1/4 max-h-screen min-h-screen bg-gray-800 overflow-y-auto">
         <div
           className="flex justify-center p-4 border-b border-opacity-20"
-          // style={{ borderBottomColor: COLORS.secondary }}
+          style={{ borderBottomColor: COLORS.secondary }}
         >
           <img
             src={chatbotIntro}
             alt="Chatbot Intro"
-            className="h-16 w-28 rounded-md object-contain bg-white"
-            // style={{
-            //   // borderColor: COLORS.primary,
-            //   boxShadow: `0 0 0 4px ${COLORS.secondary}`,
-            // }}
+            className="h-16 w-16 rounded-full object-contain border-4 bg-white"
+            style={{
+              borderColor: COLORS.primary,
+              boxShadow: `0 0 0 4px ${COLORS.secondary}`,
+            }}
           />
         </div>
         <div className="text-white p-3">
