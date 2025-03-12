@@ -81,7 +81,7 @@ const Layout = ({ onLogout }) => {
   return (
     <div className="flex max-h-screen min-h-screen bg-white">
       <div className="flex flex-col w-1/4 max-h-screen min-h-screen bg-gray-800 overflow-y-auto">
-        <div
+        {/* <div
           className="flex justify-center p-4 border-b border-opacity-20"
           style={{ borderBottomColor: COLORS.secondary }}
         >
@@ -94,7 +94,7 @@ const Layout = ({ onLogout }) => {
               boxShadow: `0 0 0 4px ${COLORS.secondary}`,
             }}
           />
-        </div>
+        </div> */}
         <div className="text-white p-3">
           {navigatorSections.map((section, sectionIndex) => (
             <div key={sectionIndex} className="mb-2">
