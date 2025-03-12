@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FaCode, FaFilePdf, FaHeadset, FaUser, FaChevronDown, FaChevronUp, FaBook, FaTools } from "react-icons/fa";
 import { MdSupportAgent, MdDeveloperMode, MdPassword } from "react-icons/md";
 import { TbDeviceDesktopAnalytics } from "react-icons/tb";
-import chatbotIntro from "../assets/logo.png";
+import chatbotIntro from "../assets/ai.png";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
 const COLORS = {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { UserIcon, LockIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import chatbotIntro from "../assets/logo.png";
+import chatbotIntro from "../assets/ai.png";
 import { use } from "react";
 
 // Custom color palette

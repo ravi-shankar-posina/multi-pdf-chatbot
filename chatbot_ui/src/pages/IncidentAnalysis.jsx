@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import * as XLSX from "xlsx";
 import "../App.css";
 import Cards from "../components/Cards";
 import TabNavigation from "../components/TabNavigation";
 import ComplexityCards from "../components/ComplexityCards";
 import Resoursing from "../components/Resoursing";
-import { use } from "react";
-// import incidentFile from "../assets/incidents.xlsx";
 
 const COLORS = {
   primary: "#FFA500",
@@ -32,25 +30,11 @@ const IncidentAnalysis = () => {
     RISE: null,
   });
   const [file, setFile] = useState(null);
-  const [file1, setFile1] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("analysis");
 
-  useEffect(() => {
-    loadStaticFile();
-  })
-  // Convert static asset to a File object and process it
-  const loadStaticFile = async () => {
-    try {
-      const response = await fetch("/incidents.xlsx"); // Fetch from public folder
-      setFile(await response.blob());
-    } catch (error) {
-      console.error("Error loading static file:", error);
-    }
-  };
   const handleFileUpload = async () => {
     if (file) {
-      console.log(file)
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: "buffer" });
       const sheetNames = workbook.SheetNames;
@@ -338,22 +322,20 @@ const IncidentAnalysis = () => {
       <nav className="sticky top-0 z-10 w-full flex justify-between items-center p-4 border-b bg-white shadow-md">
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="flex items-center space-x-4">
-          <div className="inline-block">
-            <label className="relative cursor-pointer">
-              <input
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                onChange={(e) => {
-                  const file1 = e.target.files[0];
-                  setFile1(file1);
-                }}
-              />
-             <div className="flex items-center px-4 py-2 text-blue-600 font-medium bg-blue-100 rounded-lg transition-all hover:bg-blue-200">
-              {file1 ? file1.name : "Choose File"}
+          <label className="relative cursor-pointer">
+            <input
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                setFile(file);
+              }}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <div className="flex items-center px-4 py-2 text-blue-600 font-medium bg-blue-100 rounded-lg transition-all hover:bg-blue-200">
+              {file ? file.name : "Choose File"}
             </div>
-            </label>
-          </div>
+          </label>
           <button
             className={`px-4 py-2 rounded-lg font-medium text-white transition-all ${file
               ? "bg-green-500 hover:bg-green-600"
@@ -363,12 +345,11 @@ const IncidentAnalysis = () => {
               setIsLoading(true);
               setTimeout(() => {
                 handleFileUpload();
-                // loadStaticFile();
                 alert("Process Completed");
                 setIsLoading(false);
               }, 5000);
             }}
-          // disabled={!file}
+            disabled={!file}
           >
             Run
           </button>
