@@ -45,9 +45,9 @@ const LoginPage = ({ onLogin }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* <div className="flex item-center justify-center">
+        <div className="flex item-center justify-center">
           <img src={chatbotIntro} alt="Chatbot Intro" className="h-28 " />
-        </div> */}
+        </div>
         <div
           className="bg-white shadow-xl rounded-xl border-t-4 overflow-hidden"
           style={{ borderTopColor: COLORS.primary }}
