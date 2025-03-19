@@ -10,7 +10,6 @@ pypdf
 flask
 python-dotenv
 flask-cors
-pandas
 tabulate
 pandasai
 PyPDF 
