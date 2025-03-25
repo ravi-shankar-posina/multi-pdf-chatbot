@@ -14,6 +14,7 @@ import Layout from "./pages/Layout";
 import LoginPage from "./pages/LoginPage";
 import SapTestCase from "./pages/SapTestCase";
 import TestScriptGenerator from "./pages/TestScriptGenerator";
+import GriseAgent from "./components/GriseAgent";
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -79,6 +80,7 @@ function App() {
             <Route path="/sop-creation" element={<SopCreation />} />
             <Route path="/kt-documents" element={<Chat key="kt/query" api="kt/query" />} />
             <Route path="/smart-connectors" element={<SmartConn />} />
+            <Route path="/grise-agent" element={<GriseAgent />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />

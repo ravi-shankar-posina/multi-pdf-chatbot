@@ -52,6 +52,15 @@ const navigatorSections = [
       { label: "Smart Insights", path: "/smart-connectors", icon: <FaTools size={14} /> },
       { label: "Test Script Generator", path: "/test-script-genarator", icon: <FaUser size={14} /> },
     ]
+  },
+  {
+    title: "Agents Navigator",
+    icon: <MdSupportAgent size={16} />,
+    titleColor: COLORS.labelColor,
+    iconColor: COLORS.labelColor,
+    options: [
+      { label: "Grise Agent", path: "/grise-agent", icon: <MdSupportAgent size={14} /> },
+    ]
   }
 ];
 
