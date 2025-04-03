@@ -60,6 +60,7 @@ const navigatorSections = [
     iconColor: COLORS.labelColor,
     options: [
       { label: "Grise Agent", path: "/grise-agent", icon: <MdSupportAgent size={14} /> },
+      { label: "Support Agent", path: "/support-agent", icon: <MdSupportAgent size={14} /> },
     ]
   }
 ];

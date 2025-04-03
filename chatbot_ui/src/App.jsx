@@ -15,6 +15,7 @@ import LoginPage from "./pages/LoginPage";
 import SapTestCase from "./pages/SapTestCase";
 import TestScriptGenerator from "./pages/TestScriptGenerator";
 import GriseAgent from "./components/GriseAgent";
+import SupportAgent from "./components/SupportAgent";
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -81,6 +82,7 @@ function App() {
             <Route path="/kt-documents" element={<Chat key="kt/query" api="kt/query" />} />
             <Route path="/smart-connectors" element={<SmartConn />} />
             <Route path="/grise-agent" element={<GriseAgent />} />
+            <Route path="/support-agent" element={<SupportAgent />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />
