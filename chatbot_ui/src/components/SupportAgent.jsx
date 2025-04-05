@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaPaperPlane, FaRobot } from 'react-icons/fa';
+import { categoryResponses } from './responseData';
 
 const SupportAgent = () => {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [category, setCategory] = useState(null);
 
   // State for each section's loading status
   const [loadingStates, setLoadingStates] = useState({
@@ -65,11 +67,31 @@ const SupportAgent = () => {
     };
   };
 
+  // Determine query category based on keywords
+  const determineCategory = (queryText) => {
+    queryText = queryText.toLowerCase();
+
+    if (queryText.includes('access') || queryText.includes('login') || queryText.includes("can't get in")) {
+      return 'access';
+    } else if (queryText.includes('authorize') || queryText.includes('permission') || queryText.includes('admin')) {
+      return 'authorize';
+    } else if (queryText.includes('forgot') || queryText.includes('reset') || queryText.includes('password')) {
+      return 'forget';
+    }
+
+    // Default to password reset if can't determine
+    return 'forget';
+  };
+
   const handleSend = () => {
     if (!query.trim()) return;
 
     setIsLoading(true);
     setHasInteracted(true);
+
+    // Determine the category of the query
+    const determinedCategory = determineCategory(query);
+    setCategory(determinedCategory);
 
     // Store the query
     setResponseData(prev => ({
@@ -77,55 +99,18 @@ const SupportAgent = () => {
       query: query
     }));
 
-    // Start the sequential loading process
-    startSequentialLoading();
+    // Start the sequential loading process with the determined category
+    startSequentialLoading(determinedCategory);
 
     // Clear input
     setQuery("");
   };
 
-  const startSequentialLoading = () => {
-    // Create XML string for mock API response
-    const mockXmlResponse = `
-      <supportResponse>
-        <query>How do I reset my password?</query>
-        <triageAgent>
-          <mlPrediction>Pwd Reset</mlPrediction>
-          <nlpPrediction>Password Related Issues</nlpPrediction>
-          <reasoning>The retrieved context includes examples of password reset requests, categorizing them under 'Pwd Reset', which aligns with 'Password Related Issues'.</reasoning>
-          <category>Access/Authorization issue</category>
-          <subcategory>Existing User</subcategory>
-        </triageAgent>
-        <nextAgent>
-          <recommendedAgent>Security Specialist</recommendedAgent>
-          <availability>Available Now</availability>
-          <nextStep>Follow the password reset process, which typically involves visiting the 'Forgot Password' section on the login page, entering your email or username, and following the instructions sent to your registered email address to reset your password. If you encounter issues, contact the Pwd Reset support group for assistance.</nextStep>
-        </nextAgent>
-        <analysis>
-          <sentiment>neutral</sentiment>
-          <priority>medium</priority>
-          <category>account access</category>
-          <keywords>
-            <keyword>password</keyword>
-            <keyword>reset</keyword>
-            <keyword>login</keyword>
-            <keyword>forgot</keyword>
-          </keywords>
-        </analysis>
-        <suggestions>
-          <suggestion>Verify user has access to registered email</suggestion>
-          <suggestion>Recommend checking spam folder for reset emails</suggestion>
-          <suggestion>Suggest using password manager for future security</suggestion>
-          <suggestion>Remind about password complexity requirements</suggestion>
-        </suggestions>
-        <externalLinks>
-          <link title="Microsoft Account Password Reset" url="https://account.microsoft.com/password/reset" />
-          <link title="Google Account Recovery" url="https://accounts.google.com/recovery" />
-          <link title="Password Security Best Practices" url="https://support.example.com/password-security" />
-        </externalLinks>
-        <response>To reset your password, the steps vary depending on your account type. For most services, visit the login page and click 'Forgot Password' or 'Reset Password'. You'll need to verify your identity through email or SMS. Once verified, you can create a new password. If you don't receive reset instructions within a few minutes, check your spam folder or contact support directly. Prior tickets indicate this is a common issue that's typically resolved by following the standard reset procedure.</response>
-      </supportResponse>
-    `;
+  const startSequentialLoading = (queryCategory) => {
+    // Get the appropriate response and loading messages for the category
+    const categoryData = categoryResponses[queryCategory];
+    const mockXmlResponse = categoryData.xmlResponse;
+    const loadingMessages = categoryData.loadingMessages;
 
     // Store the XML response
     setXmlResponseData(mockXmlResponse);
@@ -140,7 +125,7 @@ const SupportAgent = () => {
       response: false
     });
 
-    // Use shorter timeout for each step (600ms instead of 1000ms)
+    // Use shorter timeout for each step
     const timeout = 1500;
 
     // Triage Agent (first)
@@ -230,6 +215,12 @@ const SupportAgent = () => {
     }, timeout);
   };
 
+  // Get the current category's loading messages, or use defaults
+  const getLoadingMessage = (section) => {
+    if (!category) return "";
+    return categoryResponses[category].loadingMessages[section] || `Loading ${section}...`;
+  };
+
   // LeftComponents extraction
   const LeftComponents = () => {
     return (
@@ -240,7 +231,7 @@ const SupportAgent = () => {
           {loadingStates.triageAgent ? (
             <div className="bg-gray-100 p-4 rounded-lg">
               <div className="flex items-center space-x-2">
-                <p className="text-sm text-gray-500">Running: ml_triage_agent_predict_tool...</p>
+                <p className="text-sm text-gray-500">{getLoadingMessage('triageAgent')}</p>
                 <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
               </div>
             </div>
@@ -278,19 +269,19 @@ const SupportAgent = () => {
           {loadingStates.nextAgent ? (
             <div className="bg-gray-100 p-4 rounded-lg">
               <div className="flex items-center space-x-2">
-                <p className="text-sm text-gray-500">Running: ticket_analysis_rag_agent...</p>
+                <p className="text-sm text-gray-500">{getLoadingMessage('nextAgent')}</p>
                 <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
               </div>
             </div>
           ) : responseData.nextAgent ? (
             <div className="bg-gray-100 p-4 rounded-lg">
               <div className="mb-3">
-                <p className="font-semibold">Similar Incident:</p>
-                <p className="text-sm">Access/Authorization issue - Existing User</p>
+                <p className="font-semibold">Recommended Agent:</p>
+                <p className="text-sm">{responseData.nextAgent.recommendedAgent}</p>
               </div>
               <div className="mb-3">
-                <p className="font-semibold">Resolution:</p>
-                <p className="text-green-600">Password reset done</p>
+                <p className="font-semibold">Availability:</p>
+                <p className="text-green-600">{responseData.nextAgent.availability}</p>
               </div>
               <div>
                 <p className="font-semibold">Next Step:</p>
@@ -319,7 +310,7 @@ const SupportAgent = () => {
           {loadingStates.analysis ? (
             <div className="bg-gray-100 p-4 rounded-lg">
               <div className="flex items-center space-x-2">
-                <p className="text-sm text-gray-500">Analyzing query content...</p>
+                <p className="text-sm text-gray-500">{getLoadingMessage('analysis')}</p>
                 <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
               </div>
             </div>
@@ -364,7 +355,7 @@ const SupportAgent = () => {
           {loadingStates.suggestions ? (
             <div className="bg-gray-100 p-4 rounded-lg">
               <div className="flex items-center space-x-2">
-                <p className="text-sm text-gray-500">Generating agent suggestions...</p>
+                <p className="text-sm text-gray-500">{getLoadingMessage('suggestions')}</p>
                 <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
               </div>
             </div>
@@ -391,7 +382,7 @@ const SupportAgent = () => {
           {loadingStates.externalLinks ? (
             <div className="bg-gray-100 p-4 rounded-lg">
               <div className="flex items-center space-x-2">
-                <p className="text-sm text-gray-500">Running: duckduckgo_search...</p>
+                <p className="text-sm text-gray-500">{getLoadingMessage('externalLinks')}</p>
                 <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
               </div>
             </div>
@@ -462,8 +453,7 @@ const SupportAgent = () => {
                     <button
                       onClick={handleSend}
                       disabled={!query.trim()}
-                      className={`p-3 rounded-full text-white transition-all ${query.trim() ? "bg-indigo-600 hover:bg-indigo-700" : "bg-indigo-300 cursor-not-allowed"
-                        }`}
+                      className={`p-3 rounded-full text-white transition-all ${query.trim() ? "bg-indigo-600 hover:bg-indigo-700" : "bg-indigo-300 cursor-not-allowed"}`}
                     >
                       <FaPaperPlane />
                     </button>
@@ -484,7 +474,7 @@ const SupportAgent = () => {
                   <div className="mb-6">
                     <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm max-w-md">
                       <div className="flex items-center space-x-2">
-                        <p className="text-sm text-gray-500">Triggering Pwd Agent...</p>
+                        <p className="text-sm text-gray-500">{getLoadingMessage('response')}</p>
                         <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
                       </div>
                     </div>
@@ -524,20 +514,11 @@ const SupportAgent = () => {
                 />
                 <button
                   onClick={handleSend}
-                  disabled={!query.trim() || isLoading}
-                  className={`p-3 rounded-full text-white transition-all ${query.trim() && !isLoading
-                    ? "bg-indigo-600 hover:bg-indigo-700"
-                    : "bg-indigo-300 cursor-not-allowed"
+                  disabled={!query.trim()}
+                  className={`p-3 rounded-full text-white transition-all ${query.trim() ? "bg-indigo-600 hover:bg-indigo-700" : "bg-indigo-300 cursor-not-allowed"
                     }`}
                 >
-                  {isLoading ? (
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : (
-                    <FaPaperPlane />
-                  )}
+                  <FaPaperPlane />
                 </button>
               </div>
             </div>
