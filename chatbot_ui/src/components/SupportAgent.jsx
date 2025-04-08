@@ -8,14 +8,14 @@ const SupportAgent = () => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [category, setCategory] = useState(null);
 
-  // State for each section's loading status
+  // Modified loading states to include heading visibility
   const [loadingStates, setLoadingStates] = useState({
-    triageAgent: false,
-    nextAgent: false,
-    analysis: false,
-    suggestions: false,
-    externalLinks: false,
-    response: false
+    triageAgent: { visible: false, loading: false },
+    nextAgent: { visible: false, loading: false },
+    analysis: { visible: false, loading: false },
+    suggestions: { visible: false, loading: false },
+    externalLinks: { visible: false, loading: false },
+    response: { visible: false, loading: false }
   });
 
   // Single XML response data
@@ -115,104 +115,74 @@ const SupportAgent = () => {
     // Store the XML response
     setXmlResponseData(mockXmlResponse);
 
-    // Reset all loading states
+    // Reset all loading states and visibility
     setLoadingStates({
-      triageAgent: true,
-      nextAgent: false,
-      analysis: false,
-      suggestions: false,
-      externalLinks: false,
-      response: false
+      triageAgent: { visible: false, loading: false },
+      nextAgent: { visible: false, loading: false },
+      analysis: { visible: false, loading: false },
+      suggestions: { visible: false, loading: false },
+      externalLinks: { visible: false, loading: false },
+      response: { visible: false, loading: false }
     });
 
-    // Use shorter timeout for each step
-    const timeout = 1500;
+    const parsedData = parseXmlToResponseData(mockXmlResponse);
+    const timeout = 2500;
+    const headingDelay = 900; // Delay before showing next heading
 
-    // Triage Agent (first)
+    // Sequential order of components
+    const sequence = ['triageAgent', 'nextAgent', 'analysis', 'suggestions', 'externalLinks', 'response'];
+
+    // First make Triage Agent heading visible
     setTimeout(() => {
-      const parsedData = parseXmlToResponseData(mockXmlResponse);
-      setResponseData(prev => ({
-        ...prev,
-        triageAgent: parsedData.triageAgent
-      }));
-
       setLoadingStates(prev => ({
         ...prev,
-        triageAgent: false,
-        nextAgent: true
+        triageAgent: { visible: true, loading: true }
       }));
 
-      // Next Agent (second)
+      // Execute the sequence
+      executeSequence(0);
+    }, 500);
+
+    // Function to execute the sequence of components
+    const executeSequence = (index) => {
+      if (index >= sequence.length) {
+        setIsLoading(false);
+        return;
+      }
+
+      const currentItem = sequence[index];
+      const nextItem = sequence[index + 1];
+
+      // Process current item content
       setTimeout(() => {
+        // Update the content of the current item
         setResponseData(prev => ({
           ...prev,
-          nextAgent: parsedData.nextAgent
+          [currentItem]: parsedData[currentItem]
         }));
 
+        // Mark current item as loaded
         setLoadingStates(prev => ({
           ...prev,
-          nextAgent: false,
-          analysis: true
+          [currentItem]: { visible: true, loading: false }
         }));
 
-        // Analysis (third)
-        setTimeout(() => {
-          setResponseData(prev => ({
-            ...prev,
-            analysis: parsedData.analysis
-          }));
-
-          setLoadingStates(prev => ({
-            ...prev,
-            analysis: false,
-            suggestions: true
-          }));
-
-          // Suggestions (fourth)
+        // Make next item visible if there is one
+        if (nextItem) {
           setTimeout(() => {
-            setResponseData(prev => ({
-              ...prev,
-              suggestions: parsedData.suggestions
-            }));
-
             setLoadingStates(prev => ({
               ...prev,
-              suggestions: false,
-              externalLinks: true
+              [nextItem]: { visible: true, loading: true }
             }));
 
-            // External Links (fifth)
-            setTimeout(() => {
-              setResponseData(prev => ({
-                ...prev,
-                externalLinks: parsedData.externalLinks
-              }));
-
-              setLoadingStates(prev => ({
-                ...prev,
-                externalLinks: false,
-                response: true
-              }));
-
-              // Main Response (last)
-              setTimeout(() => {
-                setResponseData(prev => ({
-                  ...prev,
-                  response: parsedData.response
-                }));
-
-                setLoadingStates(prev => ({
-                  ...prev,
-                  response: false
-                }));
-
-                setIsLoading(false);
-              }, timeout);
-            }, timeout);
-          }, timeout);
-        }, timeout);
+            // Process next item
+            executeSequence(index + 1);
+          }, headingDelay);
+        } else {
+          setIsLoading(false);
+        }
       }, timeout);
-    }, timeout);
+    };
   };
 
   // Get the current category's loading messages, or use defaults
@@ -221,203 +191,213 @@ const SupportAgent = () => {
     return categoryResponses[category].loadingMessages[section] || `Loading ${section}...`;
   };
 
-  // LeftComponents extraction
+  // LeftComponents extraction with sequential visibility
   const LeftComponents = () => {
     return (
       <div className="flex flex-col h-full">
         {/* Left Panel Container with height management */}
         <div className="flex flex-col h-full space-y-6">
-          {/* Triage Agent Section - with flex-1 to share space and overflow-auto for scrolling */}
-          <div className="flex-1 min-h-0 overflow-auto">
-            <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">Triage Agent</h2>
-            {loadingStates.triageAgent ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <p className="text-sm text-gray-500">{getLoadingMessage('triageAgent')}</p>
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+          {/* Triage Agent Section - Only shown when visible */}
+          {loadingStates.triageAgent.visible && (
+            <div className="flex-1 min-h-0 overflow-auto">
+              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">Triage Agent</h2>
+              {loadingStates.triageAgent.loading ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm text-gray-500">{getLoadingMessage('triageAgent')}</p>
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+                  </div>
                 </div>
-              </div>
-            ) : responseData.triageAgent ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div className="mb-3">
-                  <p className="font-semibold">ML Prediction:</p>
-                  <p className="text-indigo-600">{responseData.triageAgent.mlPrediction}</p>
+              ) : responseData.triageAgent ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <div className="mb-3">
+                    <p className="font-semibold">ML Prediction:</p>
+                    <p className="text-indigo-600">{responseData.triageAgent.mlPrediction}</p>
+                  </div>
+                  <div className="mb-3">
+                    <p className="font-semibold">NLP Prediction:</p>
+                    <p className="text-indigo-600">{responseData.triageAgent.nlpPrediction}</p>
+                  </div>
+                  <div className="mb-3">
+                    <p className="font-semibold">Category:</p>
+                    <p>{responseData.triageAgent.category}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Subcategory:</p>
+                    <p>{responseData.triageAgent.subcategory}</p>
+                  </div>
                 </div>
-                <div className="mb-3">
-                  <p className="font-semibold">NLP Prediction:</p>
-                  <p className="text-indigo-600">{responseData.triageAgent.nlpPrediction}</p>
+              ) : (
+                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
                 </div>
-                <div className="mb-3">
-                  <p className="font-semibold">Category:</p>
-                  <p>{responseData.triageAgent.category}</p>
-                </div>
-                <div>
-                  <p className="font-semibold">Subcategory:</p>
-                  <p>{responseData.triageAgent.subcategory}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
-          {/* Next Agent Section - with flex-1 to share space and overflow-auto for scrolling */}
-          <div className="flex-1 min-h-0 overflow-auto">
-            <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">NextAgent</h2>
-            {loadingStates.nextAgent ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <p className="text-sm text-gray-500">{getLoadingMessage('nextAgent')}</p>
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+          {/* Next Agent Section - Only shown when visible */}
+          {loadingStates.nextAgent.visible && (
+            <div className="flex-1 min-h-0 overflow-auto">
+              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">NextAgent</h2>
+              {loadingStates.nextAgent.loading ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm text-gray-500">{getLoadingMessage('nextAgent')}</p>
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+                  </div>
                 </div>
-              </div>
-            ) : responseData.nextAgent ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div className="mb-3">
-                  <p className="font-semibold">Recommended Agent:</p>
-                  <p className="text-sm">{responseData.nextAgent.recommendedAgent}</p>
+              ) : responseData.nextAgent ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <div className="mb-3">
+                    <p className="font-semibold">Recommended Agent:</p>
+                    <p className="text-sm">{responseData.nextAgent.recommendedAgent}</p>
+                  </div>
+                  <div className="mb-3">
+                    <p className="font-semibold">Availability:</p>
+                    <p className="text-green-600">{responseData.nextAgent.availability}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Next Step:</p>
+                    <p className="text-sm">{responseData.nextAgent.nextStep}</p>
+                  </div>
                 </div>
-                <div className="mb-3">
-                  <p className="font-semibold">Availability:</p>
-                  <p className="text-green-600">{responseData.nextAgent.availability}</p>
+              ) : (
+                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
                 </div>
-                <div>
-                  <p className="font-semibold">Next Step:</p>
-                  <p className="text-sm">{responseData.nextAgent.nextStep}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
   };
 
-  // RightComponents extraction
+  // RightComponents extraction with sequential visibility
   const RightComponents = () => {
     return (
       <div className="flex flex-col h-full">
         {/* Right Panel Container with height management */}
         <div className="flex flex-col h-full space-y-4">
-          {/* Analysis Section - with flex-1 to share space and overflow-auto for scrolling */}
-          <div className="flex-1 min-h-0 overflow-auto">
-            <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">Analysis</h2>
-            {loadingStates.analysis ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <p className="text-sm text-gray-500">{getLoadingMessage('analysis')}</p>
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                </div>
-              </div>
-            ) : responseData.analysis ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div className="mb-3">
-                  <p className="font-semibold">Sentiment:</p>
-                  <p className="capitalize">{responseData.analysis.sentiment}</p>
-                </div>
-                <div className="mb-3">
-                  <p className="font-semibold">Priority:</p>
-                  <p className="capitalize">{responseData.analysis.priority}</p>
-                </div>
-                <div className="mb-3">
-                  <p className="font-semibold">Category:</p>
-                  <p className="capitalize">{responseData.analysis.category}</p>
-                </div>
-                <div>
-                  <p className="font-semibold">Keywords:</p>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {responseData.analysis.keywords.map((keyword, index) => (
-                      <span key={index} className="bg-blue-100 px-2 py-1 rounded-full text-sm">
-                        {keyword}
-                      </span>
-                    ))}
+          {/* Analysis Section - Only shown when visible */}
+          {loadingStates.analysis.visible && (
+            <div className="flex-1 min-h-0 overflow-auto">
+              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">Analysis</h2>
+              {loadingStates.analysis.loading ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm text-gray-500">{getLoadingMessage('analysis')}</p>
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-              </div>
-            )}
-          </div>
-
-          {/* Suggestions Section - with flex-1 to share space and overflow-auto for scrolling */}
-          <div className="flex-1 min-h-0 overflow-auto">
-            <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">Suggestions</h2>
-            {loadingStates.suggestions ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <p className="text-sm text-gray-500">{getLoadingMessage('suggestions')}</p>
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+              ) : responseData.analysis ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <div className="mb-3">
+                    <p className="font-semibold">Sentiment:</p>
+                    <p className="capitalize">{responseData.analysis.sentiment}</p>
+                  </div>
+                  <div className="mb-3">
+                    <p className="font-semibold">Priority:</p>
+                    <p className="capitalize">{responseData.analysis.priority}</p>
+                  </div>
+                  <div className="mb-3">
+                    <p className="font-semibold">Category:</p>
+                    <p className="capitalize">{responseData.analysis.category}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Keywords:</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {responseData.analysis.keywords.map((keyword, index) => (
+                        <span key={index} className="bg-blue-100 px-2 py-1 rounded-full text-sm">
+                          {keyword}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ) : responseData.suggestions ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <ul className="list-disc pl-5">
-                  {responseData.suggestions.map((suggestion, index) => (
-                    <li key={index} className="mb-2">{suggestion}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-4/5"></div>
-              </div>
-            )}
-          </div>
-
-          {/* External Links Section - with flex-1 to share space and overflow-auto for scrolling */}
-          <div className="flex-1 min-h-0 overflow-auto">
-            <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">Web Search Results</h2>
-            {loadingStates.externalLinks ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <p className="text-sm text-gray-500">{getLoadingMessage('externalLinks')}</p>
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+              ) : (
+                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
                 </div>
-              </div>
-            ) : responseData.externalLinks ? (
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <ul className="space-y-2">
-                  {responseData.externalLinks.map((link, index) => (
-                    <li key={index}>
-                      <a
-                        href={link.url}
-                        className="text-blue-600 hover:underline flex items-center"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                        </svg>
-                        {link.title}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-2/3 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+
+          {/* Suggestions Section - Only shown when visible */}
+          {loadingStates.suggestions.visible && (
+            <div className="flex-1 min-h-0 overflow-auto">
+              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">Suggestions</h2>
+              {loadingStates.suggestions.loading ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm text-gray-500">{getLoadingMessage('suggestions')}</p>
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+                  </div>
+                </div>
+              ) : responseData.suggestions ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <ul className="list-disc pl-5">
+                    {responseData.suggestions.map((suggestion, index) => (
+                      <li key={index} className="mb-2">{suggestion}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-4/5"></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* External Links Section - Only shown when visible */}
+          {loadingStates.externalLinks.visible && (
+            <div className="flex-1 min-h-0 overflow-auto">
+              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">Web Search Results</h2>
+              {loadingStates.externalLinks.loading ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm text-gray-500">{getLoadingMessage('externalLinks')}</p>
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+                  </div>
+                </div>
+              ) : responseData.externalLinks ? (
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <ul className="space-y-2">
+                    {responseData.externalLinks.map((link, index) => (
+                      <li key={index}>
+                        <a
+                          href={link.url}
+                          className="text-blue-600 hover:underline flex items-center"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                          </svg>
+                          {link.title}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-2/3 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -476,22 +456,24 @@ const SupportAgent = () => {
                   </div>
                 )}
 
-                {loadingStates.response ? (
-                  <div className="mb-6">
-                    <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm max-w-md">
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm text-gray-500">{getLoadingMessage('response')}</p>
-                        <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+                {loadingStates.response.visible ? (
+                  loadingStates.response.loading ? (
+                    <div className="mb-6">
+                      <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm max-w-md">
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm text-gray-500">{getLoadingMessage('response')}</p>
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : responseData.response ? (
-                  <div className="mb-6">
-                    <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm max-w-md">
-                      <p>{responseData.response}</p>
+                  ) : responseData.response ? (
+                    <div className="mb-6">
+                      <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm max-w-md">
+                        <p>{responseData.response}</p>
+                      </div>
                     </div>
-                  </div>
-                ) : isLoading && (
+                  ) : null
+                ) : isLoading && !Object.values(loadingStates).some(state => state.visible) ? (
                   <div className="mb-6">
                     <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm max-w-md">
                       <div className="flex items-center space-x-2">
@@ -501,7 +483,7 @@ const SupportAgent = () => {
                       </div>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </div>
@@ -521,8 +503,7 @@ const SupportAgent = () => {
                 <button
                   onClick={handleSend}
                   disabled={!query.trim()}
-                  className={`p-3 rounded-full text-white transition-all ${query.trim() ? "bg-indigo-600 hover:bg-indigo-700" : "bg-indigo-300 cursor-not-allowed"
-                    }`}
+                  className={`p-3 rounded-full text-white transition-all ${query.trim() ? "bg-indigo-600 hover:bg-indigo-700" : "bg-indigo-300 cursor-not-allowed"}`}
                 >
                   <FaPaperPlane />
                 </button>
