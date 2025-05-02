@@ -394,7 +394,7 @@ const SupportAgent = () => {
     return (
       <div className="mb-6 overflow-x-auto">
         <h3 className="font-bold text-lg mb-2">{title}</h3>
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -514,7 +514,7 @@ const SupportAgent = () => {
                       </div>
                     </div>
                   ) : responseData.finalResponse ? (
-                    <div className="mb-6">
+                    <div className="mb-6 overflow-auto ">
                       <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
                         {/* New Table Response */}
                         <h2 className="text-xl font-bold mb-3">{responseData.finalResponse.idocAgentTitle}</h2>
@@ -538,6 +538,7 @@ const SupportAgent = () => {
                         <ResponsiveTable
                           data={responseData.finalResponse.idocTableData}
                           title=""
+                          className="overflow-x-auto"
                         />
                       </div>
                     </div>

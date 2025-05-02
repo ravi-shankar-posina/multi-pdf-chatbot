@@ -82,7 +82,7 @@ function App() {
             <Route path="/kt-documents" element={<Chat key="kt/query" api="kt/query" />} />
             <Route path="/smart-connectors" element={<SmartConn />} />
             <Route path="/grise-agent" element={<GriseAgent />} />
-            <Route path="/support-agent" element={<SupportAgent />} />
+            <Route path="/idoc-agent" element={<SupportAgent />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />
