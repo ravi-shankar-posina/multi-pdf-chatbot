@@ -16,6 +16,8 @@ import SapTestCase from "./pages/SapTestCase";
 import TestScriptGenerator from "./pages/TestScriptGenerator";
 import GriseAgent from "./components/GriseAgent";
 import SupportAgent from "./components/SupportAgent";
+import PasswordAgent from "./components/PasswordAgent";
+import Coa from "./components/Coa";
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -83,6 +85,8 @@ function App() {
             <Route path="/smart-connectors" element={<SmartConn />} />
             <Route path="/grise-agent" element={<GriseAgent />} />
             <Route path="/idoc-agent" element={<SupportAgent />} />
+            <Route path="/pwd-agent" element={<PasswordAgent />} />
+            <Route path="/coa" element={<Coa />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />

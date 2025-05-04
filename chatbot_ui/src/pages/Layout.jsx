@@ -61,6 +61,15 @@ const navigatorSections = [
     options: [
       { label: "Grise Agent", path: "/grise-agent", icon: <MdSupportAgent size={14} /> },
       { label: "IDOC Agent", path: "/idoc-agent", icon: <MdSupportAgent size={14} /> },
+      { label: "Password Agent", path: "/pwd-agent", icon: <MdSupportAgent size={14} /> },
+    ]
+  }, {
+    title: "Functional Tools",
+    icon: <FaUser size={16} />,
+    titleColor: COLORS.labelColor,
+    iconColor: COLORS.labelColor,
+    options: [
+      { label: "COA", path: "/coa", icon: <FaCode size={14} /> },
     ]
   }
 ];

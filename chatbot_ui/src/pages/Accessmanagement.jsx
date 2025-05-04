@@ -17,7 +17,7 @@ export const AccessManagement = () => {
   const [selectedOption, setSelectedOption] = useState("");
   const [messages, setMessages] = useState([
     {
-      text: "Hello! How can I help you?",
+      text: "Hello! Iam here to help You choose the option",
       sender: "bot",
     },
   ]);
@@ -130,16 +130,14 @@ export const AccessManagement = () => {
           {messages.map((msg, index) => (
             <div
               key={index}
-              className={`flex ${
-                msg.sender === "bot" ? "justify-start" : "justify-end"
-              }`}
+              className={`flex ${msg.sender === "bot" ? "justify-start" : "justify-end"
+                }`}
             >
               <div
-                className={`${
-                  msg.sender === "bot"
-                    ? "bg-gray-300 text-black "
-                    : "bg-blue-600 text-white "
-                } p-3 rounded-lg max-w-2xl shadow`}
+                className={`${msg.sender === "bot"
+                  ? "bg-gray-300 text-black "
+                  : "bg-blue-600 text-white "
+                  } p-3 rounded-lg max-w-2xl shadow`}
               >
                 {msg.text}
               </div>
