@@ -5,6 +5,9 @@ const SupportAgent = () => {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [showReprocessPrompt, setShowReprocessPrompt] = useState(false);
+  const [endConversation, setEndConversation] = useState(false);
+  const [thanksMsg, setThanksMsg] = useState(false);
 
   // Each section's loading and visibility state
   const [loadingStates, setLoadingStates] = useState({
@@ -23,6 +26,12 @@ const SupportAgent = () => {
     { idoc_number: "1000003", date_status_error: "03-04-2025", time_status_error: "09:30:12", status_counter: "1", status_code: "53", status_text: "IDOC Successfully Posted", routine_function_mode: "ZFUNC03", order_number: "450003", sales_org: "1000", sales_area: "3", division: "30", amount: "320.5" },
     { idoc_number: "1000004", date_status_error: "04-04-2025", time_status_error: "14:22:57", status_counter: "3", status_code: "53", status_text: "IDOC Successfully Posted", routine_function_mode: "ZFUNC04", order_number: "450004", sales_org: "3000", sales_area: "4", division: "80", amount: "4789.2" },
     { idoc_number: "1000005", date_status_error: "05-04-2025", time_status_error: "08:47:30", status_counter: "1", status_code: "51", status_text: "Application document not posted", routine_function_mode: "ZFUNC05", order_number: "450005", sales_org: "1000", sales_area: "2", division: "10", amount: "999.99" }
+  ];
+  const updatedIdocTableData = [{ idoc_number: "1000001", date_status_error: "01-04-2025", time_status_error: "10:05:23", status_counter: "1", status_code: "53", status_text: "IDOC Successfully Posted", routine_function_mode: "ZFUNC01", order_number: "450001", sales_org: "1000", sales_area: "1", division: "10", amount: "500.75" },
+    { idoc_number: "1000002", date_status_error: "02-04-2025", time_status_error: "11:15:45", status_counter: "2", status_code: "64", status_text: "IDOC Successfully Posted", routine_function_mode: "ZFUNC02", order_number: "450002", sales_org: "2000", sales_area: "2", division: "20", amount: "2600" },
+    { idoc_number: "1000003", date_status_error: "03-04-2025", time_status_error: "09:30:12", status_counter: "1", status_code: "53", status_text: "IDOC Successfully Posted", routine_function_mode: "ZFUNC03", order_number: "450003", sales_org: "1000", sales_area: "3", division: "30", amount: "320.5" },
+    { idoc_number: "1000004", date_status_error: "04-04-2025", time_status_error: "14:22:57", status_counter: "3", status_code: "53", status_text: "IDOC Successfully Posted", routine_function_mode: "ZFUNC04", order_number: "450004", sales_org: "3000", sales_area: "4", division: "80", amount: "4789.2" },
+    { idoc_number: "1000005", date_status_error: "05-04-2025", time_status_error: "08:47:30", status_counter: "1", status_code: "64", status_text: "IDOC Successfully Posted", routine_function_mode: "ZFUNC05", order_number: "450005", sales_org: "1000", sales_area: "2", division: "10", amount: "999.99" }
   ];
 
   // Mock sync results
@@ -62,12 +71,12 @@ const SupportAgent = () => {
   // Mock response data for the IDOC issue
   const mockResponseData = {
     mainCategoryML: {
-      title: "Main Category: ML Triage Result",
+      title: "Main Category: Analysis",
       runningMessage: "Running: main_ml_triage_agent_predict_tool(incident_description=['psdata idoc sales order issues'])",
       result: "ML Predicted Main Category: Idoc Issue"
     },
     mainCategoryNLP: {
-      title: "Main Category NLP Triage Result",
+      title: "Categeorization",
       runningMessage: "Running: main_nlp_triage_agent_predict_tool(issue_description=psdata idoc sales order issues)",
       result: "NLP Predicted Main Category: Idoc Issue"
     },
@@ -112,7 +121,7 @@ const SupportAgent = () => {
       conclusion: "These tickets suggest cross-verifying the current setup and data accuracy for IDOCs related to sales orders, focusing on areas like data entry and configuration settings for procurement and taxation."
     },
     mlSubCategory: {
-      title: "ML Sub Category ML Triage Result",
+      title: "Action",
       runningMessage: "Running: ml_triage_agent_predict_tool(incident_description=['psdata idoc sales order issues'])",
       result: "ML Sub Category ML Triage Result: Incorrect Entry"
     },
@@ -128,27 +137,65 @@ const SupportAgent = () => {
       syncTitle: "Running:",
       syncCommand: "sync_idoc_with_sales(user_input=psdata idoc sales order issues)",
       syncResults: syncResults,
-      updatedTableTitle: "Updated Master Data Table: idoc_status"
+      updatedTableTitle: "Updated Master Data Table: idoc_status",
+      updatedIdocTableData: updatedIdocTableData
+    },
+    errorResponse: {
+      message: "Your query is not related to IDOC issues. Please provide a query related to IDOC problems for proper assistance."
     }
   };
 
   // Response data state
   const [responseData, setResponseData] = useState({});
-
+  // Function to check if query is related to IDOC
+  const isIdocRelated = (query) => {
+    const idocKeywords = ['idoc', 'idocs', 'edi', 'interface', 'sales order', 'document', 'posted', 'data exchange', 'integration'];
+    return idocKeywords.some(keyword => query.toLowerCase().includes(keyword));
+  };
   const handleSend = () => {
     if (!query.trim()) return;
 
     setIsLoading(true);
+    setShowReprocessPrompt(false);
+    setEndConversation(false);
     setHasInteracted(true);
     setResponseData({ query: query });
 
     // Start the sequential loading process
-    startSequentialLoading();
+    if (isIdocRelated(query)) {
+      startSequentialLoading();
+    } else {
+      // Skip all other steps and show error response
+      setTimeout(() => {
+        setLoadingStates(prev => ({
+          ...prev,
+          response: { visible: true, loading: false }
+        }));
+        setResponseData(prev => ({
+          ...prev,
+          isIdocRelated: false,
+          errorResponse: mockResponseData.errorResponse
+        }));
+        setIsLoading(false);
+      }, 1500);
+    }
 
     // Clear input
     setQuery("");
   };
-
+  // Handle reprocess buttons
+  const handleReprocessResponse = (choice) => {
+    if (choice === 'yes') {
+      // Show updated table and end conversation
+      setShowReprocessPrompt(false);
+      setEndConversation(true);
+    } else {
+      // Just end conversation with thanks
+      setShowReprocessPrompt(false);
+      setEndConversation(false);
+      setThanksMsg(true);
+    }
+  };
   const startSequentialLoading = () => {
     // Reset all loading states and visibility
     setLoadingStates({
@@ -219,6 +266,8 @@ const SupportAgent = () => {
             ...prev,
             finalResponse: mockResponseData.finalResponse
           }));
+          // Show reprocess prompt
+          setShowReprocessPrompt(true);
         }
       }, timeout);
     };
@@ -446,6 +495,8 @@ const SupportAgent = () => {
           ))}
           <p className="text-green-700 font-medium">These discrepancies have been successfully reconciled to ensure data consistency between the IDOC and sales records.</p>
         </div>
+        {/* Reprocess prompt */}
+
       </div>
     );
   };
@@ -502,7 +553,16 @@ const SupportAgent = () => {
                     </div>
                   </div>
                 )}
-
+                {/* Error Response for non-IDOC queries */}
+                {!responseData.isIdocRelated && responseData.errorResponse && (
+                  <div className="mb-6">
+                    <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
+                      <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <p className="text-red-700 font-medium">{responseData.errorResponse.message}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {loadingStates.response.visible ? (
                   loadingStates.response.loading ? (
                     <div className="mb-6">
@@ -531,15 +591,43 @@ const SupportAgent = () => {
                         <p className="mb-4 font-mono text-sm bg-gray-50 p-2 rounded">{responseData.finalResponse.syncCommand}</p>
 
                         {/* Sync Results */}
-                        <SyncResultsComponent syncResults={responseData.finalResponse.syncResults} />
+                        {showReprocessPrompt && (
+                          <div className="mt-4 bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                            <p className="font-bold text-indigo-800 mb-3">DO YOU WANT TO REPROCESS?</p>
+                            <div className="flex space-x-4">
+                              <button
+                                onClick={() => handleReprocessResponse('yes')}
+                                className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                              >
+                                YES
+                              </button>
+                              <button
+                                onClick={() => handleReprocessResponse('no')}
+                                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors"
+                              >
+                                NO
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Updated Table */}
-                        <h3 className="text-lg font-semibold mb-2">{responseData.finalResponse.updatedTableTitle}</h3>
-                        <ResponsiveTable
-                          data={responseData.finalResponse.idocTableData}
-                          title=""
-                          className="overflow-x-auto"
-                        />
+                        {endConversation && (
+                          <div>
+                            <SyncResultsComponent syncResults={responseData.finalResponse.syncResults} />
+                            <h3 className="text-lg font-semibold mb-2">{responseData.finalResponse.updatedTableTitle}</h3>
+                            <ResponsiveTable
+                              data={responseData.finalResponse.updatedIdocTableData}
+                              title=""
+                              className="overflow-x-auto"
+                            />
+                          </div>
+                        )}
+                        {thanksMsg && (
+                          <div className="mt-4 bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                            <p className="font-bold text-indigo-800 mb-3">Thank you for choosing SAP Support!</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : null
@@ -593,5 +681,4 @@ const SupportAgent = () => {
     </div>
   );
 };
-
 export default SupportAgent;  
