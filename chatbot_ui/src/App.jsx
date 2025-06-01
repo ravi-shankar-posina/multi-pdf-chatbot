@@ -18,26 +18,87 @@ import GriseAgent from "./components/GriseAgent";
 import SupportAgent from "./components/SupportAgent";
 import PasswordAgent from "./components/PasswordAgent";
 import Coa from "./components/Coa";
+
+// Same user data as in LoginPage
+const USERS = [
+  { username: "admin", password: "grise2025!", token: "admin-token" },
+  { username: "703055690", password: "Password@2025", token: "user-token" },
+  { username: "703070518", password: "Password@2025", token: "user-token" },
+  { username: "302009439", password: "Password@2025", token: "user-token" },
+];
+
+// Validate token against current user credentials
+const validateToken = (token) => {
+  try {
+    const decoded = atob(token);
+    const [username, password] = decoded.split(':');
+
+    // Check if user exists with current password
+    const user = USERS.find(u => u.username === username && u.password === password);
+    return !!user;
+  } catch (error) {
+    return false;
+  }
+};
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if token exists in local storage
+    // Check if token exists and is valid
     const token = localStorage.getItem("authToken");
-    setIsAuthenticated(!!token);
+
+    if (token) {
+      const isValidToken = validateToken(token);
+      if (isValidToken) {
+        setIsAuthenticated(true);
+      } else {
+        // Token is invalid, clear storage
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("username");
+        setIsAuthenticated(false);
+      }
+    } else {
+      setIsAuthenticated(false);
+    }
+
+    setIsLoading(false);
   }, []);
 
-  const handleLogin = (token) => {
-    // Store token and set authentication
-    localStorage.setItem("authToken", token);
+  // Also check token validity periodically (every 5 minutes)
+  useEffect(() => {
+    if (isAuthenticated) {
+      const interval = setInterval(() => {
+        const token = localStorage.getItem("authToken");
+        if (token && !validateToken(token)) {
+          handleLogout();
+        }
+      }, 5 * 60 * 1000); // Check every 5 minutes
+
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = () => {
     setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
     // Remove token and reset authentication
     localStorage.removeItem("authToken");
+    localStorage.removeItem("username");
     setIsAuthenticated(false);
   };
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <Router>

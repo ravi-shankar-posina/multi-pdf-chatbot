@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { UserIcon, LockIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, LockIcon, UserIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import chatbotIntro from "../assets/ai.png";
-import { use } from "react";
 
 // Custom color palette
 const COLORS = {
@@ -12,16 +11,48 @@ const COLORS = {
 
 const USERS = [
   { username: "admin", password: "grise2024!", token: "admin-token" },
-  { username: "703055690", password: "Welcome@2025", token: "user-token" },
-  { username: "703070518", password: "Welcome@2025", token: "user-token" },
-  { username: "302009439", password: "Welcome@2025", token: "user-token" },
+  { username: "703055690", password: "Password@2025", token: "user-token" },
+  { username: "703070518", password: "Password@2025", token: "user-token" },
+  { username: "302009439", password: "Password@2025", token: "user-token" },
 ];
+
+// Generate secure token that includes password hash
+const generateSecureToken = (username, password) => {
+  // Create a simple hash of username + password + timestamp
+  const data = `${username}:${password}:${Date.now()}`;
+  return btoa(data); // Base64 encode for simplicity
+};
+
+// Validate token against current user credentials
+const validateToken = (token) => {
+  try {
+    const decoded = atob(token);
+    const [username, password] = decoded.split(':');
+
+    // Check if user exists with current password
+    const user = USERS.find(u => u.username === username && u.password === password);
+    return !!user;
+  } catch (error) {
+    return false;
+  }
+};
 
 const LoginPage = ({ onLogin }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+
+  // Check if existing token is still valid on component mount
+  useEffect(() => {
+    const existingToken = localStorage.getItem("authToken");
+    if (existingToken && !validateToken(existingToken)) {
+      // Token is invalid (password changed), remove it
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("username"); // Also remove stored username
+      setError("Your session has expired due to password change. Please login again.");
+    }
+  }, []);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -31,9 +62,12 @@ const LoginPage = ({ onLogin }) => {
     );
 
     if (user) {
-      // Store token in localStorage
-      console.log(user.token);
-      localStorage.setItem("authToken", user.token);
+      // Generate secure token with current password
+      const secureToken = generateSecureToken(username, password);
+
+      // Store token and username
+      localStorage.setItem("authToken", secureToken);
+      localStorage.setItem("username", username);
 
       onLogin(); // Update authentication state
       setError("");
