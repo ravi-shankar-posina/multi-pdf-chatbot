@@ -100,17 +100,14 @@ def load_pdf_vector_store(file_paths, vectordb_path):
     return vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
 # Initialize vector stores and commented on 08/06/2025
-# combined_csv_path = "./DataDump_ofServiceRequests.csv"
-# pd.concat([
-#     pd.read_csv("./Data dump of Service Requests.csv", encoding=encoding),
-#     pd.read_csv("./Updated_HowToDataStore.csv", encoding=encoding)
-# ]).to_csv(combined_csv_path, index=False)
-# Added on 08/06/2025
+# Define the combined CSV path
+combined_csv_path = "./DataDump_ofServiceRequests.csv"
+
+# Create combined CSV file - Added on 08/06/2025
 pd.concat([
     pd.read_csv("./change_requests_last_12_months.csv", encoding=encoding),
     pd.read_csv("./open_incidents_as_on_13thMay.csv", encoding=encoding),
     pd.read_csv("./resolved_incidents_last_12_months.csv", encoding=encoding),
-    # pd.read_csv("./sc_tasks_last_12_months.csv", encoding=encoding)
 ]).to_csv(combined_csv_path, index=False)
 
 csv_retriever = load_csv_vector_store(combined_csv_path, "./StoreFAISSCSV")
@@ -386,7 +383,7 @@ def analyze_excel():
         return jsonify({"answer": response_data})
 
     except FileNotFoundError:
-        return jsonify({"error": "The file './output.csv' could not be found."}), 404
+        return jsonify({"error": "The file './Data_dumpOf_incidents.csv' could not be found."}), 404
     except Exception as e:
         # Catch unexpected errors and log them
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
