@@ -110,7 +110,7 @@ pd.concat([
     pd.read_csv("./change_requests_last_12_months.csv", encoding=encoding),
     pd.read_csv("./open_incidents_as_on_13thMay.csv", encoding=encoding),
     pd.read_csv("./resolved_incidents_last_12_months.csv", encoding=encoding),
-    pd.read_csv("./sc_tasks_last_12_months.csv", encoding=encoding)
+    # pd.read_csv("./sc_tasks_last_12_months.csv", encoding=encoding)
 ]).to_csv(combined_csv_path, index=False)
 
 csv_retriever = load_csv_vector_store(combined_csv_path, "./StoreFAISSCSV")
