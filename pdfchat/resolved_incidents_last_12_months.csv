@@ -1,0 +1,98 @@
+﻿assignment_group,(All),
+,,
+subcategory,cmdb_ci,Count of number
+Access,,3683
+Access Management,,2
+Audit,,13
+AWS,,1
+Backup,,11
+CAT 1 - Unauthorised,,28
+CAT 2 - Denial of Service (DoS),,3
+CAT 3 - Malicious Code,,7
+CAT 4 - Improper Usage,,1
+CAT 5 - Scans/Probes/SPAM,,25
+CAT 6 - Investigation,,27
+CAT 99 - Non-Incident,,11
+CAT PII - Data Theft/Loss,,1
+Circuit / Line,,6
+Configuration,,5465
+CPU,,24
+Credentials,,36
+Customer Facing,,26
+Data,,282
+Desk Phone,,3
+Desktop,,56
+Device Offline,,1
+Disk,,16
+DNS,,5
+Engineering,,80
+Error,,54966
+Failure,,333
+Finance,,43
+Firewall,,28
+Flexnet,,1
+General Enquiry,,39
+Hand Scanner,,3
+HR,,2
+IoT,,2
+ISP,,9
+IT,,393
+Keyboard,,52
+Lan / Wan,,77
+Laptop,,118
+Legal,,2
+Linux Server,,17
+Locked Account,,1659
+MAC,,1
+Manufacturing,,93
+Memory,,30
+Mobile,,33
+Mobility,,1
+Monitor,,167
+Mouse,,25
+MS SLQ Server,,4
+Neglect,,30
+Networking,,2
+Number,,3
+Oracle,,19
+OT Issue,,28
+Other,,1
+Payroll,,3
+Performance,,5499
+Printer,,886
+Printing,,2
+Process Defects - Qualitative,,1
+Purchasing,,30
+Reporting,APOLLON (BVS),4
+,AS400AL0,2
+,Business Integrity and Controls,1
+,cansapp20,1
+,Email (EAME/APAC) [BS],1
+,OASIS,7
+,SAP DSP DCX DS-IS Production,1
+,SAP GPP PROD,1
+,SAP SNC  SCM Support,1
+,Scan,1
+,ServiceNow,1
+,SnowIntegrationStack-SnowIntegrationAccountListAut-1tk9etCSCzJ2,1
+,(blank),15
+Reporting Total,,37
+Robot,,3
+Routing,,49
+SCADA,,1
+Server,,9
+ServiceNow,,6
+Stolen - hardware,,10
+Stolen - telecoms,,1
+Storage,,12
+Switch / Router,,16
+Tablet,,14
+Training,,222
+Unix Server,,5
+UPS,,7
+VPN,,87
+Wifi,,68
+Windows Desktop,,21
+Windows Server,,15
+(blank),,9179
+Grand Total,,84177

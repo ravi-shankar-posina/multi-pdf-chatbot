@@ -99,12 +99,20 @@ def load_pdf_vector_store(file_paths, vectordb_path):
 
     return vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
-# Initialize vector stores
-combined_csv_path = "./DataDump_ofServiceRequests.csv"
+# Initialize vector stores and commented on 08/06/2025
+# combined_csv_path = "./DataDump_ofServiceRequests.csv"
 # pd.concat([
 #     pd.read_csv("./Data dump of Service Requests.csv", encoding=encoding),
 #     pd.read_csv("./Updated_HowToDataStore.csv", encoding=encoding)
 # ]).to_csv(combined_csv_path, index=False)
+# Added on 08/06/2025
+pd.concat([
+    pd.read_csv("./change_requests_last_12_months.csv", encoding=encoding),
+    pd.read_csv("./open_incidents_as_on_13thMay.csv", encoding=encoding),
+    pd.read_csv("./resolved_incidents_last_12_months.csv", encoding=encoding),
+    pd.read_csv("./sc_tasks_last_12_months.csv", encoding=encoding)
+]).to_csv(combined_csv_path, index=False)
+
 csv_retriever = load_csv_vector_store(combined_csv_path, "./StoreFAISSCSV")
 
 # pdf_files = [
