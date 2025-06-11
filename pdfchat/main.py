@@ -21,7 +21,8 @@ from pandasai.llm.openai import OpenAI
 from abap import modify_abap_code
 from testscripts import script
 import json
-
+from dbconn import *
+from models import IDoc, MasterData
 
 # Load environment variables
 load_dotenv()
@@ -293,6 +294,168 @@ pdf_chain = create_chain(pdf_retriever, pdf_prompt)
 kt_chain = create_chain(kt_retriever, pdf_prompt)
 
 # Routes
+@app.route('/idoc-issues', methods=['GET'])
+def get_idocs():
+    try:
+        # Get total count for statistics
+        total_count = IDoc.objects().count()
+        
+        # Fetch only failed IDoc records (status_code = 51)
+        failed_idocs = IDoc.objects(status_code=51)
+        idoc_list = []
+        
+        for doc in failed_idocs:
+            item = doc.to_mongo().to_dict()
+            item["_id"] = str(item["_id"])  # Convert ObjectId to string
+            item["status_category"] = "Failed"
+            idoc_list.append(item)
+        
+        # Calculate counts
+        failure_count = len(idoc_list)
+        success_count = total_count - failure_count
+        
+        # Prepare response with failed records and counts
+        response_data = {
+            "total_records": total_count,
+            "success_count": success_count,
+            "failure_count": failure_count,
+            "failed_records": idoc_list  # Only failed records in the data
+        }
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch IDoc records: {str(e)}"}), 500
+
+@app.route('/idoc-update', methods=['POST'])
+def update_idoc_status():
+    try:
+        # Find all IDoc records with status_code = 51
+        failed_idocs = IDoc.objects(status_code=51)
+        
+        if not failed_idocs:
+            return jsonify({
+                "success": True,
+                "message": "No IDoc records found with status_code 51",
+                "updated_count": 0,
+                "results": []
+            }), 200
+        
+        # Store results for UI display
+        results = []
+        updated_count = 0
+        
+        for idoc in failed_idocs:
+            # Find matching master data by routine_function_mode
+            master_data = None
+            if idoc.routine_function_mode:
+                master_data = MasterData.objects(routine_function_code=idoc.routine_function_mode).first()
+            
+            # Store original values
+            original_data = {
+                'order_number': idoc.order_number,
+                'sales_org': idoc.sales_org,
+                'sales_area': idoc.sales_area,
+                'division': idoc.division,
+                'amount': idoc.amount
+            }
+            
+            # Initialize field updates tracking
+            field_updates = {}
+            
+            if master_data:
+                # Compare and update fields
+                fields_to_check = ['order_number', 'sales_org', 'sales_area', 'division', 'amount']
+                
+                for field in fields_to_check:
+                    idoc_value = getattr(idoc, field)
+                    master_value = getattr(master_data, field)
+                    
+                    if idoc_value != master_value:
+                        field_updates[field] = {
+                            'old_value': idoc_value,
+                            'new_value': master_value,
+                            'status': 'updated'
+                        }
+                        # Update the IDoc field
+                        setattr(idoc, field, master_value)
+                    else:
+                        field_updates[field] = {
+                            'old_value': idoc_value,
+                            'new_value': idoc_value,
+                            'status': 'matched'
+                        }
+            else:
+                # No master data found
+                fields_to_check = ['order_number', 'sales_org', 'sales_area', 'division', 'amount']
+                for field in fields_to_check:
+                    field_value = getattr(idoc, field)
+                    field_updates[field] = {
+                        'old_value': field_value,
+                        'new_value': field_value,
+                        'status': 'no_master_data'
+                    }
+            
+            # Update status_code and status_text
+            idoc.status_code = 64
+            idoc.status_text = "IDOC Status Updated - Processed"
+            
+            # Save the updated IDoc
+            idoc.save()
+            updated_count += 1
+            
+            # Prepare result for React UI in expected format
+            updates = []
+            
+            field_mapping = {
+                'order_number': 'Order Number',
+                'sales_org': 'Sales Organization', 
+                'sales_area': 'Sales Area',
+                'division': 'Division',
+                'amount': 'Amount'
+            }
+            
+            for field_key, field_label in field_mapping.items():
+                field_data = field_updates[field_key]
+                update_item = {
+                    'field': field_label,
+                    'value': str(field_data['new_value']),
+                    'status': 'matched' if field_data['status'] == 'matched' else 'updated'
+                }
+                
+                # Add oldValue only if status is updated
+                if field_data['status'] == 'updated':
+                    update_item['oldValue'] = str(field_data['old_value'])
+                
+                updates.append(update_item)
+            
+            results.append({
+                'idocNumber': str(idoc.idoc_number),
+                'updates': updates
+            })
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully updated {updated_count} IDoc records from status_code 51 to 64",
+            "updated_count": updated_count,
+            "results": results
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to update IDoc records: {str(e)}",
+            "updated_count": 0,
+            "results": []
+        }), 500
+@app.route('/idoc-data', methods=['GET'])
+def get_idoc_data():
+    try:
+        idocs = IDoc.objects()
+        idoc_list = [json.loads(doc.to_json()) for doc in idocs]
+        return jsonify(idoc_list), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch IDoc records: {str(e)}"}), 500
 @app.route('/csv/query', methods=['POST'])
 def query_csv():
     query = request.json.get("query", "")
