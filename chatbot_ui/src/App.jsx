@@ -18,6 +18,7 @@ import GriseAgent from "./components/GriseAgent";
 import SupportAgent from "./components/SupportAgent";
 import PasswordAgent from "./components/PasswordAgent";
 import Coa from "./components/Coa";
+import PoAutomation from "./components/PoAutomation";
 
 // Same user data as in LoginPage
 const USERS = [
@@ -148,6 +149,7 @@ function App() {
             <Route path="/idoc-agent" element={<SupportAgent />} />
             <Route path="/pwd-agent" element={<PasswordAgent />} />
             <Route path="/coa" element={<Coa />} />
+            <Route path="/poautomation" element={<PoAutomation />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />
