@@ -3,41 +3,186 @@ import { useState } from 'react';
 import * as XLSX from 'xlsx';
 
 const PoAutomation = () => {
-  const [tableData, setTableData] = useState([]);
+  const [tableData, setTableData] = useState([
+  {
+    "Item": 10000028,
+    "Material": "MATPRIMA3",
+    "Product Group": "L002",
+    "Quantity": 100,
+    "Purchase Order Quantity": 0,
+    "Total Value": 1000.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "18-09-2023",
+    "Plant": 1710
+  },
+  {
+    "Item": "10000061",
+    "Material": "MATPRIMA-",
+    "Product Group": "L002",
+    "Quantity": 14,
+    "Purchase Order Quantity": 0,
+    "Total Value": 245.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "09-10-2023",
+    "Plant": 1710
+  },
+  {
+    "Item": "10000091",
+    "Material": "MATPRIMA3",
+    "Product Group": "L002",
+    "Quantity": 56,
+    "Purchase Order Quantity": 56,
+    "Total Value": 56.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "30-11-2023",
+    "Plant": 1720
+  },
+  {
+    "Item": "10000112",
+    "Material": "MATPRIMA-(ALM)",
+    "Product Group": "L002",
+    "Quantity": 11.000,
+    "Purchase Order Quantity": 0.000,
+    "Total Value": 11.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "27-11-2023",
+    "Plant": 6000
+  },
+  {
+    "Item": "10000113",
+    "Material": "MATPRIMA-f",
+    "Product Group": "ALM",
+    "Quantity": 23.000,
+    "Purchase Order Quantity": 0.000,
+    "Total Value": 23.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "27-11-2023",
+    "Plant": 6000
+  },
+  {
+    "Item": 10000114,
+    "Material": "MATPRIMA-f",
+    "Product Group": "ALM",
+    "Quantity": 11.000,
+    "Purchase Order Quantity": 0.000,
+    "Total Value": 11.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "27-11-2023",
+    "Plant": 6000
+  },
+  {
+    "Item": "10000160",
+    "Material": "MATPRIMA3",
+    "Product Group": "L002",
+    "Quantity": 13,
+    "Purchase Order Quantity": 13,
+    "Total Value": 26.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "08-12-2023",
+    "Plant": 1720
+  },
+  {
+    "Item": "10000160",
+    "Material": "MATPRIMA3",
+    "Product Group": "L002",
+    "Quantity": 45.000,
+    "Purchase Order Quantity": 45.000,
+    "Total Value": 45.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "08-12-2023",
+    "Plant": 1720
+  },
+  {
+    "Item": "10000160",
+    "Material": "MATPRIMA3",
+    "Product Group": "L001",
+    "Quantity": 23.000,
+    "Purchase Order Quantity": 0.000,
+    "Total Value": 46.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "08-12-2023",
+    "Plant": 1720
+  },
+  {
+    "Item": "10000166",
+    "Material": "MATPRIMA3",
+    "Product Group": "L002",
+    "Quantity": 50.000,
+    "Purchase Order Quantity": 50.000,
+    "Total Value": 50.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "05-12-2023",
+    "Plant": 1720
+  },
+  {
+    "Item": 10000168,
+    "Material": "PRODTERM",
+    "Product Group": "L004",
+    "Quantity": 2,
+    "Purchase Order Quantity": 0,
+    "Total Value": 198.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "04-12-2023",
+    "Plant": 1720
+  },
+  {
+    "Item": "10000177",
+    "Material": "MATPRIMA3",
+    "Product Group": "L002",
+    "Quantity": 14.000,
+    "Purchase Order Quantity": 14.000,
+    "Total Value": 42.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "04-12-2023",
+    "Plant": 1720
+  },
+  {
+    "Item": "10000177",
+    "Material": "MATPRIMA3",
+    "Product Group": "L002",
+    "Quantity": 38,
+    "Purchase Order Quantity": 38,
+    "Total Value": 190.00,
+    "Assigned Supplier": "",
+    "Delivery Date": "05-12-2023",
+    "Plant": 1720
+  }
+]
+);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingSteps, setProcessingSteps] = useState([]);
   const [processingStarted, setProcessingStarted] = useState(false);
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // const handleFileUpload = (e) => {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
 
-    setIsLoading(true);
-    setProcessingSteps([]);
-    setProcessingStarted(false);
+  //   setIsLoading(true);
+  //   setProcessingSteps([]);
+  //   setProcessingStarted(false);
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const data = new Uint8Array(evt.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      const headers = jsonData[0];
-      const rows = jsonData.slice(1).map((row) => {
-        const obj = {};
-        headers.forEach((header, index) => {
-          obj[header] = row[index];
-        });
-        return obj;
-      });
+  //   const reader = new FileReader();
+  //   reader.onload = (evt) => {
+  //     const data = new Uint8Array(evt.target.result);
+  //     const workbook = XLSX.read(data, { type: 'array' });
+  //     const sheetName = workbook.SheetNames[0];
+  //     const worksheet = workbook.Sheets[sheetName];
+  //     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  //     const headers = jsonData[0];
+  //     const rows = jsonData.slice(1).map((row) => {
+  //       const obj = {};
+  //       headers.forEach((header, index) => {
+  //         obj[header] = row[index];
+  //       });
+  //       return obj;
+  //     });
 
-      setTableData(rows);
-      setIsLoading(false);
-    };
-    reader.readAsArrayBuffer(file);
-  };
+  //     setTableData(rows);
+  //     setIsLoading(false);
+  //   };
+  //   reader.readAsArrayBuffer(file);
+  // };
 
   const generatePONumber = () => {
     return '4' + Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
@@ -64,14 +209,14 @@ const PoAutomation = () => {
     await new Promise(resolve => setTimeout(resolve, 600));
 
     const updatedData = tableData.map((row, index) => {
-      const itemNumber = parseInt(row.Item);
+      const Item = parseInt(row.Item);
       const updatedRow = { ...row };
 
       // Skip PO generation for items 4, 7, 9
-      if ([4, 7, 9].includes(itemNumber)) {
+      if ([10000028, 10000168, 10000114].includes(Item)) {
         updatedRow['PO Number'] = '';
         updatedRow['Status'] = 'Error';
-        updatedRow['Comment'] = `Item ${itemNumber} - Price miss match, Notification sent.`;
+        updatedRow['Comment'] = `Item ${Item} - Price miss match, Notification sent.`;
         return updatedRow;
       }
 
@@ -198,7 +343,7 @@ const PoAutomation = () => {
       </div>
 
       <div className="p-4 border-t bg-gray-100 flex items-center justify-between">
-        <div className="flex items-center">
+        {/* <div className="flex items-center">
           <label htmlFor="file-upload" className={`cursor-pointer px-4 py-2 rounded border shadow text-white ${isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}>
             {isLoading ? (
               <div className="flex items-center">
@@ -218,7 +363,7 @@ const PoAutomation = () => {
           <span className="text-sm text-gray-600 ml-4">
             {tableData.length > 0 ? `${tableData.length} rows loaded` : "No file selected"}
           </span>
-        </div>
+        </div> */}
 
         <button
           onClick={handleGenerateData}
