@@ -1,189 +1,156 @@
-import { Loader, Play, CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, Loader, Play, XCircle } from 'lucide-react';
 import { useState } from 'react';
-import * as XLSX from 'xlsx';
 
 const PoAutomation = () => {
   const [tableData, setTableData] = useState([
-  {
-    "Item": 10000028,
-    "Material": "MATPRIMA3",
-    "Product Group": "L002",
-    "Quantity": 100,
-    "Purchase Order Quantity": 0,
-    "Total Value": 1000.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "18-09-2023",
-    "Plant": 1710
-  },
-  {
-    "Item": "10000061",
-    "Material": "MATPRIMA-",
-    "Product Group": "L002",
-    "Quantity": 14,
-    "Purchase Order Quantity": 0,
-    "Total Value": 245.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "09-10-2023",
-    "Plant": 1710
-  },
-  {
-    "Item": "10000091",
-    "Material": "MATPRIMA3",
-    "Product Group": "L002",
-    "Quantity": 56,
-    "Purchase Order Quantity": 56,
-    "Total Value": 56.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "30-11-2023",
-    "Plant": 1720
-  },
-  {
-    "Item": "10000112",
-    "Material": "MATPRIMA-(ALM)",
-    "Product Group": "L002",
-    "Quantity": 11.000,
-    "Purchase Order Quantity": 0.000,
-    "Total Value": 11.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "27-11-2023",
-    "Plant": 6000
-  },
-  {
-    "Item": "10000113",
-    "Material": "MATPRIMA-f",
-    "Product Group": "ALM",
-    "Quantity": 23.000,
-    "Purchase Order Quantity": 0.000,
-    "Total Value": 23.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "27-11-2023",
-    "Plant": 6000
-  },
-  {
-    "Item": 10000114,
-    "Material": "MATPRIMA-f",
-    "Product Group": "ALM",
-    "Quantity": 11.000,
-    "Purchase Order Quantity": 0.000,
-    "Total Value": 11.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "27-11-2023",
-    "Plant": 6000
-  },
-  {
-    "Item": "10000160",
-    "Material": "MATPRIMA3",
-    "Product Group": "L002",
-    "Quantity": 13,
-    "Purchase Order Quantity": 13,
-    "Total Value": 26.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "08-12-2023",
-    "Plant": 1720
-  },
-  {
-    "Item": "10000160",
-    "Material": "MATPRIMA3",
-    "Product Group": "L002",
-    "Quantity": 45.000,
-    "Purchase Order Quantity": 45.000,
-    "Total Value": 45.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "08-12-2023",
-    "Plant": 1720
-  },
-  {
-    "Item": "10000160",
-    "Material": "MATPRIMA3",
-    "Product Group": "L001",
-    "Quantity": 23.000,
-    "Purchase Order Quantity": 0.000,
-    "Total Value": 46.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "08-12-2023",
-    "Plant": 1720
-  },
-  {
-    "Item": "10000166",
-    "Material": "MATPRIMA3",
-    "Product Group": "L002",
-    "Quantity": 50.000,
-    "Purchase Order Quantity": 50.000,
-    "Total Value": 50.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "05-12-2023",
-    "Plant": 1720
-  },
-  {
-    "Item": 10000168,
-    "Material": "PRODTERM",
-    "Product Group": "L004",
-    "Quantity": 2,
-    "Purchase Order Quantity": 0,
-    "Total Value": 198.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "04-12-2023",
-    "Plant": 1720
-  },
-  {
-    "Item": "10000177",
-    "Material": "MATPRIMA3",
-    "Product Group": "L002",
-    "Quantity": 14.000,
-    "Purchase Order Quantity": 14.000,
-    "Total Value": 42.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "04-12-2023",
-    "Plant": 1720
-  },
-  {
-    "Item": "10000177",
-    "Material": "MATPRIMA3",
-    "Product Group": "L002",
-    "Quantity": 38,
-    "Purchase Order Quantity": 38,
-    "Total Value": 190.00,
-    "Assigned Supplier": "",
-    "Delivery Date": "05-12-2023",
-    "Plant": 1720
-  }
-]
-);
-  const [isLoading, setIsLoading] = useState(false);
+    {
+      "PR Number": 10000028,
+      "Material": "MATPRIMA3",
+      "Product Group": "L002",
+      "Quantity": 100,
+      "Purchase Order Quantity": 0,
+      "Total Value": 1000.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "18-12-2025",
+      "Plant": 1710
+    },
+    {
+      "PR Number": "10000061",
+      "Material": "MATPRIMA-",
+      "Product Group": "L002",
+      "Quantity": 14,
+      "Purchase Order Quantity": 0,
+      "Total Value": 245.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "09-11-2025",
+      "Plant": 1710
+    },
+    {
+      "PR Number": "10000091",
+      "Material": "MATPRIMA3",
+      "Product Group": "L002",
+      "Quantity": 56,
+      "Purchase Order Quantity": 56,
+      "Total Value": 56.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "30-12-2025",
+      "Plant": 1720
+    },
+    {
+      "PR Number": "10000112",
+      "Material": "MATPRIMA-(ALM)",
+      "Product Group": "L002",
+      "Quantity": 11.000,
+      "Purchase Order Quantity": 0.000,
+      "Total Value": 11.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "27-11-2025",
+      "Plant": 6000
+    },
+    {
+      "PR Number": "10000113",
+      "Material": "MATPRIMA-f",
+      "Product Group": "ALM",
+      "Quantity": 23.000,
+      "Purchase Order Quantity": 0.000,
+      "Total Value": 23.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "27-12-2025",
+      "Plant": 6000
+    },
+    {
+      "PR Number": 10000114,
+      "Material": "MATPRIMA-f",
+      "Product Group": "ALM",
+      "Quantity": 11.000,
+      "Purchase Order Quantity": 0.000,
+      "Total Value": 11.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "27-11-2025",
+      "Plant": 6000
+    },
+    {
+      "PR Number": "10000160",
+      "Material": "MATPRIMA3",
+      "Product Group": "L002",
+      "Quantity": 13,
+      "Purchase Order Quantity": 13,
+      "Total Value": 26.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "08-12-2025",
+      "Plant": 1720
+    },
+    {
+      "PR Number": "10000160",
+      "Material": "MATPRIMA3",
+      "Product Group": "L002",
+      "Quantity": 45.000,
+      "Purchase Order Quantity": 45.000,
+      "Total Value": 45.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "08-12-2025",
+      "Plant": 1720
+    },
+    {
+      "PR Number": "10000160",
+      "Material": "MATPRIMA3",
+      "Product Group": "L001",
+      "Quantity": 23.000,
+      "Purchase Order Quantity": 0.000,
+      "Total Value": 46.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "08-12-2025",
+      "Plant": 1720
+    },
+    {
+      "PR Number": "10000166",
+      "Material": "MATPRIMA3",
+      "Product Group": "L002",
+      "Quantity": 50.000,
+      "Purchase Order Quantity": 50.000,
+      "Total Value": 50.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "05-11-2025",
+      "Plant": 1720
+    },
+    {
+      "PR Number": 10000168,
+      "Material": "PRODTERM",
+      "Product Group": "L004",
+      "Quantity": 2,
+      "Purchase Order Quantity": 0,
+      "Total Value": 198.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "04-11-2025",
+      "Plant": 1720
+    },
+    {
+      "PR Number": "10000177",
+      "Material": "MATPRIMA3",
+      "Product Group": "L002",
+      "Quantity": 14.000,
+      "Purchase Order Quantity": 14.000,
+      "Total Value": 42.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "04-11-2025",
+      "Plant": 1720
+    },
+    {
+      "PR Number": "10000177",
+      "Material": "MATPRIMA3",
+      "Product Group": "L002",
+      "Quantity": 38,
+      "Purchase Order Quantity": 38,
+      "Total Value": 190.00,
+      "Assigned Supplier": "",
+      "Delivery Date": "05-11-2025",
+      "Plant": 1720
+    }
+  ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingSteps, setProcessingSteps] = useState([]);
   const [processingStarted, setProcessingStarted] = useState(false);
-
-  // const handleFileUpload = (e) => {
-  //   const file = e.target.files[0];
-  //   if (!file) return;
-
-  //   setIsLoading(true);
-  //   setProcessingSteps([]);
-  //   setProcessingStarted(false);
-
-  //   const reader = new FileReader();
-  //   reader.onload = (evt) => {
-  //     const data = new Uint8Array(evt.target.result);
-  //     const workbook = XLSX.read(data, { type: 'array' });
-  //     const sheetName = workbook.SheetNames[0];
-  //     const worksheet = workbook.Sheets[sheetName];
-  //     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-  //     const headers = jsonData[0];
-  //     const rows = jsonData.slice(1).map((row) => {
-  //       const obj = {};
-  //       headers.forEach((header, index) => {
-  //         obj[header] = row[index];
-  //       });
-  //       return obj;
-  //     });
-
-  //     setTableData(rows);
-  //     setIsLoading(false);
-  //   };
-  //   reader.readAsArrayBuffer(file);
-  // };
-
+  const [currentlyProcessingIndex, setCurrentlyProcessingIndex] = useState(-1);
   const generatePONumber = () => {
     return '4' + Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
   };
@@ -198,44 +165,59 @@ const PoAutomation = () => {
     setIsProcessing(true);
     setProcessingStarted(true);
     setProcessingSteps([]);
+    setCurrentlyProcessingIndex(-1);
 
     addProcessingStep('Starting PO generation process...', 'info');
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    addProcessingStep('Analyzing data structure...', 'info');
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    addProcessingStep('Validating item numbers...', 'info');
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    const updatedData = tableData.map((row, index) => {
-      const Item = parseInt(row.Item);
-      const updatedRow = { ...row };
-
-      // Skip PO generation for items 4, 7, 9
-      if ([10000028, 10000168, 10000114].includes(Item)) {
-        updatedRow['PO Number'] = '';
-        updatedRow['Status'] = 'Error';
-        updatedRow['Comment'] = `Item ${Item} - Price miss match, Notification sent.`;
-        return updatedRow;
-      }
-
-      // Generate PO number for other items
-      updatedRow['PO Number'] = generatePONumber();
-      updatedRow['Status'] = 'Completed';
-      updatedRow['Comment'] = '';
-
-      return updatedRow;
-    });
-
-    addProcessingStep('Generating PO numbers for valid items...', 'info');
+    addProcessingStep('Analyzing data structure...', 'info');
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    addProcessingStep('Setting status for completed items...', 'info');
-    await new Promise(resolve => setTimeout(resolve, 500));
+    addProcessingStep('Validating item numbers...', 'info');
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
-    addProcessingStep('Adding error comments for invalid items...', 'warning');
-    await new Promise(resolve => setTimeout(resolve, 700));
+    const updatedData = [...tableData];
+
+    // Process each row with individual time intervals
+    for (let index = 0; index < updatedData.length; index++) {
+      const row = updatedData[index];
+      const PR_Number = row['PR Number'];
+
+      setCurrentlyProcessingIndex(index);
+      addProcessingStep(`Processing item ${index + 1} of ${updatedData.length}: PR ${PR_Number}`, 'info');
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      // Skip PO generation for items with specific PR numbers
+      if ([10000028, 10000168, 10000114].includes(PR_Number)) {
+        updatedData[index] = {
+          ...row,
+          'PO Number': '',
+          'Status': 'Error',
+          'Comment': `Item ${PR_Number} - Price mismatch, Notification sent.`
+        };
+        addProcessingStep(`Item ${PR_Number} - Error detected, skipping PO generation`, 'warning');
+        await new Promise(resolve => setTimeout(resolve, 400));
+      } else {
+        // Generate PO number for valid items
+        const poNumber = generatePONumber();
+        updatedData[index] = {
+          ...row,
+          'PO Number': poNumber,
+          'Status': 'Completed',
+          'Comment': ''
+        };
+        addProcessingStep(`Item ${PR_Number} - PO ${poNumber} generated successfully`, 'success');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      // Update table data progressively
+      setTableData([...updatedData]);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    setCurrentlyProcessingIndex(-1);
+    addProcessingStep('Finalizing process...', 'info');
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     const completedCount = updatedData.filter(row => row['Status'] === 'Completed').length;
     const errorCount = updatedData.filter(row => row['Status'] === 'Error').length;
@@ -245,10 +227,8 @@ const PoAutomation = () => {
       addProcessingStep(`${errorCount} items had errors and were skipped`, 'warning');
     }
 
-    setTableData(updatedData);
     setIsProcessing(false);
   };
-
   const getStatusIcon = (status) => {
     if (status === 'Completed') {
       return <CheckCircle className="w-4 h-4 text-green-500" />;
@@ -264,11 +244,20 @@ const PoAutomation = () => {
     return 'text-gray-600 bg-gray-50';
   };
 
+  const isRowBeingProcessed = (index) => {
+    return currentlyProcessingIndex === index;
+  };
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       <div className="flex flex-1 p-4 gap-4 overflow-hidden">
         <div className="w-2/3 flex flex-col bg-white shadow rounded-lg overflow-hidden border border-gray-200">
-          <div className="flex-1 overflow-auto" style={{ maxHeight: "calc(100vh - 240px)" }}>
+          <div className="p-3 bg-gray-100 border-b flex justify-between items-center">
+            <h2 className="font-medium text-gray-700">Purchase Order Data</h2>
+
+          </div>
+
+          <div className="flex-1 overflow-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
             {tableData.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
@@ -281,7 +270,13 @@ const PoAutomation = () => {
                   </thead>
                   <tbody>
                     {tableData.map((row, idx) => (
-                      <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <tr
+                        key={idx}
+                        className={`
+                          ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                          ${isRowBeingProcessed(idx) ? "ring-2 ring-blue-400 bg-blue-50" : ""}
+                        `}
+                      >
                         {Object.entries(row).map(([key, val], i) => (
                           <td key={i} className="border p-2">
                             {key === 'Status' && val ? (
@@ -303,7 +298,7 @@ const PoAutomation = () => {
               </div>
             ) : (
               <div className="flex items-center justify-center h-32 text-gray-500">
-                No data loaded. Please upload a file to begin.
+                No data loaded. Please upload a file or add rows to begin.
               </div>
             )}
           </div>
@@ -324,13 +319,15 @@ const PoAutomation = () => {
               </div>
             ) : (
               processingSteps.map((step, index) => (
-                <div key={index} className="flex items-start gap-2 p-2 rounded border-l-4 border-l-blue-400 bg-blue-50">
+                <div key={index} className={`flex items-start gap-2 p-2 rounded border-l-4 ${step.type === 'success' ? 'border-l-green-400 bg-green-50' :
+                  step.type === 'warning' ? 'border-l-yellow-400 bg-yellow-50' :
+                    'border-l-blue-400 bg-blue-50'
+                  }`}>
                   <div className="flex-1">
-                    <div className={`font-medium ${
-                      step.type === 'success' ? 'text-green-600' : 
-                      step.type === 'warning' ? 'text-yellow-600' : 
-                      'text-blue-600'
-                    }`}>
+                    <div className={`font-medium ${step.type === 'success' ? 'text-green-600' :
+                      step.type === 'warning' ? 'text-yellow-600' :
+                        'text-blue-600'
+                      }`}>
                       {step.message}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">{step.timestamp}</div>
@@ -343,36 +340,18 @@ const PoAutomation = () => {
       </div>
 
       <div className="p-4 border-t bg-gray-100 flex items-center justify-between">
-        {/* <div className="flex items-center">
-          <label htmlFor="file-upload" className={`cursor-pointer px-4 py-2 rounded border shadow text-white ${isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}>
-            {isLoading ? (
-              <div className="flex items-center">
-                <Loader className="animate-spin mr-2" size={16} />
-                Processing
-              </div>
-            ) : "Upload File"}
-            <input
-              id="file-upload"
-              type="file"
-              accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-              onChange={handleFileUpload}
-              className="hidden"
-              disabled={isLoading}
-            />
-          </label>
-          <span className="text-sm text-gray-600 ml-4">
-            {tableData.length > 0 ? `${tableData.length} rows loaded` : "No file selected"}
-          </span>
-        </div> */}
-
+        <div className="text-sm text-gray-600">
+          Total Items: {tableData.length} |
+          Completed: {tableData.filter(row => row['Status'] === 'Completed').length} |
+          Errors: {tableData.filter(row => row['Status'] === 'Error').length}
+        </div>
         <button
           onClick={handleGenerateData}
           disabled={tableData.length === 0 || isProcessing}
-          className={`flex items-center gap-2 px-4 py-2 rounded border shadow text-white ${
-            tableData.length === 0 || isProcessing 
-              ? "bg-gray-400 cursor-not-allowed" 
-              : "bg-green-600 hover:bg-green-700"
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded border shadow text-white ${tableData.length === 0 || isProcessing
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-green-600 hover:bg-green-700"
+            }`}
         >
           {isProcessing ? (
             <>
