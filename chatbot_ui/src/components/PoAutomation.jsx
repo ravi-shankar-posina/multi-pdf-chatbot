@@ -1,163 +1,38 @@
 import { CheckCircle, Loader, Play, XCircle } from 'lucide-react';
+import { use, useEffect } from 'react';
 import { useState } from 'react';
 
 const PoAutomation = () => {
-  const [tableData, setTableData] = useState([
-    {
-      "PR Number": 10000028,
-      "Material": "MATPRIMA3",
-      "Product Group": "L002",
-      "Quantity": 100,
-      "Purchase Order Quantity": 0,
-      "Total Value": 1000.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "18-12-2025",
-      "Plant": 1710
-    },
-    {
-      "PR Number": "10000061",
-      "Material": "MATPRIMA-",
-      "Product Group": "L002",
-      "Quantity": 14,
-      "Purchase Order Quantity": 0,
-      "Total Value": 245.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "09-11-2025",
-      "Plant": 1710
-    },
-    {
-      "PR Number": "10000091",
-      "Material": "MATPRIMA3",
-      "Product Group": "L002",
-      "Quantity": 56,
-      "Purchase Order Quantity": 56,
-      "Total Value": 56.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "30-12-2025",
-      "Plant": 1720
-    },
-    {
-      "PR Number": "10000112",
-      "Material": "MATPRIMA-(ALM)",
-      "Product Group": "L002",
-      "Quantity": 11.000,
-      "Purchase Order Quantity": 0.000,
-      "Total Value": 11.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "27-11-2025",
-      "Plant": 6000
-    },
-    {
-      "PR Number": "10000113",
-      "Material": "MATPRIMA-f",
-      "Product Group": "ALM",
-      "Quantity": 23.000,
-      "Purchase Order Quantity": 0.000,
-      "Total Value": 23.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "27-12-2025",
-      "Plant": 6000
-    },
-    {
-      "PR Number": 10000114,
-      "Material": "MATPRIMA-f",
-      "Product Group": "ALM",
-      "Quantity": 11.000,
-      "Purchase Order Quantity": 0.000,
-      "Total Value": 11.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "27-11-2025",
-      "Plant": 6000
-    },
-    {
-      "PR Number": "10000160",
-      "Material": "MATPRIMA3",
-      "Product Group": "L002",
-      "Quantity": 13,
-      "Purchase Order Quantity": 13,
-      "Total Value": 26.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "08-12-2025",
-      "Plant": 1720
-    },
-    {
-      "PR Number": "10000160",
-      "Material": "MATPRIMA3",
-      "Product Group": "L002",
-      "Quantity": 45.000,
-      "Purchase Order Quantity": 45.000,
-      "Total Value": 45.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "08-12-2025",
-      "Plant": 1720
-    },
-    {
-      "PR Number": "10000160",
-      "Material": "MATPRIMA3",
-      "Product Group": "L001",
-      "Quantity": 23.000,
-      "Purchase Order Quantity": 0.000,
-      "Total Value": 46.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "08-12-2025",
-      "Plant": 1720
-    },
-    {
-      "PR Number": "10000166",
-      "Material": "MATPRIMA3",
-      "Product Group": "L002",
-      "Quantity": 50.000,
-      "Purchase Order Quantity": 50.000,
-      "Total Value": 50.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "05-11-2025",
-      "Plant": 1720
-    },
-    {
-      "PR Number": 10000168,
-      "Material": "PRODTERM",
-      "Product Group": "L004",
-      "Quantity": 2,
-      "Purchase Order Quantity": 0,
-      "Total Value": 198.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "04-11-2025",
-      "Plant": 1720
-    },
-    {
-      "PR Number": "10000177",
-      "Material": "MATPRIMA3",
-      "Product Group": "L002",
-      "Quantity": 14.000,
-      "Purchase Order Quantity": 14.000,
-      "Total Value": 42.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "04-11-2025",
-      "Plant": 1720
-    },
-    {
-      "PR Number": "10000177",
-      "Material": "MATPRIMA3",
-      "Product Group": "L002",
-      "Quantity": 38,
-      "Purchase Order Quantity": 38,
-      "Total Value": 190.00,
-      "Assigned Supplier": "",
-      "Delivery Date": "05-11-2025",
-      "Plant": 1720
-    }
-  ]);
+  const [tableData, setTableData] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingSteps, setProcessingSteps] = useState([]);
   const [processingStarted, setProcessingStarted] = useState(false);
   const [currentlyProcessingIndex, setCurrentlyProcessingIndex] = useState(-1);
-  const generatePONumber = () => {
-    return '4' + Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
-  };
 
   const addProcessingStep = (message, type = 'info') => {
     setProcessingSteps(prev => [...prev, { message, type, timestamp: new Date().toLocaleTimeString() }]);
   };
+
+  const fetchPOData = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/po-data`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      setTableData(data);
+      console.log(data);
+    } catch (error) {
+      console.error('Error fetching PO data:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPOData();
+  }, [])
 
   const handleGenerateData = async () => {
     if (tableData.length === 0) return;
@@ -167,68 +42,53 @@ const PoAutomation = () => {
     setProcessingSteps([]);
     setCurrentlyProcessingIndex(-1);
 
-    addProcessingStep('Starting PO generation process...', 'info');
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // Processing steps over 45 seconds
+    const processingMessages = [
+      { message: 'Starting PO generation process...', type: 'info', delay: 0 },
+      { message: 'Connecting to procurement system...', type: 'info', delay: 2000 },
+      { message: 'Analyzing data structure...', type: 'info', delay: 4000 },
+      { message: 'Validating vendor information...', type: 'info', delay: 7000 },
+      { message: 'Checking budget allocations...', type: 'info', delay: 10000 },
+      { message: 'Validating item numbers...', type: 'info', delay: 13000 },
+      { message: 'Processing approval workflows...', type: 'info', delay: 16000 },
+      { message: 'Generating purchase requisitions...', type: 'info', delay: 19000 },
+      { message: 'Validating pricing information...', type: 'info', delay: 22000 },
+      { message: 'Checking inventory levels...', type: 'info', delay: 25000 },
+      { message: 'Processing delivery schedules...', type: 'info', delay: 28000 },
+      { message: 'Generating compliance reports...', type: 'info', delay: 31000 },
+      { message: 'Updating financial records...', type: 'info', delay: 34000 },
+      { message: 'Sending notifications to stakeholders...', type: 'info', delay: 37000 },
+      { message: 'Finalizing processing...', type: 'info', delay: 40000 },
+      { message: 'Refreshing data from server...', type: 'success', delay: 43000 }
+    ];
 
-    addProcessingStep('Analyzing data structure...', 'info');
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Execute processing messages with delays
+    processingMessages.forEach((step, index) => {
+      setTimeout(() => {
+        addProcessingStep(step.message, step.type);
+        
+        // Simulate processing individual items
+        if (index >= 4 && index <= 10) {
+          setCurrentlyProcessingIndex(Math.floor(Math.random() * tableData.length));
+        } else {
+          setCurrentlyProcessingIndex(-1);
+        }
+      }, step.delay);
+    });
 
-    addProcessingStep('Validating item numbers...', 'info');
-    await new Promise(resolve => setTimeout(resolve, 1200));
-
-    const updatedData = [...tableData];
-
-    // Process each row with individual time intervals
-    for (let index = 0; index < updatedData.length; index++) {
-      const row = updatedData[index];
-      const PR_Number = row['PR Number'];
-
-      setCurrentlyProcessingIndex(index);
-      addProcessingStep(`Processing item ${index + 1} of ${updatedData.length}: PR ${PR_Number}`, 'info');
-      await new Promise(resolve => setTimeout(resolve, 600));
-
-      // Skip PO generation for items with specific PR numbers
-      if ([10000028, 10000168, 10000114].includes(PR_Number)) {
-        updatedData[index] = {
-          ...row,
-          'PO Number': '',
-          'Status': 'Error',
-          'Comment': `Item ${PR_Number} - Price mismatch, Notification sent.`
-        };
-        addProcessingStep(`Item ${PR_Number} - Error detected, skipping PO generation`, 'warning');
-        await new Promise(resolve => setTimeout(resolve, 400));
-      } else {
-        // Generate PO number for valid items
-        const poNumber = generatePONumber();
-        updatedData[index] = {
-          ...row,
-          'PO Number': poNumber,
-          'Status': 'Completed',
-          'Comment': ''
-        };
-        addProcessingStep(`Item ${PR_Number} - PO ${poNumber} generated successfully`, 'success');
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
-      // Update table data progressively
-      setTableData([...updatedData]);
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-
-    setCurrentlyProcessingIndex(-1);
-    addProcessingStep('Finalizing process...', 'info');
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const completedCount = updatedData.filter(row => row['Status'] === 'Completed').length;
-    const errorCount = updatedData.filter(row => row['Status'] === 'Error').length;
-
-    addProcessingStep(`Process completed: ${completedCount} items processed successfully`, 'success');
-    if (errorCount > 0) {
-      addProcessingStep(`${errorCount} items had errors and were skipped`, 'warning');
-    }
-
-    setIsProcessing(false);
+    // After 45 seconds, fetch fresh data and complete processing
+    setTimeout(async () => {
+      setCurrentlyProcessingIndex(-1);
+      addProcessingStep('Fetching updated data...', 'info');
+      
+      // Fetch fresh data from server
+      await fetchPOData();
+      
+      addProcessingStep('Process completed successfully', 'success');
+      setIsProcessing(false);
+    }, 45000);
   };
+
   const getStatusIcon = (status) => {
     if (status === 'Completed') {
       return <CheckCircle className="w-4 h-4 text-green-500" />;
@@ -254,7 +114,6 @@ const PoAutomation = () => {
         <div className="w-2/3 flex flex-col bg-white shadow rounded-lg overflow-hidden border border-gray-200">
           <div className="p-3 bg-gray-100 border-b flex justify-between items-center">
             <h2 className="font-medium text-gray-700">Purchase Order Data</h2>
-
           </div>
 
           <div className="flex-1 overflow-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
@@ -263,8 +122,10 @@ const PoAutomation = () => {
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50">
-                      {Object.keys(tableData[0]).map((key) => (
-                        <th key={key} className="border p-2 text-left font-semibold">{key}</th>
+                      {['pr_number', ...Object.keys(tableData[0]).filter(key => key !== 'pr_number' && key !== '_id')].map((key) => (
+                        <th key={key} className="border p-2 text-left font-semibold capitalize">
+                          {key.replace(/_/g, ' ').toUpperCase()}
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -273,24 +134,28 @@ const PoAutomation = () => {
                       <tr
                         key={idx}
                         className={`
-                          ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                          ${row['Status'] === 'Error' ? "bg-red-50" : 
+                            idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
                           ${isRowBeingProcessed(idx) ? "ring-2 ring-blue-400 bg-blue-50" : ""}
                         `}
                       >
-                        {Object.entries(row).map(([key, val], i) => (
-                          <td key={i} className="border p-2">
-                            {key === 'Status' && val ? (
-                              <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(val)}`}>
-                                {getStatusIcon(val)}
-                                {val}
-                              </div>
-                            ) : key === 'Comment' && val ? (
-                              <span className="text-red-600 text-xs">{val}</span>
-                            ) : (
-                              val
-                            )}
-                          </td>
-                        ))}
+                        {['pr_number', ...Object.keys(row).filter(key => key !== 'pr_number' && key !== '_id')].map((key, i) => {
+                          const val = row[key];
+                          return (
+                            <td key={i} className="border p-2 ">
+                              {key === 'status' && val ? (
+                                <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(val)}`}>
+                                  {getStatusIcon(val)}
+                                  {val}
+                                </div>
+                              ) : key === 'Comment' && val ? (
+                                <span className="text-red-600 text-xs">{val}</span>
+                              ) : (
+                                val
+                              )}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>
@@ -342,8 +207,8 @@ const PoAutomation = () => {
       <div className="p-4 border-t bg-gray-100 flex items-center justify-between">
         <div className="text-sm text-gray-600">
           Total Items: {tableData.length} |
-          Completed: {tableData.filter(row => row['Status'] === 'Completed').length} |
-          Errors: {tableData.filter(row => row['Status'] === 'Error').length}
+          Completed: {tableData.filter(row => row['status'] === 'Completed').length} |
+          Errors: {tableData.filter(row => row['status'] === 'Error').length}
         </div>
         <button
           onClick={handleGenerateData}

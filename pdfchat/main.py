@@ -22,7 +22,7 @@ from abap import modify_abap_code
 from testscripts import script
 import json
 from dbconn import *
-from models import IDoc, MasterData
+from models import IDoc, MasterData, POAutomation
 
 # Load environment variables
 load_dotenv()
@@ -326,7 +326,23 @@ def get_idocs():
         
     except Exception as e:
         return jsonify({"error": f"Failed to fetch IDoc records: {str(e)}"}), 500
+@app.route('/po-data', methods=['GET'])
+def get_po_data():
+    try:
+        po_Data = POAutomation.objects()
+        po_list = []
 
+        for doc in po_Data:
+            doc_dict = doc.to_mongo().to_dict()
+            if "_id" in doc_dict:
+                doc_dict["_id"] = str(doc_dict["_id"])  # convert ObjectId to string
+            po_list.append(doc_dict)
+
+        return jsonify(po_list), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch PO records: {str(e)}"}), 500
+
+    
 @app.route('/idoc-update', methods=['POST'])
 def update_idoc_status():
     try:

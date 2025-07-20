@@ -29,3 +29,19 @@ class MasterData(Document):
     sales_area = IntField()
     division = IntField()
     amount = FloatField()
+
+# PO Automation Collection Schema
+class POAutomation(Document):
+    meta = {'collection': 'po_automation'}
+    pr_number = IntField(required=True)
+    material = StringField()
+    product_group = StringField()
+    quantity = FloatField()
+    purchase_order_Qty = FloatField()
+    total_value = FloatField()
+    assigned_supplier = StringField()
+    delivery_date = StringField()
+    plant = IntField()
+    status = StringField()
+    comments = StringField()
+    po_number = IntField()
