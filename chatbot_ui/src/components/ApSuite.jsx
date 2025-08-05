@@ -94,7 +94,8 @@ const ApSuite = () => {
       // Prepare payload from source data
       const payload = sourceData.map(row => ({
         entityType: Object.values(row)[0] || '', // First column
-        typeOfData: Object.values(row)[1] || ''  // Second column
+        typeOfData: Object.values(row)[1] || '',  // Second column
+        typeofData: Object.values(row)[2] || ''   // Third column
       }));
 
       setConsoleMessages(prev => [...prev, {
@@ -204,6 +205,7 @@ const ApSuite = () => {
                   <tr>
                     <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">Entity Type</th>
                     <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">Type of Data</th>
+                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">AP Suite Name</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -219,6 +221,9 @@ const ApSuite = () => {
                         </td>
                         <td className="p-2 border-b text-gray-800 text-xs">
                           {values[1] || 'N/A'}
+                        </td>
+                        <td className="p-2 border-b text-gray-800 text-xs">
+                          {values[2] || 'N/A'}  
                         </td>
                       </tr>
                     );
@@ -244,7 +249,7 @@ const ApSuite = () => {
               <table className="w-full text-sm">
                 <thead className="bg-green-50 sticky top-0">
                   <tr>
-                    <th className="p-3 text-left font-medium text-green-800 border-b">AP Suite Name</th>
+                    {/* <th className="p-3 text-left font-medium text-green-800 border-b">AP Suite Name</th> */}
                     <th className="p-3 text-left font-medium text-green-800 border-b">SAP Table</th>
                     <th className="p-3 text-left font-medium text-green-800 border-b">SAP Field</th>
                     <th className="p-3 text-left font-medium text-green-800 border-b">API Name</th>
@@ -258,9 +263,9 @@ const ApSuite = () => {
                       key={idx}
                       className={`transition-colors ${selectedRow === idx ? 'bg-green-100' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                     >
-                      <td className="p-3 border-b text-gray-800 font-medium">
+                      {/* <td className="p-3 border-b text-gray-800 font-medium">
                         {row.apsuiteName || 'N/A'}
-                      </td>
+                      </td> */}
                       <td className="p-3 border-b text-gray-800">
                         <input
                           type="text"

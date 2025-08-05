@@ -362,10 +362,11 @@ def get_apsuite_data():
         query_filter = []
         
         for item in mapping_data:
-            if 'entityType' in item and 'typeOfData' in item:
+            if 'entityType' in item and 'typeOfData' in item and 'apsuiteName' in item:
                 query_filter.append({
                     'entityType': item['entityType'],
-                    'typeOfData': item['typeOfData']
+                    'typeOfData': item['typeOfData'],
+                    'apsuiteName': item['apsuiteName']
                 })
         
         if not query_filter:
@@ -383,7 +384,8 @@ def get_apsuite_data():
             # Check if this document matches any of our filter conditions
             for filter_condition in query_filter:
                 if (doc_dict.get('entityType') == filter_condition['entityType'] and 
-                    doc_dict.get('typeOfData') == filter_condition['typeOfData']):
+                    doc_dict.get('typeOfData') == filter_condition['typeOfData'] and 
+                    doc_dict.get('apsuiteName') == filter_condition['apsuiteName']):
                     apsuite_list.append(doc_dict)
                     break  # Avoid duplicate entries
 
