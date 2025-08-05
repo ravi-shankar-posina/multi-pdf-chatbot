@@ -45,3 +45,12 @@ class POAutomation(Document):
     status = StringField()
     comments = StringField()
     po_number = IntField()
+class Apsuite(Document):
+    meta = {'collection': 'apsuite'}
+    entityType = StringField(required=True)
+    typeOfData = StringField(required=True)
+    apsuiteName = StringField(required=True)
+    sapTableName = StringField(required=True)
+    sapFieldName = StringField(required=True)
+    apiName = StringField(required=True)
+    endpoint = StringField(required=True)

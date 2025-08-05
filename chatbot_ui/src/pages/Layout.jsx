@@ -71,6 +71,7 @@ const navigatorSections = [
     options: [
       { label: "COA", path: "/coa", icon: <FaCode size={14} /> },
       { label: "PO Automation", path: "/poautomation", icon: <FaCode size={14} /> },
+      { label: "APSuite", path: "/apsuite", icon: <FaCode size={14} /> },
     ]
   }
 ];

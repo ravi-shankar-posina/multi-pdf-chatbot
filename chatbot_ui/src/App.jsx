@@ -19,6 +19,7 @@ import SupportAgent from "./components/SupportAgent";
 import PasswordAgent from "./components/PasswordAgent";
 import Coa from "./components/Coa";
 import PoAutomation from "./components/PoAutomation";
+import ApSuite from "./components/ApSuite";
 
 // Same user data as in LoginPage
 const USERS = [
@@ -150,6 +151,7 @@ function App() {
             <Route path="/pwd-agent" element={<PasswordAgent />} />
             <Route path="/coa" element={<Coa />} />
             <Route path="/poautomation" element={<PoAutomation />} />
+            <Route path="/apsuite" element={<ApSuite />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />

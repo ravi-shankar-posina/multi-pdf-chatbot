@@ -22,7 +22,7 @@ from abap import modify_abap_code
 from testscripts import script
 import json
 from dbconn import *
-from models import IDoc, MasterData, POAutomation
+from models import IDoc, MasterData, POAutomation,Apsuite
 
 # Load environment variables
 load_dotenv()
@@ -341,7 +341,56 @@ def get_po_data():
         return jsonify(po_list), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch PO records: {str(e)}"}), 500
+@app.route('/apsuite-data', methods=['POST'])
+def get_apsuite_data():
+    try:
+        # Get the JSON data from request body
+        data = request.get_json()
+        
+        if not data or 'mappingData' not in data:
+            return jsonify({'error': 'Invalid mapping data provided'}), 400
+        
+        mapping_data = data['mappingData']
+        
+        if not isinstance(mapping_data, list):
+            return jsonify({'error': 'Mapping data must be an array'}), 400
+        
+        if len(mapping_data) == 0:
+            return jsonify({'error': 'No mapping data provided'}), 400
+        
+        # Create query conditions for filtering
+        query_filter = []
+        
+        for item in mapping_data:
+            if 'entityType' in item and 'typeOfData' in item:
+                query_filter.append({
+                    'entityType': item['entityType'],
+                    'typeOfData': item['typeOfData']
+                })
+        
+        if not query_filter:
+            return jsonify({'error': 'No valid mapping conditions found'}), 400
+        
+        # Get all Apsuite data
+        apsuite_data = Apsuite.objects()
+        apsuite_list = []
 
+        for doc in apsuite_data:
+            doc_dict = doc.to_mongo().to_dict()
+            if "_id" in doc_dict:
+                doc_dict["_id"] = str(doc_dict["_id"])  # convert ObjectId to string
+            
+            # Check if this document matches any of our filter conditions
+            for filter_condition in query_filter:
+                if (doc_dict.get('entityType') == filter_condition['entityType'] and 
+                    doc_dict.get('typeOfData') == filter_condition['typeOfData']):
+                    apsuite_list.append(doc_dict)
+                    break  # Avoid duplicate entries
+
+        return jsonify(apsuite_list), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch Apsuite records: {str(e)}"}), 500
     
 @app.route('/idoc-update', methods=['POST'])
 def update_idoc_status():
