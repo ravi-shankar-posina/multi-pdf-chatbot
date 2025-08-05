@@ -147,7 +147,7 @@ const ApSuite = () => {
     const query = `Provide the mapping for SAP table for the field name: ${row.apsuiteName || 'N/A'}, Field: ${row.sapFieldName || 'N/A'}`;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_AI_URL}/chat`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
