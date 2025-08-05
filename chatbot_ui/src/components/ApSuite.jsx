@@ -187,7 +187,7 @@ const ApSuite = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50">
       {/* Main Content - Three Blocks */}
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
 
