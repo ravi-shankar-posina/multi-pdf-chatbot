@@ -358,7 +358,7 @@ def get_apsuite_data():
         if len(mapping_data) == 0:
             return jsonify({'error': 'No mapping data provided'}), 400
         
-        # Create query conditions for filtering
+        # Create query conditions for filtering (entityType, typeOfData, and apsuiteName)
         query_filter = []
         
         for item in mapping_data:
@@ -381,7 +381,7 @@ def get_apsuite_data():
             if "_id" in doc_dict:
                 doc_dict["_id"] = str(doc_dict["_id"])  # convert ObjectId to string
             
-            # Check if this document matches any of our filter conditions
+            # Check if this document matches any of our filter conditions (all 3 fields must match)
             for filter_condition in query_filter:
                 if (doc_dict.get('entityType') == filter_condition['entityType'] and 
                     doc_dict.get('typeOfData') == filter_condition['typeOfData'] and 
