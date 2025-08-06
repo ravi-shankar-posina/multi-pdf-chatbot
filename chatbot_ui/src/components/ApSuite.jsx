@@ -95,7 +95,7 @@ const ApSuite = () => {
       const payload = sourceData.map(row => ({
         entityType: Object.values(row)[0] || '', // First column
         typeOfData: Object.values(row)[1] || '',  // Second column
-        typeofData: Object.values(row)[2] || ''   // Third column
+        apsuiteName: Object.values(row)[2] || ''   // Third column
       }));
 
       setConsoleMessages(prev => [...prev, {
