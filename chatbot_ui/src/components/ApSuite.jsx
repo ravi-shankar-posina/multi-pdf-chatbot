@@ -1,5 +1,5 @@
-import { Loader, Search, ChevronRight, Zap, Database, Brain, CheckCircle, Plus, Save, Edit, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRight, Brain, Database, Edit, Loader, Plus, Save, X, Zap } from 'lucide-react';
+import { useState } from 'react';
 import * as XLSX from 'xlsx';
 
 const ApSuite = () => {
@@ -272,6 +272,11 @@ const ApSuite = () => {
 
       if (response.ok) {
         setTargetData(prev => [...prev, { ...newRowData }]);
+        setSourceData(prev => [...prev, {
+          [Object.keys(prev[0] || {})[0] || 'entityType']: newRowData.entityType,
+          [Object.keys(prev[0] || {})[1] || 'typeOfData']: newRowData.typeOfData,
+          [Object.keys(prev[0] || {})[2] || 'apsuiteName']: newRowData.apsuiteName
+        }]);
         setNewRowData({
           entityType: '',
           typeOfData: '',
@@ -316,65 +321,21 @@ const ApSuite = () => {
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      {/* Main Content - Three Blocks */}
+      {/* Main Content - Two Blocks: Mapping Table + Console */}
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
 
-        {/* Source Block - Narrower */}
-        <div className="w-1/6 bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
-          <div className="p-3 bg-blue-50 border-b font-medium text-blue-800 flex items-center">
-            <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-            Source Data
-          </div>
-          <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 160px)" }}>
-            {sourceData.length > 0 ? (
-              <table className="w-full text-sm">
-                <thead className="bg-blue-50 sticky top-0">
-                  <tr>
-                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">Entity</th>
-                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">Type</th>
-                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">AP Suite</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sourceData.map((row, idx) => {
-                    const values = Object.values(row);
-                    return (
-                      <tr
-                        key={idx}
-                        className={`transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
-                      >
-                        <td className="p-1 border-b text-gray-800 text-xs">
-                          {values[0] || 'N/A'}
-                        </td>
-                        <td className="p-1 border-b text-gray-800 text-xs">
-                          {values[1] || 'N/A'}
-                        </td>
-                        <td className="p-1 border-b text-gray-800 text-xs">
-                          {values[2] || 'N/A'}  
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
-                No source data
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Target Block - Wider */}
+        {/* Mapping Block - Takes most of the space */}
         <div className="flex-1 bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
-          <div className="p-3 bg-green-50 border-b font-medium text-green-800 flex items-center justify-between">
+          <div className="p-3 bg-gradient-to-r from-blue-50 to-green-50 border-b font-medium text-gray-800 flex items-center justify-between">
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-              Target Mapping
+              <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+              Source to Target Mapping
+              <ArrowRight size={16} className="mx-2 text-gray-500" />
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
             </div>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
-              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center text-sm"
+              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center text-sm"
             >
               <Plus size={14} className="mr-1" />
               Add Row
@@ -383,65 +344,76 @@ const ApSuite = () => {
           
           {/* Add Form */}
           {showAddForm && (
-            <div className="p-4 bg-green-25 border-b">
-              <div className="grid grid-cols-7 gap-2 text-sm">
-                <input
-                  type="text"
-                  placeholder="Entity Type"
-                  value={newRowData.entityType}
-                  onChange={(e) => setNewRowData(prev => ({ ...prev, entityType: e.target.value }))}
-                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Type of Data"
-                  value={newRowData.typeOfData}
-                  onChange={(e) => setNewRowData(prev => ({ ...prev, typeOfData: e.target.value }))}
-                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                />
-                <input
-                  type="text"
-                  placeholder="AP Suite Name"
-                  value={newRowData.apsuiteName}
-                  onChange={(e) => setNewRowData(prev => ({ ...prev, apsuiteName: e.target.value }))}
-                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                />
-                <input
-                  type="text"
-                  placeholder="SAP Table"
-                  value={newRowData.sapTableName}
-                  onChange={(e) => setNewRowData(prev => ({ ...prev, sapTableName: e.target.value }))}
-                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                />
-                <input
-                  type="text"
-                  placeholder="SAP Field"
-                  value={newRowData.sapFieldName}
-                  onChange={(e) => setNewRowData(prev => ({ ...prev, sapFieldName: e.target.value }))}
-                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                />
-                <input
-                  type="text"
-                  placeholder="API Name"
-                  value={newRowData.apiName}
-                  onChange={(e) => setNewRowData(prev => ({ ...prev, apiName: e.target.value }))}
-                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Endpoint"
-                  value={newRowData.endpoint}
-                  onChange={(e) => setNewRowData(prev => ({ ...prev, endpoint: e.target.value }))}
-                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                />
+            <div className="p-4 bg-blue-25 border-b">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Add New Mapping</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-gray-600">Source Data</label>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Entity Type"
+                      value={newRowData.entityType}
+                      onChange={(e) => setNewRowData(prev => ({ ...prev, entityType: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Type of Data"
+                      value={newRowData.typeOfData}
+                      onChange={(e) => setNewRowData(prev => ({ ...prev, typeOfData: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="AP Suite Name"
+                      value={newRowData.apsuiteName}
+                      onChange={(e) => setNewRowData(prev => ({ ...prev, apsuiteName: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-gray-600">Target Mapping</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="SAP Table"
+                      value={newRowData.sapTableName}
+                      onChange={(e) => setNewRowData(prev => ({ ...prev, sapTableName: e.target.value }))}
+                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="SAP Field"
+                      value={newRowData.sapFieldName}
+                      onChange={(e) => setNewRowData(prev => ({ ...prev, sapFieldName: e.target.value }))}
+                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="API Name"
+                      value={newRowData.apiName}
+                      onChange={(e) => setNewRowData(prev => ({ ...prev, apiName: e.target.value }))}
+                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Endpoint"
+                      value={newRowData.endpoint}
+                      onChange={(e) => setNewRowData(prev => ({ ...prev, endpoint: e.target.value }))}
+                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2 mt-3">
+              <div className="flex gap-2 mt-4">
                 <button
                   onClick={handleAddNewRow}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center text-sm"
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center text-sm"
                 >
                   <Save size={14} className="mr-1" />
-                  Save
+                  Save Mapping
                 </button>
                 <button
                   onClick={() => setShowAddForm(false)}
@@ -454,68 +426,98 @@ const ApSuite = () => {
             </div>
           )}
           
-          <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 160px)" }}>
-            {targetData.length > 0 ? (
+          <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
+            {sourceData.length > 0 ? (
               <table className="w-full text-sm">
-                <thead className="bg-green-50 sticky top-0">
+                <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">Entity Type</th>
-                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">Type of Data</th>
-                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">AP Suite Name</th>
-                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">SAP Table</th>
-                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">SAP Field</th>
-                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">API Name</th>
-                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">Endpoint</th>
-                    <th className="p-2 text-center font-medium text-green-800 border-b text-xs">Actions</th>
+                    <th colSpan="3" className="p-3 text-center font-medium text-blue-800 border-b bg-blue-50">
+                      Source Data
+                    </th>
+                    <th className="p-3 w-8 border-b bg-gray-100"></th>
+                    <th colSpan="4" className="p-3 text-center font-medium text-green-800 border-b bg-green-50">
+                      Target Mapping
+                    </th>
+                    <th className="p-3 text-center font-medium text-gray-800 border-b bg-gray-50">Actions</th>
+                  </tr>
+                  <tr className="bg-gray-100">
+                    <th className="p-2 text-left font-medium text-blue-700 border-b text-xs">Entity Type</th>
+                    <th className="p-2 text-left font-medium text-blue-700 border-b text-xs">Type of Data</th>
+                    <th className="p-2 text-left font-medium text-blue-700 border-b text-xs">AP Suite Name</th>
+                    <th className="p-2 w-8 border-b">
+                      <ArrowRight size={14} className="text-gray-400 mx-auto" />
+                    </th>
+                    <th className="p-2 text-left font-medium text-green-700 border-b text-xs">SAP Table</th>
+                    <th className="p-2 text-left font-medium text-green-700 border-b text-xs">SAP Field</th>
+                    <th className="p-2 text-left font-medium text-green-700 border-b text-xs">API Name</th>
+                    <th className="p-2 text-left font-medium text-green-700 border-b text-xs">Endpoint</th>
+                    <th className="p-2 text-center font-medium text-gray-700 border-b text-xs w-24">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {targetData.map((row, idx) => {
+                  {sourceData.map((sourceRow, idx) => {
+                    const sourceValues = Object.values(sourceRow);
+                    const targetRow = targetData[idx] || {};
                     const isEditing = editingRows.has(idx);
+                    
                     return (
                       <tr
                         key={idx}
-                        className={`transition-colors ${selectedRow === idx ? 'bg-green-100' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                        className={`transition-colors ${selectedRow === idx ? 'bg-purple-50 border-l-4 border-l-purple-400' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                       >
-                        <td className="p-2 border-b text-gray-800 text-xs">
-                          {row.entityType || 'N/A'}
+                        {/* Source Data */}
+                        <td className="p-2 border-b text-gray-800 text-xs bg-blue-25">
+                          {sourceValues[0] || 'N/A'}
                         </td>
-                        <td className="p-2 border-b text-gray-800 text-xs">
-                          {row.typeOfData || 'N/A'}
+                        <td className="p-2 border-b text-gray-800 text-xs bg-blue-25">
+                          {sourceValues[1] || 'N/A'}
                         </td>
-                        <td className="p-2 border-b text-gray-800 text-xs">
-                          {row.apsuiteName || 'N/A'}
+                        <td className="p-2 border-b text-gray-800 text-xs bg-blue-25 font-medium">
+                          {sourceValues[2] || 'N/A'}
                         </td>
-                        <td className="p-2 border-b text-gray-800">
+                        
+                        {/* Arrow */}
+                        <td className="p-2 border-b text-center bg-gray-50">
+                          <ArrowRight size={12} className="text-gray-400 mx-auto" />
+                        </td>
+                        
+                        {/* Target Data */}
+                        <td className="p-2 border-b bg-green-25">
                           <input
                             type="text"
-                            value={row.sapTableName || ''}
+                            value={targetRow.sapTableName || ''}
                             onChange={(e) => handleTableFieldChange(idx, 'sapTableName', e.target.value)}
                             className={`w-full p-1 border rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-xs ${
-                              isEditing ? 'border-green-500 bg-green-50' : 'border-gray-300'
+                              isEditing ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-white'
                             }`}
                             placeholder="SAP Table"
                             disabled={!isEditing}
                           />
                         </td>
-                        <td className="p-2 border-b text-gray-800">
+                        <td className="p-2 border-b bg-green-25">
                           <input
                             type="text"
-                            value={row.sapFieldName || ''}
+                            value={targetRow.sapFieldName || ''}
                             onChange={(e) => handleTableFieldChange(idx, 'sapFieldName', e.target.value)}
                             className={`w-full p-1 border rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-xs ${
-                              isEditing ? 'border-green-500 bg-green-50' : 'border-gray-300'
+                              isEditing ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-white'
                             }`}
                             placeholder="SAP Field"
                             disabled={!isEditing}
                           />
                         </td>
-                        <td className="p-2 border-b text-gray-800 text-xs">
-                          {row.apiName || 'N/A'}
+                        <td className="p-2 border-b text-gray-700 text-xs bg-green-25">
+                          <div className="truncate" title={targetRow.apiName || 'N/A'}>
+                            {targetRow.apiName || 'N/A'}
+                          </div>
                         </td>
-                        <td className="p-2 border-b text-gray-800 text-xs">
-                          {row.endpoint || 'N/A'}
+                        <td className="p-2 border-b text-gray-700 text-xs bg-green-25">
+                          <div className="truncate" title={targetRow.endpoint || 'N/A'}>
+                            {targetRow.endpoint || 'N/A'}
+                          </div>
                         </td>
+                        
+                        {/* Actions */}
                         <td className="p-2 border-b text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button
@@ -523,7 +525,7 @@ const ApSuite = () => {
                               className="p-1 rounded hover:bg-gray-200 transition-colors"
                               title={isEditing ? "Cancel Edit" : "Edit Row"}
                             >
-                              {isEditing ? <X size={14} className="text-red-500" /> : <Edit size={14} className="text-blue-500" />}
+                              {isEditing ? <X size={12} className="text-red-500" /> : <Edit size={12} className="text-blue-500" />}
                             </button>
                             
                             {isEditing && (
@@ -532,12 +534,12 @@ const ApSuite = () => {
                                 className="p-1 rounded hover:bg-green-100 transition-colors"
                                 title="Save Changes"
                               >
-                                <Save size={14} className="text-green-600" />
+                                <Save size={12} className="text-green-600" />
                               </button>
                             )}
                             
                             <button
-                              onClick={() => handleSuggestion(row, idx)}
+                              onClick={() => handleSuggestion(targetRow, idx)}
                               disabled={selectedRow === idx}
                               className={`p-1 rounded transition-colors ${
                                 selectedRow === idx
@@ -547,9 +549,9 @@ const ApSuite = () => {
                               title="Get AI Suggestion"
                             >
                               {selectedRow === idx ? (
-                                <Loader className="animate-spin" size={14} />
+                                <Loader className="animate-spin" size={12} />
                               ) : (
-                                <Brain size={14} />
+                                <Brain size={12} />
                               )}
                             </button>
                           </div>
@@ -560,28 +562,30 @@ const ApSuite = () => {
                 </tbody>
               </table>
             ) : (
-              <div className="flex items-center justify-center h-32 text-gray-500">
-                No target data available
+              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                <Database size={48} className="mb-4 text-gray-300" />
+                <div className="text-lg font-medium mb-2">No Data Available</div>
+                <div className="text-sm">Upload an Excel file to start mapping</div>
               </div>
             )}
           </div>
         </div>
 
         {/* Console Block */}
-        <div className="w-1/4 bg-gray-800 shadow rounded-lg border border-gray-200 overflow-hidden">
+        <div className="w-80 bg-gray-800 shadow rounded-lg border border-gray-200 overflow-hidden">
           <div className="p-3 bg-gray-800 text-white font-medium flex items-center justify-between">
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>
+              <div className="w-3 h-3 bg-green-400 rounded-full mr-2 animate-pulse"></div>
               AI Console
             </div>
             <button
               onClick={clearConsole}
-              className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded"
+              className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded transition-colors"
             >
               Clear
             </button>
           </div>
-          <div className="p-4 bg-gray-900 text-green-400 font-mono text-xs overflow-y-auto" style={{ maxHeight: "calc(100vh - 160px)" }}>
+          <div className="p-4 bg-gray-900 text-green-400 font-mono text-xs overflow-y-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
             {consoleMessages.length > 0 ? (
               <div className="space-y-3">
                 {consoleMessages.map((msg, idx) => (
@@ -609,7 +613,16 @@ const ApSuite = () => {
             ) : (
               <div className="text-gray-500">
                 <div className="mb-2">🤖 AI Console Ready</div>
-                <div className="text-xs">Upload Excel → Do Mapping → View Results</div>
+                <div className="text-xs mb-4">Upload Excel → Do Mapping → View Results</div>
+                <div className="text-xs text-gray-600">
+                  Features:
+                  <div className="mt-1 space-y-1">
+                    <div>• AI-powered field mapping</div>
+                    <div>• Real-time suggestions</div>
+                    <div>• Batch processing</div>
+                    <div>• Live editing</div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -617,15 +630,20 @@ const ApSuite = () => {
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t bg-gray-100 flex items-center justify-between">
+      <div className="p-4 border-t bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-between">
         <div className="flex items-center">
-          <label htmlFor="file-upload" className={`cursor-pointer px-4 py-2 rounded border shadow text-white mr-4 ${isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}>
+          <label htmlFor="file-upload" className={`cursor-pointer px-4 py-2 rounded border shadow text-white mr-4 transition-colors ${isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}>
             {isLoading ? (
               <div className="flex items-center">
                 <Loader className="animate-spin mr-2" size={16} />
-                Processing
+                Processing Excel...
               </div>
-            ) : "Upload Excel File"}
+            ) : (
+              <div className="flex items-center">
+                <Database className="mr-2" size={16} />
+                Upload Excel File
+              </div>
+            )}
             <input
               id="file-upload"
               type="file"
@@ -639,7 +657,7 @@ const ApSuite = () => {
           <button
             onClick={handleDoMapping}
             disabled={isMappingLoading || sourceData.length === 0}
-            className={`px-6 py-2 rounded border shadow text-white font-medium ${
+            className={`px-6 py-2 rounded border shadow text-white font-medium transition-colors ${
               isMappingLoading || sourceData.length === 0
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-purple-600 hover:bg-purple-700"
@@ -648,24 +666,36 @@ const ApSuite = () => {
             {isMappingLoading ? (
               <div className="flex items-center">
                 <Loader className="animate-spin mr-2" size={16} />
-                Mapping...
+                AI Mapping...
               </div>
             ) : (
               <div className="flex items-center">
                 <Zap className="mr-2" size={16} />
-                Do Mapping
+                Do AI Mapping
               </div>
             )}
           </button>
         </div>
 
-        <span className="text-sm text-gray-600">
-          {sourceData.length > 0 ? `${sourceData.length} source records` : "No file selected"}
-          {targetData.length > 0 && ` | ${targetData.length} mapped`}
-        </span>
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">
+            {sourceData.length > 0 ? `${sourceData.length} source records` : "No file selected"}
+            {targetData.length > 0 && ` | ${targetData.length} mapped`}
+          </span>
+          <div className="flex items-center space-x-2 text-xs text-gray-500">
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+              Source
+            </div>
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+              Target
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default ApSuite;
+export default ApSuite
