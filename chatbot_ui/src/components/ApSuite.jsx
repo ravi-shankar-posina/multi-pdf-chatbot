@@ -1,4 +1,4 @@
-import { Loader, Search, ChevronRight, Zap, Database, Brain, CheckCircle } from 'lucide-react';
+import { Loader, Search, ChevronRight, Zap, Database, Brain, CheckCircle, Plus, Save, Edit, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 
@@ -9,6 +9,17 @@ const ApSuite = () => {
   const [isMappingLoading, setIsMappingLoading] = useState(false);
   const [consoleMessages, setConsoleMessages] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingRows, setEditingRows] = useState(new Set());
+  const [newRowData, setNewRowData] = useState({
+    entityType: '',
+    typeOfData: '',
+    apsuiteName: '',
+    sapTableName: '',
+    sapFieldName: '',
+    apiName: '',
+    endpoint: ''
+  });
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -88,14 +99,12 @@ const ApSuite = () => {
     }]);
 
     try {
-      // Simulate AI processing steps
       await simulateAISteps();
 
-      // Prepare payload from source data
       const payload = sourceData.map(row => ({
-        entityType: Object.values(row)[0] || '', // First column
-        typeOfData: Object.values(row)[1] || '',  // Second column
-        apsuiteName: Object.values(row)[2] || ''   // Third column
+        entityType: Object.values(row)[0] || '',
+        typeOfData: Object.values(row)[1] || '',
+        apsuiteName: Object.values(row)[2] || ''
       }));
 
       setConsoleMessages(prev => [...prev, {
@@ -103,8 +112,7 @@ const ApSuite = () => {
         message: `📤 Sending ${payload.length} records for mapping...`
       }]);
 
-      // Make API call to get-data endpoint
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/apsuite-data`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/apsuite-data/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,15 +124,40 @@ const ApSuite = () => {
 
       const data = await response.json();
 
-      setTargetData(data);
+      // Create matched target data maintaining the same order as source data
+      const matchedTargetData = sourceData.map((sourceRow, index) => {
+        const sourceValues = Object.values(sourceRow);
+        const sourceEntityType = sourceValues[0] || '';
+        const sourceTypeOfData = sourceValues[1] || '';
+        const sourceApsuiteName = sourceValues[2] || '';
+
+        // Find matching target data
+        const matchedTarget = data.find(targetRow => 
+          targetRow.entityType === sourceEntityType &&
+          targetRow.typeOfData === sourceTypeOfData &&
+          targetRow.apsuiteName === sourceApsuiteName
+        );
+
+        return matchedTarget || {
+          entityType: sourceEntityType,
+          typeOfData: sourceTypeOfData,
+          apsuiteName: sourceApsuiteName,
+          sapTableName: '',
+          sapFieldName: '',
+          apiName: '',
+          endpoint: ''
+        };
+      });
+
+      setTargetData(matchedTargetData);
       
       setConsoleMessages(prev => [...prev, {
         type: 'success',
-        message: `🎉 Successfully mapped ${data.length} records!`
+        message: `🎉 Successfully mapped ${matchedTargetData.length} records!`
       }, {
         type: 'response',
-        message: `Mapping Results:\n${data.map((item, idx) => 
-          `${idx + 1}. ${item.apsuiteName} → ${item.sapTableName}.${item.sapFieldName}`
+        message: `Mapping Results:\n${matchedTargetData.map((item, idx) => 
+          `${idx + 1}. ${item.apsuiteName} → ${item.sapTableName || 'N/A'}.${item.sapFieldName || 'N/A'}`
         ).join('\n')}`
       }]);
 
@@ -183,6 +216,100 @@ const ApSuite = () => {
     }
   };
 
+  const handleSaveRow = async (rowIndex) => {
+    const rowData = targetData[rowIndex];
+    
+    setConsoleMessages(prev => [...prev, {
+      type: 'info',
+      message: `💾 Saving row ${rowIndex + 1}...`
+    }]);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/apsuite-data/update`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(rowData)
+      });
+
+      if (response.ok) {
+        setEditingRows(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(rowIndex);
+          return newSet;
+        });
+        
+        setConsoleMessages(prev => [...prev, {
+          type: 'success',
+          message: `✅ Row ${rowIndex + 1} saved successfully!`
+        }]);
+      } else {
+        throw new Error('Failed to save row');
+      }
+    } catch (error) {
+      setConsoleMessages(prev => [...prev, {
+        type: 'error',
+        message: `❌ Error saving row: ${error.message}`
+      }]);
+    }
+  };
+
+  const handleAddNewRow = async () => {
+    setConsoleMessages(prev => [...prev, {
+      type: 'info',
+      message: `➕ Adding new row...`
+    }]);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/apsuite-data/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newRowData)
+      });
+
+      if (response.ok) {
+        setTargetData(prev => [...prev, { ...newRowData }]);
+        setNewRowData({
+          entityType: '',
+          typeOfData: '',
+          apsuiteName: '',
+          sapTableName: '',
+          sapFieldName: '',
+          apiName: '',
+          endpoint: ''
+        });
+        setShowAddForm(false);
+        
+        setConsoleMessages(prev => [...prev, {
+          type: 'success',
+          message: `✅ New row added successfully!`
+        }]);
+      } else {
+        throw new Error('Failed to add new row');
+      }
+    } catch (error) {
+      setConsoleMessages(prev => [...prev, {
+        type: 'error',
+        message: `❌ Error adding row: ${error.message}`
+      }]);
+    }
+  };
+
+  const toggleEdit = (rowIndex) => {
+    setEditingRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(rowIndex)) {
+        newSet.delete(rowIndex);
+      } else {
+        newSet.add(rowIndex);
+      }
+      return newSet;
+    });
+  };
+
   const clearConsole = () => {
     setConsoleMessages([]);
   };
@@ -193,7 +320,7 @@ const ApSuite = () => {
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
 
         {/* Source Block - Narrower */}
-        <div className="w-1/4 bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
+        <div className="w-1/6 bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
           <div className="p-3 bg-blue-50 border-b font-medium text-blue-800 flex items-center">
             <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
             Source Data
@@ -203,9 +330,9 @@ const ApSuite = () => {
               <table className="w-full text-sm">
                 <thead className="bg-blue-50 sticky top-0">
                   <tr>
-                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">Entity Type</th>
-                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">Type of Data</th>
-                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">AP Suite Name</th>
+                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">Entity</th>
+                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">Type</th>
+                    <th className="p-2 text-left font-medium text-blue-800 border-b text-xs">AP Suite</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -216,13 +343,13 @@ const ApSuite = () => {
                         key={idx}
                         className={`transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                       >
-                        <td className="p-2 border-b text-gray-800 text-xs">
+                        <td className="p-1 border-b text-gray-800 text-xs">
                           {values[0] || 'N/A'}
                         </td>
-                        <td className="p-2 border-b text-gray-800 text-xs">
+                        <td className="p-1 border-b text-gray-800 text-xs">
                           {values[1] || 'N/A'}
                         </td>
-                        <td className="p-2 border-b text-gray-800 text-xs">
+                        <td className="p-1 border-b text-gray-800 text-xs">
                           {values[2] || 'N/A'}  
                         </td>
                       </tr>
@@ -232,7 +359,7 @@ const ApSuite = () => {
               </table>
             ) : (
               <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
-                No source data available
+                No source data
               </div>
             )}
           </div>
@@ -240,75 +367,196 @@ const ApSuite = () => {
 
         {/* Target Block - Wider */}
         <div className="flex-1 bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
-          <div className="p-3 bg-green-50 border-b font-medium text-green-800 flex items-center">
-            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-            Target Mapping
+          <div className="p-3 bg-green-50 border-b font-medium text-green-800 flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+              Target Mapping
+            </div>
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center text-sm"
+            >
+              <Plus size={14} className="mr-1" />
+              Add Row
+            </button>
           </div>
+          
+          {/* Add Form */}
+          {showAddForm && (
+            <div className="p-4 bg-green-25 border-b">
+              <div className="grid grid-cols-7 gap-2 text-sm">
+                <input
+                  type="text"
+                  placeholder="Entity Type"
+                  value={newRowData.entityType}
+                  onChange={(e) => setNewRowData(prev => ({ ...prev, entityType: e.target.value }))}
+                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Type of Data"
+                  value={newRowData.typeOfData}
+                  onChange={(e) => setNewRowData(prev => ({ ...prev, typeOfData: e.target.value }))}
+                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                <input
+                  type="text"
+                  placeholder="AP Suite Name"
+                  value={newRowData.apsuiteName}
+                  onChange={(e) => setNewRowData(prev => ({ ...prev, apsuiteName: e.target.value }))}
+                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                <input
+                  type="text"
+                  placeholder="SAP Table"
+                  value={newRowData.sapTableName}
+                  onChange={(e) => setNewRowData(prev => ({ ...prev, sapTableName: e.target.value }))}
+                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                <input
+                  type="text"
+                  placeholder="SAP Field"
+                  value={newRowData.sapFieldName}
+                  onChange={(e) => setNewRowData(prev => ({ ...prev, sapFieldName: e.target.value }))}
+                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                <input
+                  type="text"
+                  placeholder="API Name"
+                  value={newRowData.apiName}
+                  onChange={(e) => setNewRowData(prev => ({ ...prev, apiName: e.target.value }))}
+                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Endpoint"
+                  value={newRowData.endpoint}
+                  onChange={(e) => setNewRowData(prev => ({ ...prev, endpoint: e.target.value }))}
+                  className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleAddNewRow}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center text-sm"
+                >
+                  <Save size={14} className="mr-1" />
+                  Save
+                </button>
+                <button
+                  onClick={() => setShowAddForm(false)}
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center text-sm"
+                >
+                  <X size={14} className="mr-1" />
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          
           <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 160px)" }}>
             {targetData.length > 0 ? (
               <table className="w-full text-sm">
                 <thead className="bg-green-50 sticky top-0">
                   <tr>
-                    {/* <th className="p-3 text-left font-medium text-green-800 border-b">AP Suite Name</th> */}
-                    <th className="p-3 text-left font-medium text-green-800 border-b">SAP Table</th>
-                    <th className="p-3 text-left font-medium text-green-800 border-b">SAP Field</th>
-                    <th className="p-3 text-left font-medium text-green-800 border-b">API Name</th>
-                    <th className="p-3 text-left font-medium text-green-800 border-b">Endpoint</th>
-                    <th className="p-3 text-center font-medium text-green-800 border-b w-16">Action</th>
+                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">Entity Type</th>
+                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">Type of Data</th>
+                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">AP Suite Name</th>
+                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">SAP Table</th>
+                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">SAP Field</th>
+                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">API Name</th>
+                    <th className="p-2 text-left font-medium text-green-800 border-b text-xs">Endpoint</th>
+                    <th className="p-2 text-center font-medium text-green-800 border-b text-xs">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {targetData.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className={`transition-colors ${selectedRow === idx ? 'bg-green-100' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
-                    >
-                      {/* <td className="p-3 border-b text-gray-800 font-medium">
-                        {row.apsuiteName || 'N/A'}
-                      </td> */}
-                      <td className="p-3 border-b text-gray-800">
-                        <input
-                          type="text"
-                          value={row.sapTableName || ''}
-                          onChange={(e) => handleTableFieldChange(idx, 'sapTableName', e.target.value)}
-                          className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent'
-                          placeholder="SAP Table"
-                        />
-                      </td>
-                      <td className="p-3 border-b text-gray-800">
-                        <input
-                          type="text"
-                          value={row.sapFieldName || ''}
-                          onChange={(e) => handleTableFieldChange(idx, 'sapFieldName', e.target.value)}
-                          className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent'
-                          placeholder="SAP Field"
-                        />
-                      </td>
-                      <td className="p-3 border-b text-gray-800">
-                        {row.apiName || 'N/A'}
-                      </td>
-                      <td className="p-3 border-b text-gray-800">
-                        {row.endpoint || 'N/A'}
-                      </td>
-                      <td className="p-3 border-b text-center">
-                        <button
-                          onClick={() => handleSuggestion(row, idx)}
-                          disabled={selectedRow === idx}
-                          className={`p-2 rounded-full transition-colors ${selectedRow === idx
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : 'bg-green-600 text-white hover:bg-green-700'
+                  {targetData.map((row, idx) => {
+                    const isEditing = editingRows.has(idx);
+                    return (
+                      <tr
+                        key={idx}
+                        className={`transition-colors ${selectedRow === idx ? 'bg-green-100' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                      >
+                        <td className="p-2 border-b text-gray-800 text-xs">
+                          {row.entityType || 'N/A'}
+                        </td>
+                        <td className="p-2 border-b text-gray-800 text-xs">
+                          {row.typeOfData || 'N/A'}
+                        </td>
+                        <td className="p-2 border-b text-gray-800 text-xs">
+                          {row.apsuiteName || 'N/A'}
+                        </td>
+                        <td className="p-2 border-b text-gray-800">
+                          <input
+                            type="text"
+                            value={row.sapTableName || ''}
+                            onChange={(e) => handleTableFieldChange(idx, 'sapTableName', e.target.value)}
+                            className={`w-full p-1 border rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-xs ${
+                              isEditing ? 'border-green-500 bg-green-50' : 'border-gray-300'
                             }`}
-                          title="Get AI Suggestion"
-                        >
-                          {selectedRow === idx ? (
-                            <Loader className="animate-spin" size={16} />
-                          ) : (
-                            <Brain size={16} />
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                            placeholder="SAP Table"
+                            disabled={!isEditing}
+                          />
+                        </td>
+                        <td className="p-2 border-b text-gray-800">
+                          <input
+                            type="text"
+                            value={row.sapFieldName || ''}
+                            onChange={(e) => handleTableFieldChange(idx, 'sapFieldName', e.target.value)}
+                            className={`w-full p-1 border rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-xs ${
+                              isEditing ? 'border-green-500 bg-green-50' : 'border-gray-300'
+                            }`}
+                            placeholder="SAP Field"
+                            disabled={!isEditing}
+                          />
+                        </td>
+                        <td className="p-2 border-b text-gray-800 text-xs">
+                          {row.apiName || 'N/A'}
+                        </td>
+                        <td className="p-2 border-b text-gray-800 text-xs">
+                          {row.endpoint || 'N/A'}
+                        </td>
+                        <td className="p-2 border-b text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => toggleEdit(idx)}
+                              className="p-1 rounded hover:bg-gray-200 transition-colors"
+                              title={isEditing ? "Cancel Edit" : "Edit Row"}
+                            >
+                              {isEditing ? <X size={14} className="text-red-500" /> : <Edit size={14} className="text-blue-500" />}
+                            </button>
+                            
+                            {isEditing && (
+                              <button
+                                onClick={() => handleSaveRow(idx)}
+                                className="p-1 rounded hover:bg-green-100 transition-colors"
+                                title="Save Changes"
+                              >
+                                <Save size={14} className="text-green-600" />
+                              </button>
+                            )}
+                            
+                            <button
+                              onClick={() => handleSuggestion(row, idx)}
+                              disabled={selectedRow === idx}
+                              className={`p-1 rounded transition-colors ${
+                                selectedRow === idx
+                                  ? 'text-gray-400 cursor-not-allowed'
+                                  : 'hover:bg-purple-100 text-purple-600'
+                              }`}
+                              title="Get AI Suggestion"
+                            >
+                              {selectedRow === idx ? (
+                                <Loader className="animate-spin" size={14} />
+                              ) : (
+                                <Brain size={14} />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (
@@ -320,7 +568,7 @@ const ApSuite = () => {
         </div>
 
         {/* Console Block */}
-        <div className="w-1/3 bg-gray-800 shadow rounded-lg border border-gray-200 overflow-hidden">
+        <div className="w-1/4 bg-gray-800 shadow rounded-lg border border-gray-200 overflow-hidden">
           <div className="p-3 bg-gray-800 text-white font-medium flex items-center justify-between">
             <div className="flex items-center">
               <div className="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>

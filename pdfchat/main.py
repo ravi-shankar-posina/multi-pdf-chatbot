@@ -341,10 +341,10 @@ def get_po_data():
         return jsonify(po_list), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch PO records: {str(e)}"}), 500
-@app.route('/apsuite-data', methods=['POST'])
-def get_apsuite_data():
+# 1. GET/SEARCH API - Search for matching records
+@app.route('/apsuite-data/search', methods=['POST'])
+def search_apsuite_data():
     try:
-        # Get the JSON data from request body
         data = request.get_json()
         
         if not data or 'mappingData' not in data:
@@ -352,17 +352,13 @@ def get_apsuite_data():
         
         mapping_data = data['mappingData']
         
-        if not isinstance(mapping_data, list):
-            return jsonify({'error': 'Mapping data must be an array'}), 400
+        if not isinstance(mapping_data, list) or len(mapping_data) == 0:
+            return jsonify({'error': 'Mapping data must be a non-empty array'}), 400
         
-        if len(mapping_data) == 0:
-            return jsonify({'error': 'No mapping data provided'}), 400
-        
-        # Create query conditions for filtering (entityType, typeOfData, and apsuiteName)
+        # Create query conditions for filtering
         query_filter = []
-        
         for item in mapping_data:
-            if 'entityType' in item and 'typeOfData' in item and 'apsuiteName' in item:
+            if all(key in item for key in ['entityType', 'typeOfData', 'apsuiteName']):
                 query_filter.append({
                     'entityType': item['entityType'],
                     'typeOfData': item['typeOfData'],
@@ -379,9 +375,9 @@ def get_apsuite_data():
         for doc in apsuite_data:
             doc_dict = doc.to_mongo().to_dict()
             if "_id" in doc_dict:
-                doc_dict["_id"] = str(doc_dict["_id"])  # convert ObjectId to string
+                doc_dict["_id"] = str(doc_dict["_id"])
             
-            # Check if this document matches any of our filter conditions (all 3 fields must match)
+            # Check if this document matches any filter condition
             for filter_condition in query_filter:
                 if (doc_dict.get('entityType') == filter_condition['entityType'] and 
                     doc_dict.get('typeOfData') == filter_condition['typeOfData'] and 
@@ -392,8 +388,108 @@ def get_apsuite_data():
         return jsonify(apsuite_list), 200
         
     except Exception as e:
-        return jsonify({"error": f"Failed to fetch Apsuite records: {str(e)}"}), 500
-    
+        return jsonify({"error": f"Failed to search Apsuite records: {str(e)}"}), 500
+
+
+# 2. CREATE API - Create a new record
+@app.route('/apsuite-data/create', methods=['POST'])
+def create_apsuite_data():
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        required_fields = ['entityType', 'typeOfData', 'apsuiteName']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Check if record already exists
+        existing_record = Apsuite.objects(
+            entityType=data.get('entityType'),
+            typeOfData=data.get('typeOfData'),
+            apsuiteName=data.get('apsuiteName')
+        ).first()
+        
+        if existing_record:
+            return jsonify({'error': 'Record with these identifiers already exists'}), 409
+        
+        # Create new record
+        new_record = Apsuite(
+            entityType=data.get('entityType'),
+            typeOfData=data.get('typeOfData'),
+            apsuiteName=data.get('apsuiteName'),
+            sapTableName=data.get('sapTableName', ''),
+            sapFieldName=data.get('sapFieldName', ''),
+            apiName=data.get('apiName', ''),
+            endpoint=data.get('endpoint', '')
+        )
+        
+        new_record.save()
+        
+        # Return created record
+        result = new_record.to_mongo().to_dict()
+        result["_id"] = str(result["_id"])
+        
+        return jsonify({
+            'message': 'Record created successfully',
+            'data': result
+        }), 201
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to create record: {str(e)}"}), 500
+
+
+# 3. UPDATE API - Update an existing record
+@app.route('/apsuite-data/update', methods=['PUT'])
+def update_apsuite_data():
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate required identifier fields
+        required_fields = ['entityType', 'typeOfData', 'apsuiteName']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Missing required identifier field: {field}'}), 400
+        
+        # Find existing record
+        existing_record = Apsuite.objects(
+            entityType=data.get('entityType'),
+            typeOfData=data.get('typeOfData'),
+            apsuiteName=data.get('apsuiteName')
+        ).first()
+        
+        if not existing_record:
+            return jsonify({'error': 'Record not found'}), 404
+        
+        # Update the record with provided fields
+        update_fields = {}
+        updateable_fields = ['sapTableName', 'sapFieldName', 'apiName', 'endpoint']
+        
+        for field in updateable_fields:
+            if field in data:
+                update_fields[field] = data[field]
+        
+        if update_fields:
+            existing_record.update(**update_fields)
+            existing_record.reload()
+        
+        # Return updated record
+        result = existing_record.to_mongo().to_dict()
+        result["_id"] = str(result["_id"])
+        
+        return jsonify({
+            'message': 'Record updated successfully',
+            'data': result
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to update record: {str(e)}"}), 500
 @app.route('/idoc-update', methods=['POST'])
 def update_idoc_status():
     try:
