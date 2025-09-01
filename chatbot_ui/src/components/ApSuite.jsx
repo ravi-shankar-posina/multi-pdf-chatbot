@@ -8,6 +8,7 @@ import {
   Save,
   X,
   Zap,
+  Download,
 } from "lucide-react";
 import { useState } from "react";
 import * as XLSX from "xlsx";
@@ -58,7 +59,112 @@ const ApSuite = () => {
     };
     reader.readAsArrayBuffer(file);
   };
+  const handleExportData = () => {
+    if (targetData.length === 0) {
+      setConsoleMessages((prev) => [
+        ...prev,
+        {
+          type: "error",
+          message: "❌ No mapped data available to export",
+        },
+      ]);
+      return;
+    }
 
+    setConsoleMessages((prev) => [
+      ...prev,
+      {
+        type: "info",
+        message: "📤 Preparing export file...",
+      },
+    ]);
+
+    try {
+      // Prepare data for export - combine source and target data
+      const exportData = sourceData.map((sourceRow, index) => {
+        const sourceValues = Object.values(sourceRow);
+        const targetRow = targetData[index] || {};
+
+        return {
+          // Source Data
+          "Entity Type": sourceValues[0] || "",
+          "Type of Data": sourceValues[1] || "",
+          "AP Suite Name": sourceValues[2] || "",
+
+          // Target Mapping Data
+          "SAP Table Name": targetRow.sapTableName || "",
+          "SAP Field Name": targetRow.sapFieldName || "",
+          "API Name": targetRow.apiName || "",
+          Endpoint: targetRow.endpoint || "",
+
+          // Status
+          "Mapping Status":
+            targetRow.sapTableName && targetRow.sapFieldName
+              ? "Mapped"
+              : "Unmapped",
+        };
+      });
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // Auto-size columns
+      const colWidths = Object.keys(exportData[0] || {}).map((key) => ({
+        wch:
+          Math.max(
+            key.length,
+            ...exportData.map((row) => String(row[key] || "").length)
+          ) + 2,
+      }));
+      ws["!cols"] = colWidths;
+
+      // Add styling to headers
+      const headerRange = XLSX.utils.decode_range(ws["!ref"]);
+      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+        if (!ws[cellAddress]) continue;
+        ws[cellAddress].s = {
+          font: { bold: true },
+          fill: { fgColor: { rgb: "E3F2FD" } },
+          alignment: { horizontal: "center" },
+        };
+      }
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "AP Suite Mapping");
+
+      // Generate filename with timestamp
+      const timestamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/:/g, "-");
+      const filename = `AP_Suite_Mapping_${timestamp}.xlsx`;
+
+      // Export file
+      XLSX.writeFile(wb, filename);
+
+      setConsoleMessages((prev) => [
+        ...prev,
+        {
+          type: "success",
+          message: `✅ Data exported successfully as ${filename}`,
+        },
+        {
+          type: "info",
+          message: `📊 Exported ${exportData.length} records with complete mapping details`,
+        },
+      ]);
+    } catch (error) {
+      setConsoleMessages((prev) => [
+        ...prev,
+        {
+          type: "error",
+          message: `❌ Export failed: ${error.message}`,
+        },
+      ]);
+    }
+  };
   const handleTableFieldChange = (rowIndex, fieldName, value) => {
     setTargetData((prev) =>
       prev.map((row, index) => {
@@ -224,7 +330,9 @@ const ApSuite = () => {
 
     const query = `Provide the mapping for SAP table for the field name: ${
       row.apsuiteName || "N/A"
-    }, Field: ${row.sapFieldName || "N/A"},and entity type: ${row.entityType || "N/A"}`;
+    }, Field: ${row.sapFieldName || "N/A"},and entity type: ${
+      row.entityType || "N/A"
+    }`;
 
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/chat`, {
@@ -889,7 +997,7 @@ const ApSuite = () => {
           <button
             onClick={handleDoMapping}
             disabled={isMappingLoading || sourceData.length === 0}
-            className={`px-6 py-2 rounded border shadow text-white font-medium transition-colors ${
+            className={`px-6 py-2 rounded border shadow text-white font-medium transition-colors mr-4 ${
               isMappingLoading || sourceData.length === 0
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-purple-600 hover:bg-purple-700"
@@ -906,6 +1014,22 @@ const ApSuite = () => {
                 Do AI Mapping
               </div>
             )}
+          </button>
+
+          {/* NEW EXPORT BUTTON */}
+          <button
+            onClick={handleExportData}
+            disabled={targetData.length === 0}
+            className={`px-4 py-2 rounded border shadow text-white font-medium transition-colors ${
+              targetData.length === 0
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            <div className="flex items-center">
+              <Download className="mr-2" size={16} />
+              Export Excel
+            </div>
           </button>
         </div>
 
