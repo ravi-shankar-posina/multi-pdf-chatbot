@@ -89,11 +89,11 @@ const navigatorSections = [
         path: "/incident-analysis",
         icon: <TbDeviceDesktopAnalytics size={14} />,
       },
-      // {
-      //   label: "Password Management",
-      //   path: "/password-management",
-      //   icon: <MdPassword size={14} />,
-      // },
+      {
+        label: "Password Management",
+        path: "/password-management",
+        icon: <MdPassword size={14} />,
+      },
     ],
   },
 
