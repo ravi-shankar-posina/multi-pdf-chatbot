@@ -36,7 +36,7 @@ const navigatorSections = [
         icon: <FaCode size={14} />,
       },
       {
-        label: "Smart Insights",
+        label: "Smart Code Assistance",
         path: "/smart-connectors",
         icon: <FaTools size={14} />,
       },
@@ -227,11 +227,11 @@ const Layout = ({ onLogout }) => {
             alt="Chatbot Intro"
             className={`${
               sidebarCollapsed ? "h-8 w-8" : "h-16 w-16"
-            } rounded-lg object-contain border-4 bg-white transition-all duration-300`}
-            // style={{
-            //   borderColor: COLORS.primary,
-            //   boxShadow: `0 0 0 4px ${COLORS.secondary}`,
-            // }}
+            } rounded-full object-contain border-4 bg-white transition-all duration-300`}
+            style={{
+              borderColor: COLORS.primary,
+              boxShadow: `0 0 0 4px ${COLORS.secondary}`,
+            }}
           />
 
           {!sidebarCollapsed && (

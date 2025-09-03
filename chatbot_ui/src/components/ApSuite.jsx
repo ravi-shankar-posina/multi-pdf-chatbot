@@ -1006,12 +1006,12 @@ const ApSuite = () => {
             {isMappingLoading ? (
               <div className="flex items-center">
                 <Loader className="animate-spin mr-2" size={16} />
-                AI Mapping...
+                SAP Mapping...
               </div>
             ) : (
               <div className="flex items-center">
                 <Zap className="mr-2" size={16} />
-                Do AI Mapping
+               SAP Mapping
               </div>
             )}
           </button>
