@@ -36,7 +36,7 @@ const navigatorSections = [
         icon: <FaCode size={14} />,
       },
       {
-        label: "Smart Code Assistance",
+        label: "Smart Code Assistant",
         path: "/smart-connectors",
         icon: <FaTools size={14} />,
       },
@@ -44,6 +44,31 @@ const navigatorSections = [
         label: "Test Script Generator",
         path: "/test-script-genarator",
         icon: <FaUser size={14} />,
+      },
+    ],
+  },
+  {
+    title: "Knowledge Navigator",
+    icon: <FaBook size={16} />,
+    titleColor: COLORS.labelColor,
+    iconColor: COLORS.labelColor,
+    options: [
+      {
+        label: "SOP Creation",
+        path: "/sop-creation",
+        icon: <FaFilePdf size={14} />,
+        // subtitle: "Signavio + Process map ",
+      },
+      {
+        label: "KT Documents",
+        path: "/kt-documents",
+        icon: <FaFilePdf size={14} />,
+        // subtitle: "Signavio",
+      },
+      {
+        label: "SAP Best Practices",
+        path: "/best-practices",
+        icon: <FaFilePdf size={14} />,
       },
     ],
   },
@@ -64,36 +89,11 @@ const navigatorSections = [
         path: "/incident-analysis",
         icon: <TbDeviceDesktopAnalytics size={14} />,
       },
-      {
-        label: "Best Practices",
-        path: "/best-practices",
-        icon: <FaFilePdf size={14} />,
-      },
-      {
-        label: "Password Management",
-        path: "/password-management",
-        icon: <MdPassword size={14} />,
-      },
-    ],
-  },
-  {
-    title: "Knowledge Navigator",
-    icon: <FaBook size={16} />,
-    titleColor: COLORS.labelColor,
-    iconColor: COLORS.labelColor,
-    options: [
-      {
-        label: "SOP Creation",
-        path: "/sop-creation",
-        icon: <FaFilePdf size={14} />,
-        subtitle: "Signavio + Process map ",
-      },
-      {
-        label: "KT Documents",
-        path: "/kt-documents",
-        icon: <FaFilePdf size={14} />,
-        subtitle: "Signavio",
-      },
+      // {
+      //   label: "Password Management",
+      //   path: "/password-management",
+      //   icon: <MdPassword size={14} />,
+      // },
     ],
   },
 
