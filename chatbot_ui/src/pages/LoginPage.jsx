@@ -1,12 +1,13 @@
 import { EyeIcon, EyeOffIcon, LockIcon, UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import chatbotIntro from "../assets/ai.png";
+import logo from "../assets/image.png";
 
-// Custom color palette
+// Updated color palette for black and white theme
 const COLORS = {
-  primary: "#FFA500",
-  secondary: "#00AECF",
-  dark: "#073161",
+  primary: "#000000",    // Black
+  secondary: "#6b7280",  // Gray-500
+  light: "#f3f4f6",      // Gray-100
+  accent: "#3b82f6",     // Blue-500 for subtle accents
 };
 
 const USERS = [
@@ -77,19 +78,39 @@ const LoginPage = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
-        <div className="flex item-center justify-center">
-          <img src={chatbotIntro} alt="Chatbot Intro" className="h-28 " />
+        {/* Logo and Branding Section */}
+        <div className="flex flex-col items-center justify-center mb-8">
+          <div className="flex items-center mb-4">
+            <img 
+              src={logo} 
+              alt="G-Rise Logo" 
+              className="w-12 h-12 sm:w-16 sm:h-16 mr-3" 
+            />
+            <div className="flex items-center">
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
+                G-Rise
+              </h1>
+              <span className="ml-2 bg-blue-300 text-gray-800 text-sm font-semibold px-2 py-1 rounded-md">
+               Plus
+              </span>
+            </div>
+          </div>
+          <p className="text-gray-600 text-sm text-center">
+            SAP Support Framework
+          </p>
         </div>
-        <div
-          className="bg-white shadow-xl rounded-xl border-t-4 overflow-hidden"
-          style={{ borderTopColor: COLORS.primary }}
-        >
-          <div className="bg-gray-50 py-4 text-center">
-            <h2 className="text-2xl font-bold" style={{ color: COLORS.dark }}>
-              Login to Continue
+
+        {/* Login Card */}
+        <div className="bg-white shadow-2xl rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-gray-50 py-6 text-center border-b border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Welcome Back
             </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Please sign in to continue
+            </p>
           </div>
 
           <div className="p-8">
@@ -97,25 +118,21 @@ const LoginPage = ({ onLogin }) => {
               <div>
                 <label
                   htmlFor="username"
-                  className="block mb-2 font-medium"
-                  style={{ color: COLORS.secondary }}
+                  className="block mb-2 text-sm font-semibold text-gray-700"
                 >
                   Username
                 </label>
                 <div className="relative">
                   <UserIcon
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2"
-                    style={{ color: COLORS.primary }}
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    size={20}
                   />
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Enter your username"
-                    className="w-full pl-10 pr-3 py-2 border-2 rounded-md focus:outline-none"
-                    style={{
-                      borderColor: COLORS.secondary,
-                    }}
+                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-gray-900 transition-all duration-200 hover:border-gray-400"
                     required
                   />
                 </div>
@@ -124,56 +141,42 @@ const LoginPage = ({ onLogin }) => {
               <div>
                 <label
                   htmlFor="password"
-                  className="block mb-2 font-medium"
-                  style={{ color: COLORS.secondary }}
+                  className="block mb-2 text-sm font-semibold text-gray-700"
                 >
                   Password
                 </label>
                 <div className="relative">
                   <LockIcon
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2"
-                    style={{ color: COLORS.primary }}
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    size={20}
                   />
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="w-full pl-10 pr-12 py-2 border-2 rounded-md focus:outline-none"
-                    style={{
-                      borderColor: COLORS.secondary,
-                    }}
+                    className="w-full pl-10 pr-12 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-gray-900 transition-all duration-200 hover:border-gray-400"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                    style={{ color: COLORS.dark }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors duration-200"
                   >
-                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    {showPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
                   </button>
                 </div>
               </div>
 
               {error && (
-                <div
-                  className="text-center py-2 rounded"
-                  style={{
-                    backgroundColor: `${COLORS.primary}20`,
-                    color: COLORS.primary,
-                  }}
-                >
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm text-center">
                   {error}
                 </div>
               )}
 
               <button
                 type="submit"
-                className="w-full py-2 rounded-md text-white font-semibold transition-colors duration-300"
-                style={{
-                  backgroundColor: COLORS.dark,
-                }}
+                className="w-full py-3 px-4 bg-black text-white font-semibold rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 Sign In
               </button>
@@ -182,8 +185,7 @@ const LoginPage = ({ onLogin }) => {
             <div className="text-center mt-6">
               <a
                 href="#"
-                className="text-sm"
-                style={{ color: COLORS.secondary }}
+                className="text-sm text-gray-500 hover:text-black transition-colors duration-200"
               >
                 Forgot Password?
               </a>
@@ -191,9 +193,10 @@ const LoginPage = ({ onLogin }) => {
           </div>
         </div>
 
-        <div className="text-center mt-4">
-          <p className="text-sm" style={{ color: COLORS.dark }}>
-            © 2024 Grise SAP Support Framework. All Rights Reserved.
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <p className="text-sm text-gray-500">
+            © 2024 G-Rise SAP Support Framework. All Rights Reserved.
           </p>
         </div>
       </div>

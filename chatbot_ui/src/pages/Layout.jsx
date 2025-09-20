@@ -1,34 +1,23 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  FaBook,
   FaCode,
   FaFilePdf,
   FaHeadset,
-  FaUser,
-  FaChevronDown,
-  FaChevronUp,
-  FaBook,
+  FaTimes,
   FaTools,
-  FaChevronLeft,
-  FaChevronRight,
+  FaUser,
 } from "react-icons/fa";
-import { MdSupportAgent, MdDeveloperMode, MdPassword } from "react-icons/md";
+import { MdAppSettingsAlt, MdDeveloperMode, MdSupportAgent } from "react-icons/md";
 import { TbDeviceDesktopAnalytics } from "react-icons/tb";
-import chatbotIntro from "../assets/ai.png";
 import { Link, Outlet, useLocation } from "react-router-dom";
-
-const COLORS = {
-  primary: "#FFA500",
-  secondary: "#00AECF",
-  dark: "#073161",
-  labelColor: "#FFC876",
-};
+import logo from "../assets/image.png";  
 
 const navigatorSections = [
   {
     title: "Development Navigator",
-    icon: <MdDeveloperMode size={16} />,
-    titleColor: COLORS.labelColor,
-    iconColor: COLORS.labelColor,
+    icon: <MdDeveloperMode size={20} />,
+    shortTitle: "Development",
     options: [
       {
         label: "ABAP Code Generator",
@@ -49,21 +38,18 @@ const navigatorSections = [
   },
   {
     title: "Knowledge Navigator",
-    icon: <FaBook size={16} />,
-    titleColor: COLORS.labelColor,
-    iconColor: COLORS.labelColor,
+    icon: <FaBook size={20} />,
+    shortTitle: "Knowledge",
     options: [
       {
         label: "SOP Creation",
         path: "/sop-creation",
         icon: <FaFilePdf size={14} />,
-        // subtitle: "Signavio + Process map ",
       },
       {
         label: "KT Documents",
         path: "/kt-documents",
         icon: <FaFilePdf size={14} />,
-        // subtitle: "Signavio",
       },
       {
         label: "SAP Best Practices",
@@ -74,9 +60,8 @@ const navigatorSections = [
   },
   {
     title: "Support Navigator",
-    icon: <MdSupportAgent size={16} />,
-    titleColor: COLORS.labelColor,
-    iconColor: COLORS.labelColor,
+    icon: <MdSupportAgent size={20} />,
+    shortTitle: "Support",
     options: [
       { label: "How To", path: "/", icon: <FaHeadset size={14} /> },
       {
@@ -89,21 +74,13 @@ const navigatorSections = [
         path: "/incident-analysis",
         icon: <TbDeviceDesktopAnalytics size={14} />,
       },
-      // {
-      //   label: "Password Management",
-      //   path: "/password-management",
-      //   icon: <MdPassword size={14} />,
-      // },
     ],
   },
-
   {
     title: "SAP Technical Agents",
-    icon: <MdSupportAgent size={16} />,
-    titleColor: COLORS.labelColor,
-    iconColor: COLORS.labelColor,
+    icon: <MdAppSettingsAlt  size={20} />,
+    shortTitle: "Technical",
     options: [
-      // { label: "Grise Agent", path: "/grise-agent", icon: <MdSupportAgent size={14} /> },
       {
         label: "IDOC Agent",
         path: "/idoc-agent",
@@ -118,9 +95,8 @@ const navigatorSections = [
   },
   {
     title: "SAP Functional Agents",
-    icon: <FaUser size={16} />,
-    titleColor: COLORS.labelColor,
-    iconColor: COLORS.labelColor,
+    icon: <FaUser size={20} />,
+    shortTitle: "Functional",
     options: [
       { label: "COA", path: "/coa", icon: <FaCode size={14} /> },
       {
@@ -138,61 +114,42 @@ const navigatorSections = [
 ];
 
 const Layout = ({ onLogout }) => {
-  const [selectedLabel, setSelectedLabel] = useState("");
-  const [openSections, setOpenSections] = useState({});
-  const [hoveredSection, setHoveredSection] = useState(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [selectedLabel, setSelectedLabel] = useState("SAP Support Framework");
+  const [activeSection, setActiveSection] = useState(null);
+  const [expandedSection, setExpandedSection] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const popupRef = useRef(null);
+  const expandRef = useRef(null);
 
-  const toggleSection = (title) => {
-    if (!sidebarCollapsed) {
-      setOpenSections((prev) => ({
-        ...prev,
-        [title]: !prev[title],
-      }));
+  const handleSectionClick = (sectionTitle) => {
+    if (expandedSection === sectionTitle) {
+      setExpandedSection(null);
+    } else {
+      setExpandedSection(sectionTitle);
     }
   };
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed((prev) => !prev);
-    setHoveredSection(null);
+  const closeExpanded = () => {
+    setExpandedSection(null);
   };
 
-  // Close popup when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (popupRef.current && !popupRef.current.contains(event.target)) {
-        setHoveredSection(null);
-      }
+  const handleOptionClick = (option) => {
+    setSelectedLabel(option.label);
+    setExpandedSection(null);
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      alert("Logout clicked!");
     }
+  };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const currentPath = location.pathname;
-
-    // Find which section contains the current path and set the label
-    for (const section of navigatorSections) {
-      const foundOption = section.options.find(
-        (opt) => opt.path === currentPath
-      );
-      if (foundOption) {
-        setSelectedLabel(foundOption.label);
-
-        // Open the section containing the current path in expanded mode
-        if (!sidebarCollapsed) {
-          setOpenSections((prev) => ({
-            ...prev,
-            [section.title]: true,
-          }));
-        }
-        break;
-      }
-    }
-  }, [location.pathname, sidebarCollapsed]);
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
 
   // Function to find the section title for a given path
   const getSectionForPath = (path) => {
@@ -204,218 +161,198 @@ const Layout = ({ onLogout }) => {
     return null;
   };
 
+  // Close expanded section when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (expandRef.current && !expandRef.current.contains(event.target)) {
+        setExpandedSection(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Set initial selected label and active section based on current path
+  useEffect(() => {
+    const currentPath = location.pathname;
+
+    // Find which section contains the current path and set the label
+    for (const section of navigatorSections) {
+      const foundOption = section.options.find(
+        (opt) => opt.path === currentPath
+      );
+      if (foundOption) {
+        setSelectedLabel(foundOption.label);
+        setActiveSection(section.title);
+        break;
+      }
+    }
+  }, [location.pathname]);
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   // Active section based on current path
-  const activeSection = getSectionForPath(location.pathname);
+  const activeSectionTitle = getSectionForPath(location.pathname);
 
   return (
-    <div className="flex max-h-screen min-h-screen bg-white">
-      {/* Sidebar */}
-      <div
-        className={`flex flex-col max-h-screen min-h-screen bg-gray-800 relative transition-all duration-300 ease-in-out ${
-          sidebarCollapsed ? "w-20" : "w-1/4"
-        }`}
-      >
-        {/* Logo area */}
-        <div
-          className={`flex items-center justify-${
-            sidebarCollapsed ? "center" : "between"
-          } p-4 border-b border-opacity-20`}
-          style={{ borderBottomColor: COLORS.secondary }}
-        >
-          <img
-            src={chatbotIntro}
-            alt="Chatbot Intro"
-            className={`${
-              sidebarCollapsed ? "h-8 w-8" : "h-16 w-16"
-            } rounded-full object-contain border-4 bg-white transition-all duration-300`}
-            style={{
-              borderColor: COLORS.primary,
-              boxShadow: `0 0 0 4px ${COLORS.secondary}`,
-            }}
-          />
-
-          {!sidebarCollapsed && (
-            <h1 className="text-white text-md font-semibold mx-4">
-              SAP Support Framework
-            </h1>
-          )}
-        </div>
-
-        {/* Toggle button - positioned at the middle right of sidebar */}
-        <button
-          onClick={toggleSidebar}
-          className="absolute -right-3 top-1/2 transform -translate-y-1/2 bg-gray-800 border border-gray-600 hover:bg-gray-700 text-white rounded-full p-1 z-20"
-          style={{ boxShadow: "0 0 5px rgba(0,0,0,0.3)" }}
-        >
-          {sidebarCollapsed ? (
-            <FaChevronRight size={14} />
-          ) : (
-            <FaChevronLeft size={14} />
-          )}
-        </button>
-
-        {/* Navigation sections */}
-        <div className="text-white py-3 flex-1 overflow-y-auto">
-          {navigatorSections.map((section, sectionIndex) => (
-            <div
-              key={sectionIndex}
-              className="mb-1"
-              onMouseEnter={() =>
-                sidebarCollapsed && setHoveredSection(section.title)
-              }
+    <div className="flex h-screen bg-white overflow-hidden">
+      {/* Top Navbar */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 h-14">
+        <div className="flex items-center justify-between h-full px-4">
+          {/* Left side - Logo and Menu */}
+          <div className="flex items-center space-x-4">
+            <img src={logo} alt="Logo" className="w-8 h-8" />
+            
+            {/* Mobile Menu Button */}
+            <button
+              onClick={toggleMobileMenu}
+              className="lg:hidden p-2 text-black hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <button
-                onClick={() => toggleSection(section.title)}
-                className={`flex items-center w-full p-2 rounded-lg transition duration-300 hover:bg-white/10 ${
-                  sidebarCollapsed ? "justify-center" : "space-x-2"
-                } ${
-                  activeSection === section.title && sidebarCollapsed
-                    ? "bg-white/20"
-                    : ""
-                }`}
-              >
-                <span style={{ color: section.iconColor }}>{section.icon}</span>
-                {!sidebarCollapsed && (
-                  <>
-                    <span
-                      className="font-bold text-sm"
-                      style={{ color: section.titleColor }}
-                    >
-                      {section.title}
-                    </span>
-                    <span className="ml-auto text-white">
-                      {openSections[section.title] ? (
-                        <FaChevronUp size={12} />
-                      ) : (
-                        <FaChevronDown size={12} />
-                      )}
-                    </span>
-                  </>
-                )}
-              </button>
-
-              {/* Expanded sidebar section */}
-              {!sidebarCollapsed && (
-                <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out pl-3 ${
-                    openSections[section.title]
-                      ? "max-h-screen opacity-100 mt-1"
-                      : "max-h-0 opacity-0"
-                  }`}
-                >
-                  <ul className="space-y-1">
-                    {section.options.map((option, optIndex) => (
-                      <li key={optIndex}>
-                        <Link
-                          to={option.path}
-                          className={`flex items-center p-2 w-full rounded-lg transition duration-300 ${
-                            location.pathname === option.path
-                              ? "bg-white text-[#073161]"
-                              : "text-white hover:bg-white/10"
-                          }`}
-                          onClick={() => setSelectedLabel(option.label)}
-                        >
-                          <span className="mr-2">{option.icon}</span>
-                          <div className="text-sm">
-                            <div className="font-medium">{option.label}</div>
-                            {option.subtitle && (
-                              <div className="text-xs opacity-70 mt-0.5">
-                                {option.subtitle}
-                              </div>
-                            )}
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              {isMobileMenuOpen ? <FaTimes size={18} /> : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                </svg>
               )}
+            </button>
+          </div>
 
-              {/* Popup menu for collapsed sidebar */}
-              {sidebarCollapsed && hoveredSection === section.title && (
-                <div
-                  ref={popupRef}
-                  className="fixed left-16 bg-gray-700 shadow-lg rounded-lg z-50 w-56"
-                  style={{
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    maxHeight: "80vh",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div className="p-3 border-b border-gray-600 sticky top-0 bg-gray-700 z-10">
-                    <div
-                      className="font-bold"
-                      style={{ color: section.titleColor }}
-                    >
-                      {section.title}
-                    </div>
+          {/* Right side - Selected Option and User Actions */}
+          <div className="flex items-center space-x-4">
+            {/* Selected Option Display */}
+            <div className="hidden sm:flex items-center bg-gray-100 px-3 py-1.5 rounded-lg">
+              <span className="text-sm font-medium text-gray-700">{selectedLabel}</span>
+            </div>
+
+            {/* User Actions */}
+            <div className="flex items-center space-x-2">
+              <button className="p-2 text-black hover:bg-gray-100 rounded-lg transition-colors">
+                <FaUser size={16} />
+              </button>
+              
+              <button 
+                onClick={handleLogout}
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Logout"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-black bg-opacity-50 mt-14">
+          <div className="fixed left-0 top-14 h-full w-72 bg-white transform transition-transform duration-300 ease-in-out overflow-y-auto">
+            <div className="p-4">
+              {navigatorSections.map((section, sectionIndex) => (
+                <div key={sectionIndex} className="mb-6">
+                  <div className="flex items-center mb-3 px-2 py-2 bg-gray-50 rounded-lg">
+                    <span className="mr-3 text-black">{section.icon}</span>
+                    <h3 className="font-semibold text-black text-sm">{section.title}</h3>
                   </div>
-                  <div
-                    className="py-2 overflow-y-auto"
-                    style={{ maxHeight: "calc(80vh - 50px)" }}
-                  >
-                    {section.options.map((option, optIndex) => (
+                  <div className="space-y-1 ml-2">
+                    {section.options.map((option, optionIndex) => (
                       <Link
-                        key={optIndex}
+                        key={optionIndex}
                         to={option.path}
-                        className={`flex items-center px-3 py-2 mx-1 rounded-lg transition duration-300 ${
+                        onClick={() => handleOptionClick(option)}
+                        className={`flex items-center w-full p-3 rounded-lg transition-all duration-200 ${
                           location.pathname === option.path
-                            ? "bg-white text-[#073161]"
-                            : "text-white hover:bg-white/10"
+                            ? "bg-black text-white"
+                            : "text-black hover:bg-gray-100"
                         }`}
-                        onClick={() => {
-                          setSelectedLabel(option.label);
-                          setHoveredSection(null);
-                        }}
                       >
                         <span className="mr-3">{option.icon}</span>
-                        <div>
-                          <div className="font-medium">{option.label}</div>
-                          {option.subtitle && (
-                            <div className="text-xs opacity-70 mt-0.5">
-                              {option.subtitle}
-                            </div>
-                          )}
-                        </div>
+                        <span className="text-sm font-medium">{option.label}</span>
                       </Link>
                     ))}
                   </div>
                 </div>
-              )}
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex w-16 xl:w-20 bg-white border-r border-gray-200 flex-col items-center py-4 mt-14 relative">
+        {/* Navigation Icons */}
+        <div className="flex-1 flex flex-col space-y-4">
+          {navigatorSections.map((section, index) => (
+            <div key={index} className="flex flex-col items-center">
+              <button
+                onClick={() => handleSectionClick(section.title)}
+                className={`p-2.5 xl:p-3 rounded-lg transition-all duration-200 hover:bg-gray-300 ${
+                  activeSectionTitle === section.title
+                    ? "bg-black text-white"
+                    : "text-black"
+                } ${
+                  expandedSection === section.title
+                    ? "bg-gray-100"
+                    : ""
+                }`}
+              >
+                {section.icon}
+              </button>
+              <span className="text-black text-xs mt-1 text-center leading-tight">
+                {section.shortTitle}
+              </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex flex-col w-full max-h-screen min-h-screen overflow-hidden">
-        <header
-          className="border-b p-4 flex justify-between items-center"
-          style={{
-            borderBottomColor: COLORS.secondary,
-          }}
+      {/* Desktop Expanded Section */}
+      {expandedSection && (
+        <div 
+          ref={expandRef}
+          className="hidden lg:flex w-56 xl:w-64 bg-gray-100 border-r border-gray-200 flex-col shadow-lg mt-14"
         >
-          <div className="text-xl font-bold" style={{ color: COLORS.dark }}>
-            {selectedLabel}
-          </div>
-          <div className="flex space-x-4 justify-center items-center">
-            <div className="text-sky-500 text-3xl">
-              <FaUser />
-            </div>
-            <button
-              className="px-4 py-2 rounded-full transition duration-300 hover:opacity-90"
-              style={{
-                backgroundColor: COLORS.secondary,
-                color: "white",
-              }}
-              onClick={onLogout}
+          <div className="p-3 xl:p-4 border-b border-gray-200 flex justify-between items-center bg-white">
+            <h3 className="font-semibold text-black text-sm xl:text-base">
+              {navigatorSections.find(s => s.title === expandedSection)?.title}
+            </h3>
+            <button 
+              onClick={closeExpanded}
+              className="text-gray-500 hover:text-black transition-colors"
             >
-              Logout
+              <FaTimes size={14} />
             </button>
           </div>
-        </header>
-        <main className="flex-1 overflow-auto">
+          
+          <div className="flex-1 p-2 bg-gray-50 overflow-y-auto">
+            {navigatorSections
+              .find(s => s.title === expandedSection)
+              ?.options.map((option, index) => (
+                <Link
+                  key={index}
+                  to={option.path}
+                  onClick={() => handleOptionClick(option)}
+                  className={`flex items-center w-full p-2.5 xl:p-3 mb-1 rounded-lg transition-all duration-200 ${
+                    location.pathname === option.path
+                      ? "bg-black text-white"
+                      : "text-black hover:bg-gray-200"
+                  }`}
+                >
+                  <span className="mr-3">{option.icon}</span>
+                  <span className="text-sm font-medium">{option.label}</span>
+                </Link>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-screen">
+        <main className="flex-1 overflow-auto mt-14 p-4 lg:p-6">
           <Outlet />
         </main>
       </div>
