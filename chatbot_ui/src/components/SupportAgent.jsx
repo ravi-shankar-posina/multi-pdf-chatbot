@@ -521,7 +521,7 @@ const SupportAgent = () => {
               <div className="flex flex-col items-center justify-center h-full text-center p-6">
                 {/* Improved initial UI with better positioning */}
                 <div className="max-w-md w-full mx-auto flex flex-col items-center">
-                  <h2 className="text-2xl font-bold text-indigo-600 mb-3">SAP Support Assistant</h2>
+                  <h2 className="text-2xl font-bold text-gray-600 mb-3">SAP Support Assistant</h2>
                   <p className="text-gray-600 mb-8">How can I help you with your SAP issues today?</p>
 
                   {/* Input field positioned in the middle of the screen */}
@@ -537,7 +537,7 @@ const SupportAgent = () => {
                     <button
                       onClick={handleSend}
                       disabled={!query.trim()}
-                      className={`p-3 rounded-full text-white transition-all ${query.trim() ? "bg-indigo-600 hover:bg-indigo-700" : "bg-indigo-300 cursor-not-allowed"}`}
+                      className={`p-3 rounded-full text-white transition-all ${query.trim() ? "bg-gray-600 hover:bg-gray-700" : "bg-gray-300 cursor-not-allowed"}`}
                     >
                       <FaPaperPlane />
                     </button>
@@ -548,7 +548,7 @@ const SupportAgent = () => {
               <div className="max-w-3xl mx-auto w-full">
                 {responseData.query && (
                   <div className="mb-6 flex justify-end">
-                    <div className="bg-indigo-500 text-white p-4 rounded-lg rounded-tr-none max-w-md">
+                    <div className="bg-gray-600 text-white p-4 rounded-lg rounded-tr-none max-w-md">
                       <p>{responseData.query}</p>
                     </div>
                   </div>

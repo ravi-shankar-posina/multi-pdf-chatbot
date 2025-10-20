@@ -94,10 +94,10 @@ const SmartConn = () => {
       >
         {chatHistory.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center p-6">
-            <div className="text-indigo-500 mb-4 text-6xl">
+            <div className="text-gray-500 mb-4 text-6xl">
               <FaRobot />
             </div>
-            <h2 className="text-2xl font-bold text-indigo-600 mb-2">Welcome to SmartChat</h2>
+            <h2 className="text-2xl font-bold text-gray-600 mb-2">Welcome to SmartChat</h2>
             <p className="text-gray-500 max-w-md">Ask anything and get intelligent responses instantly.</p>
           </div>
         )}
@@ -167,8 +167,8 @@ const SmartConn = () => {
             disabled={!query.trim() || loading}
             className={`p-3 rounded-full text-white transition-all ${
               query.trim() && !loading
-                ? "bg-indigo-600 hover:bg-indigo-700"
-                : "bg-indigo-300 cursor-not-allowed"
+                ? "bg-gray-600 hover:bg-gray-700"
+                : "bg-gray-300 cursor-not-allowed"
             }`}
           >
             <FaPaperPlane />

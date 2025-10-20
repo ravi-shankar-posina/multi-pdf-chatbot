@@ -19,7 +19,7 @@ const TabNavigation = ({ activeTab, onTabChange }) => {
             className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors
               ${
                 activeTab === tab.id
-                  ? "bg-[#FFA500] text-blue-900 font-bold"
+                  ? "bg-gray-600 text-white font-bold"
                   : "bg-white text-gray-600 hover:bg-gray-100"
               }`}
           >

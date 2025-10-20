@@ -111,7 +111,7 @@ const Chat = ({ api }) => {
                       {/* Grise Text with Plus Badge */}
                       <div className="flex items-center">
                         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mr-3">
-                          G-Rise
+                          G-RISE
                         </h1>
                         <span className="bg-blue-200 text-gray-800 text-sm sm:text-sm lg:text-sm font-semibold px-4 py-1 rounded-md border-2 ">
                           Plus

@@ -90,7 +90,7 @@ const LoginPage = ({ onLogin }) => {
             />
             <div className="flex items-center">
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
-                G-Rise
+                G-RISE
               </h1>
               <span className="ml-2 bg-blue-300 text-gray-800 text-sm font-semibold px-2 py-1 rounded-md">
                Plus

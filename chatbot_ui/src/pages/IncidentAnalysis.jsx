@@ -332,14 +332,14 @@ const IncidentAnalysis = () => {
               }}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
-            <div className="flex items-center px-4 py-2 text-blue-600 font-medium bg-blue-100 rounded-lg transition-all hover:bg-blue-200">
+            <div className="flex items-center px-4 py-2 text-gray-600 font-medium bg-gray-100 rounded-lg transition-all hover:bg-gray-200">
               {file ? file.name : "Choose File"}
             </div>
           </label>
           <button
             className={`px-4 py-2 rounded-lg font-medium text-white transition-all ${file
-              ? "bg-green-500 hover:bg-green-600"
-              : "bg-green-300 cursor-not-allowed"
+              ? "bg-gray-600 hover:bg-gray-700"
+              : "bg-gray-300 cursor-not-allowed"
               }`}
             onClick={() => {
               setIsLoading(true);

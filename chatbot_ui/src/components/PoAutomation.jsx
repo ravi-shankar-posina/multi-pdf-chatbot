@@ -186,12 +186,12 @@ const PoAutomation = () => {
               processingSteps.map((step, index) => (
                 <div key={index} className={`flex items-start gap-2 p-2 rounded border-l-4 ${step.type === 'success' ? 'border-l-green-400 bg-green-50' :
                   step.type === 'warning' ? 'border-l-yellow-400 bg-yellow-50' :
-                    'border-l-blue-400 bg-blue-50'
+                    'border-l-gray-400 bg-blue-50'
                   }`}>
                   <div className="flex-1">
                     <div className={`font-medium ${step.type === 'success' ? 'text-green-600' :
                       step.type === 'warning' ? 'text-yellow-600' :
-                        'text-blue-600'
+                        'text-gray-600'
                       }`}>
                       {step.message}
                     </div>
@@ -215,7 +215,7 @@ const PoAutomation = () => {
           disabled={tableData.length === 0 || isProcessing}
           className={`flex items-center gap-2 px-4 py-2 rounded border shadow text-white ${tableData.length === 0 || isProcessing
             ? "bg-gray-400 cursor-not-allowed"
-            : "bg-green-600 hover:bg-green-700"
+            : "bg-gray-600 hover:bg-gray-700"
             }`}
         >
           {isProcessing ? (

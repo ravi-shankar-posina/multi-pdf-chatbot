@@ -521,14 +521,14 @@ const ApSuite = () => {
         <div className="flex-1 bg-white shadow rounded-lg border border-gray-200 flex flex-col min-w-0">
           <div className="p-3 bg-gradient-to-r from-blue-50 to-green-50 border-b font-medium text-gray-800 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+              <div className="w-3 h-3 bg-gray-500 rounded-full mr-2"></div>
               Source to Target Mapping
               <ArrowRight size={16} className="mx-2 text-gray-500" />
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
             </div>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
-              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center text-sm"
+              className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center text-sm"
             >
               <Plus size={14} className="mr-1" />
               Add Row
@@ -557,7 +557,7 @@ const ApSuite = () => {
                           entityType: e.target.value,
                         }))
                       }
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-500 text-sm"
                     />
                     <input
                       type="text"
@@ -569,7 +569,7 @@ const ApSuite = () => {
                           typeOfData: e.target.value,
                         }))
                       }
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-500 text-sm"
                     />
                     <input
                       type="text"
@@ -581,7 +581,7 @@ const ApSuite = () => {
                           apsuiteName: e.target.value,
                         }))
                       }
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-500 text-sm"
                     />
                   </div>
                 </div>
@@ -600,7 +600,7 @@ const ApSuite = () => {
                           sapTableName: e.target.value,
                         }))
                       }
-                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
+                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-500 text-sm"
                     />
                     <input
                       type="text"
@@ -612,7 +612,7 @@ const ApSuite = () => {
                           sapFieldName: e.target.value,
                         }))
                       }
-                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
+                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-500 text-sm"
                     />
                     <input
                       type="text"
@@ -624,7 +624,7 @@ const ApSuite = () => {
                           apiName: e.target.value,
                         }))
                       }
-                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
+                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-500 text-sm"
                     />
                     <input
                       type="text"
@@ -636,7 +636,7 @@ const ApSuite = () => {
                           endpoint: e.target.value,
                         }))
                       }
-                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
+                      className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-500 text-sm"
                     />
                   </div>
                 </div>
@@ -644,7 +644,7 @@ const ApSuite = () => {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={handleAddNewRow}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center text-sm"
+                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center text-sm"
                 >
                   <Save size={14} className="mr-1" />
                   Save Mapping
@@ -669,14 +669,14 @@ const ApSuite = () => {
                     <tr>
                       <th
                         colSpan="3"
-                        className="p-3 text-center font-medium text-blue-800 border-b bg-blue-50"
+                        className="p-3 text-center font-medium text-gray-800 border-b bg-gray-50"
                       >
                         Source Data
                       </th>
                       <th className="p-3 w-8 border-b bg-gray-100"></th>
                       <th
                         colSpan="4"
-                        className="p-3 text-center font-medium text-green-800 border-b bg-green-50"
+                        className="p-3 text-center font-medium text-gray-800 border-b bg-gray-50"
                       >
                         Target Mapping
                       </th>
@@ -700,10 +700,10 @@ const ApSuite = () => {
                           className="text-gray-400 mx-auto"
                         />
                       </th>
-                      <th className="p-2 text-left font-medium text-green-700 border-b text-xs w-32">
+                      <th className="p-2 text-left font-medium text-gray-700 border-b text-xs w-32">
                         SAP Table
                       </th>
-                      <th className="p-2 text-left font-medium text-green-700 border-b text-xs w-32">
+                      <th className="p-2 text-left font-medium text-gray-700 border-b text-xs w-32">
                         SAP Field
                       </th>
                       <th className="p-2 text-left font-medium text-green-700 border-b text-xs w-32">
@@ -970,7 +970,7 @@ const ApSuite = () => {
             className={`cursor-pointer px-4 py-2 rounded border shadow text-white mr-4 transition-colors ${
               isLoading
                 ? "bg-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
+                : "bg-gray-600 hover:bg-gray-700"
             }`}
           >
             {isLoading ? (
