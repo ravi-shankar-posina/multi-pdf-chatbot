@@ -8,10 +8,14 @@ import {
   FaTools,
   FaUser,
 } from "react-icons/fa";
-import { MdAppSettingsAlt, MdDeveloperMode, MdSupportAgent } from "react-icons/md";
+import {
+  MdAppSettingsAlt,
+  MdDeveloperMode,
+  MdSupportAgent,
+} from "react-icons/md";
 import { TbDeviceDesktopAnalytics } from "react-icons/tb";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import logo from "../assets/image.png";  
+import logo from "../assets/image.png";
 
 const navigatorSections = [
   {
@@ -63,7 +67,7 @@ const navigatorSections = [
     icon: <MdSupportAgent size={20} />,
     shortTitle: "Support",
     options: [
-      { label: "How To", path: "/", icon: <FaHeadset size={14} /> },
+      { label: "How To", path: "/how-to", icon: <FaHeadset size={14} /> },
       {
         label: "Incident Query",
         path: "/incident-query",
@@ -78,7 +82,7 @@ const navigatorSections = [
   },
   {
     title: "SAP Technical Agents",
-    icon: <MdAppSettingsAlt  size={20} />,
+    icon: <MdAppSettingsAlt size={20} />,
     shortTitle: "Technical",
     options: [
       {
@@ -177,6 +181,12 @@ const Layout = ({ onLogout }) => {
   useEffect(() => {
     const currentPath = location.pathname;
 
+    if (currentPath === "/") {
+      setSelectedLabel("G-Rise"); // or "SAP Support Framework"
+      setActiveSection(null);
+      return;
+    }
+
     // Find which section contains the current path and set the label
     for (const section of navigatorSections) {
       const foundOption = section.options.find(
@@ -185,7 +195,7 @@ const Layout = ({ onLogout }) => {
       if (foundOption) {
         setSelectedLabel(foundOption.label);
         setActiveSection(section.title);
-        break;
+        return;
       }
     }
   }, [location.pathname]);
@@ -205,16 +215,25 @@ const Layout = ({ onLogout }) => {
         <div className="flex items-center justify-between h-full px-4">
           {/* Left side - Logo and Menu */}
           <div className="flex items-center space-x-4">
-            <img src={logo} alt="Logo" className="w-8 h-8" />
-            
+            <Link to="/">
+              <img src={logo} alt="Logo" className="w-8 h-8 cursor-pointer" />
+            </Link>
+
             {/* Mobile Menu Button */}
             <button
               onClick={toggleMobileMenu}
               className="lg:hidden p-2 text-black hover:bg-gray-100 rounded-lg transition-colors"
             >
-              {isMobileMenuOpen ? <FaTimes size={18} /> : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+              {isMobileMenuOpen ? (
+                <FaTimes size={18} />
+              ) : (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
                 </svg>
               )}
             </button>
@@ -224,7 +243,9 @@ const Layout = ({ onLogout }) => {
           <div className="flex items-center space-x-4">
             {/* Selected Option Display */}
             <div className="hidden sm:flex items-center bg-gray-100 px-3 py-1.5 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">{selectedLabel}</span>
+              <span className="text-md font-semibold text-gray-700">
+                {selectedLabel}
+              </span>
             </div>
 
             {/* User Actions */}
@@ -232,14 +253,19 @@ const Layout = ({ onLogout }) => {
               <button className="p-2 text-black hover:bg-gray-100 rounded-lg transition-colors">
                 <FaUser size={16} />
               </button>
-              
-              <button 
+
+              <button
                 onClick={handleLogout}
                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 title="Logout"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                 </svg>
               </button>
             </div>
@@ -256,7 +282,9 @@ const Layout = ({ onLogout }) => {
                 <div key={sectionIndex} className="mb-6">
                   <div className="flex items-center mb-3 px-2 py-2 bg-gray-50 rounded-lg">
                     <span className="mr-3 text-black">{section.icon}</span>
-                    <h3 className="font-semibold text-black text-sm">{section.title}</h3>
+                    <h3 className="font-semibold text-black text-sm">
+                      {section.title}
+                    </h3>
                   </div>
                   <div className="space-y-1 ml-2">
                     {section.options.map((option, optionIndex) => (
@@ -271,7 +299,9 @@ const Layout = ({ onLogout }) => {
                         }`}
                       >
                         <span className="mr-3">{option.icon}</span>
-                        <span className="text-sm font-medium">{option.label}</span>
+                        <span className="text-sm font-medium">
+                          {option.label}
+                        </span>
                       </Link>
                     ))}
                   </div>
@@ -294,11 +324,7 @@ const Layout = ({ onLogout }) => {
                   activeSectionTitle === section.title
                     ? "bg-black text-white"
                     : "text-black"
-                } ${
-                  expandedSection === section.title
-                    ? "bg-gray-100"
-                    : ""
-                }`}
+                } ${expandedSection === section.title ? "bg-gray-100" : ""}`}
               >
                 {section.icon}
               </button>
@@ -312,25 +338,28 @@ const Layout = ({ onLogout }) => {
 
       {/* Desktop Expanded Section */}
       {expandedSection && (
-        <div 
+        <div
           ref={expandRef}
           className="hidden lg:flex w-56 xl:w-64 bg-gray-100 border-r border-gray-200 flex-col shadow-lg mt-14"
         >
           <div className="p-3 xl:p-4 border-b border-gray-200 flex justify-between items-center bg-white">
             <h3 className="font-semibold text-black text-sm xl:text-base">
-              {navigatorSections.find(s => s.title === expandedSection)?.title}
+              {
+                navigatorSections.find((s) => s.title === expandedSection)
+                  ?.title
+              }
             </h3>
-            <button 
+            <button
               onClick={closeExpanded}
               className="text-gray-500 hover:text-black transition-colors"
             >
               <FaTimes size={14} />
             </button>
           </div>
-          
+
           <div className="flex-1 p-2 bg-gray-50 overflow-y-auto">
             {navigatorSections
-              .find(s => s.title === expandedSection)
+              .find((s) => s.title === expandedSection)
               ?.options.map((option, index) => (
                 <Link
                   key={index}

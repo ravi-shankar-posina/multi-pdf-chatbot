@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaPaperPlane } from "react-icons/fa";
+import { FaPaperPlane, FaPlus, FaMicrophone, FaArrowUp } from "react-icons/fa";
 import logo from "../assets/image.png";
 import AccessManagement from "../pages/Accessmanagement";
 import { categoryResponses } from "./responseData";
@@ -489,25 +489,46 @@ const PasswordAgent = () => {
                   </p>
 
                   {/* Input field positioned in the middle of the screen */}
-                  <div className="w-full flex items-center gap-2 bg-white rounded-2xl shadow-lg border-2 border-gray-300 p-1 pl-4 sm:pl-6 transition-all hover:shadow-xl hover:border-gray-400">
+                  <div className="w-full flex items-center gap-3 bg-gray-50 rounded-3xl border-2 border-gray-300 px-4 py-3 focus-within:border-gray-400 focus-within:shadow-lg transition-all hover:shadow-xl">
+                    {/* Plus icon */}
+                    <button
+                      className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all flex-shrink-0"
+                      title="Add attachment"
+                      type="button"
+                    >
+                      <FaPlus className="text-lg" />
+                    </button>
+
+                    {/* Input */}
                     <input
                       type="text"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      className="flex-1 p-3 sm:p-4 focus:outline-none bg-transparent text-base sm:text-lg placeholder-gray-500"
+                      className="flex-1 px-2 py-3 focus:outline-none bg-transparent text-base sm:text-lg placeholder-gray-500"
                       placeholder="Ask me anything..."
                       onKeyDown={(e) => e.key === "Enter" && handleSend()}
                     />
+
+                    {/* Voice icon */}
+                    <button
+                      className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all flex-shrink-0"
+                      title="Voice input"
+                      type="button"
+                    >
+                      <FaMicrophone className="text-lg" />
+                    </button>
+
+                    {/* Send button */}
                     <button
                       onClick={handleSend}
                       disabled={!query.trim()}
-                      className={`p-3 sm:p-4 rounded-xl text-white transition-all duration-200 ${
+                      className={`p-3 rounded-full transition-all flex-shrink-0 ${
                         query.trim()
-                          ? "bg-black hover:bg-gray-800 transform hover:scale-[1.02] active:scale-[0.98]"
-                          : "bg-gray-400 cursor-not-allowed"
+                          ? "bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] active:scale-[0.98]"
+                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
                       }`}
                     >
-                      <FaPaperPlane className="text-sm sm:text-base" />
+                      <FaArrowUp className="text-base" />
                     </button>
                   </div>
                 </div>
@@ -575,26 +596,47 @@ const PasswordAgent = () => {
 
           {/* Input Area - Only shown after interaction */}
           {hasInteracted && (
-            <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-200">
-              <div className="max-w-4xl mx-auto flex items-center gap-2 bg-white rounded-xl shadow-sm border-2 border-gray-300 p-1 pl-4 transition-all hover:border-gray-400">
+            <div className="p-4 sm:p-6 bg-white border-t border-gray-200">
+              <div className="max-w-4xl mx-auto flex items-center gap-3 bg-gray-50 rounded-3xl border-2 border-gray-300 px-4 py-3 focus-within:border-gray-400 focus-within:shadow-sm transition-all">
+                {/* Plus icon */}
+                <button
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all flex-shrink-0"
+                  title="Add attachment"
+                  type="button"
+                >
+                  <FaPlus className="text-base" />
+                </button>
+
+                {/* Input */}
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="flex-1 p-3 focus:outline-none bg-transparent text-gray-900 placeholder-gray-500"
+                  className="flex-1 px-2 py-2 focus:outline-none bg-transparent text-gray-900 placeholder-gray-500"
                   placeholder="Type your message..."
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 />
+
+                {/* Voice icon */}
+                <button
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all flex-shrink-0"
+                  title="Voice input"
+                  type="button"
+                >
+                  <FaMicrophone className="text-base" />
+                </button>
+
+                {/* Send button */}
                 <button
                   onClick={handleSend}
                   disabled={!query.trim()}
-                  className={`p-3 rounded-lg text-white transition-all duration-200 ${
+                  className={`p-2.5 rounded-full transition-all flex-shrink-0 ${
                     query.trim()
-                      ? "bg-black hover:bg-gray-800 transform hover:scale-[1.02] active:scale-[0.98]"
-                      : "bg-gray-400 cursor-not-allowed"
+                      ? "bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] active:scale-[0.98]"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
                 >
-                  <FaPaperPlane />
+                  <FaArrowUp className="text-sm" />
                 </button>
               </div>
             </div>

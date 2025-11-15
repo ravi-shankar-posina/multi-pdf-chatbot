@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import logo from "../assets/image.png";
-import { FaArrowAltCircleUp, FaArrowUp, FaLongArrowAltUp } from "react-icons/fa";
+import { FaArrowUp, FaPlus, FaMicrophone } from "react-icons/fa";
 
 const Chat = ({ api }) => {
   const [inputMessage, setInputMessage] = useState("");
@@ -64,13 +64,6 @@ const Chat = ({ api }) => {
         setContent([]);
       }
 
-      // const img = data.images || [];
-      // if (img.length > 0) {
-      //   setImages(img.map((image) => `data:image/png;base64,${image}`));
-      // } else {
-      //   setImages([]);
-      // }
-
       setCurrentResponse(data.answer || " ");
       setLinks(data.links || []);
       setShowSatisfactionQuestion(true);
@@ -121,13 +114,23 @@ const Chat = ({ api }) => {
 
                     {/* Input Section */}
                     <div className="relative w-full max-w-2xl mx-auto">
-                      <div className="relative">
+                      <div className="relative flex items-center gap-3 bg-gray-50 rounded-3xl border-2 border-gray-300 px-4 py-3 focus-within:border-gray-400 focus-within:shadow-lg transition-all duration-200 hover:shadow-xl">
+                        {/* Plus icon for attachments */}
+                        <button
+                          className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all flex-shrink-0"
+                          title="Add attachment"
+                          type="button"
+                        >
+                          <FaPlus className="text-lg" />
+                        </button>
+
+                        {/* Text input */}
                         <input
                           type="text"
                           value={inputMessage}
                           onChange={(e) => setInputMessage(e.target.value)}
                           placeholder="Type your question..."
-                          className="w-full h-14 sm:h-16 lg:h-20 border-2 border-gray-300 rounded-2xl px-6 pr-16 py-4 text-base sm:text-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black shadow-lg transition-all duration-200 hover:shadow-xl"
+                          className="flex-1 px-2 py-3 focus:outline-none bg-transparent text-base sm:text-lg text-black placeholder-gray-500"
                           onKeyPress={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
@@ -135,13 +138,27 @@ const Chat = ({ api }) => {
                             }
                           }}
                         />
+
+                        {/* Voice icon */}
+                        <button
+                          className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all flex-shrink-0"
+                          title="Voice input"
+                          type="button"
+                        >
+                          <FaMicrophone className="text-lg" />
+                        </button>
+
                         {/* Send Button */}
                         <button
                           onClick={handleSendMessage}
                           disabled={inputMessage.trim() === ""}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2.5 sm:p-3 bg-black text-white rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                          className={`p-3 rounded-full transition-all flex-shrink-0 ${
+                            inputMessage.trim()
+                              ? "bg-black hover:bg-gray-800 text-white"
+                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          }`}
                         >
-                        <FaArrowUp  className="text-xl"/>
+                          <FaArrowUp className="text-base" />
                         </button>
                       </div>
                     </div>
@@ -245,15 +262,25 @@ const Chat = ({ api }) => {
                 </div>
               )}
               {!showInitialInput && (
-                <div className="p-3 sm:p-4 bg-gray-50 border-t border-gray-200">
+                <div className="p-3 sm:p-4 bg-white border-t border-gray-200">
                   <div className="max-w-6xl mx-auto">
-                    <div className="relative">
+                    <div className="relative flex items-center gap-3 bg-gray-50 rounded-3xl border-2 border-gray-300 px-4 py-3 focus-within:border-gray-400 focus-within:shadow-sm transition-all duration-200">
+                      {/* Plus icon for attachments */}
+                      <button
+                        className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all flex-shrink-0"
+                        title="Add attachment"
+                        type="button"
+                      >
+                        <FaPlus className="text-base" />
+                      </button>
+
+                      {/* Text input */}
                       <input
                         type="text"
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
                         placeholder="Type your question..."
-                        className="w-full h-12 sm:h-14 border-2 border-gray-300 rounded-xl px-4 pr-14 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black transition-all duration-200"
+                        className="flex-1 px-2 py-2 focus:outline-none bg-transparent text-sm sm:text-base text-black placeholder-gray-500"
                         onKeyPress={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
@@ -261,19 +288,27 @@ const Chat = ({ api }) => {
                           }
                         }}
                       />
+
+                      {/* Voice icon */}
+                      <button
+                        className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all flex-shrink-0"
+                        title="Voice input"
+                        type="button"
+                      >
+                        <FaMicrophone className="text-base" />
+                      </button>
+
+                      {/* Send button */}
                       <button
                         onClick={handleSendMessage}
                         disabled={inputMessage.trim() === ""}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 sm:p-2.5 bg-black text-white rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                        className={`p-2.5 rounded-full transition-all flex-shrink-0 ${
+                          inputMessage.trim()
+                            ? "bg-black hover:bg-gray-800 text-white"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
                       >
-                        <svg 
-                          width="16" 
-                          height="16" 
-                          viewBox="0 0 24 24" 
-                          fill="currentColor"
-                        >
-                          <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
-                        </svg>
+                        <FaArrowUp className="text-sm" />
                       </button>
                     </div>
                   </div>

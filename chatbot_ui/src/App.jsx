@@ -20,6 +20,7 @@ import PasswordAgent from "./components/PasswordAgent";
 import Coa from "./components/Coa";
 import PoAutomation from "./components/PoAutomation";
 import ApSuite from "./components/ApSuite";
+import Home from "./pages/Home";
 
 // Same user data as in LoginPage
 const USERS = [
@@ -120,8 +121,9 @@ function App() {
         {/* Secured Routes */}
         {isAuthenticated ? (
           <Route element={<Layout onLogout={handleLogout} />}>
+            <Route path="/" element={<Home/>} />
             <Route
-              path="/"
+              path="/how-to"
               element={<Chat key="csv/query" api="csv/query" />}
             />
             <Route
