@@ -666,7 +666,7 @@ const Home = () => {
                   </div>
 
                   {/* Content */}
-                  <div className="p-4 sm:p-5 space-y-2.5 flex-1 flex flex-col">
+                  {/* <div className="p-4 sm:p-5 space-y-2.5 flex-1 flex flex-col">
                     <h3 className="text-base sm:text-lg font-bold tracking-tight leading-tight text-black group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-black group-hover:to-gray-600 group-hover:bg-clip-text transition-all duration-300">
                       {topic.title}
                     </h3>
@@ -685,7 +685,7 @@ const Home = () => {
                       <span className="text-xs sm:text-sm">Read Article</span>
                       <ChevronRight className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
                     </button>
-                  </div>
+                  </div> */}
 
                   <div
                     className={`absolute inset-0 rounded-xl bg-gradient-to-r ${topic.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none`}
