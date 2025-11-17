@@ -385,166 +385,163 @@ const Home = () => {
     </div>
   );
 
-const GRISETestArticle = () => (
-  <div className="h-full bg-white text-black overflow-auto flex flex-col">
-    <div className="flex-1">
-      <div className="max-w-6xl mx-auto px-4 py-5">
-        <button
-          className="mb-4 text-black hover:text-gray-600 flex items-center gap-2 transition-colors text-sm"
-          onClick={handleBackToHome}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </button>
+  const GRISETestArticle = () => (
+    <div className="h-full bg-white text-black overflow-auto flex flex-col">
+      <div className="flex-1">
+        <div className="max-w-6xl mx-auto px-4 py-5">
+          <button
+            className="mb-4 text-black hover:text-gray-600 flex items-center gap-2 transition-colors text-sm"
+            onClick={handleBackToHome}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
+          </button>
 
-        <div className="mb-4">
-          <span className="inline-block px-2.5 py-1 bg-orange-100 text-orange-700 border border-orange-300 rounded-full text-xs font-semibold mb-2">
-            Breaking News
-          </span>
-
-          <h1 className="text-2xl font-bold mb-3 bg-gradient-to-r from-black via-orange-700 to-yellow-700 bg-clip-text text-transparent">
-            SAP Announces Major AI Advancements: Intelligent Automation Reshapes Enterprise Operations
-          </h1>
-
-          <div className="flex items-center gap-3 text-gray-600 text-xs">
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {getCurrentDate()}
+          <div className="mb-4">
+            <span className="inline-block px-2.5 py-1 bg-orange-100 text-orange-700 border border-orange-300 rounded-full text-xs font-semibold mb-2">
+              Game Changer
             </span>
-            <span className="flex items-center gap-1">
-              <User className="w-3 h-3" />
-              Technical News Desk
-            </span>
-            <span>6 min read</span>
+            <h1 className="text-2xl font-bold mb-3 bg-gradient-to-r from-black via-orange-700 to-yellow-700 bg-clip-text text-transparent">
+              Latest on Automation from SAP: 70% Productivity Revolution
+            </h1>
+            <div className="flex items-center gap-3 text-gray-600 text-xs">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {getCurrentDate()}
+              </span>
+              <span className="flex items-center gap-1">
+                <User className="w-3 h-3" />
+                Technical Team
+              </span>
+              <span>6 min read</span>
+            </div>
           </div>
-        </div>
 
-        <img
-          src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&q=80"
-          alt="AI transformation in SAP"
-          className="w-full h-40 object-cover rounded-xl mb-4"
-        />
+          <img
+            src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&q=80"
+            alt="G-RISE  latest in sap automation"
+            className="w-full h-40 object-cover rounded-xl mb-4"
+          />
 
-        <div className="grid md:grid-cols-2 gap-5">
-          {/* LEFT SIDE */}
-          <div className="space-y-3 text-sm text-gray-700 leading-relaxed">
-            <p className="text-base text-black font-medium">
-              The global SAP ecosystem is witnessing a major shift as Artificial Intelligence
-              takes center stage. Organizations are rapidly adopting AI-driven features to
-              automate processes, reduce manual effort, and make faster business decisions.
-            </p>
+          <div className="grid md:grid-cols-2 gap-5">
+            <div className="space-y-3 text-sm text-gray-700 leading-relaxed">
+              <p className="text-base text-black font-medium">
+                G-RISE latest in sap automation delivers a 70% productivity
+                boost through intelligent, context-aware automation and ABAP
+                code generation.
+              </p>
 
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <h3 className="text-sm font-bold text-black mb-2">
-                Key AI Trends in SAP
-              </h3>
-              <ul className="space-y-1.5 text-xs">
-                <li className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                  <span>
-                    <strong>Generative AI Integration:</strong> SAP now uses AI to generate ABAP,
-                    workflows, and automation scripts instantly.
-                  </span>
-                </li>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <h3 className="text-sm font-bold text-black mb-2">
+                  Core Capabilities
+                </h3>
+                <ul className="space-y-1.5 text-xs">
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span>
+                      <strong>Root Cause Analysis:</strong> Identifies issues in
+                      minutes vs hours
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span>
+                      <strong>Context-Aware:</strong> Tailored solutions for
+                      your SAP environment
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span>
+                      <strong>ABAP Generation:</strong> Production-ready code
+                      with error handling
+                    </span>
+                  </li>
+                </ul>
+              </div>
 
-                <li className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                  <span>
-                    <strong>Predictive Business Insights:</strong> AI models analyze patterns to
-                    predict risks, demand fluctuations, and operational disruptions.
-                  </span>
-                </li>
+              <p className="text-xs">
+                Traditional SAP testing requires significant manual effort.
+                G-RISE automates time-consuming tasks, allowing teams to focus
+                on strategic initiatives.
+              </p>
 
-                <li className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                  <span>
-                    <strong>AI-Powered Automation:</strong> SAP processes run autonomously with
-                    self-learning algorithms that reduce manual workloads.
-                  </span>
-                </li>
-              </ul>
+              <blockquote className="border-l-4 border-orange-500 pl-3 italic text-gray-800 bg-gray-50 p-2 text-xs">
+                "Before G-RISE, 60% of time went to repetitive tasks. Now we
+                focus on innovation. The 70% productivity gain is real and
+                transformative."
+                <footer className="text-gray-600 mt-1 text-xs not-italic">
+                  — VP of Technology, Global Manufacturing
+                </footer>
+              </blockquote>
             </div>
 
-            <p className="text-xs">
-              Experts say AI will soon become a default layer in SAP systems, allowing companies
-              to optimize operations and innovate with unprecedented speed.
-            </p>
-
-            <blockquote className="border-l-4 border-orange-500 pl-3 italic text-gray-800 bg-gray-50 p-2 text-xs">
-              "AI has moved from being a luxury to a necessity in SAP landscapes. The level of
-              automation and intelligence introduced is redefining enterprise productivity."
-              <footer className="text-gray-600 mt-1 text-xs not-italic">
-                — Senior Industry Analyst, Tech Insights Weekly
-              </footer>
-            </blockquote>
-          </div>
-
-          {/* RIGHT SIDE */}
-          <div className="space-y-3">
-            <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-3">
-              <h3 className="text-sm font-bold text-black mb-3">
-                AI Impact Report 2025
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="text-2xl font-bold text-orange-600 mb-1">
-                    65%
+            <div className="space-y-3">
+              <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-3">
+                <h3 className="text-sm font-bold text-black mb-3">
+                  Impact Analysis
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-2xl font-bold text-orange-600 mb-1">
+                      70%
+                    </div>
+                    <p className="text-xs text-gray-700">Productivity boost</p>
                   </div>
-                  <p className="text-xs text-gray-700">Faster SAP operations</p>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-yellow-600 mb-1">
-                    80%
+                  <div>
+                    <div className="text-2xl font-bold text-yellow-600 mb-1">
+                      90%
+                    </div>
+                    <p className="text-xs text-gray-700">Less manual testing</p>
                   </div>
-                  <p className="text-xs text-gray-700">Reduction in manual effort</p>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-orange-600 mb-1">
-                    45%
+                  <div>
+                    <div className="text-2xl font-bold text-orange-600 mb-1">
+                      50%
+                    </div>
+                    <p className="text-xs text-gray-700">Fewer dependencies</p>
                   </div>
-                  <p className="text-xs text-gray-700">Cost savings with automation</p>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-yellow-600 mb-1">
-                    10x
+                  <div>
+                    <div className="text-2xl font-bold text-yellow-600 mb-1">
+                      10x
+                    </div>
+                    <p className="text-xs text-gray-700">Faster diagnosis</p>
                   </div>
-                  <p className="text-xs text-gray-700">Faster issue detection</p>
                 </div>
               </div>
-            </div>
 
-            <div className="text-xs text-gray-700 leading-relaxed space-y-2">
-              <p>
-                AI is now capable of generating SAP development artifacts, including ABAP code,
-                integration flows, test cases, and optimization recommendations.
-              </p>
-              <p>
-                SAP’s new AI copilots are improving onboarding and reducing skill gaps by acting
-                as real-time advisors for consultants and business users.
-              </p>
-              <p>
-                With continuous learning models, SAP systems are becoming more autonomous,
-                delivering increasingly accurate insights and workflow improvements.
-              </p>
-            </div>
+              <div className="text-xs text-gray-700 leading-relaxed space-y-2">
+                <p>
+                  G-RISE generates production-quality ABAP code automatically,
+                  including comprehensive error handling and performance
+                  optimization.
+                </p>
+                <p>
+                  Knowledge democratization accelerates onboarding—new team
+                  members become productive faster with G-RISE as a mentor.
+                </p>
+                <p>
+                  As the system processes more scenarios, it becomes
+                  increasingly accurate and efficient—continuous productivity
+                  improvement.
+                </p>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors text-xs">
-                <Share2 className="w-3 h-3" />
-                Share
-              </button>
-
-              <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors text-xs">
-                <Bookmark className="w-3 h-3" />
-                Save
-              </button>
+              <div className="flex items-center gap-2">
+                <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors text-xs">
+                  <Share2 className="w-3 h-3" />
+                  Share
+                </button>
+                <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors text-xs">
+                  <Bookmark className="w-3 h-3" />
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 
   // Home View
   if (currentView === "home") {
@@ -612,7 +609,6 @@ const GRISETestArticle = () => (
           <div className="h-full max-w-7xl mx-auto px-6 py-4 flex flex-col">
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
-               
                 <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-black">
                   Latest News & Updates
                 </h2>
@@ -624,11 +620,11 @@ const GRISETestArticle = () => (
             </div>
 
             {/* News Cards Grid */}
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 mb-4 overflow-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 mb-4">
               {newsTopics.map((topic, index) => (
                 <div
                   key={topic.id}
-                  className="group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-gray-400/30 hover:border-gray-300 cursor-pointer flex flex-col h-full"
+                  className="group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-gray-400/30 hover:border-gray-300 cursor-pointer"
                   onMouseEnter={() => setHoveredCard(topic.id)}
                   onMouseLeave={() => setHoveredCard(null)}
                   onClick={() => handleArticleClick(topic.slug)}
@@ -639,7 +635,7 @@ const GRISETestArticle = () => (
                   }}
                 >
                   {/* Image Container */}
-                  <div className="relative h-36 sm:h-40 lg:h-44 overflow-hidden flex-shrink-0">
+                  <div className="relative h-36 sm:h-40 lg:h-44 overflow-hidden">
                     <img
                       src={topic.image}
                       alt={topic.title}
@@ -667,28 +663,6 @@ const GRISETestArticle = () => (
                       }`}
                     ></div>
                   </div>
-
-                  {/* Content */}
-                  {/* <div className="p-4 sm:p-5 space-y-2.5 flex-1 flex flex-col">
-                    <h3 className="text-base sm:text-lg font-bold tracking-tight leading-tight text-black group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-black group-hover:to-gray-600 group-hover:bg-clip-text transition-all duration-300">
-                      {topic.title}
-                    </h3>
-
-                    <p className="text-gray-600 leading-relaxed text-xs sm:text-sm line-clamp-2 flex-1">
-                      {topic.description}
-                    </p>
-
-                    <div className="flex items-center gap-2.5 text-[10px] sm:text-xs text-gray-500">
-                      <span>{topic.readTime}</span>
-                      <span>•</span>
-                      <span>{topic.date}</span>
-                    </div>
-
-                    <button className="flex items-center gap-2 text-black font-semibold group/btn mt-2 hover:gap-3 transition-all duration-300 w-fit">
-                      <span className="text-xs sm:text-sm">Read Article</span>
-                      <ChevronRight className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
-                    </button>
-                  </div> */}
 
                   <div
                     className={`absolute inset-0 rounded-xl bg-gradient-to-r ${topic.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none`}
