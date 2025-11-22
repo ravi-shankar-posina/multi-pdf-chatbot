@@ -114,11 +114,6 @@ const navigatorSections = [
         path: "/apsuite",
         icon: <FaCode size={14} />,
       },
-      {
-        label: "BRD Agent",
-        path: "/brd-agent",
-        icon: <FaCode size={14} />,
-      }
     ],
   },
 ];

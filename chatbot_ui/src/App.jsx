@@ -155,7 +155,6 @@ function App() {
             <Route path="/coa" element={<Coa />} />
             <Route path="/poautomation" element={<PoAutomation />} />
             <Route path="/apsuite" element={<ApSuite />} />
-            <Route path="/brd-agent" element={<BRDToABAPGenerator />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />
