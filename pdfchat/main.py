@@ -24,6 +24,15 @@ import json
 from dbconn import *
 from models import IDoc, MasterData, POAutomation,Apsuite
 from brd_pipeline import run_pipeline, process_file_to_txt, summarize_cleaned_text, generate_knowledge_graph, generate_abap_code
+from test_script_pipeline import (
+    run_test_script_pipeline,
+    get_output_files,
+    OUTPUT_TXT_FOLDER,
+    OUTPUT_XLSX_FOLDER,
+    EXTRACTED_FOLDER as TS_EXTRACTED,
+    SUMMARY_FOLDER as TS_SUMMARY,
+    KG_FOLDER as TS_KG
+)
 
 # Load environment variables
 load_dotenv()
@@ -1013,5 +1022,90 @@ def download_brd_output(file_type, filename):
         return jsonify({'error': 'File not found'}), 404
     
     return send_file(file_path, as_attachment=True)
+
+
+@app.route('/test-scripts/process', methods=['POST'])
+def process_test_scripts():
+    """
+    Full Test Script Pipeline: Upload file -> Extract -> Summary -> KG -> Test Scripts
+    Returns: JSON with all outputs + paths to downloadable files
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    filename = secure_filename(file.filename)
+    if not filename.lower().endswith(('.pdf', '.docx')):
+        return jsonify({'error': 'Only PDF and DOCX files supported'}), 400
+
+    try:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+
+        result = run_test_script_pipeline(file_path)
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        if result["success"]:
+            return jsonify({
+                "success": True,
+                "message": "Test scripts generated successfully",
+                "data": {
+                    "summary": result["summary_content"],
+                    "test_scripts": result["test_scripts"],
+                    "files": {
+                        "test_txt": os.path.basename(result["test_txt_path"]) if result["test_txt_path"] else None,
+                        "test_xlsx": os.path.basename(result["test_xlsx_path"]) if result["test_xlsx_path"] else None,
+                    }
+                }
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "error": result["error"]
+            }), 500
+
+    except Exception as e:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return jsonify({'error': f"Pipeline failed: {str(e)}"}), 500
+
+
+@app.route('/test-scripts/files', methods=['GET'])
+def list_test_script_files():
+    """Get list of all generated test script files"""
+    try:
+        files = get_output_files()
+        return jsonify({"success": True, "files": files}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/test-scripts/download/<file_type>/<filename>', methods=['GET'])
+def download_test_script_file(file_type, filename):
+    """Download generated test script files"""
+    folder_map = {
+        'extracted': TS_EXTRACTED,
+        'summary': TS_SUMMARY,
+        'kg': TS_KG,
+        'txt': OUTPUT_TXT_FOLDER,
+        'xlsx': OUTPUT_XLSX_FOLDER
+    }
+    
+    if file_type not in folder_map:
+        return jsonify({'error': 'Invalid file type'}), 400
+    
+    file_path = os.path.join(folder_map[file_type], secure_filename(filename))
+    
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+    
+    mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if file_type == 'xlsx' else 'text/plain'
+    
+    return send_file(file_path, as_attachment=True, mimetype=mime_type)
 if __name__ == '__main__':
     app.run(debug=True, port=8502, host="0.0.0.0")
