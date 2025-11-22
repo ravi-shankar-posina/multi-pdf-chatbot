@@ -21,6 +21,7 @@ import Coa from "./components/Coa";
 import PoAutomation from "./components/PoAutomation";
 import ApSuite from "./components/ApSuite";
 import Home from "./pages/Home";
+import BRDToABAPGenerator from "./pages/BRDToABAPGenerator";
 
 // Same user data as in LoginPage
 const USERS = [
@@ -121,7 +122,7 @@ function App() {
         {/* Secured Routes */}
         {isAuthenticated ? (
           <Route element={<Layout onLogout={handleLogout} />}>
-            <Route path="/" element={<Home/>} />
+            <Route path="/" element={<Home />} />
             <Route
               path="/how-to"
               element={<Chat key="csv/query" api="csv/query" />}
@@ -154,6 +155,7 @@ function App() {
             <Route path="/coa" element={<Coa />} />
             <Route path="/poautomation" element={<PoAutomation />} />
             <Route path="/apsuite" element={<ApSuite />} />
+            <Route path="/brd-agent" element={<BRDToABAPGenerator />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />

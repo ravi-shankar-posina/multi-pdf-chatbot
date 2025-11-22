@@ -113,6 +113,11 @@ const navigatorSections = [
         path: "/apsuite",
         icon: <FaCode size={14} />,
       },
+      {
+        label: "BRD Agent",
+        path: "/brd-agent",
+        icon: <FaCode size={14} />,
+      }
     ],
   },
 ];
@@ -292,11 +297,10 @@ const Layout = ({ onLogout }) => {
                         key={optionIndex}
                         to={option.path}
                         onClick={() => handleOptionClick(option)}
-                        className={`flex items-center w-full p-3 rounded-lg transition-all duration-200 ${
-                          location.pathname === option.path
+                        className={`flex items-center w-full p-3 rounded-lg transition-all duration-200 ${location.pathname === option.path
                             ? "bg-black text-white"
                             : "text-black hover:bg-gray-100"
-                        }`}
+                          }`}
                       >
                         <span className="mr-3">{option.icon}</span>
                         <span className="text-sm font-medium">
@@ -320,11 +324,10 @@ const Layout = ({ onLogout }) => {
             <div key={index} className="flex flex-col items-center">
               <button
                 onClick={() => handleSectionClick(section.title)}
-                className={`p-2.5 xl:p-3 rounded-lg transition-all duration-200 hover:bg-gray-300 ${
-                  activeSectionTitle === section.title
+                className={`p-2.5 xl:p-3 rounded-lg transition-all duration-200 hover:bg-gray-300 ${activeSectionTitle === section.title
                     ? "bg-black text-white"
                     : "text-black"
-                } ${expandedSection === section.title ? "bg-gray-100" : ""}`}
+                  } ${expandedSection === section.title ? "bg-gray-100" : ""}`}
               >
                 {section.icon}
               </button>
@@ -365,11 +368,10 @@ const Layout = ({ onLogout }) => {
                   key={index}
                   to={option.path}
                   onClick={() => handleOptionClick(option)}
-                  className={`flex items-center w-full p-2.5 xl:p-3 mb-1 rounded-lg transition-all duration-200 ${
-                    location.pathname === option.path
+                  className={`flex items-center w-full p-2.5 xl:p-3 mb-1 rounded-lg transition-all duration-200 ${location.pathname === option.path
                       ? "bg-black text-white"
                       : "text-black hover:bg-gray-200"
-                  }`}
+                    }`}
                 >
                   <span className="mr-3">{option.icon}</span>
                   <span className="text-sm font-medium">{option.label}</span>

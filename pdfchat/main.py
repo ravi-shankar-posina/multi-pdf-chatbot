@@ -23,6 +23,7 @@ from testscripts import script
 import json
 from dbconn import *
 from models import IDoc, MasterData, POAutomation,Apsuite
+from brd_pipeline import run_pipeline, process_file_to_txt, summarize_cleaned_text, generate_knowledge_graph, generate_abap_code
 
 # Load environment variables
 load_dotenv()
@@ -838,5 +839,179 @@ def chat():
         return jsonify({"answer": response.content, "chat_history": chat_history})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+@app.route('/brd/process', methods=['POST'])
+def process_brd_file():
+    """
+    Full BRD pipeline: Upload file -> Extract -> Summarize -> KG -> ABAP Code
+    Accepts: PDF or DOCX file
+    Returns: JSON with all generated outputs
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    filename = secure_filename(file.filename)
+    if not filename.lower().endswith(('.pdf', '.docx')):
+        return jsonify({'error': 'Only PDF and DOCX files are supported'}), 400
+
+    try:
+        # Save uploaded file
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+
+        # Run the full pipeline
+        result = run_pipeline(file_path)
+
+        # Clean up uploaded file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        if result["success"]:
+            return jsonify({
+                "success": True,
+                "message": "BRD processing completed successfully",
+                "data": {
+                    "summary": result["summary_content"],
+                    "knowledge_graph": result["kg_content"],
+                    "abap_code": result["abap_code"],
+                    "files": {
+                        "extracted_text": result["extracted_text_path"],
+                        "summary": result["summary_path"],
+                        "knowledge_graph": result["kg_path"],
+                        "abap_code": result["abap_path"]
+                    }
+                }
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "error": result["error"]
+            }), 500
+
+    except Exception as e:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return jsonify({'error': f"Pipeline failed: {str(e)}"}), 500
+
+
+@app.route('/brd/extract', methods=['POST'])
+def extract_brd_text():
+    """Extract text from BRD file only"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    filename = secure_filename(file.filename)
+    
+    if not filename.lower().endswith(('.pdf', '.docx')):
+        return jsonify({'error': 'Only PDF and DOCX files supported'}), 400
+
+    try:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        
+        txt_path = process_file_to_txt(file_path)
+        
+        with open(txt_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        os.remove(file_path)
+        
+        return jsonify({
+            "success": True,
+            "extracted_text": content,
+            "output_path": txt_path
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/brd/summarize', methods=['POST'])
+def summarize_brd():
+    """Summarize extracted BRD text"""
+    data = request.json
+    txt_path = data.get("txt_path", "")
+    
+    if not txt_path or not os.path.exists(txt_path):
+        return jsonify({'error': 'Valid txt_path required'}), 400
+
+    try:
+        summary_path, summary_content = summarize_cleaned_text(txt_path)
+        return jsonify({
+            "success": True,
+            "summary": summary_content,
+            "output_path": summary_path
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/brd/knowledge-graph', methods=['POST'])
+def create_knowledge_graph():
+    """Generate knowledge graph from extracted text"""
+    data = request.json
+    txt_path = data.get("txt_path", "")
+    
+    if not txt_path or not os.path.exists(txt_path):
+        return jsonify({'error': 'Valid txt_path required'}), 400
+
+    try:
+        kg_path, kg_content = generate_knowledge_graph(txt_path)
+        return jsonify({
+            "success": True,
+            "knowledge_graph": kg_content,
+            "output_path": kg_path
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/brd/generate-abap', methods=['POST'])
+def generate_abap():
+    """Generate ABAP code from KG and Summary"""
+    data = request.json
+    kg_path = data.get("kg_path", "")
+    summary_path = data.get("summary_path", "")
+    
+    if not kg_path or not summary_path:
+        return jsonify({'error': 'Both kg_path and summary_path required'}), 400
+    
+    if not os.path.exists(kg_path) or not os.path.exists(summary_path):
+        return jsonify({'error': 'Provided paths do not exist'}), 400
+
+    try:
+        abap_path, abap_code = generate_abap_code(kg_path, summary_path)
+        return jsonify({
+            "success": True,
+            "abap_code": abap_code,
+            "output_path": abap_path
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/brd/download/<file_type>/<filename>', methods=['GET'])
+def download_brd_output(file_type, filename):
+    """Download generated files"""
+    folder_map = {
+        'extracted': './output/extracted',
+        'summary': './output/summary',
+        'kg': './output/kg',
+        'abap': './output/abap_output'
+    }
+    
+    if file_type not in folder_map:
+        return jsonify({'error': 'Invalid file type'}), 400
+    
+    file_path = os.path.join(folder_map[file_type], secure_filename(filename))
+    
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+    
+    return send_file(file_path, as_attachment=True)
 if __name__ == '__main__':
     app.run(debug=True, port=8502, host="0.0.0.0")
