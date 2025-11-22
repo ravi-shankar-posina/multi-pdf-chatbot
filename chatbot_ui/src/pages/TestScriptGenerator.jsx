@@ -160,7 +160,7 @@ const TestScriptGenerator = () => {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-1">Test Script Generator</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 mb-1">Test Script Expert</h1>
           <p className="text-gray-500 text-sm">
             Transform your business requirement documents into SAP test scripts
           </p>
