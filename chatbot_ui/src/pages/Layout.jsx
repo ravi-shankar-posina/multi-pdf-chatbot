@@ -23,19 +23,20 @@ const navigatorSections = [
     icon: <MdDeveloperMode size={20} />,
     shortTitle: "Development",
     options: [
-      {
-        label: "ABAP Code Generator",
-        path: "/abap-code-generator",
-        icon: <FaCode size={14} />,
-      },
+
       {
         label: "Smart Code Assistant",
         path: "/smart-connectors",
         icon: <FaTools size={14} />,
       },
       {
-        label: "Test Script Generator",
-        path: "/test-script-genarator",
+        label: "CodeXpert",
+        path: "/codexpert",
+        icon: <FaCode size={14} />,
+      },
+      {
+        label: "ScriptXpert",
+        path: "/scriptxpert",
         icon: <FaUser size={14} />,
       },
     ],
@@ -298,8 +299,8 @@ const Layout = ({ onLogout }) => {
                         to={option.path}
                         onClick={() => handleOptionClick(option)}
                         className={`flex items-center w-full p-3 rounded-lg transition-all duration-200 ${location.pathname === option.path
-                            ? "bg-black text-white"
-                            : "text-black hover:bg-gray-100"
+                          ? "bg-black text-white"
+                          : "text-black hover:bg-gray-100"
                           }`}
                       >
                         <span className="mr-3">{option.icon}</span>
@@ -325,8 +326,8 @@ const Layout = ({ onLogout }) => {
               <button
                 onClick={() => handleSectionClick(section.title)}
                 className={`p-2.5 xl:p-3 rounded-lg transition-all duration-200 hover:bg-gray-300 ${activeSectionTitle === section.title
-                    ? "bg-black text-white"
-                    : "text-black"
+                  ? "bg-black text-white"
+                  : "text-black"
                   } ${expandedSection === section.title ? "bg-gray-100" : ""}`}
               >
                 {section.icon}
@@ -369,8 +370,8 @@ const Layout = ({ onLogout }) => {
                   to={option.path}
                   onClick={() => handleOptionClick(option)}
                   className={`flex items-center w-full p-2.5 xl:p-3 mb-1 rounded-lg transition-all duration-200 ${location.pathname === option.path
-                      ? "bg-black text-white"
-                      : "text-black hover:bg-gray-200"
+                    ? "bg-black text-white"
+                    : "text-black hover:bg-gray-200"
                     }`}
                 >
                   <span className="mr-3">{option.icon}</span>

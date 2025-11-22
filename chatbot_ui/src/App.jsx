@@ -136,13 +136,13 @@ function App() {
               element={<Chat key="pdf/query" api="pdf/query" />}
             />
             <Route
-              path="/abap-code-generator"
-              element={<Chat key="modify-abap" api="query" />}
+              path="/codexpert"
+              element={<BRDToABAPGenerator />}
             />
             <Route path="/password-management" element={<Accessmanagement />} />
             <Route path="/sap-test-case-genarator" element={<SapTestCase />} />
             <Route
-              path="/test-script-genarator"
+              path="/scriptxpert"
               element={<TestScriptGenerator />}
             />
             <Route path="/incident-analysis" element={<IncidentAnalysis />} />
