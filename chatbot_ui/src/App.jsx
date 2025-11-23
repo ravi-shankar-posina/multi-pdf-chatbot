@@ -22,6 +22,7 @@ import PoAutomation from "./components/PoAutomation";
 import ApSuite from "./components/ApSuite";
 import Home from "./pages/Home";
 import BRDToABAPGenerator from "./pages/BRDToABAPGenerator";
+import IframePage from "./pages/IframePage";
 
 // Same user data as in LoginPage
 const USERS = [
@@ -43,6 +44,17 @@ const validateToken = (token) => {
   } catch (error) {
     return false;
   }
+};
+// Add this component at the top of your App.jsx file, after imports
+const ExternalRedirect = ({ url }) => {
+  useEffect(() => {
+    window.open(url, '_blank');
+  }, [url]);
+
+  return (
+    //  navigate to home page after redirecting
+    <Navigate to="/" replace />
+  );
 };
 
 function App() {
@@ -155,6 +167,13 @@ function App() {
             <Route path="/coa" element={<Coa />} />
             <Route path="/poautomation" element={<PoAutomation />} />
             <Route path="/apsuite" element={<ApSuite />} />
+            <Route path="/shipping-simplification" element={<IframePage source={"https://shipping.rspos.dev/"} />} />
+            <Route path="/idoc-processing" element={<IframePage source={"https://idoc.rspos.dev/"} />} />
+            <Route
+              path="/invoice-agent"
+              element={<ExternalRedirect url="https://invoice.rspos.dev/" />}
+            />
+
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />

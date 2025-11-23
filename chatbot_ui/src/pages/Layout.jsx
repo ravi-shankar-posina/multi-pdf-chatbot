@@ -1,3 +1,4 @@
+import { Book, ShoppingCart, SquareFunction, UserPen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   FaBook,
@@ -100,7 +101,7 @@ const navigatorSections = [
   },
   {
     title: "SAP Functional Agents",
-    icon: <FaUser size={20} />,
+    icon: <SquareFunction size={20} />,
     shortTitle: "Functional",
     options: [
       { label: "COA", path: "/coa", icon: <FaCode size={14} /> },
@@ -116,6 +117,29 @@ const navigatorSections = [
       },
     ],
   },
+  {
+    title: "User Experience",
+    icon: <UserPen size={20} />,
+    shortTitle: "User Experience",
+    options: [
+      {
+        label: "Shipping Simplification",
+        path: "/shipping-simplification",
+        icon: <ShoppingCart size={14} />,
+      },
+      {
+        label: "Idoc Processing",
+        path: "/idoc-processing",
+        icon: <FaCode size={14} />,
+      },
+      {
+        label: "Invoice Agent",
+        path: "/invoice-agent",
+        icon: <Book size={14} />
+      }
+    ],
+
+  }
 ];
 
 const Layout = ({ onLogout }) => {
