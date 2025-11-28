@@ -14,6 +14,7 @@ const BRDToABAPGenerator = () => {
     const fileInputRef = useRef(null);
 
     const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8502';
+    const API_TIMEOUT = 60 * 60 * 1000; // 60 minutes in milliseconds
 
     const steps = [
         { label: 'Extracting Text', icon: FileText },
@@ -47,6 +48,15 @@ const BRDToABAPGenerator = () => {
         }
     };
 
+    const fetchWithTimeout = (url, options, timeout) => {
+        return Promise.race([
+            fetch(url, options),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Request timeout after 60 minutes')), timeout)
+            )
+        ]);
+    };
+
     const handleGenerate = async () => {
         if (!file) return;
 
@@ -63,10 +73,14 @@ const BRDToABAPGenerator = () => {
         }, 3000);
 
         try {
-            const response = await fetch(`${API_URL}/brd/process`, {
-                method: 'POST',
-                body: formData,
-            });
+            const response = await fetchWithTimeout(
+                `${API_URL}/brd/process`,
+                {
+                    method: 'POST',
+                    body: formData,
+                },
+                API_TIMEOUT
+            );
 
             clearInterval(stepInterval);
             setCurrentStep(4);
@@ -94,13 +108,17 @@ const BRDToABAPGenerator = () => {
         setChatResponse('');
 
         try {
-            const response = await fetch(`${API_URL}/chat`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const response = await fetchWithTimeout(
+                `${API_URL}/chat`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: chatQuery }),
                 },
-                body: JSON.stringify({ query: chatQuery }),
-            });
+                API_TIMEOUT
+            );
 
             const data = await response.json();
             setChatResponse(data.answer || 'No response received');
